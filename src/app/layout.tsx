@@ -1,4 +1,4 @@
-import './globals.css'; // Импорт стилей, если они есть
+import './globals.css';
 import { ReactNode } from 'react';
 
 export const metadata = {
@@ -10,11 +10,8 @@ export default function RootLayout({ children }: { children: ReactNode }) {
   return (
     <html lang='en'>
       <body>
-        <header>
-          <h1 className='text-center'>ALPCENTER</h1>
-        </header>
+        <header></header>
         <main>{children}</main>
-        <footer className='text-center'>© 2024</footer>
       </body>
     </html>
   );
