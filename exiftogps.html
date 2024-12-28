@@ -1,0 +1,107 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Photo Geolocation Viewer</title>
+    <script src="https://cdn.jsdelivr.net/npm/exif-js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/heic2any"></script>
+    <style>
+      body {
+        font-family: Arial, sans-serif;
+        margin: 20px;
+      }
+      #photo {
+        max-width: 100%;
+        height: auto;
+        margin-top: 20px;
+      }
+      .error {
+        color: red;
+      }
+    </style>
+  </head>
+  <body>
+    <h1>Photo Geolocation Viewer</h1>
+    <p>
+      Upload a photo (JPEG, PNG, or HEIC) to extract its geolocation from EXIF
+      data:
+    </p>
+    <input type="file" id="fileInput" accept="image/*" />
+    <div id="result">
+      <img id="photo" src="" alt="Uploaded photo" style="display: none" />
+      <p id="geoInfo"></p>
+      <p id="error" class="error"></p>
+    </div>
+
+    <script>
+      const fileInput = document.getElementById('fileInput');
+      const geoInfo = document.getElementById('geoInfo');
+      const error = document.getElementById('error');
+      const photo = document.getElementById('photo');
+
+      function convertToDecimal(coord, ref) {
+        const [degrees, minutes, seconds] = coord;
+        let decimal = degrees + minutes / 60 + seconds / 3600;
+        if (ref === 'S' || ref === 'W') {
+          decimal *= -1;
+        }
+        return decimal;
+      }
+
+      fileInput.addEventListener('change', async (event) => {
+        const file = event.target.files[0];
+        if (!file) return;
+
+        try {
+          // Convert HEIC to a format supported by browsers (e.g., JPEG)
+          if (file.type === 'image/heic' || file.type === 'image/heif') {
+            const convertedBlob = await heic2any({
+              blob: file,
+              toType: 'image/jpeg',
+            });
+            handleFile(convertedBlob);
+          } else {
+            handleFile(file);
+          }
+        } catch (err) {
+          error.textContent = 'Error processing the file: ' + err.message;
+        }
+      });
+
+      function handleFile(file) {
+        const reader = new FileReader();
+
+        reader.onload = function (e) {
+          const arrayBuffer = e.target.result;
+          EXIF.getData(arrayBuffer, function () {
+            const gpsLat = EXIF.getTag(this, 'GPSLatitude');
+            const gpsLon = EXIF.getTag(this, 'GPSLongitude');
+            const latRef = EXIF.getTag(this, 'GPSLatitudeRef');
+            const lonRef = EXIF.getTag(this, 'GPSLongitudeRef');
+
+            if (gpsLat && gpsLon) {
+              const latitude = convertToDecimal(gpsLat, latRef);
+              const longitude = convertToDecimal(gpsLon, lonRef);
+              geoInfo.textContent = `Latitude: ${latitude}, Longitude: ${longitude}`;
+              error.textContent = '';
+            } else {
+              geoInfo.textContent = '';
+              error.textContent = 'No geolocation data found in this photo.';
+            }
+          });
+        };
+
+        reader.readAsArrayBuffer(file);
+
+        // Display the uploaded photo
+        const imageReader = new FileReader();
+        imageReader.onload = function (e) {
+          photo.src = e.target.result;
+          photo.style.display = 'block';
+        };
+        imageReader.readAsDataURL(file);
+      }
+    </script>
+  </body>
+</html>

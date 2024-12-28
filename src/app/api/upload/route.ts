@@ -1,11 +1,26 @@
-// route.ts
-import fs from 'fs';
-import path from 'path';
-import sharp from 'sharp';
 import { NextResponse } from 'next/server';
+import * as fs from 'fs';
+import * as path from 'path';
+import sharp from 'sharp';
 import ExifReader from 'exifreader';
 
-export const runtime = 'nodejs';
+// Функция для преобразования данных в строку DMS (градусы, минуты, секунды)
+function toDMS(
+  degrees: number,
+  minutes: number,
+  seconds: number,
+  isLatitude: boolean
+): string {
+  const direction = isLatitude
+    ? degrees >= 0
+      ? 'N'
+      : 'S'
+    : degrees >= 0
+    ? 'E'
+    : 'W';
+
+  return `${degrees}° ${minutes}' ${seconds.toFixed(2)}" ${direction}`;
+}
 
 export async function POST(request: Request) {
   const formData = await request.formData();
@@ -43,9 +58,44 @@ export async function POST(request: Request) {
     const buffer = Buffer.from(await file.arrayBuffer());
 
     let date = 'Unknown Date';
+    let coordinates = 'Unknown Location';
+
     try {
       const tags = ExifReader.load(buffer);
+
+      // Извлекаем дату из метаданных
       date = tags.DateTimeOriginal?.description || date;
+
+      // Извлекаем координаты из метаданных
+      const latRef = tags.GPSLatitudeRef?.description || '';
+      const lonRef = tags.GPSLongitudeRef?.description || '';
+      const latitude = tags.GPSLatitude?.value as
+        | [[number, number], [number, number], [number, number]]
+        | undefined;
+      const longitude = tags.GPSLongitude?.value as
+        | [[number, number], [number, number], [number, number]]
+        | undefined;
+
+      console.log('GPS Data:', { latitude, longitude, latRef, lonRef }); // Логируем данные GPS для отладки
+
+      if (latitude && longitude) {
+        const latDeg = latitude[0][0];
+        const latMin = latitude[1][0];
+        const latSec = latitude[2][0] / 100;
+
+        const lonDeg = longitude[0][0];
+        const lonMin = longitude[1][0];
+        const lonSec = longitude[2][0] / 100;
+
+        // Преобразуем координаты в формат DMS
+        const latDMS = toDMS(latDeg, latMin, latSec, true);
+        const lonDMS = toDMS(lonDeg, lonMin, lonSec, false);
+
+        coordinates = `${latDMS} | ${lonDMS}`;
+        console.log('DMS Coordinates:', coordinates); // Логируем координаты в формате DMS
+      } else {
+        console.warn('Invalid coordinates, using default "Unknown Location"');
+      }
     } catch (error) {
       console.warn('Error reading Exif data:', error);
     }
@@ -67,7 +117,12 @@ export async function POST(request: Request) {
             input: Buffer.from(
               `<svg width="800" height="200">
                 <rect x="0" y="150" width="800" height="50" fill="black" opacity="0.6" />
-                <text x="20" y="185" font-size="24" fill="white">${date} | Task: ${task} | BS: ${baseId}</text>
+                <text x="20" y="170" font-size="18" font-family="Arial, sans-serif" fill="white" text-anchor="start">
+                  ${date} | Task: ${task} | BS: ${baseId}
+                </text>
+                <text x="20" y="195" font-size="16" font-family="Arial, sans-serif" fill="white" text-anchor="start">
+                  Location: ${coordinates}
+                </text>
               </svg>`
             ),
             gravity: 'southeast',
