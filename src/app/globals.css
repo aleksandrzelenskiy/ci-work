@@ -19,3 +19,19 @@ body {
   background: var(--background);
   font-family: Arial, Helvetica, sans-serif;
 }
+
+.bg-signin {
+  background: linear-gradient(rgba(0, 0, 0, 0.1), rgba(0, 0, 0, 0.4)),
+    url('/bg/sign-in-bg.jpg');
+  background-size: cover;
+  background-position: center;
+}
+
+.cl-internal-y44tp9 {
+  display: none !important;
+}
+
+.cl-headerTitle {
+  text-transform: uppercase;
+  color: #383838;
+}

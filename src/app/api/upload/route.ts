@@ -92,7 +92,7 @@ export async function POST(request: Request) {
         const lonDMS = toDMS(lonDeg, lonMin, lonSec, false);
 
         coordinates = `${latDMS} | ${lonDMS}`;
-        console.log('DMS Coordinates:', coordinates); // Логируем координаты в формате DMS
+        // console.log('DMS Coordinates:', coordinates); // Логируем координаты в формате DMS
       } else {
         console.warn('Invalid coordinates, using default "Unknown Location"');
       }
