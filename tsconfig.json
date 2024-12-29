@@ -27,7 +27,8 @@
     "**/*.ts",
     "**/*.tsx",
     ".next/types/**/*.ts",
-    "src/types/index.d.tsч"
+    "src/types/index.d.ts",
+    "global.d.ts"
   ],
   "exclude": ["node_modules"]
 }
