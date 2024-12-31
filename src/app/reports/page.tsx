@@ -112,7 +112,7 @@ function Row({ report }: { report: Report }) {
       <TableRow>
         <TableCell style={{ paddingBottom: 0, paddingTop: 0 }} colSpan={5}>
           <Collapse in={open} timeout='auto' unmountOnExit>
-            <Box sx={{ margin: 1, paddingLeft: 7 }}>
+            <Box sx={{ margin: 1, paddingLeft: 10 }}>
               {report.baseStatuses.map((baseStatus) => (
                 <Box
                   key={baseStatus.baseId}
@@ -128,7 +128,7 @@ function Row({ report }: { report: Report }) {
                   />
                   <Typography variant='body2' sx={{ marginRight: '16px' }}>
                     <Link
-                      href={`/report/${report.task}/${baseStatus.baseId}`}
+                      href={`/reports/${report.task}/${baseStatus.baseId}`}
                       style={{ textDecoration: 'underline', color: '#787878' }}
                     >
                       {baseStatus.baseId}

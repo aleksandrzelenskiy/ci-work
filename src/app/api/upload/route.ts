@@ -119,10 +119,10 @@ export async function POST(request: Request) {
               `<svg width="800" height="200">
                 <rect x="0" y="150" width="800" height="50" fill="black" opacity="0.6" />
                 <text x="20" y="170" font-size="18" font-family="Arial, sans-serif" fill="white" text-anchor="start">
-                  ${date} | Task: ${task} | BS: ${baseId} | Location: ${coordinates}
+                  ${date} | Task: ${task} | BS: ${baseId}
                 </text>
-                <text x="20" y="195" font-size="16" font-family="Arial, sans-serif" fill="white" text-anchor="start">
-                  Author: ${name}
+                <text x="20" y="195" font-size="18" font-family="Arial, sans-serif" fill="white" text-anchor="start">
+                  Location: ${coordinates} | Author: ${name}
                 </text>
               </svg>`
             ),
@@ -154,6 +154,7 @@ export async function POST(request: Request) {
       baseId,
       userId: user.id,
       userName: name,
+      userAvatar: user.imageUrl || '',
       createdAt: new Date(),
       status: 'Pending', // Новый статус по умолчанию
       files: fileUrls,

@@ -1,4 +1,3 @@
-import { UserButton } from '@clerk/nextjs';
 import { currentUser } from '@clerk/nextjs/server';
 
 export default async function Home() {
@@ -9,11 +8,6 @@ export default async function Home() {
   const email = loggedInUserData?.emailAddresses[0]?.emailAddress;
   return (
     <>
-      <div>
-        <div className='p-10 flex flex-col gap-5'>
-          <UserButton afterSignOutUrl='/sign-in' />
-        </div>
-      </div>
       <div className='p-10 flex flex-col gap-5'>
         <span>Name: {name}</span>
         <span>Email: {email}</span>
