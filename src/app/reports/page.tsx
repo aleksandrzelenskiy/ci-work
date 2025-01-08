@@ -19,7 +19,6 @@ import {
 import FolderIcon from '@mui/icons-material/Folder';
 import KeyboardArrowDownIcon from '@mui/icons-material/KeyboardArrowDown';
 import KeyboardArrowUpIcon from '@mui/icons-material/KeyboardArrowUp';
-import Link from 'next/link';
 
 interface BaseStatus {
   baseId: string;
@@ -31,7 +30,7 @@ interface Report {
   task: string;
   userName: string;
   userAvatar: string;
-  createdAt: string;
+  createdAt: string; // Дата на уровне отчета
   baseStatuses: BaseStatus[];
 }
 
@@ -61,6 +60,20 @@ const getTaskStatus = (baseStatuses: BaseStatus[] = []): string => {
 function Row({ report }: { report: Report }) {
   const [open, setOpen] = useState(false);
 
+  // Функция для обработки клика по ссылке
+  const handleLinkClick = (event: React.MouseEvent<HTMLAnchorElement>) => {
+    event.preventDefault(); // Предотвращаем переход по ссылке
+    setOpen(!open); // Переключаем состояние открытия
+  };
+
+  // Функция для получения даты отчета
+  const getReportDate = (createdAt: string) => {
+    const date = new Date(createdAt);
+    return !isNaN(date.getTime())
+      ? date.toLocaleDateString()
+      : 'Дата недоступна';
+  };
+
   return (
     <>
       <TableRow sx={{ '& > *': { borderBottom: 'unset' } }}>
@@ -77,12 +90,17 @@ function Row({ report }: { report: Report }) {
           <Box sx={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
             <FolderIcon fontSize='small' sx={{ color: '#28a0e9' }} />
             <Typography>
-              <Link
-                href={`/report/${report.task}`}
-                style={{ textDecoration: 'underline', color: '#28a0e9' }}
+              <a
+                href='#'
+                onClick={handleLinkClick}
+                style={{
+                  textDecoration: 'underline',
+                  color: '#28a0e9',
+                  cursor: 'pointer',
+                }}
               >
                 {report.task}
-              </Link>
+              </a>
             </Typography>
           </Box>
         </TableCell>
@@ -96,7 +114,7 @@ function Row({ report }: { report: Report }) {
             <Typography>{report.userName}</Typography>
           </Box>
         </TableCell>
-        <TableCell>{new Date(report.createdAt).toLocaleDateString()}</TableCell>
+        <TableCell>{getReportDate(report.createdAt)}</TableCell>
         <TableCell>
           <Box
             sx={{
@@ -112,7 +130,7 @@ function Row({ report }: { report: Report }) {
       <TableRow>
         <TableCell style={{ paddingBottom: 0, paddingTop: 0 }} colSpan={5}>
           <Collapse in={open} timeout='auto' unmountOnExit>
-            <Box sx={{ margin: 1, paddingLeft: 10 }}>
+            <Box sx={{ margin: 1, paddingLeft: 7 }}>
               {report.baseStatuses.map((baseStatus) => (
                 <Box
                   key={baseStatus.baseId}
@@ -127,12 +145,21 @@ function Row({ report }: { report: Report }) {
                     sx={{ marginRight: '8px', color: '#787878' }}
                   />
                   <Typography variant='body2' sx={{ marginRight: '16px' }}>
-                    <Link
+                    <a
                       href={`/reports/${report.task}/${baseStatus.baseId}`}
                       style={{ textDecoration: 'underline', color: '#787878' }}
                     >
                       {baseStatus.baseId}
-                    </Link>
+                    </a>
+                    <Typography
+                      variant='caption'
+                      sx={{
+                        marginLeft: '8px',
+                        color: '#787878',
+                      }}
+                    >
+                      {getReportDate(report.createdAt)}
+                    </Typography>
                   </Typography>
                   <Box
                     sx={{
@@ -165,7 +192,6 @@ export default function ReportsPage() {
         const response = await fetch('/api/reports');
         const data = await response.json();
 
-        // Гарантируем, что baseStatuses всегда массив
         setReports(
           data.map((report: { baseStatuses: unknown }) => ({
             ...report,
