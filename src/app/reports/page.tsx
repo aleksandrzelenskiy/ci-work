@@ -43,7 +43,7 @@ const getStatusStyles = (status: string) => {
       return { backgroundColor: '#fff3cd', color: '#856404' };
     case 'Issues':
       return { backgroundColor: '#f8d7da', color: '#721c24' };
-    case 'ReCheck':
+    case 'Fixed':
       return { backgroundColor: '#fff3cd', color: '#856404' };
     default:
       return { backgroundColor: '#f1f1f1', color: '#6c757d' };

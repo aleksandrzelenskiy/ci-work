@@ -1,8 +1,12 @@
 export {};
+
 declare global {
   namespace NodeJS {
     interface Global {
-      _mongoClientPromise?: Promise<import('mongodb').MongoClient>;
+      mongoose?: {
+        conn: import('mongoose').Connection | null;
+        promise: Promise<import('mongoose').Connection> | null;
+      };
     }
   }
 }

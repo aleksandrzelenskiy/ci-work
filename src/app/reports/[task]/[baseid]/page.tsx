@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import {
   Box,
   CircularProgress,
@@ -22,19 +22,30 @@ import {
   DialogContent,
   DialogContentText,
   DialogTitle,
+  LinearProgress,
 } from '@mui/material';
 import AddIcon from '@mui/icons-material/Add';
 import DeleteIcon from '@mui/icons-material/Delete';
 import CloseIcon from '@mui/icons-material/Close';
 import { ZoomIn, ZoomOut, RotateRight } from '@mui/icons-material';
 import { useParams } from 'next/navigation';
+import { useDropzone, Accept } from 'react-dropzone';
 import { PhotoProvider, PhotoView } from 'react-photo-view';
 import 'react-photo-view/dist/react-photo-view.css';
+
+// Интерфейс для управления загружаемыми файлами
+interface UploadedFile {
+  id: string;
+  file: File;
+  preview: string;
+  progress: number;
+}
 
 export default function PhotoReportPage() {
   const { task, baseid } = useParams() as { task: string; baseid: string };
 
   const [photos, setPhotos] = useState<string[]>([]);
+  const [fixedPhotos, setFixedPhotos] = useState<string[]>([]);
   const [issues, setIssues] = useState<{ text: string; checked: boolean }[]>(
     []
   );
@@ -44,11 +55,22 @@ export default function PhotoReportPage() {
   const [confirmDeleteIndex, setConfirmDeleteIndex] = useState<number | null>(
     null
   );
+  const [uploadedFiles, setUploadedFiles] = useState<UploadedFile[]>([]);
+  const [isFixedReady, setIsFixedReady] = useState(false);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [createdAt, setCreatedAt] = useState<string>('N/A');
   const [userName, setUserName] = useState<string>('Unknown');
+  const [uploading, setUploading] = useState(false);
 
+  // Для очистки URL-адресов объектов
+  useEffect(() => {
+    return () => {
+      uploadedFiles.forEach((file) => URL.revokeObjectURL(file.preview));
+    };
+  }, [uploadedFiles]);
+
+  // Загружаем отчет из базы
   useEffect(() => {
     const fetchReport = async () => {
       try {
@@ -59,6 +81,7 @@ export default function PhotoReportPage() {
 
         const data = await response.json();
         setPhotos(data.files || []);
+        setFixedPhotos(data.fixedFiles || []);
         setIssues(
           (data.issues || []).map((issue: string) => ({
             text: issue,
@@ -126,8 +149,25 @@ export default function PhotoReportPage() {
     }
   };
 
+  // Удаление замечаний (по индексу)
+  const confirmRemoveIssue = (index: number) => {
+    setConfirmDeleteIndex(index);
+  };
+
   const handleDeleteIssueField = async () => {
     if (confirmDeleteIndex === null) return;
+
+    const issueToDelete = newIssues[confirmDeleteIndex];
+    if (!issueToDelete) {
+      setConfirmDeleteIndex(null);
+      return;
+    }
+
+    // Оптимистичное удаление из интерфейса
+    const updatedNewIssues = [...newIssues];
+    updatedNewIssues.splice(confirmDeleteIndex, 1);
+    setNewIssues(updatedNewIssues);
+    setConfirmDeleteIndex(null);
 
     try {
       const response = await fetch(`/api/reports/${task}/${baseid}`, {
@@ -141,20 +181,15 @@ export default function PhotoReportPage() {
       if (!response.ok) {
         throw new Error('Failed to delete issue.');
       }
-
-      // Обновляем состояния `issues` и `newIssues`
-      const updatedIssues = [...issues];
-      const updatedNewIssues = [...newIssues];
-
-      updatedIssues.splice(confirmDeleteIndex, 1);
-      updatedNewIssues.splice(confirmDeleteIndex, 1);
-
-      setIssues(updatedIssues);
-      setNewIssues(updatedNewIssues);
-      setConfirmDeleteIndex(null);
     } catch (error) {
       console.error('Error deleting issue:', error);
       alert('Failed to delete issue. Please try again.');
+      // В случае ошибки откатываем
+      setNewIssues((prevIssues) => {
+        const restoredIssues = [...prevIssues];
+        restoredIssues.splice(confirmDeleteIndex, 0, issueToDelete);
+        return restoredIssues;
+      });
     }
   };
 
@@ -162,10 +197,9 @@ export default function PhotoReportPage() {
     const updatedIssues = [...issues];
     updatedIssues[index].checked = !updatedIssues[index].checked;
     setIssues(updatedIssues);
-  };
 
-  const areAllIssuesFixed = (): boolean => {
-    return issues.every((issue) => issue.checked);
+    const allFixed = updatedIssues.every((issue) => issue.checked);
+    setIsFixedReady(allFixed);
   };
 
   const handleIssuesClick = () => {
@@ -176,10 +210,9 @@ export default function PhotoReportPage() {
   };
 
   const handleAddIssuesClick = async () => {
-    const currentIssues = issues.map((issue) => issue.text); // Текущие замечания из базы
-    const filteredNewIssues = newIssues.filter((issue) => issue.trim() !== ''); // Убираем пустые строки
+    const currentIssues = issues.map((issue) => issue.text);
+    const filteredNewIssues = newIssues.filter((issue) => issue.trim() !== '');
 
-    // Проверяем изменения
     const addedIssues = filteredNewIssues.filter(
       (issue) => !currentIssues.includes(issue)
     );
@@ -190,7 +223,6 @@ export default function PhotoReportPage() {
       (issue) => !filteredNewIssues.includes(issue)
     );
 
-    // Если ничего не изменилось
     if (
       addedIssues.length === 0 &&
       updatedIssues.length === 0 &&
@@ -225,6 +257,120 @@ export default function PhotoReportPage() {
     }
   };
 
+  // Обработка файлов при дропе
+  const onDrop = useCallback((acceptedFiles: File[]) => {
+    const newFiles = acceptedFiles.map((file) => ({
+      id: `${Date.now()}-${file.name}`,
+      file,
+      preview: URL.createObjectURL(file),
+      progress: 0,
+    }));
+    setUploadedFiles((prevFiles) => [...prevFiles, ...newFiles]);
+  }, []);
+
+  const { getRootProps, getInputProps } = useDropzone({
+    onDrop,
+    accept: { 'image/*': [] } as Accept,
+    maxSize: 5 * 1024 * 1024,
+    onDropRejected: (fileRejections) => {
+      fileRejections.forEach((rejection) => {
+        rejection.errors.forEach((error) => {
+          alert(`Error: ${error.message}`);
+        });
+      });
+    },
+  });
+
+  const handleRemoveFile = (id: string) => {
+    setUploadedFiles((prevFiles) => prevFiles.filter((file) => file.id !== id));
+  };
+
+  // Состояние для удаления файлов (fixed)
+  const [fileToDelete, setFileToDelete] = useState<UploadedFile | null>(null);
+  const handleDeleteFile = () => {
+    if (fileToDelete) {
+      handleRemoveFile(fileToDelete.id);
+    }
+    setFileToDelete(null);
+  };
+  const handleDeleteConfirmed = () => {
+    if (fileToDelete) {
+      handleDeleteFile();
+    }
+    setFileToDelete(null);
+  };
+
+  /**
+   * Главное изменение:
+   * Теперь мы отправляем все файлы ОДНИМ запросом,
+   * вместо цикла Promise.all по каждому файлу.
+   */
+  const handleUploadClick = async () => {
+    if (uploadedFiles.length === 0) {
+      alert('Please select images to upload.');
+      return;
+    }
+
+    setUploading(true);
+
+    try {
+      // Формируем общий FormData
+      const formData = new FormData();
+      formData.append('baseId', baseid);
+      formData.append('task', task);
+
+      // Добавляем все файлы
+      for (const uploadedFile of uploadedFiles) {
+        formData.append('image[]', uploadedFile.file);
+      }
+
+      // Один XMLHttpRequest для всех файлов
+      const xhr = new XMLHttpRequest();
+      xhr.open('POST', '/api/upload/fixed', true);
+
+      // Если хотим общий прогресс по всем файлам - показываем одинаковый % для всех
+      xhr.upload.onprogress = (event) => {
+        if (event.lengthComputable) {
+          const totalProgress = (event.loaded / event.total) * 100;
+          // Присваиваем всем файлам одинаковый прогресс (например)
+          setUploadedFiles((prevFiles) =>
+            prevFiles.map((f) => ({ ...f, progress: totalProgress }))
+          );
+        }
+      };
+
+      xhr.onload = async () => {
+        if (xhr.status === 200) {
+          alert('Fixed photo uploaded successfully.');
+          setUploadedFiles([]);
+          setIsFixedReady(false);
+
+          // Обновляем список фотографий
+          const response = await fetch(`/api/reports/${task}/${baseid}`);
+          if (response.ok) {
+            const data = await response.json();
+            setPhotos(data.files || []);
+            setFixedPhotos(data.fixedFiles || []);
+          }
+        } else {
+          alert('Failed to upload image(s).');
+        }
+        setUploading(false);
+      };
+
+      xhr.onerror = () => {
+        alert('An error occurred during the upload.');
+        setUploading(false);
+      };
+
+      xhr.send(formData);
+    } catch (error) {
+      console.error('Error uploading files:', error);
+      alert('Error uploading files.');
+      setUploading(false);
+    }
+  };
+
   const handleCloseIssuesFields = () => {
     setShowIssuesFields(false);
     setNewIssues(['']);
@@ -254,6 +400,7 @@ export default function PhotoReportPage() {
       <Typography variant='body2' gutterBottom>
         Created At: {createdAt} | Author: {userName}
       </Typography>
+
       <PhotoProvider
         toolbarRender={({ onScale, scale, onRotate, rotate }) => (
           <Box
@@ -281,6 +428,9 @@ export default function PhotoReportPage() {
           </Box>
         )}
       >
+        <Typography variant='h6' gutterBottom sx={{ mt: 4 }}>
+          Photo Report
+        </Typography>
         <Grid container spacing={1}>
           {photos.map((photo, index) => (
             <Grid item xs={6} sm={4} md={2} key={index}>
@@ -302,7 +452,13 @@ export default function PhotoReportPage() {
           ))}
         </Grid>
       </PhotoProvider>
-      <Box mt={4} display='flex' justifyContent='center' gap={2}>
+
+      <Box
+        display='flex'
+        justifyContent='center'
+        alignItems='center'
+        sx={{ mt: '20px', mb: '20px', gap: '10px' }}
+      >
         <Button variant='contained' color='success' onClick={handleAgreeClick}>
           Agreed
         </Button>
@@ -310,6 +466,7 @@ export default function PhotoReportPage() {
           Issues
         </Button>
       </Box>
+
       {showIssuesFields && (
         <Box mt={4}>
           {newIssues.map((issue, index) => (
@@ -322,7 +479,7 @@ export default function PhotoReportPage() {
                 margin='normal'
               />
               <IconButton
-                onClick={() => setConfirmDeleteIndex(index)}
+                onClick={() => confirmRemoveIssue(index)}
                 sx={{ marginLeft: 1 }}
               >
                 <DeleteIcon />
@@ -358,8 +515,9 @@ export default function PhotoReportPage() {
           </Box>
         </Box>
       )}
+
       {!showIssuesFields && issues.length > 0 && (
-        <Box mt={4}>
+        <Box>
           <Typography variant='h6' gutterBottom>
             Issues
           </Typography>
@@ -386,17 +544,167 @@ export default function PhotoReportPage() {
               </TableBody>
             </Table>
           </TableContainer>
-          <Box mt={2} display='flex' justifyContent='center'>
-            <Button
-              variant='contained'
-              color='primary'
-              disabled={!areAllIssuesFixed()}
-            >
-              Add Photo
-            </Button>
-          </Box>
+
+          {isFixedReady && (
+            <Box mt={4}>
+              <Typography variant='h6'>Upload Fixed Photos</Typography>
+
+              {uploadedFiles.length > 0 && (
+                <Box mt={2}>
+                  <Grid container spacing={2}>
+                    {uploadedFiles.map((uploadedFile) => (
+                      <Grid item xs={6} sm={4} md={3} key={uploadedFile.id}>
+                        <Box
+                          sx={{
+                            position: 'relative',
+                            textAlign: 'center',
+                            border: '1px solid #ccc',
+                            borderRadius: '8px',
+                            padding: 1,
+                          }}
+                        >
+                          <img
+                            src={uploadedFile.preview}
+                            alt={uploadedFile.file.name}
+                            style={{
+                              width: '100%',
+                              height: 'auto',
+                              borderRadius: '8px',
+                            }}
+                          />
+                          <IconButton
+                            onClick={() => setFileToDelete(uploadedFile)}
+                            sx={{
+                              position: 'absolute',
+                              top: 8,
+                              right: 8,
+                              background: 'rgba(255, 255, 255, 0.8)',
+                              '&:hover': {
+                                background: 'rgba(255, 255, 255, 1)',
+                              },
+                            }}
+                          >
+                            <DeleteIcon />
+                          </IconButton>
+                          <Typography variant='body2' noWrap>
+                            {uploadedFile.file.name}
+                          </Typography>
+                          {uploading && (
+                            <LinearProgress
+                              variant='determinate'
+                              value={uploadedFile.progress}
+                              sx={{ marginTop: 1 }}
+                            />
+                          )}
+                        </Box>
+                      </Grid>
+                    ))}
+                  </Grid>
+                </Box>
+              )}
+
+              <Box
+                {...getRootProps()}
+                sx={{
+                  border: '2px dashed #ccc',
+                  borderRadius: '8px',
+                  padding: 2,
+                  textAlign: 'center',
+                  marginTop: 2,
+                  marginBottom: 2,
+                }}
+              >
+                <input {...getInputProps()} />
+                <Typography variant='body1'>
+                  Drag & drop images here, or click to select
+                </Typography>
+              </Box>
+
+              <Box
+                sx={{
+                  display: 'flex',
+                  justifyContent: 'center',
+                  alignItems: 'center',
+                  marginTop: 2,
+                }}
+              >
+                <Button
+                  variant='contained'
+                  color='primary'
+                  onClick={handleUploadClick}
+                  disabled={uploadedFiles.length === 0 || uploading}
+                >
+                  Upload Photo
+                </Button>
+              </Box>
+            </Box>
+          )}
+
+          {fixedPhotos.length > 0 && (
+            <Box mt={4}>
+              <Typography variant='h6' gutterBottom>
+                Issues Fixed
+              </Typography>
+              <PhotoProvider
+                toolbarRender={({ onScale, scale, onRotate, rotate }) => (
+                  <Box
+                    display='flex'
+                    justifyContent='center'
+                    alignItems='center'
+                    gap={1.5}
+                    p={1}
+                  >
+                    <ZoomIn
+                      style={{
+                        cursor: 'pointer',
+                        color: 'rgba(255, 255, 255, 0.75)',
+                      }}
+                      fontSize='medium'
+                      onClick={() => onScale(scale + 1)}
+                    />
+                    <ZoomOut
+                      style={{
+                        cursor: 'pointer',
+                        color: 'rgba(255, 255, 255, 0.75)',
+                      }}
+                      fontSize='medium'
+                      onClick={() => onScale(scale - 1)}
+                    />
+                    <RotateRight
+                      style={{ cursor: 'pointer', color: 'white' }}
+                      fontSize='medium'
+                      onClick={() => onRotate(rotate + 90)}
+                    />
+                  </Box>
+                )}
+              >
+                <Grid container spacing={1}>
+                  {fixedPhotos.map((photo, index) => (
+                    <Grid item xs={6} sm={4} md={2} key={`fixed-${index}`}>
+                      <PhotoView src={photo}>
+                        <img
+                          src={photo}
+                          alt={`Fixed Photo ${index + 1}`}
+                          style={{
+                            width: '100%',
+                            aspectRatio: '1 / 1',
+                            objectFit: 'cover',
+                            borderRadius: '4px',
+                            boxShadow: '0 2px 4px rgba(0, 0, 0, 0.2)',
+                            cursor: 'pointer',
+                          }}
+                        />
+                      </PhotoView>
+                    </Grid>
+                  ))}
+                </Grid>
+              </PhotoProvider>
+            </Box>
+          )}
         </Box>
       )}
+
+      {/* Диалог подтверждения удаления замечания */}
       <Dialog
         open={confirmDeleteIndex !== null}
         onClose={() => setConfirmDeleteIndex(null)}
@@ -412,6 +720,24 @@ export default function PhotoReportPage() {
             Cancel
           </Button>
           <Button onClick={handleDeleteIssueField} color='error'>
+            Delete
+          </Button>
+        </DialogActions>
+      </Dialog>
+
+      {/* Диалог подтверждения удаления файла */}
+      <Dialog open={!!fileToDelete} onClose={() => setFileToDelete(null)}>
+        <DialogTitle>Confirmation</DialogTitle>
+        <DialogContent>
+          <DialogContentText>
+            Are you sure you want to delete this image?
+          </DialogContentText>
+        </DialogContent>
+        <DialogActions>
+          <Button onClick={() => setFileToDelete(null)} color='primary'>
+            Cancel
+          </Button>
+          <Button onClick={handleDeleteConfirmed} color='error'>
             Delete
           </Button>
         </DialogActions>

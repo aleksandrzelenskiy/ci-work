@@ -102,7 +102,15 @@ export default function UploadPage() {
 
       xhr.onload = () => {
         if (xhr.status === 200) {
-          alert('Images uploaded successfully!');
+          // Парсим ответ и берем оттуда message
+          const responseData = JSON.parse(xhr.responseText);
+          if (responseData.success) {
+            alert(responseData.message); // <-- Используем нужное сообщение
+          } else {
+            alert('Upload completed, but no "success" in response.');
+          }
+
+          // Сбрасываем поля и файлы
           setFiles([]);
           setBaseId('');
           setTask('');
@@ -196,6 +204,7 @@ export default function UploadPage() {
             padding: 2,
             textAlign: 'center',
             marginBottom: 2,
+            cursor: 'pointer',
           }}
         >
           <input {...getInputProps()} />
