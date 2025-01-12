@@ -26,11 +26,11 @@ function toDMS(
   return `${absDeg}° ${minutes}' ${seconds.toFixed(2)}" ${direction}`;
 }
 
-// Форматируем EXIF дату в DD.MM.YYYY
+// Форматируем дату EXIF в DD.MM.YYYY
 function formatDateToDDMMYYYY(exifDateStr: string): string {
   // EXIF: "YYYY:MM:DD HH:MM:SS"
   // Нужно: "DD.MM.YYYY"
-  const [datePart] = exifDateStr.split(' '); // "YYYY:MM:DD"
+  const [datePart] = exifDateStr.split(' ');
   const [yyyy, mm, dd] = datePart.split(':');
   return `${dd}.${mm}.${yyyy}`;
 }
@@ -51,7 +51,7 @@ export async function POST(request: Request) {
   // Извлекаем FormData
   const formData = await request.formData();
 
-  // Декодируем task/baseId (чтобы не было %20 в названиях)
+  // Декодируем task/baseId
   const rawBaseId = formData.get('baseId') as string | null;
   const rawTask = formData.get('task') as string | null;
   if (!rawBaseId || !rawTask) {
@@ -72,7 +72,7 @@ export async function POST(request: Request) {
     return NextResponse.json({ error: 'No files uploaded' }, { status: 400 });
   }
 
-  // Готовим папки для сохранения
+  // Готовим папки
   const uploadsDir = path.join(process.cwd(), 'public', 'uploads', task);
   const taskDir = path.join(uploadsDir, baseId);
 
@@ -92,10 +92,9 @@ export async function POST(request: Request) {
     let date = 'Unknown Date';
     let coordinates = 'Unknown Location';
 
-    // Пытаемся считать EXIF (дата, координаты)
+    // Пытаемся считать EXIF
     try {
       const tags = ExifReader.load(buffer);
-
       if (tags.DateTimeOriginal?.description) {
         const exifDate = tags.DateTimeOriginal.description;
         date = formatDateToDDMMYYYY(exifDate);
@@ -134,7 +133,7 @@ export async function POST(request: Request) {
     const outputPath = path.join(taskDir, outputFilename);
 
     try {
-      // Ресайз и штамп (используем дату из EXIF)
+      // Ресайз и штамп
       await sharp(buffer)
         .resize(1280, 1280, {
           fit: sharp.fit.inside,
@@ -183,8 +182,9 @@ export async function POST(request: Request) {
     );
   }
 
-  // Сохраняем в БД (новый отчет)
+  // Сохраняем в БД
   try {
+    // Создаём новый отчёт
     const report = new Report({
       task,
       baseId,
@@ -194,6 +194,16 @@ export async function POST(request: Request) {
       createdAt: new Date(),
       status: 'Pending',
       files: fileUrls,
+    });
+
+    // <-- Добавляем событие в историю изменений:
+    report.events.push({
+      action: 'REPORT_CREATED',
+      author: name,
+      date: new Date(),
+      details: {
+        fileCount: fileUrls.length,
+      },
     });
 
     await report.save();

@@ -19,7 +19,6 @@ import {
   createTheme,
 } from '@mui/material';
 import { Menu } from '@mui/icons-material';
-// import ModeNightIcon from '@mui/icons-material/ModeNight';
 import LightModeIcon from '@mui/icons-material/LightMode';
 import HomeIcon from '@mui/icons-material/Home';
 import CloudUploadIcon from '@mui/icons-material/CloudUpload';
@@ -71,7 +70,7 @@ export default function RootLayout({
   };
 
   const DrawerList = (
-    <Box sx={{ width: 250 }} role='presentation' onClick={handleToggleDrawer}>
+    <Box sx={{ width: 250 }} role='presentation'>
       {/* <Box sx={{ display: 'flex', justifyContent: 'center', p: 2, mb: 2 }}>
         <img
           src='/ci-logo.png'
@@ -111,13 +110,22 @@ export default function RootLayout({
     </Box>
   );
 
+  // Получение текущего года
+  const currentYear = new Date().getFullYear();
+
   return (
     <ClerkProvider>
       <ThemeContext.Provider value={{ toggleTheme, mode }}>
         <ThemeProvider theme={theme}>
           <html lang='en'>
             <body>
-              <Box sx={{ display: 'flex', height: '100vh' }}>
+              <Box
+                sx={{
+                  display: 'flex',
+                  height: '100vh',
+                  flexDirection: 'column',
+                }}
+              >
                 <CssBaseline />
                 {/* AppBar */}
                 <AppBar
@@ -186,13 +194,25 @@ export default function RootLayout({
                     bgcolor: 'background.default',
                     color: 'text.primary',
                     p: 3,
-                    width: '100vw',
-                    marginLeft: 0,
-                    position: 'relative',
+                    display: 'flex',
+                    flexDirection: 'column',
+                    overflow: 'auto',
                   }}
                 >
                   <Toolbar />
-                  {children}
+                  <Box sx={{ flexGrow: 1 }}>{children}</Box>
+                  {/* Footer */}
+                  <Box
+                    component='footer'
+                    sx={{
+                      p: 2,
+                      textAlign: 'center',
+                      borderTop: `1px solid ${theme.palette.divider}`,
+                      mt: 2,
+                    }}
+                  >
+                    © CI Work {currentYear}
+                  </Box>
                 </Box>
               </Box>
             </body>

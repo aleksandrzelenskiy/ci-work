@@ -23,15 +23,19 @@ import {
   DialogContentText,
   DialogTitle,
   LinearProgress,
+  Chip, // Импорт Chip для бейджа
 } from '@mui/material';
+import ArrowBackIcon from '@mui/icons-material/ArrowBack';
 import AddIcon from '@mui/icons-material/Add';
 import DeleteIcon from '@mui/icons-material/Delete';
 import CloseIcon from '@mui/icons-material/Close';
 import { ZoomIn, ZoomOut, RotateRight } from '@mui/icons-material';
+import CheckIcon from '@mui/icons-material/Check'; // Импорт CheckIcon
 import { useParams } from 'next/navigation';
 import { useDropzone, Accept } from 'react-dropzone';
 import { PhotoProvider, PhotoView } from 'react-photo-view';
 import 'react-photo-view/dist/react-photo-view.css';
+import Link from 'next/link';
 
 // Интерфейс для управления загружаемыми файлами
 interface UploadedFile {
@@ -40,6 +44,29 @@ interface UploadedFile {
   preview: string;
   progress: number;
 }
+
+// Интерфейс деталей для STATUS_CHANGED
+interface IStatusChangedDetails {
+  oldStatus: string;
+  newStatus: string;
+}
+
+// Интерфейс события
+interface IEvent {
+  action: string;
+  author: string;
+  date: string;
+  details?: IStatusChangedDetails;
+}
+
+// Константы для названий действий
+const ACTIONS = {
+  REPORT_CREATED: 'REPORT_CREATED',
+  STATUS_CHANGED: 'STATUS_CHANGED', // Добавлено для соответствия вашим данным
+  ISSUES_CREATED: 'ISSUES_CREATED',
+  ISSUES_UPDATED: 'ISSUES_UPDATED',
+  FIXED_PHOTOS: 'FIXED_PHOTOS',
+};
 
 export default function PhotoReportPage() {
   const { task, baseid } = useParams() as { task: string; baseid: string };
@@ -59,9 +86,24 @@ export default function PhotoReportPage() {
   const [isFixedReady, setIsFixedReady] = useState(false);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [uploading, setUploading] = useState(false);
+
+  // Состояние для событий
+  const [events, setEvents] = useState<IEvent[]>([]);
+
+  // Состояния для createdAt и userName
   const [createdAt, setCreatedAt] = useState<string>('N/A');
   const [userName, setUserName] = useState<string>('Unknown');
-  const [uploading, setUploading] = useState(false);
+
+  // Новое состояние для отслеживания, исправлены ли все замечания
+  const [issuesFixed, setIssuesFixed] = useState(false);
+
+  // Состояния для диалога подтверждения согласования и сообщения
+  const [openAgreeDialog, setOpenAgreeDialog] = useState(false);
+  const [agreeMessage, setAgreeMessage] = useState<string | null>(null);
+
+  // Новое состояние для отслеживания текущего статуса
+  const [status, setStatus] = useState<string>('Pending');
 
   // Для очистки URL-адресов объектов
   useEffect(() => {
@@ -70,40 +112,80 @@ export default function PhotoReportPage() {
     };
   }, [uploadedFiles]);
 
-  // Загружаем отчет из базы
-  useEffect(() => {
-    const fetchReport = async () => {
-      try {
-        const response = await fetch(`/api/reports/${task}/${baseid}`);
-        if (!response.ok) {
-          throw new Error(`Failed to fetch report. Status: ${response.status}`);
-        }
-
-        const data = await response.json();
-        setPhotos(data.files || []);
-        setFixedPhotos(data.fixedFiles || []);
-        setIssues(
-          (data.issues || []).map((issue: string) => ({
-            text: issue,
-            checked: false,
-          }))
-        );
-        setCreatedAt(new Date(data.createdAt).toLocaleDateString() || 'N/A');
-        setUserName(data.userName || 'Unknown');
-      } catch (err: unknown) {
-        console.error('Error fetching report:', err);
-        setError(
-          err instanceof Error
-            ? err.message
-            : 'Failed to load report. Please try again later.'
-        );
-      } finally {
-        setLoading(false);
+  // Вспомогательная функция для получения последних событий по действию и фильтру
+  const getLatestEvent = useCallback(
+    (action: string, filter?: (event: IEvent) => boolean): IEvent | null => {
+      let relatedEvents = events.filter((event) => event.action === action);
+      if (filter) {
+        relatedEvents = relatedEvents.filter(filter);
       }
-    };
+      console.log(`Events with action "${action}":`, relatedEvents); // Логирование
+      if (relatedEvents.length === 0) return null;
+      return relatedEvents.reduce((latest, event) =>
+        new Date(event.date) > new Date(latest.date) ? event : latest
+      );
+    },
+    [events]
+  );
 
-    fetchReport();
+  // Получаем последние события для каждого раздела
+  const photoReportEvent = getLatestEvent(ACTIONS.REPORT_CREATED);
+  const issuesCreatedEvent = getLatestEvent(ACTIONS.ISSUES_CREATED);
+  const issuesUpdatedEvent = getLatestEvent(ACTIONS.ISSUES_UPDATED);
+  const fixedPhotosEvent = getLatestEvent(ACTIONS.FIXED_PHOTOS);
+  // Теперь REPORT_AGREED ищет STATUS_CHANGED с newStatus: 'Agreed'
+  const reportStatusEvent = getLatestEvent(ACTIONS.STATUS_CHANGED, (event) =>
+    event.details ? event.details.newStatus === 'Agreed' : false
+  );
+
+  // Функция для загрузки отчёта
+  const fetchReport = useCallback(async () => {
+    try {
+      const response = await fetch(`/api/reports/${task}/${baseid}`);
+      if (!response.ok) {
+        throw new Error(`Failed to fetch report. Status: ${response.status}`);
+      }
+
+      const data = await response.json();
+      setPhotos(data.files || []);
+      setFixedPhotos(data.fixedFiles || []);
+      setIssues(
+        (data.issues || []).map((issue: string) => ({
+          text: issue,
+          checked: false,
+        }))
+      );
+
+      // Установка createdAt и userName
+      setCreatedAt(new Date(data.createdAt).toLocaleDateString() || 'N/A');
+      setUserName(data.userName || 'Unknown');
+
+      // Установка событий
+      setEvents(data.events || []);
+
+      // Установка состояния issuesFixed на основе fixedFiles
+      setIssuesFixed((data.fixedFiles || []).length > 0);
+
+      // Установка текущего статуса
+      setStatus(data.status || 'Pending');
+
+      console.log('Fetched events:', data.events); // Логирование
+    } catch (err: unknown) {
+      console.error('Error fetching report:', err);
+      setError(
+        err instanceof Error
+          ? err.message
+          : 'Failed to load report. Please try again later.'
+      );
+    } finally {
+      setLoading(false);
+    }
   }, [task, baseid]);
+
+  // Загружаем отчёт из базы при монтировании и при изменении task/baseid
+  useEffect(() => {
+    fetchReport();
+  }, [fetchReport]);
 
   const handleAddIssueField = () => {
     setNewIssues([...newIssues, '']);
@@ -115,7 +197,13 @@ export default function PhotoReportPage() {
     setNewIssues(updatedNewIssues);
   };
 
-  const handleAgreeClick = async () => {
+  const handleAgreeClick = () => {
+    // Открываем диалог подтверждения согласования
+    setOpenAgreeDialog(true);
+  };
+
+  const handleConfirmAgree = async () => {
+    setOpenAgreeDialog(false);
     try {
       const response = await fetch(`/api/reports/${task}/${baseid}`);
       if (!response.ok) {
@@ -143,10 +231,33 @@ export default function PhotoReportPage() {
       }
 
       alert('Status has been updated to Agreed.');
+
+      // После обновления статуса, перезагружаем отчёт
+      await fetchReport();
+
+      // Получаем последние события для REPORT_AGREED (STATUS_CHANGED с newStatus: 'Agreed')
+      const newReportStatusEvent = getLatestEvent(
+        ACTIONS.STATUS_CHANGED,
+        (event) =>
+          event.details ? event.details.newStatus === 'Agreed' : false
+      );
+      if (newReportStatusEvent) {
+        const message = `Photo report ${decodeURIComponent(
+          task
+        )} | Base ID: ${decodeURIComponent(baseid)} has been agreed by user ${
+          newReportStatusEvent.author
+        } on ${new Date(newReportStatusEvent.date).toLocaleDateString()}.`;
+        setAgreeMessage(message);
+      }
     } catch (error) {
       console.error('Error updating status:', error);
       alert('Error updating status. Please try again.');
     }
+  };
+
+  const handleCancelAgree = () => {
+    // Закрываем диалог подтверждения согласования без действий
+    setOpenAgreeDialog(false);
   };
 
   // Удаление замечаний (по индексу)
@@ -251,6 +362,7 @@ export default function PhotoReportPage() {
       );
       setShowIssuesFields(false);
       setNewIssues(['']);
+      setIssuesFixed(false); // Сбрасываем issuesFixed при обновлении замечаний
     } catch (error) {
       console.error('Error updating issues:', error);
       alert('Failed to update issues. Please try again.');
@@ -344,14 +456,10 @@ export default function PhotoReportPage() {
           alert('Fixed photo uploaded successfully.');
           setUploadedFiles([]);
           setIsFixedReady(false);
+          setIssuesFixed(true); // Устанавливаем issuesFixed в true после успешной загрузки
 
           // Обновляем список фотографий
-          const response = await fetch(`/api/reports/${task}/${baseid}`);
-          if (response.ok) {
-            const data = await response.json();
-            setPhotos(data.files || []);
-            setFixedPhotos(data.fixedFiles || []);
-          }
+          await fetchReport();
         } else {
           alert('Failed to upload image(s).');
         }
@@ -376,6 +484,58 @@ export default function PhotoReportPage() {
     setNewIssues(['']);
   };
 
+  // Функция для получения цвета бейджа на основе статуса
+  const getStatusColor = (status: string) => {
+    switch (status) {
+      case 'Pending':
+        return 'warning';
+      case 'Issues':
+        return 'error';
+      case 'Fixed':
+        return 'warning';
+      case 'Agreed':
+        return 'success';
+      default:
+        return 'default';
+    }
+  };
+
+  // Функция для получения сообщения на основе статуса
+  const getStatusMessage = () => {
+    switch (status) {
+      case 'Pending':
+        return photoReportEvent
+          ? `Photo report sent for review by ${
+              photoReportEvent.author
+            } on ${new Date(photoReportEvent.date).toLocaleDateString()}.`
+          : 'Pending';
+      case 'Issues':
+        return issuesUpdatedEvent
+          ? `Issues have been updated to the photo report by ${
+              issuesUpdatedEvent.author
+            } on ${new Date(issuesUpdatedEvent.date).toLocaleDateString()}.`
+          : issuesCreatedEvent
+          ? `Issues have been added to the photo report by ${
+              issuesCreatedEvent.author
+            } on ${new Date(issuesCreatedEvent.date).toLocaleDateString()}.`
+          : 'Issues';
+      case 'Fixed':
+        return fixedPhotosEvent
+          ? `Issues with the photo report have been Fixed. Photos were uploaded by ${
+              fixedPhotosEvent.author
+            } on ${new Date(fixedPhotosEvent.date).toLocaleDateString()}.`
+          : 'Fixed';
+      case 'Agreed':
+        return reportStatusEvent
+          ? `Photo report has been approved by ${
+              reportStatusEvent.author
+            } on ${new Date(reportStatusEvent.date).toLocaleDateString()}.`
+          : 'Agreed';
+      default:
+        return '';
+    }
+  };
+
   if (loading) {
     return (
       <Box display='flex' justifyContent='center' mt={4}>
@@ -394,13 +554,49 @@ export default function PhotoReportPage() {
 
   return (
     <Box>
-      <Typography gutterBottom>
+      {/* Ссылка на страницу Reports List */}
+      <Box mb={2}>
+        <Button
+          component={Link}
+          href='/reports'
+          variant='text'
+          startIcon={<ArrowBackIcon />}
+          sx={{ textTransform: 'uppercase' }}
+        >
+          To Reports List
+        </Button>
+      </Box>
+
+      {/* Главный заголовок */}
+      <Typography variant='h5' gutterBottom sx={{ textTransform: 'none' }}>
+        <Chip
+          label={status}
+          color={getStatusColor(status)}
+          sx={{ mb: 1, mr: 1 }}
+        />
         {decodeURIComponent(task)} | Base ID: {decodeURIComponent(baseid)}
       </Typography>
       <Typography variant='body2' gutterBottom>
-        Created At: {createdAt} | Author: {userName}
+        Photo report created by {userName} on {createdAt}
+      </Typography>
+      <Typography variant='body2' gutterBottom>
+        {getStatusMessage()}
       </Typography>
 
+      {/* Photo Report Section */}
+      <Typography
+        variant='h6'
+        gutterBottom
+        sx={{ textTransform: 'uppercase', mt: 4 }}
+      >
+        Photo Report
+      </Typography>
+      {photoReportEvent && (
+        <Typography variant='body2' gutterBottom>
+          Created by {photoReportEvent.author} |{' '}
+          {new Date(photoReportEvent.date).toLocaleDateString()}
+        </Typography>
+      )}
       <PhotoProvider
         toolbarRender={({ onScale, scale, onRotate, rotate }) => (
           <Box
@@ -428,9 +624,6 @@ export default function PhotoReportPage() {
           </Box>
         )}
       >
-        <Typography variant='h6' gutterBottom sx={{ mt: 4 }}>
-          Photo Report
-        </Typography>
         <Grid container spacing={1}>
           {photos.map((photo, index) => (
             <Grid item xs={6} sm={4} md={2} key={index}>
@@ -453,20 +646,48 @@ export default function PhotoReportPage() {
         </Grid>
       </PhotoProvider>
 
-      <Box
-        display='flex'
-        justifyContent='center'
-        alignItems='center'
-        sx={{ mt: '20px', mb: '20px', gap: '10px' }}
-      >
-        <Button variant='contained' color='success' onClick={handleAgreeClick}>
-          Agreed
-        </Button>
-        <Button variant='contained' color='error' onClick={handleIssuesClick}>
-          Issues
-        </Button>
-      </Box>
+      {/* Кнопки: Agreed и Issues */}
+      {status !== 'Agreed' && (
+        <Box
+          display='flex'
+          justifyContent='center'
+          alignItems='center'
+          sx={{ mt: '20px', mb: '20px', gap: '10px' }}
+        >
+          <Button
+            variant='contained'
+            color='success'
+            onClick={handleAgreeClick}
+            disabled={status === 'Issues' && !issuesFixed}
+          >
+            Agreed
+          </Button>
+          <Button variant='contained' color='error' onClick={handleIssuesClick}>
+            Issues
+          </Button>
+        </Box>
+      )}
 
+      {/* Диалог подтверждения согласования */}
+      <Dialog open={openAgreeDialog} onClose={handleCancelAgree}>
+        <DialogTitle>Confirm Agreement</DialogTitle>
+        <DialogContent>
+          <DialogContentText>
+            Are you sure you want to agree to photo report{' '}
+            {decodeURIComponent(task)} | Base ID:{baseid}?
+          </DialogContentText>
+        </DialogContent>
+        <DialogActions>
+          <Button onClick={handleCancelAgree} color='primary'>
+            Cancel
+          </Button>
+          <Button onClick={handleConfirmAgree} color='primary' autoFocus>
+            Agree
+          </Button>
+        </DialogActions>
+      </Dialog>
+
+      {/* Раздел Issues */}
       {showIssuesFields && (
         <Box mt={4}>
           {newIssues.map((issue, index) => (
@@ -518,9 +739,28 @@ export default function PhotoReportPage() {
 
       {!showIssuesFields && issues.length > 0 && (
         <Box>
-          <Typography variant='h6' gutterBottom>
+          <Typography
+            variant='h6'
+            gutterBottom
+            sx={{ textTransform: 'uppercase', mt: 4 }}
+          >
             Issues
           </Typography>
+          {/* Отображение событий для Issues */}
+          {issuesUpdatedEvent ? (
+            <Typography variant='body2' gutterBottom>
+              Edited by {issuesUpdatedEvent.author} |{' '}
+              {new Date(issuesUpdatedEvent.date).toLocaleDateString()}
+            </Typography>
+          ) : (
+            issuesCreatedEvent && (
+              <Typography variant='body2' gutterBottom>
+                Created by {issuesCreatedEvent.author} |{' '}
+                {new Date(issuesCreatedEvent.date).toLocaleDateString()}
+              </Typography>
+            )
+          )}
+          {/* Содержимое Issues */}
           <TableContainer component={Paper}>
             <Table>
               <TableHead>
@@ -534,10 +774,14 @@ export default function PhotoReportPage() {
                   <TableRow key={index}>
                     <TableCell>{`${index + 1}. ${issue.text}`}</TableCell>
                     <TableCell align='center'>
-                      <Checkbox
-                        checked={issue.checked}
-                        onChange={() => handleCheckboxChange(index)}
-                      />
+                      {issuesFixed ? (
+                        <CheckIcon color='success' />
+                      ) : (
+                        <Checkbox
+                          checked={issue.checked}
+                          onChange={() => handleCheckboxChange(index)}
+                        />
+                      )}
                     </TableCell>
                   </TableRow>
                 ))}
@@ -547,7 +791,13 @@ export default function PhotoReportPage() {
 
           {isFixedReady && (
             <Box mt={4}>
-              <Typography variant='h6'>Upload Fixed Photos</Typography>
+              <Typography
+                variant='h6'
+                gutterBottom
+                sx={{ textTransform: 'uppercase' }}
+              >
+                Upload Fixed Photos
+              </Typography>
 
               {uploadedFiles.length > 0 && (
                 <Box mt={2}>
@@ -642,9 +892,25 @@ export default function PhotoReportPage() {
 
           {fixedPhotos.length > 0 && (
             <Box mt={4}>
-              <Typography variant='h6' gutterBottom>
+              <Typography
+                variant='h6'
+                gutterBottom
+                sx={{ textTransform: 'uppercase' }}
+              >
                 Issues Fixed
               </Typography>
+              {/* Отображение событий для Issues Fixed */}
+              {fixedPhotosEvent ? (
+                <Typography variant='body2' gutterBottom>
+                  Created by {fixedPhotosEvent.author} |{' '}
+                  {new Date(fixedPhotosEvent.date).toLocaleDateString()}
+                </Typography>
+              ) : (
+                <Typography variant='body2' gutterBottom color='textSecondary'>
+                  No information available.
+                </Typography>
+              )}
+              {/* Содержимое Исправленных Фотографий */}
               <PhotoProvider
                 toolbarRender={({ onScale, scale, onRotate, rotate }) => (
                   <Box
@@ -701,47 +967,59 @@ export default function PhotoReportPage() {
               </PhotoProvider>
             </Box>
           )}
+
+          {/* Отображение сообщения после согласования */}
+          {agreeMessage && (
+            <Box mt={4}>
+              <Typography variant='body1' color='success.main'>
+                {agreeMessage}
+              </Typography>
+            </Box>
+          )}
+
+          {/* Диалог подтверждения удаления замечания */}
+          <Dialog
+            open={confirmDeleteIndex !== null}
+            onClose={() => setConfirmDeleteIndex(null)}
+          >
+            <DialogTitle>Confirmation</DialogTitle>
+            <DialogContent>
+              <DialogContentText>
+                Are you sure you want to delete this issue?
+              </DialogContentText>
+            </DialogContent>
+            <DialogActions>
+              <Button
+                onClick={() => setConfirmDeleteIndex(null)}
+                color='primary'
+              >
+                Cancel
+              </Button>
+              <Button onClick={handleDeleteIssueField} color='error'>
+                Delete
+              </Button>
+            </DialogActions>
+          </Dialog>
+
+          {/* Диалог подтверждения удаления файла */}
+          <Dialog open={!!fileToDelete} onClose={() => setFileToDelete(null)}>
+            <DialogTitle>Confirmation</DialogTitle>
+            <DialogContent>
+              <DialogContentText>
+                Are you sure you want to delete this image?
+              </DialogContentText>
+            </DialogContent>
+            <DialogActions>
+              <Button onClick={() => setFileToDelete(null)} color='primary'>
+                Cancel
+              </Button>
+              <Button onClick={handleDeleteConfirmed} color='error'>
+                Delete
+              </Button>
+            </DialogActions>
+          </Dialog>
         </Box>
       )}
-
-      {/* Диалог подтверждения удаления замечания */}
-      <Dialog
-        open={confirmDeleteIndex !== null}
-        onClose={() => setConfirmDeleteIndex(null)}
-      >
-        <DialogTitle>Confirmation</DialogTitle>
-        <DialogContent>
-          <DialogContentText>
-            Are you sure you want to delete this issue?
-          </DialogContentText>
-        </DialogContent>
-        <DialogActions>
-          <Button onClick={() => setConfirmDeleteIndex(null)} color='primary'>
-            Cancel
-          </Button>
-          <Button onClick={handleDeleteIssueField} color='error'>
-            Delete
-          </Button>
-        </DialogActions>
-      </Dialog>
-
-      {/* Диалог подтверждения удаления файла */}
-      <Dialog open={!!fileToDelete} onClose={() => setFileToDelete(null)}>
-        <DialogTitle>Confirmation</DialogTitle>
-        <DialogContent>
-          <DialogContentText>
-            Are you sure you want to delete this image?
-          </DialogContentText>
-        </DialogContent>
-        <DialogActions>
-          <Button onClick={() => setFileToDelete(null)} color='primary'>
-            Cancel
-          </Button>
-          <Button onClick={handleDeleteConfirmed} color='error'>
-            Delete
-          </Button>
-        </DialogActions>
-      </Dialog>
     </Box>
   );
 }
