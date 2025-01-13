@@ -440,11 +440,9 @@ export default function PhotoReportPage() {
       const xhr = new XMLHttpRequest();
       xhr.open('POST', '/api/upload/fixed', true);
 
-      // Если хотим общий прогресс по всем файлам - показываем одинаковый % для всех
       xhr.upload.onprogress = (event) => {
         if (event.lengthComputable) {
           const totalProgress = (event.loaded / event.total) * 100;
-          // Присваиваем всем файлам одинаковый прогресс (например)
           setUploadedFiles((prevFiles) =>
             prevFiles.map((f) => ({ ...f, progress: totalProgress }))
           );
@@ -456,7 +454,7 @@ export default function PhotoReportPage() {
           alert('Fixed photo uploaded successfully.');
           setUploadedFiles([]);
           setIsFixedReady(false);
-          setIssuesFixed(true); // Устанавливаем issuesFixed в true после успешной загрузки
+          setIssuesFixed(true);
 
           // Обновляем список фотографий
           await fetchReport();

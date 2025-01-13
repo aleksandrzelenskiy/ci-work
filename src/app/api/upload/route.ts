@@ -200,6 +200,7 @@ export async function POST(request: Request) {
     report.events.push({
       action: 'REPORT_CREATED',
       author: name,
+      authorId: user.id,
       date: new Date(),
       details: {
         fileCount: fileUrls.length,

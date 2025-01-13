@@ -1,4 +1,3 @@
-// app/api/upload/fixed/route.ts
 import { NextResponse } from 'next/server';
 import sharp from 'sharp';
 import * as fs from 'fs';
@@ -59,7 +58,10 @@ export async function POST(request: Request) {
     );
   }
 
-  // Получаем имя пользователя корректно
+  // Логируем объект user для проверки
+  console.log('User object:', user);
+
+  // Получаем имя пользователя
   let name = 'Unknown';
   if (user.firstName && user.lastName) {
     name = `${user.firstName} ${user.lastName}`.trim();
@@ -69,9 +71,13 @@ export async function POST(request: Request) {
     name = user.emailAddresses[0].emailAddress;
   }
 
-  console.log('Authenticated user name:', name);
+  // Извлекаем ID пользователя (обновите поле, если нужно)
+  const userId = user.id; // Проверьте правильность этого поля
 
-  // Получаем FormData
+  console.log('Authenticated user name:', name);
+  console.log('Authenticated user ID:', userId);
+
+  // Обрабатываем FormData
   const formData = await request.formData();
   const rawBaseId = formData.get('baseId') as string | null;
   const rawTask = formData.get('task') as string | null;
@@ -87,14 +93,14 @@ export async function POST(request: Request) {
   const baseId = decodeURIComponent(rawBaseId);
   const task = decodeURIComponent(rawTask);
 
-  // Файлы
+  // Обрабатываем загруженные файлы
   const files = formData.getAll('image[]') as File[];
   if (files.length === 0) {
     console.error('Validation error: No files uploaded');
     return NextResponse.json({ error: 'No files uploaded' }, { status: 400 });
   }
 
-  // Папка для «исправленных» фото: public/uploads/<task>/<baseId>/<baseId> issues fixed
+  // Определяем директории
   const uploadsDir = path.join(process.cwd(), 'public', 'uploads', task);
   const taskDir = path.join(uploadsDir, baseId);
   const issuesFixedDir = path.join(taskDir, `${baseId} issues fixed`);
@@ -106,14 +112,14 @@ export async function POST(request: Request) {
   const fileUrls: string[] = [];
   let fileCounter = 1;
 
-  // Обрабатываем каждый загруженный файл
+  // Обрабатываем каждый файл
   for (const file of files) {
     const buffer = Buffer.from(await file.arrayBuffer());
 
     let date = 'Unknown Date';
     let coordinates = 'Unknown Location';
 
-    // Считываем EXIF (дата и координаты)
+    // Извлекаем EXIF данные
     try {
       const tags = ExifReader.load(buffer);
 
@@ -146,14 +152,14 @@ export async function POST(request: Request) {
       console.warn('Error reading Exif data (fixed):', error);
     }
 
-    // Генерируем уникальное имя (пример: baseId-fixed-001.jpg)
+    // Генерируем уникальное имя файла
     const outputFilename = `${baseId}-fixed-${String(fileCounter).padStart(
       3,
       '0'
     )}.jpg`;
     const outputPath = path.join(issuesFixedDir, outputFilename);
 
-    // Обрабатываем изображение (ресайз + штамп)
+    // Обрабатываем изображение с помощью Sharp
     try {
       await sharp(buffer)
         .resize(1280, 1280, {
@@ -190,35 +196,44 @@ export async function POST(request: Request) {
     }
   }
 
-  // После обработки всех файлов — сохраняем ссылки в БД
+  // Сохраняем ссылки на файлы в базе данных
   try {
-    // Устанавливаем статус = 'Fixed', а также добавляем ссылки в fixedFiles
+    // Обновляем отчет с фиксированными файлами и статусом
     const report = await Report.findOneAndUpdate(
       { task, baseId },
       {
         $push: { fixedFiles: { $each: fileUrls } },
         status: 'Fixed',
+        // Если документ создается через upsert, необходимо установить userId и userName
+        $setOnInsert: {
+          userId: userId,
+          userName: name,
+        },
       },
       { new: true, upsert: true }
     );
 
-    // Добавляем событие в историю изменений (events)
-    if (report) {
-      if (!report.events) {
-        report.events = [];
-      }
-
-      report.events.push({
-        action: 'FIXED_PHOTOS',
-        author: name,
-        date: new Date(),
-        details: {
-          fileCount: fileUrls.length,
-        },
-      });
-
-      await report.save();
+    // Проверяем, был ли создан новый отчет
+    if (!report) {
+      console.error('Report was not found or created.');
+      return NextResponse.json(
+        { error: 'Report was not found or created.' },
+        { status: 500 }
+      );
     }
+
+    // Добавляем событие в историю отчета
+    report.events.push({
+      action: 'FIXED_PHOTOS',
+      author: name,
+      authorId: userId, // Добавлено поле authorId
+      date: new Date(),
+      details: {
+        fileCount: fileUrls.length,
+      },
+    });
+
+    await report.save();
 
     return NextResponse.json({
       success: true,

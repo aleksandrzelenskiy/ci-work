@@ -28,16 +28,14 @@ import {
   Tooltip,
   Badge,
   Link,
-  Chip, // Импортируем Chip
+  Chip,
 } from '@mui/material';
 import FilterListIcon from '@mui/icons-material/FilterList';
 import SearchIcon from '@mui/icons-material/Search';
 import FolderIcon from '@mui/icons-material/Folder';
 import KeyboardArrowDownIcon from '@mui/icons-material/KeyboardArrowDown';
 import KeyboardArrowUpIcon from '@mui/icons-material/KeyboardArrowUp';
-import { BaseStatus, ReportClient, ApiResponse } from '../types/reportTypes'; // Обновите путь при необходимости
-
-// Импорт для DatePicker из @mui/x-date-pickers
+import { BaseStatus, ReportClient, ApiResponse } from '../types/reportTypes';
 import { DatePicker } from '@mui/x-date-pickers/DatePicker';
 import { LocalizationProvider } from '@mui/x-date-pickers/LocalizationProvider';
 import { AdapterDateFns } from '@mui/x-date-pickers/AdapterDateFns';
@@ -85,8 +83,8 @@ function Row({ report }: { report: ReportClient }) {
 
   // Функция для обработки клика по ссылке
   const handleLinkClick = (event: React.MouseEvent<HTMLAnchorElement>) => {
-    event.preventDefault(); // Предотвращаем переход по ссылке
-    setOpen(!open); // Переключаем состояние открытия
+    event.preventDefault();
+    setOpen(!open);
   };
 
   // Функция для получения даты отчета
@@ -94,7 +92,7 @@ function Row({ report }: { report: ReportClient }) {
     const date = new Date(dateStr);
     return !isNaN(date.getTime())
       ? date.toLocaleDateString()
-      : 'Дата недоступна';
+      : 'The date is unavailable';
   };
 
   return (
@@ -132,10 +130,10 @@ function Row({ report }: { report: ReportClient }) {
           <Box sx={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
             <Avatar
               alt={report.userName}
-              src={report.userAvatar || '/default-avatar.png'} // Замените на путь к стандартному аватару
+              src={report.userAvatar}
               sx={{ width: 32, height: 32 }}
             />
-            <Typography>{report.userName}</Typography>
+            <Typography sx={{ fontSize: '13px' }}>{report.userName}</Typography>
           </Box>
         </TableCell>
         <TableCell>{getReportDate(report.createdAt)}</TableCell>
@@ -253,7 +251,7 @@ export default function ReportsPage() {
         const response = await fetch('/api/reports');
         const data: ApiResponse = await response.json();
 
-        console.log('Fetched data:', data); // Логируем полученные данные
+        // console.log('Fetched data:', data);
 
         if (!response.ok) {
           const errorMessage = data.error || 'Неизвестная ошибка';
@@ -318,7 +316,7 @@ export default function ReportsPage() {
       });
     }
 
-    // Поиск по задаче
+    // Поиск по задачам
     if (taskSearch) {
       tempReports = tempReports.filter((report) =>
         report.task.toLowerCase().includes(taskSearch.toLowerCase())
@@ -428,7 +426,16 @@ export default function ReportsPage() {
           <TableHead>
             <TableRow>
               <TableCell />
-              <TableCell>
+              <TableCell
+                sx={{
+                  fontSize: '14px',
+                  fontWeight: 'bold',
+                  textTransform: 'uppercase',
+                  whiteSpace: 'nowrap',
+                  padding: '16px',
+                }}
+              >
+                Task
                 <Tooltip title='Task Find'>
                   <IconButton
                     size='small'
@@ -441,14 +448,21 @@ export default function ReportsPage() {
                         : undefined
                     }
                     aria-haspopup='true'
-                    sx={{ ml: 1 }}
+                    sx={{ mr: 1 }}
                   >
                     <SearchIcon fontSize='medium' />
                   </IconButton>
                 </Tooltip>
-                Task
               </TableCell>
-              <TableCell>
+              <TableCell
+                sx={{
+                  fontSize: '14px',
+                  fontWeight: 'bold',
+                  textTransform: 'uppercase',
+                  whiteSpace: 'nowrap',
+                  padding: '16px',
+                }}
+              >
                 Author
                 <Tooltip title='Фильтр по Author'>
                   <Badge
@@ -467,16 +481,23 @@ export default function ReportsPage() {
                           : undefined
                       }
                       aria-haspopup='true'
-                      sx={{ ml: 1 }}
                     >
                       <FilterListIcon fontSize='small' />
                     </IconButton>
                   </Badge>
                 </Tooltip>
               </TableCell>
-              <TableCell>
+              <TableCell
+                sx={{
+                  fontSize: '14px',
+                  fontWeight: 'bold',
+                  textTransform: 'uppercase',
+                  whiteSpace: 'nowrap',
+                  padding: '16px',
+                }}
+              >
                 Created
-                <Tooltip title='Фильтр по дате создания'>
+                <Tooltip title='Filter by creation date'>
                   <Badge
                     badgeContent={createdAtFilter ? 1 : 0}
                     color='secondary'
@@ -486,23 +507,30 @@ export default function ReportsPage() {
                       size='small'
                       onClick={(event) => handleFilterClick(event, 'createdAt')}
                       color={createdAtFilter ? 'primary' : 'default'}
-                      aria-label='Фильтр по дате создания'
+                      aria-label='Filter by creation date'
                       aria-controls={
                         openPopover && currentFilter === 'createdAt'
                           ? 'filter-popover'
                           : undefined
                       }
                       aria-haspopup='true'
-                      sx={{ ml: 1 }}
                     >
                       <FilterListIcon fontSize='small' />
                     </IconButton>
                   </Badge>
                 </Tooltip>
               </TableCell>
-              <TableCell>
+              <TableCell
+                sx={{
+                  fontSize: '14px',
+                  fontWeight: 'bold',
+                  textTransform: 'uppercase',
+                  whiteSpace: 'nowrap',
+                  padding: '16px',
+                }}
+              >
                 Status
-                <Tooltip title='Фильтр по Status'>
+                <Tooltip title='Filter by Status'>
                   <Badge
                     badgeContent={statusFilter ? 1 : 0}
                     color='secondary'
@@ -512,14 +540,13 @@ export default function ReportsPage() {
                       size='small'
                       onClick={(event) => handleFilterClick(event, 'status')}
                       color={statusFilter ? 'primary' : 'default'}
-                      aria-label='Фильтр по Status'
+                      aria-label='Filter by Status'
                       aria-controls={
                         openPopover && currentFilter === 'status'
                           ? 'filter-popover'
                           : undefined
                       }
                       aria-haspopup='true'
-                      sx={{ ml: 1 }}
                     >
                       <FilterListIcon fontSize='small' />
                     </IconButton>
@@ -536,7 +563,7 @@ export default function ReportsPage() {
             ) : (
               <TableRow>
                 <TableCell colSpan={5} align='center'>
-                  Нет отчетов, соответствующих заданным критериям.
+                  There are no reports that meet the specified conditions.
                 </TableCell>
               </TableRow>
             )}
@@ -558,7 +585,7 @@ export default function ReportsPage() {
         <Box sx={{ p: 1.5, minWidth: 200, boxShadow: 3, borderRadius: 1 }}>
           {currentFilter === 'task' && (
             <TextField
-              label='Поиск по Task'
+              label='Search by Tasks'
               variant='outlined'
               size='small'
               value={taskSearch}
@@ -617,13 +644,13 @@ export default function ReportsPage() {
                 onChange={(newValue: Date | null) =>
                   setCreatedAtFilter(newValue)
                 }
-                slots={{ textField: TextField }} // Используем slots вместо renderInput
+                slots={{ textField: TextField }}
                 slotProps={{
                   textField: {
                     size: 'small',
                     fullWidth: true,
                     autoFocus: true,
-                  }, // Передаем пропсы через slotProps
+                  },
                 }}
               />
             </LocalizationProvider>

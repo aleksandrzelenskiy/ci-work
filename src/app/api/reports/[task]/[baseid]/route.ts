@@ -5,19 +5,20 @@ import dbConnect from '@/utils/mongoose';
 import { currentUser } from '@clerk/nextjs/server';
 
 /**
- * GET handler для получения информации о конкретном отчёте.
+ * GET обработчик для получения информации о конкретном отчёте.
  */
 export async function GET(
   request: Request,
   context: { params: { task: string; baseid: string } }
 ) {
   try {
-    console.log('Connecting to database...');
+    console.log('Подключение к базе данных...');
     await dbConnect();
-    console.log('Database connection successful.');
+    console.log('Успешное подключение к базе данных.');
 
-    // Await параметры маршрута
-    const { task, baseid } = await context.params;
+    // Await для параметров маршрута
+    const params = await context.params; // Awaiting the params
+    const { task, baseid } = params;
 
     console.log(`Task: ${task}, BaseID: ${baseid}`);
 
@@ -34,11 +35,11 @@ export async function GET(
     });
 
     if (!report) {
-      console.warn('Report not found.');
-      return NextResponse.json({ error: 'Report not found' }, { status: 404 });
+      console.warn('Отчёт не найден.');
+      return NextResponse.json({ error: 'Отчёт не найден' }, { status: 404 });
     }
 
-    console.log('Report found:', report);
+    console.log('Отчёт найден:', report);
 
     return NextResponse.json({
       files: report.files,
@@ -50,28 +51,29 @@ export async function GET(
       events: report.events || [],
     });
   } catch (error) {
-    console.error('Error fetching report:', error);
+    console.error('Ошибка при получении отчёта:', error);
     return NextResponse.json(
-      { error: 'Failed to fetch report' },
+      { error: 'Не удалось получить отчёт' },
       { status: 500 }
     );
   }
 }
 
 /**
- * PATCH handler для обновления информации о конкретном отчёте.
+ * PATCH обработчик для обновления информации о конкретном отчёте.
  */
 export async function PATCH(
   request: Request,
   context: { params: { task: string; baseid: string } }
 ) {
   try {
-    console.log('Connecting to database...');
+    console.log('Подключение к базе данных...');
     await dbConnect();
-    console.log('Database connection successful.');
+    console.log('Успешное подключение к базе данных.');
 
-    // Await параметры маршрута
-    const { task, baseid } = await context.params;
+    // Await для параметров маршрута
+    const params = await context.params; // Awaiting the params
+    const { task, baseid } = params;
 
     console.log(`Task: ${task}, BaseID: ${baseid}`);
 
@@ -85,15 +87,15 @@ export async function PATCH(
     // Получаем текущего пользователя
     const user = await currentUser();
     if (!user) {
-      console.error('Authentication error: User is not authenticated');
+      console.error('Ошибка аутентификации: Пользователь не аутентифицирован');
       return NextResponse.json(
-        { error: 'User is not authenticated' },
+        { error: 'Пользователь не аутентифицирован' },
         { status: 401 }
       );
     }
 
     const name = `${user.firstName || 'Unknown'} ${user.lastName || ''}`.trim();
-    console.log(`Authenticated user: ${name}`);
+    console.log(`Аутентифицированный пользователь: ${name}`);
 
     // Извлекаем тело запроса
     const body: {
@@ -103,7 +105,7 @@ export async function PATCH(
       deleteIssueIndex?: number;
     } = await request.json();
 
-    console.log('Request Body:', body);
+    console.log('Тело запроса:', body);
 
     const { status, issues, updateIssue, deleteIssueIndex } = body;
 
@@ -114,11 +116,11 @@ export async function PATCH(
     });
 
     if (!report) {
-      console.warn('Report not found.');
-      return NextResponse.json({ error: 'Report not found' }, { status: 404 });
+      console.warn('Отчёт не найден.');
+      return NextResponse.json({ error: 'Отчёт не найден' }, { status: 404 });
     }
 
-    console.log('Report found for update:', report);
+    console.log('Отчёт найден для обновления:', report);
 
     // Сохраняем старые значения для сравнения
     const oldStatus = report.status;
@@ -126,7 +128,7 @@ export async function PATCH(
 
     // --- Изменение статуса ---
     if (status && status !== oldStatus) {
-      console.log(`Updating status to: ${status}`);
+      console.log(`Обновление статуса на: ${status}`);
       report.status = status;
 
       // Добавляем событие в историю изменений
@@ -134,6 +136,7 @@ export async function PATCH(
       report.events.push({
         action: 'STATUS_CHANGED',
         author: name,
+        authorId: user.id,
         date: new Date(),
         details: {
           oldStatus,
@@ -163,7 +166,9 @@ export async function PATCH(
 
     if (updateIssue) {
       const { index, text } = updateIssue;
-      console.log(`Updating issue at index ${index} with text: ${text}`);
+      console.log(
+        `Обновление замечания по индексу ${index} с текстом: ${text}`
+      );
       if (
         index >= 0 &&
         Array.isArray(report.issues) &&
@@ -172,16 +177,16 @@ export async function PATCH(
         report.issues[index] = text;
         issuesChanged = true;
       } else {
-        console.warn('Invalid index for issue update.');
+        console.warn('Неверный индекс для обновления замечания.');
         return NextResponse.json(
-          { error: 'Invalid index for issue update' },
+          { error: 'Неверный индекс для обновления замечания' },
           { status: 400 }
         );
       }
     }
 
     if (typeof deleteIssueIndex === 'number') {
-      console.log(`Deleting issue at index: ${deleteIssueIndex}`);
+      console.log(`Удаление замечания по индексу: ${deleteIssueIndex}`);
       if (
         deleteIssueIndex >= 0 &&
         Array.isArray(report.issues) &&
@@ -190,9 +195,9 @@ export async function PATCH(
         report.issues.splice(deleteIssueIndex, 1);
         issuesChanged = true;
       } else {
-        console.warn('Invalid index for issue delete.');
+        console.warn('Неверный индекс для удаления замечания.');
         return NextResponse.json(
-          { error: 'Invalid index for issue delete' },
+          { error: 'Неверный индекс для удаления замечания' },
           { status: 400 }
         );
       }
@@ -204,6 +209,7 @@ export async function PATCH(
       report.events.push({
         action: 'ISSUES_UPDATED',
         author: name,
+        authorId: user.id,
         date: new Date(),
         details: {
           oldIssues,
@@ -214,13 +220,13 @@ export async function PATCH(
 
     // Сохраняем изменения в базе данных
     await report.save();
-    console.log('Report updated successfully.');
+    console.log('Отчёт успешно обновлён.');
 
-    return NextResponse.json({ message: 'Report updated successfully' });
+    return NextResponse.json({ message: 'Отчёт успешно обновлён' });
   } catch (error) {
-    console.error('Error updating report:', error);
+    console.error('Ошибка при обновлении отчёта:', error);
     return NextResponse.json(
-      { error: 'Failed to update report' },
+      { error: 'Не удалось обновить отчёт' },
       { status: 500 }
     );
   }

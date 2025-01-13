@@ -1,7 +1,6 @@
 // /app/models/Report.ts
 import mongoose, { Schema } from 'mongoose';
-import { IReport, IEvent } from '../types/reportTypes'; // Обновите путь при необходимости
-
+import { IReport, IEvent } from '../types/reportTypes';
 /**
  * Схема для одного события истории (Event).
  */
@@ -9,7 +8,7 @@ const EventSchema = new Schema<IEvent>(
   {
     action: { type: String, required: true },
     author: { type: String, required: true },
-    authorId: { type: String, required: true }, // Добавлено поле authorId
+    authorId: { type: String, required: true },
     date: { type: Date, default: Date.now },
     details: { type: mongoose.Schema.Types.Mixed },
   },
@@ -27,7 +26,7 @@ const ReportSchema: Schema<IReport> = new Schema({
   issues: { type: [String], default: [] },
   status: { type: String, default: 'Pending' },
   createdAt: { type: Date, default: Date.now },
-  userId: { type: String, required: true }, // Добавлено поле userId
+  userId: { type: String, required: true },
   userName: { type: String, default: 'Unknown' },
 
   events: { type: [EventSchema], default: [] },
