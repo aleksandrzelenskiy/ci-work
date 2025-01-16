@@ -26,7 +26,6 @@ import {
   Button,
   Popover,
   Tooltip,
-  Badge,
   Link,
   Chip,
 } from '@mui/material';
@@ -40,7 +39,7 @@ import { DatePicker } from '@mui/x-date-pickers/DatePicker';
 import { LocalizationProvider } from '@mui/x-date-pickers/LocalizationProvider';
 import { AdapterDateFns } from '@mui/x-date-pickers/AdapterDateFns';
 
-// Функция для определения стилей статуса
+// Function to determine status styles
 const getStatusStyles = (status: string) => {
   switch (status) {
     case 'Agreed':
@@ -56,38 +55,38 @@ const getStatusStyles = (status: string) => {
   }
 };
 
-// Функция для определения цвета иконки папки
+// Function to determine folder icon color
 const getFolderColor = (status: string) => {
   switch (status) {
     case 'Agreed':
-      return '#28a745'; // Зеленый
+      return '#28a745'; // Green
     case 'Pending':
     case 'Fixed':
-      return '#ffc107'; // Желтый
+      return '#ffc107'; // Yellow
     case 'Issues':
-      return '#dc3545'; // Красный
+      return '#dc3545'; // Red
     default:
-      return '#787878'; // Серый по умолчанию
+      return '#787878'; // Default gray
   }
 };
 
-// Функция для вычисления общего статуса задачи
+// Function to calculate the overall task status
 const getTaskStatus = (baseStatuses: BaseStatus[] = []): string => {
   const nonAgreedStatus = baseStatuses.find((bs) => bs.status !== 'Agreed');
   return nonAgreedStatus ? nonAgreedStatus.status : 'Agreed';
 };
 
-// Компонент строки отчёта
+// Report row component
 function Row({ report }: { report: ReportClient }) {
   const [open, setOpen] = useState(false);
 
-  // Функция для обработки клика по ссылке
+  // Function to handle link click
   const handleLinkClick = (event: React.MouseEvent<HTMLAnchorElement>) => {
     event.preventDefault();
     setOpen(!open);
   };
 
-  // Функция для получения даты отчета
+  // Function to get report date
   const getReportDate = (dateStr: string) => {
     const date = new Date(dateStr);
     return !isNaN(date.getTime())
@@ -133,7 +132,9 @@ function Row({ report }: { report: ReportClient }) {
               src={report.userAvatar}
               sx={{ width: 32, height: 32 }}
             />
-            <Typography sx={{ fontSize: '13px' }}>{report.userName}</Typography>
+            <Typography sx={{ fontSize: '0.9rem' }}>
+              {report.userName}
+            </Typography>
           </Box>
         </TableCell>
         <TableCell>{getReportDate(report.createdAt)}</TableCell>
@@ -208,31 +209,31 @@ function Row({ report }: { report: ReportClient }) {
   );
 }
 
-// Основной компонент для страницы отчётов
+// Main component for the reports page
 export default function ReportsPage() {
   const [reports, setReports] = useState<ReportClient[]>([]);
   const [filteredReports, setFilteredReports] = useState<ReportClient[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
-  // Состояния для фильтров и поиска
+  // States for filters and search
   const [authorFilter, setAuthorFilter] = useState<string>('');
   const [statusFilter, setStatusFilter] = useState<string>('');
   const [taskSearch, setTaskSearch] = useState<string>('');
   const [createdAtFilter, setCreatedAtFilter] = useState<Date | null>(null);
 
-  // Состояния для Popover фильтров
+  // States for filter popover
   const [anchorEl, setAnchorEl] = useState<HTMLElement | null>(null);
   const [currentFilter, setCurrentFilter] = useState<string>('');
 
-  // Определение количества активных фильтров
+  // Determine the number of active filters
   const activeFiltersCount = useMemo(() => {
     return [authorFilter, statusFilter, taskSearch, createdAtFilter].filter(
       Boolean
     ).length;
   }, [authorFilter, statusFilter, taskSearch, createdAtFilter]);
 
-  // Получение уникальных авторов и статусов для фильтров
+  // Get unique authors and statuses for filters
   const uniqueAuthors = useMemo(() => {
     const authors = reports.map((report) => report.userName);
     return Array.from(new Set(authors));
@@ -254,12 +255,12 @@ export default function ReportsPage() {
         // console.log('Fetched data:', data);
 
         if (!response.ok) {
-          const errorMessage = data.error || 'Неизвестная ошибка';
+          const errorMessage = data.error || 'Unknown error';
           throw new Error(errorMessage);
         }
 
         if (!Array.isArray(data.reports)) {
-          throw new Error('Некорректный формат данных');
+          throw new Error('Invalid data format');
         }
 
         setReports(
@@ -277,10 +278,10 @@ export default function ReportsPage() {
       } catch (error: unknown) {
         if (error instanceof Error) {
           console.error('Error fetching reports:', error);
-          setError(error.message || 'Неизвестная ошибка');
+          setError(error.message || 'Unknown error');
         } else {
           console.error('Error fetching reports:', error);
-          setError('Неизвестная ошибка');
+          setError('Unknown error');
         }
         setLoading(false);
       }
@@ -289,25 +290,25 @@ export default function ReportsPage() {
     fetchReports();
   }, []);
 
-  // Функция для фильтрации отчетов
+  // Function to filter reports
   useEffect(() => {
     let tempReports = [...reports];
 
-    // Фильтр по автору
+    // Filter by author
     if (authorFilter) {
       tempReports = tempReports.filter(
         (report) => report.userName === authorFilter
       );
     }
 
-    // Фильтр по статусу
+    // Filter by status
     if (statusFilter) {
       tempReports = tempReports.filter((report) =>
         report.baseStatuses.some((bs) => bs.status === statusFilter)
       );
     }
 
-    // Фильтр по дате создания
+    // Filter by creation date
     if (createdAtFilter) {
       const selectedDate = new Date(createdAtFilter).setHours(0, 0, 0, 0);
       tempReports = tempReports.filter((report) => {
@@ -316,7 +317,7 @@ export default function ReportsPage() {
       });
     }
 
-    // Поиск по задачам
+    // Search by tasks
     if (taskSearch) {
       tempReports = tempReports.filter((report) =>
         report.task.toLowerCase().includes(taskSearch.toLowerCase())
@@ -344,7 +345,7 @@ export default function ReportsPage() {
     );
   }
 
-  // Обработчики для Popover
+  // Handlers for filter popover
   const handleFilterClick = (
     event: React.MouseEvent<HTMLElement>,
     filterType: string
@@ -363,11 +364,11 @@ export default function ReportsPage() {
 
   return (
     <Box sx={{ padding: 2 }}>
-      {/* Условное отображение блока фильтров */}
+      {/* Conditional display of filters block */}
       {activeFiltersCount > 0 && (
         <Paper sx={{ padding: 2, marginBottom: 2 }}>
           <Typography variant='subtitle1' sx={{ mb: 1 }}>
-            Активные фильтры
+            Active filters
           </Typography>
           <Box sx={{ display: 'flex', gap: 1, flexWrap: 'wrap', mb: 2 }}>
             {authorFilter && (
@@ -420,7 +421,7 @@ export default function ReportsPage() {
         </Paper>
       )}
 
-      {/* Таблица отчетов */}
+      {/* Reports table */}
       <TableContainer component={Paper}>
         <Table aria-label='collapsible table'>
           <TableHead>
@@ -441,7 +442,7 @@ export default function ReportsPage() {
                     size='small'
                     onClick={(event) => handleFilterClick(event, 'task')}
                     color={taskSearch ? 'primary' : 'default'}
-                    aria-label='Фильтр по Task'
+                    aria-label='Task filter'
                     aria-controls={
                       openPopover && currentFilter === 'task'
                         ? 'filter-popover'
@@ -464,27 +465,21 @@ export default function ReportsPage() {
                 }}
               >
                 Author
-                <Tooltip title='Фильтр по Author'>
-                  <Badge
-                    badgeContent={authorFilter ? 1 : 0}
-                    color='secondary'
-                    overlap='circular'
+                <Tooltip title='Author filter'>
+                  <IconButton
+                    size='small'
+                    onClick={(event) => handleFilterClick(event, 'author')}
+                    color={authorFilter ? 'primary' : 'default'}
+                    aria-label='Author filter'
+                    aria-controls={
+                      openPopover && currentFilter === 'author'
+                        ? 'filter-popover'
+                        : undefined
+                    }
+                    aria-haspopup='true'
                   >
-                    <IconButton
-                      size='small'
-                      onClick={(event) => handleFilterClick(event, 'author')}
-                      color={authorFilter ? 'primary' : 'default'}
-                      aria-label='Фильтр по Author'
-                      aria-controls={
-                        openPopover && currentFilter === 'author'
-                          ? 'filter-popover'
-                          : undefined
-                      }
-                      aria-haspopup='true'
-                    >
-                      <FilterListIcon fontSize='small' />
-                    </IconButton>
-                  </Badge>
+                    <FilterListIcon fontSize='small' />
+                  </IconButton>
                 </Tooltip>
               </TableCell>
               <TableCell
@@ -498,26 +493,20 @@ export default function ReportsPage() {
               >
                 Created
                 <Tooltip title='Filter by creation date'>
-                  <Badge
-                    badgeContent={createdAtFilter ? 1 : 0}
-                    color='secondary'
-                    overlap='circular'
+                  <IconButton
+                    size='small'
+                    onClick={(event) => handleFilterClick(event, 'createdAt')}
+                    color={createdAtFilter ? 'primary' : 'default'}
+                    aria-label='Filter by creation date'
+                    aria-controls={
+                      openPopover && currentFilter === 'createdAt'
+                        ? 'filter-popover'
+                        : undefined
+                    }
+                    aria-haspopup='true'
                   >
-                    <IconButton
-                      size='small'
-                      onClick={(event) => handleFilterClick(event, 'createdAt')}
-                      color={createdAtFilter ? 'primary' : 'default'}
-                      aria-label='Filter by creation date'
-                      aria-controls={
-                        openPopover && currentFilter === 'createdAt'
-                          ? 'filter-popover'
-                          : undefined
-                      }
-                      aria-haspopup='true'
-                    >
-                      <FilterListIcon fontSize='small' />
-                    </IconButton>
-                  </Badge>
+                    <FilterListIcon fontSize='small' />
+                  </IconButton>
                 </Tooltip>
               </TableCell>
               <TableCell
@@ -531,26 +520,20 @@ export default function ReportsPage() {
               >
                 Status
                 <Tooltip title='Filter by Status'>
-                  <Badge
-                    badgeContent={statusFilter ? 1 : 0}
-                    color='secondary'
-                    overlap='circular'
+                  <IconButton
+                    size='small'
+                    onClick={(event) => handleFilterClick(event, 'status')}
+                    color={statusFilter ? 'primary' : 'default'}
+                    aria-label='Filter by Status'
+                    aria-controls={
+                      openPopover && currentFilter === 'status'
+                        ? 'filter-popover'
+                        : undefined
+                    }
+                    aria-haspopup='true'
                   >
-                    <IconButton
-                      size='small'
-                      onClick={(event) => handleFilterClick(event, 'status')}
-                      color={statusFilter ? 'primary' : 'default'}
-                      aria-label='Filter by Status'
-                      aria-controls={
-                        openPopover && currentFilter === 'status'
-                          ? 'filter-popover'
-                          : undefined
-                      }
-                      aria-haspopup='true'
-                    >
-                      <FilterListIcon fontSize='small' />
-                    </IconButton>
-                  </Badge>
+                    <FilterListIcon fontSize='small' />
+                  </IconButton>
                 </Tooltip>
               </TableCell>
             </TableRow>
@@ -571,7 +554,7 @@ export default function ReportsPage() {
         </Table>
       </TableContainer>
 
-      {/* Popover для фильтров */}
+      {/* Filter popover */}
       <Popover
         id={popoverId}
         open={openPopover}
@@ -592,20 +575,30 @@ export default function ReportsPage() {
               onChange={(e) => setTaskSearch(e.target.value)}
               fullWidth
               autoFocus
+              sx={{
+                '& .MuiInputLabel-root': { fontSize: '0.75rem' },
+                '& .MuiInputBase-input': { fontSize: '0.75rem' },
+              }}
             />
           )}
           {currentFilter === 'author' && (
             <FormControl fullWidth variant='outlined' size='small'>
-              <InputLabel id='author-filter-label'>Author</InputLabel>
+              <InputLabel id='author-filter-label' sx={{ fontSize: '0.75rem' }}>
+                Author
+              </InputLabel>
               <Select
                 labelId='author-filter-label'
                 value={authorFilter}
                 label='Author'
                 onChange={(e) => setAuthorFilter(e.target.value)}
                 autoFocus
+                sx={{
+                  '& .MuiSelect-select': { fontSize: '0.75rem' },
+                  '& .MuiInputLabel-root': { fontSize: '0.75rem' },
+                }}
               >
                 <MenuItem value=''>
-                  <em>Все</em>
+                  <em>All</em>
                 </MenuItem>
                 {uniqueAuthors.map((author) => (
                   <MenuItem key={author} value={author}>
@@ -617,16 +610,22 @@ export default function ReportsPage() {
           )}
           {currentFilter === 'status' && (
             <FormControl fullWidth variant='outlined' size='small'>
-              <InputLabel id='status-filter-label'>Status</InputLabel>
+              <InputLabel id='status-filter-label' sx={{ fontSize: '0.75rem' }}>
+                Status
+              </InputLabel>
               <Select
                 labelId='status-filter-label'
                 value={statusFilter}
                 label='Status'
                 onChange={(e) => setStatusFilter(e.target.value)}
                 autoFocus
+                sx={{
+                  '& .MuiSelect-select': { fontSize: '0.75rem' },
+                  '& .MuiInputLabel-root': { fontSize: '0.75rem' },
+                }}
               >
                 <MenuItem value=''>
-                  <em>Все</em>
+                  <em>All</em>
                 </MenuItem>
                 {uniqueStatuses.map((status) => (
                   <MenuItem key={status} value={status}>
@@ -650,14 +649,23 @@ export default function ReportsPage() {
                     size: 'small',
                     fullWidth: true,
                     autoFocus: true,
+                    sx: {
+                      '& .MuiInputLabel-root': { fontSize: '0.9rem' },
+                      '& .MuiInputBase-input': { fontSize: '0.9rem' },
+                    },
                   },
                 }}
               />
             </LocalizationProvider>
           )}
-          {/* Кнопки для закрытия и сброса фильтра */}
+          {/* Buttons for closing and resetting filter */}
           <Box sx={{ mt: 1, display: 'flex', justifyContent: 'space-between' }}>
-            <Button variant='contained' size='small' onClick={handleClose}>
+            <Button
+              variant='contained'
+              size='small'
+              onClick={handleClose}
+              sx={{ fontSize: '0.8rem' }}
+            >
               Close
             </Button>
             <Button
@@ -669,6 +677,7 @@ export default function ReportsPage() {
                 if (currentFilter === 'status') setStatusFilter('');
                 if (currentFilter === 'createdAt') setCreatedAtFilter(null);
               }}
+              sx={{ fontSize: '0.8rem' }}
             >
               Delete
             </Button>

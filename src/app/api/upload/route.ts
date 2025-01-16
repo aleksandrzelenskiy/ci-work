@@ -1,3 +1,5 @@
+// app/api/upload/route.ts
+
 import { NextResponse } from 'next/server';
 import * as fs from 'fs';
 import * as path from 'path';
@@ -7,7 +9,7 @@ import Report from '@/app/models/Report';
 import { currentUser } from '@clerk/nextjs/server';
 import dbConnect from '@/utils/mongoose';
 
-// Функция для перевода координат в формат D° M' S" + N/S/E/W
+// Function to convert coordinates to D° M' S" + N/S/E/W format
 function toDMS(
   degrees: number,
   minutes: number,
@@ -26,17 +28,17 @@ function toDMS(
   return `${absDeg}° ${minutes}' ${seconds.toFixed(2)}" ${direction}`;
 }
 
-// Форматируем дату EXIF в DD.MM.YYYY
+// Format EXIF date to DD.MM.YYYY
 function formatDateToDDMMYYYY(exifDateStr: string): string {
   // EXIF: "YYYY:MM:DD HH:MM:SS"
-  // Нужно: "DD.MM.YYYY"
+  // Expected: "DD.MM.YYYY"
   const [datePart] = exifDateStr.split(' ');
   const [yyyy, mm, dd] = datePart.split(':');
   return `${dd}.${mm}.${yyyy}`;
 }
 
 export async function POST(request: Request) {
-  // Проверяем аутентификацию
+  // Check authentication
   const user = await currentUser();
   if (!user) {
     console.error('Authentication error: User is not authenticated');
@@ -48,10 +50,10 @@ export async function POST(request: Request) {
 
   const name = `${user.firstName || 'Unknown'} ${user.lastName || ''}`.trim();
 
-  // Извлекаем FormData
+  // Extract FormData
   const formData = await request.formData();
 
-  // Декодируем task/baseId
+  // Decode task/baseId
   const rawBaseId = formData.get('baseId') as string | null;
   const rawTask = formData.get('task') as string | null;
   if (!rawBaseId || !rawTask) {
@@ -65,14 +67,14 @@ export async function POST(request: Request) {
   const baseId = decodeURIComponent(rawBaseId);
   const task = decodeURIComponent(rawTask);
 
-  // Файлы
+  // Files
   const files = formData.getAll('image[]') as File[];
   if (files.length === 0) {
     console.error('Validation error: No files uploaded');
     return NextResponse.json({ error: 'No files uploaded' }, { status: 400 });
   }
 
-  // Готовим папки
+  // Prepare directories
   const uploadsDir = path.join(process.cwd(), 'public', 'uploads', task);
   const taskDir = path.join(uploadsDir, baseId);
 
@@ -92,7 +94,7 @@ export async function POST(request: Request) {
     let date = 'Unknown Date';
     let coordinates = 'Unknown Location';
 
-    // Пытаемся считать EXIF
+    // Try to read EXIF
     try {
       const tags = ExifReader.load(buffer);
       if (tags.DateTimeOriginal?.description) {
@@ -125,7 +127,7 @@ export async function POST(request: Request) {
       console.warn('Error reading Exif data:', error);
     }
 
-    // Формируем имя выходного файла
+    // Generate output file name
     const outputFilename = `${baseId}-${String(fileCounter).padStart(
       3,
       '0'
@@ -133,9 +135,9 @@ export async function POST(request: Request) {
     const outputPath = path.join(taskDir, outputFilename);
 
     try {
-      // Ресайз и штамп
+      // Resize and stamp
       await sharp(buffer)
-        .resize(1280, 1280, {
+        .resize(1920, 1920, {
           fit: sharp.fit.inside,
           withoutEnlargement: true,
         })
@@ -169,7 +171,7 @@ export async function POST(request: Request) {
     }
   }
 
-  // Подключение к БД
+  // Connect to the database
   try {
     console.log('Connecting to database...');
     await dbConnect();
@@ -182,9 +184,9 @@ export async function POST(request: Request) {
     );
   }
 
-  // Сохраняем в БД
+  // Save to the database
   try {
-    // Создаём новый отчёт
+    // Create a new report
     const report = new Report({
       task,
       baseId,
@@ -196,7 +198,7 @@ export async function POST(request: Request) {
       files: fileUrls,
     });
 
-    // <-- Добавляем событие в историю изменений:
+    // <-- Add an event to the change history:
     report.events.push({
       action: 'REPORT_CREATED',
       author: name,

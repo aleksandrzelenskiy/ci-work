@@ -23,21 +23,26 @@ import {
   DialogContentText,
   DialogTitle,
   LinearProgress,
-  Chip, // Импорт Chip для бейджа
+  Chip,
+  Tooltip,
+  Snackbar,
+  Alert,
 } from '@mui/material';
 import ArrowBackIcon from '@mui/icons-material/ArrowBack';
 import AddIcon from '@mui/icons-material/Add';
 import DeleteIcon from '@mui/icons-material/Delete';
 import CloseIcon from '@mui/icons-material/Close';
 import { ZoomIn, ZoomOut, RotateRight } from '@mui/icons-material';
-import CheckIcon from '@mui/icons-material/Check'; // Импорт CheckIcon
+import CloudDownloadIcon from '@mui/icons-material/CloudDownload';
+import CloudUploadIcon from '@mui/icons-material/CloudUpload';
+import CheckIcon from '@mui/icons-material/Check';
 import { useParams } from 'next/navigation';
 import { useDropzone, Accept } from 'react-dropzone';
 import { PhotoProvider, PhotoView } from 'react-photo-view';
 import 'react-photo-view/dist/react-photo-view.css';
 import Link from 'next/link';
 
-// Интерфейс для управления загружаемыми файлами
+// Interface for managing uploaded files
 interface UploadedFile {
   id: string;
   file: File;
@@ -45,13 +50,13 @@ interface UploadedFile {
   progress: number;
 }
 
-// Интерфейс деталей для STATUS_CHANGED
+// Interface for details in STATUS_CHANGED
 interface IStatusChangedDetails {
   oldStatus: string;
   newStatus: string;
 }
 
-// Интерфейс события
+// Interface for event
 interface IEvent {
   action: string;
   author: string;
@@ -59,10 +64,9 @@ interface IEvent {
   details?: IStatusChangedDetails;
 }
 
-// Константы для названий действий
 const ACTIONS = {
   REPORT_CREATED: 'REPORT_CREATED',
-  STATUS_CHANGED: 'STATUS_CHANGED', // Добавлено для соответствия вашим данным
+  STATUS_CHANGED: 'STATUS_CHANGED',
   ISSUES_CREATED: 'ISSUES_CREATED',
   ISSUES_UPDATED: 'ISSUES_UPDATED',
   FIXED_PHOTOS: 'FIXED_PHOTOS',
@@ -70,6 +74,9 @@ const ACTIONS = {
 
 export default function PhotoReportPage() {
   const { task, baseid } = useParams() as { task: string; baseid: string };
+
+  // Current user's name
+  const currentUser = 'Ivan Petrov';
 
   const [photos, setPhotos] = useState<string[]>([]);
   const [fixedPhotos, setFixedPhotos] = useState<string[]>([]);
@@ -88,38 +95,40 @@ export default function PhotoReportPage() {
   const [error, setError] = useState<string | null>(null);
   const [uploading, setUploading] = useState(false);
 
-  // Состояние для событий
+  // State for report dowloading
+  const [downloading, setDownloading] = useState(false);
+
+  // State for events
   const [events, setEvents] = useState<IEvent[]>([]);
 
-  // Состояния для createdAt и userName
+  // States for createdAt and userName
   const [createdAt, setCreatedAt] = useState<string>('N/A');
   const [userName, setUserName] = useState<string>('Unknown');
 
-  // Новое состояние для отслеживания, исправлены ли все замечания
+  // New state to track if all issues are fixed
   const [issuesFixed, setIssuesFixed] = useState(false);
 
-  // Состояния для диалога подтверждения согласования и сообщения
+  // States for agreement confirmation dialog and message
   const [openAgreeDialog, setOpenAgreeDialog] = useState(false);
-  const [agreeMessage, setAgreeMessage] = useState<string | null>(null);
 
-  // Новое состояние для отслеживания текущего статуса
+  // New state to track current status
   const [status, setStatus] = useState<string>('Pending');
 
-  // Для очистки URL-адресов объектов
+  // For cleaning up object URLs
   useEffect(() => {
     return () => {
       uploadedFiles.forEach((file) => URL.revokeObjectURL(file.preview));
     };
   }, [uploadedFiles]);
 
-  // Вспомогательная функция для получения последних событий по действию и фильтру
+  // Helper function to get the latest event by action and filter
   const getLatestEvent = useCallback(
     (action: string, filter?: (event: IEvent) => boolean): IEvent | null => {
       let relatedEvents = events.filter((event) => event.action === action);
       if (filter) {
         relatedEvents = relatedEvents.filter(filter);
       }
-      console.log(`Events with action "${action}":`, relatedEvents); // Логирование
+      console.log(`Events with action "${action}":`, relatedEvents);
       if (relatedEvents.length === 0) return null;
       return relatedEvents.reduce((latest, event) =>
         new Date(event.date) > new Date(latest.date) ? event : latest
@@ -128,17 +137,17 @@ export default function PhotoReportPage() {
     [events]
   );
 
-  // Получаем последние события для каждого раздела
+  // Get the latest events for each section
   const photoReportEvent = getLatestEvent(ACTIONS.REPORT_CREATED);
   const issuesCreatedEvent = getLatestEvent(ACTIONS.ISSUES_CREATED);
   const issuesUpdatedEvent = getLatestEvent(ACTIONS.ISSUES_UPDATED);
   const fixedPhotosEvent = getLatestEvent(ACTIONS.FIXED_PHOTOS);
-  // Теперь REPORT_AGREED ищет STATUS_CHANGED с newStatus: 'Agreed'
+  // Now REPORT_AGREED looks for STATUS_CHANGED with newStatus: 'Agreed'
   const reportStatusEvent = getLatestEvent(ACTIONS.STATUS_CHANGED, (event) =>
     event.details ? event.details.newStatus === 'Agreed' : false
   );
 
-  // Функция для загрузки отчёта
+  // Function to fetch the report
   const fetchReport = useCallback(async () => {
     try {
       const response = await fetch(`/api/reports/${task}/${baseid}`);
@@ -149,27 +158,32 @@ export default function PhotoReportPage() {
       const data = await response.json();
       setPhotos(data.files || []);
       setFixedPhotos(data.fixedFiles || []);
+
+      // Determine if status is 'Fixed' or 'Agreed'
+      const isFixedOrAgreed =
+        data.status === 'Fixed' || data.status === 'Agreed';
+
       setIssues(
         (data.issues || []).map((issue: string) => ({
           text: issue,
-          checked: false,
+          checked: isFixedOrAgreed, // Set checked to true for 'Fixed' and 'Agreed' statuses
         }))
       );
 
-      // Установка createdAt и userName
+      // Set createdAt and userName
       setCreatedAt(new Date(data.createdAt).toLocaleDateString() || 'N/A');
       setUserName(data.userName || 'Unknown');
 
-      // Установка событий
+      // Set events
       setEvents(data.events || []);
 
-      // Установка состояния issuesFixed на основе fixedFiles
+      // Set issuesFixed state based on fixedFiles
       setIssuesFixed((data.fixedFiles || []).length > 0);
 
-      // Установка текущего статуса
+      // Set current status
       setStatus(data.status || 'Pending');
 
-      console.log('Fetched events:', data.events); // Логирование
+      console.log('Fetched events:', data.events);
     } catch (err: unknown) {
       console.error('Error fetching report:', err);
       setError(
@@ -182,7 +196,7 @@ export default function PhotoReportPage() {
     }
   }, [task, baseid]);
 
-  // Загружаем отчёт из базы при монтировании и при изменении task/baseid
+  // Load the report from the database on mount and when task/baseid changes
   useEffect(() => {
     fetchReport();
   }, [fetchReport]);
@@ -198,7 +212,7 @@ export default function PhotoReportPage() {
   };
 
   const handleAgreeClick = () => {
-    // Открываем диалог подтверждения согласования
+    // Open the agreement confirmation dialog
     setOpenAgreeDialog(true);
   };
 
@@ -212,10 +226,11 @@ export default function PhotoReportPage() {
       const data = await response.json();
 
       if (data.status === 'Agreed') {
-        alert(
+        showAlert(
           `Photo report ${decodeURIComponent(
             task
-          )} | Base: ${decodeURIComponent(baseid)} has already been agreed.`
+          )} | Base: ${decodeURIComponent(baseid)} has already been agreed.`,
+          'info'
         );
         return;
       }
@@ -230,37 +245,34 @@ export default function PhotoReportPage() {
         throw new Error('Failed to update status.');
       }
 
-      alert('Status has been updated to Agreed.');
+      showAlert('Status has been updated to Agreed.', 'success');
 
-      // После обновления статуса, перезагружаем отчёт
-      await fetchReport();
+      // **Optimistically update the status state**
+      setStatus('Agreed');
 
-      // Получаем последние события для REPORT_AGREED (STATUS_CHANGED с newStatus: 'Agreed')
-      const newReportStatusEvent = getLatestEvent(
-        ACTIONS.STATUS_CHANGED,
-        (event) =>
-          event.details ? event.details.newStatus === 'Agreed' : false
-      );
-      if (newReportStatusEvent) {
-        const message = `Photo report ${decodeURIComponent(
-          task
-        )} | Base ID: ${decodeURIComponent(baseid)} has been agreed by user ${
-          newReportStatusEvent.author
-        } on ${new Date(newReportStatusEvent.date).toLocaleDateString()}.`;
-        setAgreeMessage(message);
-      }
+      // **Add a new event to the events array**
+      const newEvent: IEvent = {
+        action: ACTIONS.STATUS_CHANGED,
+        author: currentUser,
+        date: new Date().toISOString(),
+        details: {
+          oldStatus: data.status,
+          newStatus: 'Agreed',
+        },
+      };
+      setEvents((prevEvents) => [...prevEvents, newEvent]);
     } catch (error) {
       console.error('Error updating status:', error);
-      alert('Error updating status. Please try again.');
+      showAlert('Error updating status. Please try again.', 'error');
     }
   };
 
   const handleCancelAgree = () => {
-    // Закрываем диалог подтверждения согласования без действий
+    // Close the agreement confirmation dialog without actions
     setOpenAgreeDialog(false);
   };
 
-  // Удаление замечаний (по индексу)
+  // Removing issues (by index)
   const confirmRemoveIssue = (index: number) => {
     setConfirmDeleteIndex(index);
   };
@@ -274,7 +286,7 @@ export default function PhotoReportPage() {
       return;
     }
 
-    // Оптимистичное удаление из интерфейса
+    // Optimistically remove from the UI
     const updatedNewIssues = [...newIssues];
     updatedNewIssues.splice(confirmDeleteIndex, 1);
     setNewIssues(updatedNewIssues);
@@ -294,8 +306,8 @@ export default function PhotoReportPage() {
       }
     } catch (error) {
       console.error('Error deleting issue:', error);
-      alert('Failed to delete issue. Please try again.');
-      // В случае ошибки откатываем
+      showAlert('Failed to delete issue. Please try again.', 'error');
+      // In case of error, rollback
       setNewIssues((prevIssues) => {
         const restoredIssues = [...prevIssues];
         restoredIssues.splice(confirmDeleteIndex, 0, issueToDelete);
@@ -311,6 +323,9 @@ export default function PhotoReportPage() {
 
     const allFixed = updatedIssues.every((issue) => issue.checked);
     setIsFixedReady(allFixed);
+
+    // Update issuesFixed based on all issues
+    setIssuesFixed(allFixed);
   };
 
   const handleIssuesClick = () => {
@@ -357,19 +372,33 @@ export default function PhotoReportPage() {
         throw new Error('Failed to update issues.');
       }
 
+      // **Optimistically update the status state**
+      setStatus('Issues');
+
+      // **Add a new event to the events array**
+      const newEvent: IEvent = {
+        action:
+          addedIssues.length > 0
+            ? ACTIONS.ISSUES_CREATED
+            : ACTIONS.ISSUES_UPDATED,
+        author: currentUser,
+        date: new Date().toISOString(),
+      };
+      setEvents((prevEvents) => [...prevEvents, newEvent]);
+
       setIssues(
         filteredNewIssues.map((issue) => ({ text: issue, checked: false }))
       );
       setShowIssuesFields(false);
       setNewIssues(['']);
-      setIssuesFixed(false); // Сбрасываем issuesFixed при обновлении замечаний
+      setIssuesFixed(false);
     } catch (error) {
       console.error('Error updating issues:', error);
-      alert('Failed to update issues. Please try again.');
+      showAlert('Failed to update issues. Please try again.', 'error');
     }
   };
 
-  // Обработка файлов при дропе
+  // Handling files on drop
   const onDrop = useCallback((acceptedFiles: File[]) => {
     const newFiles = acceptedFiles.map((file) => ({
       id: `${Date.now()}-${file.name}`,
@@ -387,7 +416,7 @@ export default function PhotoReportPage() {
     onDropRejected: (fileRejections) => {
       fileRejections.forEach((rejection) => {
         rejection.errors.forEach((error) => {
-          alert(`Error: ${error.message}`);
+          showAlert(`Error: ${error.message}`, 'error');
         });
       });
     },
@@ -397,7 +426,7 @@ export default function PhotoReportPage() {
     setUploadedFiles((prevFiles) => prevFiles.filter((file) => file.id !== id));
   };
 
-  // Состояние для удаления файлов (fixed)
+  // State for deleting files (fixed)
   const [fileToDelete, setFileToDelete] = useState<UploadedFile | null>(null);
   const handleDeleteFile = () => {
     if (fileToDelete) {
@@ -412,31 +441,26 @@ export default function PhotoReportPage() {
     setFileToDelete(null);
   };
 
-  /**
-   * Главное изменение:
-   * Теперь мы отправляем все файлы ОДНИМ запросом,
-   * вместо цикла Promise.all по каждому файлу.
-   */
   const handleUploadClick = async () => {
     if (uploadedFiles.length === 0) {
-      alert('Please select images to upload.');
+      showAlert('Please select images to upload.', 'warning');
       return;
     }
 
     setUploading(true);
 
     try {
-      // Формируем общий FormData
+      // Create a single FormData
       const formData = new FormData();
       formData.append('baseId', baseid);
       formData.append('task', task);
 
-      // Добавляем все файлы
+      // Add all files
       for (const uploadedFile of uploadedFiles) {
         formData.append('image[]', uploadedFile.file);
       }
 
-      // Один XMLHttpRequest для всех файлов
+      // Single XMLHttpRequest for all files
       const xhr = new XMLHttpRequest();
       xhr.open('POST', '/api/upload/fixed', true);
 
@@ -451,28 +475,39 @@ export default function PhotoReportPage() {
 
       xhr.onload = async () => {
         if (xhr.status === 200) {
-          alert('Fixed photo uploaded successfully.');
+          showAlert('Fixed photos uploaded successfully.', 'success');
           setUploadedFiles([]);
           setIsFixedReady(false);
           setIssuesFixed(true);
 
-          // Обновляем список фотографий
+          // **Optimistically update the status state**
+          setStatus('Fixed');
+
+          // **Add a new event to the events array**
+          const newEvent: IEvent = {
+            action: ACTIONS.FIXED_PHOTOS,
+            author: currentUser,
+            date: new Date().toISOString(),
+          };
+          setEvents((prevEvents) => [...prevEvents, newEvent]);
+
+          // Update the photos list
           await fetchReport();
         } else {
-          alert('Failed to upload image(s).');
+          showAlert('Failed to upload image(s).', 'error');
         }
         setUploading(false);
       };
 
       xhr.onerror = () => {
-        alert('An error occurred during the upload.');
+        showAlert('An error occurred during the upload.', 'error');
         setUploading(false);
       };
 
       xhr.send(formData);
     } catch (error) {
       console.error('Error uploading files:', error);
-      alert('Error uploading files.');
+      showAlert('Error uploading files.', 'error');
       setUploading(false);
     }
   };
@@ -482,7 +517,7 @@ export default function PhotoReportPage() {
     setNewIssues(['']);
   };
 
-  // Функция для получения цвета бейджа на основе статуса
+  // Function to get badge color based on status
   const getStatusColor = (status: string) => {
     switch (status) {
       case 'Pending':
@@ -498,7 +533,7 @@ export default function PhotoReportPage() {
     }
   };
 
-  // Функция для получения сообщения на основе статуса
+  // Function to get message based on status
   const getStatusMessage = () => {
     switch (status) {
       case 'Pending':
@@ -534,6 +569,72 @@ export default function PhotoReportPage() {
     }
   };
 
+  // Add state for managing notifications
+  const [alertState, setAlertState] = useState<{
+    open: boolean;
+    message: string;
+    severity: 'success' | 'error' | 'info' | 'warning';
+  }>({ open: false, message: '', severity: 'success' });
+
+  // Function to display notification
+  const showAlert = (
+    message: string,
+    severity: 'success' | 'error' | 'info' | 'warning'
+  ) => {
+    setAlertState({ open: true, message, severity });
+  };
+
+  // Function for download report
+  const handleDownloadReport = async () => {
+    setDownloading(true);
+    try {
+      const response = await fetch(`/api/reports/${task}/${baseid}/download`, {
+        method: 'GET',
+      });
+      if (!response.ok) {
+        throw new Error(
+          `Failed to download report. Status: ${response.status}`
+        );
+      }
+      const blob = await response.blob();
+      const url = window.URL.createObjectURL(new Blob([blob]));
+      const link = document.createElement('a');
+      link.href = url;
+
+      // Trying to extract the file name from the response headers
+      const contentDisposition = response.headers.get('content-disposition');
+      let fileName = 'report.zip';
+      if (contentDisposition) {
+        const fileNameMatch = contentDisposition.match(/filename="(.+)"/);
+        if (fileNameMatch && fileNameMatch.length > 1)
+          fileName = fileNameMatch[1];
+      }
+
+      link.setAttribute('download', fileName);
+      document.body.appendChild(link);
+      link.click();
+      link.parentNode?.removeChild(link);
+      window.URL.revokeObjectURL(url);
+      showAlert('Report downloaded successfully.', 'success');
+    } catch (error) {
+      console.error('Error downloading report:', error);
+      showAlert('Failed to download report. Please try again.', 'error');
+    } finally {
+      setDownloading(false);
+    }
+  };
+
+  // Function to close notification
+  const handleCloseAlert = (
+    event?: React.SyntheticEvent | Event,
+    reason?: string
+  ) => {
+    if (reason === 'clickaway') {
+      return;
+    }
+    setAlertState((prev) => ({ ...prev, open: false }));
+  };
+
   if (loading) {
     return (
       <Box display='flex' justifyContent='center' mt={4}>
@@ -550,9 +651,38 @@ export default function PhotoReportPage() {
     );
   }
 
+  const generateAgreeMessage = () => {
+    if (status === 'Agreed' && reportStatusEvent) {
+      return `Photo report ${decodeURIComponent(
+        task
+      )} | Base ID: ${decodeURIComponent(baseid)} has been agreed by user ${
+        reportStatusEvent.author
+      } on ${new Date(reportStatusEvent.date).toLocaleDateString()}.`;
+    }
+    return null;
+  };
+
+  const agreeMessage = generateAgreeMessage();
+
   return (
     <Box>
-      {/* Ссылка на страницу Reports List */}
+      {/* Snackbar for displaying notifications */}
+      <Snackbar
+        open={alertState.open}
+        autoHideDuration={3000}
+        onClose={handleCloseAlert}
+        anchorOrigin={{ vertical: 'top', horizontal: 'center' }}
+      >
+        <Alert
+          onClose={handleCloseAlert}
+          severity={alertState.severity}
+          sx={{ width: '100%' }}
+        >
+          {alertState.message}
+        </Alert>
+      </Snackbar>
+
+      {/* Link to the reports list page */}
       <Box mb={2}>
         <Button
           component={Link}
@@ -565,7 +695,7 @@ export default function PhotoReportPage() {
         </Button>
       </Box>
 
-      {/* Главный заголовок */}
+      {/* Main title */}
       <Typography variant='h5' gutterBottom sx={{ textTransform: 'none' }}>
         <Chip
           label={status}
@@ -644,7 +774,7 @@ export default function PhotoReportPage() {
         </Grid>
       </PhotoProvider>
 
-      {/* Кнопки: Agreed и Issues */}
+      {/* Buttons: Agree and Issues */}
       {status !== 'Agreed' && (
         <Box
           display='flex'
@@ -652,13 +782,14 @@ export default function PhotoReportPage() {
           alignItems='center'
           sx={{ mt: '20px', mb: '20px', gap: '10px' }}
         >
+          {/* The "Agree" button is always displayed but disabled if issuesFixed = false or status is not "Fixed" */}
           <Button
             variant='contained'
             color='success'
             onClick={handleAgreeClick}
             disabled={status === 'Issues' && !issuesFixed}
           >
-            Agreed
+            Agree
           </Button>
           <Button variant='contained' color='error' onClick={handleIssuesClick}>
             Issues
@@ -666,12 +797,12 @@ export default function PhotoReportPage() {
         </Box>
       )}
 
-      {/* Диалог подтверждения согласования */}
+      {/* Agreement confirmation dialog */}
       <Dialog open={openAgreeDialog} onClose={handleCancelAgree}>
         <DialogTitle>Confirm Agreement</DialogTitle>
         <DialogContent>
           <DialogContentText>
-            Are you sure you want to agree to photo report{' '}
+            Are you sure you want to agree to the photo report{' '}
             {decodeURIComponent(task)} | Base ID:{baseid}?
           </DialogContentText>
         </DialogContent>
@@ -685,7 +816,7 @@ export default function PhotoReportPage() {
         </DialogActions>
       </Dialog>
 
-      {/* Раздел Issues */}
+      {/* Issues Section */}
       {showIssuesFields && (
         <Box mt={4}>
           {newIssues.map((issue, index) => (
@@ -697,12 +828,14 @@ export default function PhotoReportPage() {
                 fullWidth
                 margin='normal'
               />
-              <IconButton
-                onClick={() => confirmRemoveIssue(index)}
-                sx={{ marginLeft: 1 }}
-              >
-                <DeleteIcon />
-              </IconButton>
+              <Tooltip title='Delete'>
+                <IconButton
+                  onClick={() => confirmRemoveIssue(index)}
+                  sx={{ marginLeft: 1 }}
+                >
+                  <DeleteIcon />
+                </IconButton>
+              </Tooltip>
             </Box>
           ))}
           <Box display='flex' justifyContent='space-between' mt={2}>
@@ -744,7 +877,7 @@ export default function PhotoReportPage() {
           >
             Issues
           </Typography>
-          {/* Отображение событий для Issues */}
+          {/* Displaying events for Issues */}
           {issuesUpdatedEvent ? (
             <Typography variant='body2' gutterBottom>
               Edited by {issuesUpdatedEvent.author} |{' '}
@@ -758,7 +891,7 @@ export default function PhotoReportPage() {
               </Typography>
             )
           )}
-          {/* Содержимое Issues */}
+          {/* Issues Content */}
           <TableContainer component={Paper}>
             <Table>
               <TableHead>
@@ -772,13 +905,17 @@ export default function PhotoReportPage() {
                   <TableRow key={index}>
                     <TableCell>{`${index + 1}. ${issue.text}`}</TableCell>
                     <TableCell align='center'>
-                      {issuesFixed ? (
-                        <CheckIcon color='success' />
-                      ) : (
+                      {status === 'Issues' ? (
                         <Checkbox
                           checked={issue.checked}
                           onChange={() => handleCheckboxChange(index)}
                         />
+                      ) : issue.checked ? (
+                        <CheckIcon color='success' />
+                      ) : (
+                        <Typography variant='body2' color='textSecondary'>
+                          Not Fixed
+                        </Typography>
                       )}
                     </TableCell>
                   </TableRow>
@@ -878,6 +1015,7 @@ export default function PhotoReportPage() {
               >
                 <Button
                   variant='contained'
+                  startIcon={<CloudUploadIcon />}
                   color='primary'
                   onClick={handleUploadClick}
                   disabled={uploadedFiles.length === 0 || uploading}
@@ -897,7 +1035,7 @@ export default function PhotoReportPage() {
               >
                 Issues Fixed
               </Typography>
-              {/* Отображение событий для Issues Fixed */}
+              {/* Displaying events for Issues Fixed */}
               {fixedPhotosEvent ? (
                 <Typography variant='body2' gutterBottom>
                   Created by {fixedPhotosEvent.author} |{' '}
@@ -908,7 +1046,7 @@ export default function PhotoReportPage() {
                   No information available.
                 </Typography>
               )}
-              {/* Содержимое Исправленных Фотографий */}
+              {/* Fixed Photos Content */}
               <PhotoProvider
                 toolbarRender={({ onScale, scale, onRotate, rotate }) => (
                   <Box
@@ -966,7 +1104,7 @@ export default function PhotoReportPage() {
             </Box>
           )}
 
-          {/* Отображение сообщения после согласования */}
+          {/* Displaying agreement message */}
           {agreeMessage && (
             <Box mt={4}>
               <Typography variant='body1' color='success.main'>
@@ -974,50 +1112,61 @@ export default function PhotoReportPage() {
               </Typography>
             </Box>
           )}
-
-          {/* Диалог подтверждения удаления замечания */}
-          <Dialog
-            open={confirmDeleteIndex !== null}
-            onClose={() => setConfirmDeleteIndex(null)}
-          >
-            <DialogTitle>Confirmation</DialogTitle>
-            <DialogContent>
-              <DialogContentText>
-                Are you sure you want to delete this issue?
-              </DialogContentText>
-            </DialogContent>
-            <DialogActions>
-              <Button
-                onClick={() => setConfirmDeleteIndex(null)}
-                color='primary'
-              >
-                Cancel
-              </Button>
-              <Button onClick={handleDeleteIssueField} color='error'>
-                Delete
-              </Button>
-            </DialogActions>
-          </Dialog>
-
-          {/* Диалог подтверждения удаления файла */}
-          <Dialog open={!!fileToDelete} onClose={() => setFileToDelete(null)}>
-            <DialogTitle>Confirmation</DialogTitle>
-            <DialogContent>
-              <DialogContentText>
-                Are you sure you want to delete this image?
-              </DialogContentText>
-            </DialogContent>
-            <DialogActions>
-              <Button onClick={() => setFileToDelete(null)} color='primary'>
-                Cancel
-              </Button>
-              <Button onClick={handleDeleteConfirmed} color='error'>
-                Delete
-              </Button>
-            </DialogActions>
-          </Dialog>
         </Box>
       )}
+
+      {status === 'Agreed' && (
+        <Box mt={4} display='flex' justifyContent='center'>
+          <Button
+            variant='contained'
+            color='primary'
+            startIcon={<CloudDownloadIcon />}
+            onClick={handleDownloadReport}
+            disabled={downloading}
+          >
+            {downloading ? 'Downloading...' : 'Download Report'}
+          </Button>
+        </Box>
+      )}
+
+      {/* Confirmation dialog for deleting an issue */}
+      <Dialog
+        open={confirmDeleteIndex !== null}
+        onClose={() => setConfirmDeleteIndex(null)}
+      >
+        <DialogTitle>Confirmation</DialogTitle>
+        <DialogContent>
+          <DialogContentText>
+            Are you sure you want to delete this issue?
+          </DialogContentText>
+        </DialogContent>
+        <DialogActions>
+          <Button onClick={() => setConfirmDeleteIndex(null)} color='primary'>
+            Cancel
+          </Button>
+          <Button onClick={handleDeleteIssueField} color='error'>
+            Delete
+          </Button>
+        </DialogActions>
+      </Dialog>
+
+      {/* Confirmation dialog for deleting a file */}
+      <Dialog open={!!fileToDelete} onClose={() => setFileToDelete(null)}>
+        <DialogTitle>Confirmation</DialogTitle>
+        <DialogContent>
+          <DialogContentText>
+            Are you sure you want to delete this image?
+          </DialogContentText>
+        </DialogContent>
+        <DialogActions>
+          <Button onClick={() => setFileToDelete(null)} color='primary'>
+            Cancel
+          </Button>
+          <Button onClick={handleDeleteConfirmed} color='error'>
+            Delete
+          </Button>
+        </DialogActions>
+      </Dialog>
     </Box>
   );
 }

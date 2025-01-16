@@ -12,12 +12,11 @@ export async function GET(
   context: { params: { task: string; baseid: string } }
 ) {
   try {
-    console.log('Подключение к базе данных...');
+    console.log('Connecting to the database...');
     await dbConnect();
-    console.log('Успешное подключение к базе данных.');
+    console.log('Successfully connected to the database.');
 
-    // Await для параметров маршрута
-    const params = await context.params; // Awaiting the params
+    const params = await context.params;
     const { task, baseid } = params;
 
     console.log(`Task: ${task}, BaseID: ${baseid}`);
@@ -35,11 +34,14 @@ export async function GET(
     });
 
     if (!report) {
-      console.warn('Отчёт не найден.');
-      return NextResponse.json({ error: 'Отчёт не найден' }, { status: 404 });
+      console.warn('The report was not found.');
+      return NextResponse.json(
+        { error: 'The report was not found' },
+        { status: 404 }
+      );
     }
 
-    console.log('Отчёт найден:', report);
+    console.log('Report found:', report);
 
     return NextResponse.json({
       files: report.files,
@@ -51,9 +53,9 @@ export async function GET(
       events: report.events || [],
     });
   } catch (error) {
-    console.error('Ошибка при получении отчёта:', error);
+    console.error('Error when receiving the report:', error);
     return NextResponse.json(
-      { error: 'Не удалось получить отчёт' },
+      { error: 'Could not get the report' },
       { status: 500 }
     );
   }
@@ -67,12 +69,11 @@ export async function PATCH(
   context: { params: { task: string; baseid: string } }
 ) {
   try {
-    console.log('Подключение к базе данных...');
+    console.log('Connecting to the database...');
     await dbConnect();
-    console.log('Успешное подключение к базе данных.');
+    console.log('Successfully connected to the database.');
 
-    // Await для параметров маршрута
-    const params = await context.params; // Awaiting the params
+    const params = await context.params;
     const { task, baseid } = params;
 
     console.log(`Task: ${task}, BaseID: ${baseid}`);
@@ -84,20 +85,20 @@ export async function PATCH(
       `Decoded Task: ${decodedTask}, Decoded BaseID: ${decodedBaseId}`
     );
 
-    // Получаем текущего пользователя
+    // Get the current user
     const user = await currentUser();
     if (!user) {
-      console.error('Ошибка аутентификации: Пользователь не аутентифицирован');
+      console.error('Authentication error: User is not authenticated');
       return NextResponse.json(
-        { error: 'Пользователь не аутентифицирован' },
+        { error: 'User is not authenticated' },
         { status: 401 }
       );
     }
 
     const name = `${user.firstName || 'Unknown'} ${user.lastName || ''}`.trim();
-    console.log(`Аутентифицированный пользователь: ${name}`);
+    console.log(`Authenticated user: ${name}`);
 
-    // Извлекаем тело запроса
+    // Extract the request body
     const body: {
       status?: string;
       issues?: string[];
@@ -105,33 +106,33 @@ export async function PATCH(
       deleteIssueIndex?: number;
     } = await request.json();
 
-    console.log('Тело запроса:', body);
+    console.log('Request body:', body);
 
     const { status, issues, updateIssue, deleteIssueIndex } = body;
 
-    // Находим отчёт в базе данных
+    // Find the report in the database
     const report = await Report.findOne({
       task: decodedTask,
       baseId: decodedBaseId,
     });
 
     if (!report) {
-      console.warn('Отчёт не найден.');
-      return NextResponse.json({ error: 'Отчёт не найден' }, { status: 404 });
+      console.warn('Report not found.');
+      return NextResponse.json({ error: 'Report not found' }, { status: 404 });
     }
 
-    console.log('Отчёт найден для обновления:', report);
+    console.log('Report found for updating:', report);
 
-    // Сохраняем старые значения для сравнения
+    // Save old values for comparison
     const oldStatus = report.status;
     const oldIssues = [...report.issues];
 
-    // --- Изменение статуса ---
+    // --- Update status ---
     if (status && status !== oldStatus) {
-      console.log(`Обновление статуса на: ${status}`);
+      console.log(`Updating status to: ${status}`);
       report.status = status;
 
-      // Добавляем событие в историю изменений
+      // Add an event to the change history
       if (!report.events) report.events = [];
       report.events.push({
         action: 'STATUS_CHANGED',
@@ -145,11 +146,11 @@ export async function PATCH(
       });
     }
 
-    // --- Изменение массива issues ---
+    // --- Update issues array ---
     let issuesChanged = false;
 
     if (Array.isArray(issues)) {
-      // Сравнение старых и новых issues для определения изменений
+      // Compare old and new issues to determine changes
       const oldIssuesSet = new Set(oldIssues);
       const newIssuesSet = new Set(issues);
 
@@ -166,9 +167,7 @@ export async function PATCH(
 
     if (updateIssue) {
       const { index, text } = updateIssue;
-      console.log(
-        `Обновление замечания по индексу ${index} с текстом: ${text}`
-      );
+      console.log(`Updating issue at index ${index} with text: ${text}`);
       if (
         index >= 0 &&
         Array.isArray(report.issues) &&
@@ -177,16 +176,16 @@ export async function PATCH(
         report.issues[index] = text;
         issuesChanged = true;
       } else {
-        console.warn('Неверный индекс для обновления замечания.');
+        console.warn('Invalid index for updating issue.');
         return NextResponse.json(
-          { error: 'Неверный индекс для обновления замечания' },
+          { error: 'Invalid index for updating issue' },
           { status: 400 }
         );
       }
     }
 
     if (typeof deleteIssueIndex === 'number') {
-      console.log(`Удаление замечания по индексу: ${deleteIssueIndex}`);
+      console.log(`Deleting issue at index: ${deleteIssueIndex}`);
       if (
         deleteIssueIndex >= 0 &&
         Array.isArray(report.issues) &&
@@ -195,15 +194,15 @@ export async function PATCH(
         report.issues.splice(deleteIssueIndex, 1);
         issuesChanged = true;
       } else {
-        console.warn('Неверный индекс для удаления замечания.');
+        console.warn('Invalid index for deleting issue.');
         return NextResponse.json(
-          { error: 'Неверный индекс для удаления замечания' },
+          { error: 'Invalid index for deleting issue' },
           { status: 400 }
         );
       }
     }
 
-    // Если массив issues изменился, добавляем событие
+    // If the issues array has changed, add an event
     if (issuesChanged) {
       if (!report.events) report.events = [];
       report.events.push({
@@ -218,15 +217,15 @@ export async function PATCH(
       });
     }
 
-    // Сохраняем изменения в базе данных
+    // Save changes to the database
     await report.save();
-    console.log('Отчёт успешно обновлён.');
+    console.log('Report successfully updated.');
 
-    return NextResponse.json({ message: 'Отчёт успешно обновлён' });
+    return NextResponse.json({ message: 'Report successfully updated' });
   } catch (error) {
-    console.error('Ошибка при обновлении отчёта:', error);
+    console.error('Error updating the report:', error);
     return NextResponse.json(
-      { error: 'Не удалось обновить отчёт' },
+      { error: 'Could not update the report' },
       { status: 500 }
     );
   }

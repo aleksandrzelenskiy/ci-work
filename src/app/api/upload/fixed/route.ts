@@ -1,3 +1,4 @@
+// app/api/upload/fixed/route.ts
 import { NextResponse } from 'next/server';
 import sharp from 'sharp';
 import * as fs from 'fs';
@@ -7,7 +8,7 @@ import Report from '@/app/models/Report';
 import { currentUser } from '@clerk/nextjs/server';
 import ExifReader from 'exifreader';
 
-// Функция для перевода координат в формат D° M' S" + N/S/E/W
+// Function to convert coordinates to D° M' S" + N/S/E/W format
 function toDMS(
   degrees: number,
   minutes: number,
@@ -26,17 +27,17 @@ function toDMS(
   return `${absDeg}° ${minutes}' ${seconds.toFixed(2)}" ${direction}`;
 }
 
-// Форматируем EXIF дату в DD.MM.YYYY
+// Format EXIF date to DD.MM.YYYY
 function formatDateToDDMMYYYY(exifDateStr: string): string {
-  // EXIF дата обычно "YYYY:MM:DD HH:MM:SS"
-  // Нужно "DD.MM.YYYY"
+  // EXIF date is usually "YYYY:MM:DD HH:MM:SS"
+  // Expected: "DD.MM.YYYY"
   const [datePart] = exifDateStr.split(' ');
   const [yyyy, mm, dd] = datePart.split(':');
   return `${dd}.${mm}.${yyyy}`;
 }
 
 export async function POST(request: Request) {
-  // Подключаемся к БД
+  // Connect to the database
   try {
     await dbConnect();
     console.log('Database connected successfully.');
@@ -48,7 +49,7 @@ export async function POST(request: Request) {
     );
   }
 
-  // Проверяем аутентификацию
+  // Check authentication
   const user = await currentUser();
   if (!user) {
     console.error('Authentication error: User is not authenticated');
@@ -58,10 +59,10 @@ export async function POST(request: Request) {
     );
   }
 
-  // Логируем объект user для проверки
+  // Log the user object for debugging
   console.log('User object:', user);
 
-  // Получаем имя пользователя
+  // Get the user's name
   let name = 'Unknown';
   if (user.firstName && user.lastName) {
     name = `${user.firstName} ${user.lastName}`.trim();
@@ -71,14 +72,17 @@ export async function POST(request: Request) {
     name = user.emailAddresses[0].emailAddress;
   }
 
-  // Извлекаем ID пользователя (обновите поле, если нужно)
-  const userId = user.id; // Проверьте правильность этого поля
-
+  // Extract the user ID
+  const userId = user.id;
   console.log('Authenticated user name:', name);
   console.log('Authenticated user ID:', userId);
 
-  // Обрабатываем FormData
+  // Process FormData
   const formData = await request.formData();
+
+  // Log FormData keys for debugging
+  console.log('FormData keys:', [...formData.keys()]);
+
   const rawBaseId = formData.get('baseId') as string | null;
   const rawTask = formData.get('task') as string | null;
 
@@ -93,14 +97,21 @@ export async function POST(request: Request) {
   const baseId = decodeURIComponent(rawBaseId);
   const task = decodeURIComponent(rawTask);
 
-  // Обрабатываем загруженные файлы
-  const files = formData.getAll('image[]') as File[];
+  // Process uploaded files
+  const files = formData.getAll('image[]') as File[]; // Using 'image[]'
+
+  // Log the number of received files
+  console.log(`Number of files received: ${files.length}`);
+  files.forEach((file, index) => {
+    console.log(`File ${index + 1}: ${file.name}, Size: ${file.size} bytes`);
+  });
+
   if (files.length === 0) {
     console.error('Validation error: No files uploaded');
     return NextResponse.json({ error: 'No files uploaded' }, { status: 400 });
   }
 
-  // Определяем директории
+  // Define directories
   const uploadsDir = path.join(process.cwd(), 'public', 'uploads', task);
   const taskDir = path.join(uploadsDir, baseId);
   const issuesFixedDir = path.join(taskDir, `${baseId} issues fixed`);
@@ -112,14 +123,14 @@ export async function POST(request: Request) {
   const fileUrls: string[] = [];
   let fileCounter = 1;
 
-  // Обрабатываем каждый файл
+  // Process each file
   for (const file of files) {
     const buffer = Buffer.from(await file.arrayBuffer());
 
     let date = 'Unknown Date';
     let coordinates = 'Unknown Location';
 
-    // Извлекаем EXIF данные
+    // Extract EXIF data
     try {
       const tags = ExifReader.load(buffer);
 
@@ -152,17 +163,19 @@ export async function POST(request: Request) {
       console.warn('Error reading Exif data (fixed):', error);
     }
 
-    // Генерируем уникальное имя файла
+    // Generate a unique file name
+    const uniqueSuffix = Date.now() + '-' + Math.round(Math.random() * 1e9);
+    const extension = path.extname(file.name) || '.jpg';
     const outputFilename = `${baseId}-fixed-${String(fileCounter).padStart(
       3,
       '0'
-    )}.jpg`;
+    )}-${uniqueSuffix}${extension}`;
     const outputPath = path.join(issuesFixedDir, outputFilename);
 
-    // Обрабатываем изображение с помощью Sharp
+    // Process the image using Sharp
     try {
       await sharp(buffer)
-        .resize(1280, 1280, {
+        .resize(1920, 1920, {
           fit: sharp.fit.inside,
           withoutEnlargement: true,
         })
@@ -172,7 +185,7 @@ export async function POST(request: Request) {
               `<svg width="900" height="200">
                 <rect x="0" y="120" width="900" height="80" fill="black" opacity="0.6" />
                 <text x="20" y="150" font-size="20" font-family="Arial, sans-serif" fill="white" text-anchor="start">
-                  ${date} | Task: ${task} | BS: ${baseId} | Author: ${name}
+                  ISSUES FIXED ${date} | Task: ${task} | BS: ${baseId} | Author: ${name}
                 </text>
                 <text x="20" y="180" font-size="20" font-family="Arial, sans-serif" fill="white" text-anchor="start">
                   Location: ${coordinates}
@@ -196,43 +209,38 @@ export async function POST(request: Request) {
     }
   }
 
-  // Сохраняем ссылки на файлы в базе данных
+  // Save file URLs to the database
   try {
-    // Обновляем отчет с фиксированными файлами и статусом
-    const report = await Report.findOneAndUpdate(
-      { task, baseId },
-      {
-        $push: { fixedFiles: { $each: fileUrls } },
-        status: 'Fixed',
-        // Если документ создается через upsert, необходимо установить userId и userName
-        $setOnInsert: {
-          userId: userId,
-          userName: name,
-        },
-      },
-      { new: true, upsert: true }
-    );
-
-    // Проверяем, был ли создан новый отчет
+    // Find the report
+    const report = await Report.findOne({ task, baseId });
     if (!report) {
-      console.error('Report was not found or created.');
+      console.error('Report was not found.');
       return NextResponse.json(
-        { error: 'Report was not found or created.' },
-        { status: 500 }
+        { error: 'Report was not found.' },
+        { status: 404 }
       );
     }
 
-    // Добавляем событие в историю отчета
+    // Add new files to fixedFiles
+    report.fixedFiles = report.fixedFiles.concat(fileUrls);
+
+    // Update status to 'Fixed' if not already set
+    if (report.status !== 'Fixed') {
+      report.status = 'Fixed';
+    }
+
+    // Add an event to the report history
     report.events.push({
       action: 'FIXED_PHOTOS',
       author: name,
-      authorId: userId, // Добавлено поле authorId
+      authorId: userId,
       date: new Date(),
       details: {
         fileCount: fileUrls.length,
       },
     });
 
+    // Save the report
     await report.save();
 
     return NextResponse.json({

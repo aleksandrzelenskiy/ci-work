@@ -1,9 +1,8 @@
-// app/upload/page.tsx
 'use client';
 
 import React, { useState, useEffect } from 'react';
-import { useRouter } from 'next/navigation'; // Для редиректа
-import { useUser } from '@clerk/nextjs'; // Для проверки авторизации
+import { useRouter } from 'next/navigation';
+import { useUser } from '@clerk/nextjs';
 import {
   Typography,
   TextField,
@@ -20,6 +19,7 @@ import {
 } from '@mui/material';
 import { useDropzone } from 'react-dropzone';
 import DeleteIcon from '@mui/icons-material/Delete';
+import CloudUploadIcon from '@mui/icons-material/CloudUpload';
 
 interface UploadedFile {
   id: string;
@@ -30,13 +30,13 @@ interface UploadedFile {
 
 export default function UploadPage() {
   const { isLoaded, isSignedIn } = useUser();
-  const router = useRouter(); // Используем для редиректа
+  const router = useRouter(); // Used for redirection
   const [baseId, setBaseId] = useState('');
   const [task, setTask] = useState('');
   const [files, setFiles] = useState<UploadedFile[]>([]);
   const [fileToDelete, setFileToDelete] = useState<UploadedFile | null>(null);
 
-  // Перенаправление на страницу логина, если пользователь не авторизован
+  // Redirect to login page if the user is not authenticated
   useEffect(() => {
     if (isLoaded && !isSignedIn) {
       router.push('/auth/login');
@@ -102,15 +102,15 @@ export default function UploadPage() {
 
       xhr.onload = () => {
         if (xhr.status === 200) {
-          // Парсим ответ и берем оттуда message
+          // Parse the response and extract the message
           const responseData = JSON.parse(xhr.responseText);
           if (responseData.success) {
-            alert(responseData.message); // <-- Используем нужное сообщение
+            alert(responseData.message); // <-- Use the appropriate message
           } else {
             alert('Upload completed, but no "success" in response.');
           }
 
-          // Сбрасываем поля и файлы
+          // Reset fields and files
           setFiles([]);
           setBaseId('');
           setTask('');
@@ -130,7 +130,7 @@ export default function UploadPage() {
     }
   };
 
-  // Если данные еще не загружены, показываем загрузку
+  // Show loading if data is not yet loaded
   if (!isLoaded) {
     return <Typography>Loading...</Typography>;
   }
@@ -223,15 +223,16 @@ export default function UploadPage() {
         >
           <Button
             variant='contained'
+            startIcon={<CloudUploadIcon />}
             color='primary'
             onClick={handleUploadClick}
             disabled={!baseId || !task || files.length === 0}
           >
-            Upload Images
+            Upload Photo
           </Button>
         </Box>
 
-        {/* Диалог подтверждения удаления */}
+        {/* Confirmation dialog for deletion */}
         <Dialog
           open={!!fileToDelete}
           onClose={() => setFileToDelete(null)}

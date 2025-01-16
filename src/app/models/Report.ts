@@ -1,9 +1,10 @@
 // /app/models/Report.ts
+
 import mongoose, { Schema } from 'mongoose';
 import { IReport, IEvent } from '../types/reportTypes';
-/**
- * Схема для одного события истории (Event).
- */
+
+// Schema for a single history event (Event).
+
 const EventSchema = new Schema<IEvent>(
   {
     action: { type: String, required: true },
@@ -15,9 +16,8 @@ const EventSchema = new Schema<IEvent>(
   { _id: false }
 );
 
-/**
- * Основная схема отчёта.
- */
+// Main report schema.
+
 const ReportSchema: Schema<IReport> = new Schema({
   task: { type: String, required: true },
   baseId: { type: String, required: true },
@@ -32,6 +32,6 @@ const ReportSchema: Schema<IReport> = new Schema({
   events: { type: [EventSchema], default: [] },
 });
 
-// Если модель уже существует — используем её, иначе создаём новую
+// If the model already exists, use it; otherwise, create a new one.
 export default mongoose.models.Report ||
   mongoose.model<IReport>('Report', ReportSchema);

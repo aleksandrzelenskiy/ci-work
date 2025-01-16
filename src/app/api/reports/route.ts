@@ -1,10 +1,10 @@
-// /app/api/reports/route.ts
+// app/api/reports/route.ts
 import { NextResponse } from 'next/server';
 import Report from '@/app/models/Report';
 import dbConnect from '@/utils/mongoose';
 
 export async function GET() {
-  // Устанавливаем подключение к базе данных
+  // Establish connection to the database
   try {
     await dbConnect();
     console.log('Connected to MongoDB');
@@ -18,23 +18,23 @@ export async function GET() {
 
   try {
     const rawReports = await Report.aggregate([
-      // Разворачиваем массив событий для обработки каждого события отдельно
+      // Unwind the events array to process each event separately
       { $unwind: '$events' },
 
-      // Группируем по task и baseId, чтобы получить последнюю дату изменения статуса для каждого baseId
+      // Group by task and baseId to get the latest status change date for each baseId
       {
         $group: {
           _id: { task: '$task', baseId: '$baseId' },
-          status: { $last: '$status' }, // Предполагается, что статус обновляется последним событием
+          status: { $last: '$status' },
           latestStatusChangeDate: { $max: '$events.date' },
-          userId: { $first: '$userId' }, // Получаем userId
+          userId: { $first: '$userId' },
           userName: { $first: '$userName' },
           userAvatar: { $first: '$userAvatar' },
           createdAt: { $first: '$createdAt' },
         },
       },
 
-      // Группируем по task, собирая все baseStatuses с датой изменения статуса
+      // Group by task, collecting all baseStatuses with their status change dates
       {
         $group: {
           _id: '$_id.task',
@@ -53,19 +53,19 @@ export async function GET() {
         },
       },
 
-      // Сортируем отчёты по дате создания в порядке убывания
+      // Sort reports by creation date in descending order
       { $sort: { createdAt: -1 } },
     ]);
 
-    console.log('Aggregated Reports:', rawReports); // Лог для проверки структуры данных
+    console.log('Aggregated Reports:', rawReports);
 
-    // Формируем отчеты, используя сохраненный userAvatar
+    // Format reports, using the stored userAvatar
     const reports = rawReports.map((report) => ({
       _id: report._id,
       task: report.task,
       userId: report.userId,
       userName: report.userName,
-      userAvatar: report.userAvatar || '', // Используем userAvatar из Report
+      userAvatar: report.userAvatar || '',
       createdAt: report.createdAt,
       baseStatuses: report.baseStatuses.map(
         (bs: {

@@ -1,27 +1,25 @@
 // /app/types/reportTypes.ts
 
 export interface IEvent {
-  action: string; // Тип действия (e.g. 'REPORT_CREATED', 'ISSUES_EDITED', 'FIXED_PHOTOS')
-  author: string; // Имя автора действия
-  authorId: string; // ID автора действия (Clerk user ID)
-  date: Date; // Когда было совершено
-  details?: Record<string, unknown>; // Дополнительная информация
+  action: string;
+  author: string;
+  authorId: string;
+  date: Date;
+  details?: Record<string, unknown>;
 }
 
 export interface IReport {
   _id: string;
   task: string;
   baseId: string;
-  files: string[]; // Основные фото
-  fixedFiles: string[]; // Исправленные/дополнительные фото
-  issues: string[]; // Текущие замечания
-  status: string; // Текущий статус ('Pending', 'Agreed', 'Fixed', 'Issues', ...)
-
-  createdAt: Date; // Дата создания отчёта
-  userId: string; // ID пользователя, создавшего отчёт (Clerk user ID)
-  userName: string; // Имя пользователя (можно использовать из Clerk)
-
-  events: IEvent[]; // История изменений
+  files: string[];
+  fixedFiles: string[];
+  issues: string[];
+  status: string;
+  createdAt: Date;
+  userId: string;
+  userName: string;
+  events: IEvent[];
 }
 
 export interface BaseStatus {
@@ -35,7 +33,7 @@ export interface ReportClient {
   task: string;
   userId: string;
   userName: string;
-  userAvatar: string; // URL аватара из Clerk
+  userAvatar: string;
   createdAt: string;
   baseStatuses: BaseStatus[];
 }

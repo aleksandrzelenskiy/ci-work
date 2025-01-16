@@ -1,6 +1,12 @@
 'use client';
 
-import React, { useState, useMemo, createContext, useContext } from 'react';
+import React, {
+  useState,
+  useMemo,
+  createContext,
+  useContext,
+  useEffect,
+} from 'react';
 import { ClerkProvider, UserButton } from '@clerk/nextjs';
 import {
   Box,
@@ -26,7 +32,6 @@ import BallotIcon from '@mui/icons-material/Ballot';
 import './globals.css';
 import { useRouter } from 'next/navigation';
 
-// Контекст для управления темой
 const ThemeContext = createContext({
   toggleTheme: () => {},
   mode: 'light',
@@ -40,6 +45,28 @@ export default function RootLayout({
   children: React.ReactNode;
 }) {
   const [mode, setMode] = useState<'light' | 'dark'>('light');
+
+  // Initialize theme mode from localStorage
+  useEffect(() => {
+    const storedMode = localStorage.getItem('themeMode') as
+      | 'light'
+      | 'dark'
+      | null;
+    if (storedMode) {
+      setMode(storedMode);
+    } else {
+      // Optional: Detect system preference
+      const prefersDark =
+        window.matchMedia &&
+        window.matchMedia('(prefers-color-scheme: dark)').matches;
+      setMode(prefersDark ? 'dark' : 'light');
+    }
+  }, []);
+
+  // Update localStorage whenever mode changes
+  useEffect(() => {
+    localStorage.setItem('themeMode', mode);
+  }, [mode]);
 
   const theme = useMemo(
     () =>
@@ -71,6 +98,7 @@ export default function RootLayout({
 
   const DrawerList = (
     <Box sx={{ width: 250 }} role='presentation'>
+      {/* Optional: Add a logo or branding here */}
       {/* <Box sx={{ display: 'flex', justifyContent: 'center', p: 2, mb: 2 }}>
         <img
           src='/ci-logo.png'
@@ -110,7 +138,6 @@ export default function RootLayout({
     </Box>
   );
 
-  // Получение текущего года
   const currentYear = new Date().getFullYear();
 
   return (
