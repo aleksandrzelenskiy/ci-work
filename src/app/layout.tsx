@@ -7,7 +7,7 @@ import React, {
   useContext,
   useEffect,
 } from 'react';
-import { ClerkProvider, UserButton } from '@clerk/nextjs';
+import { ClerkProvider } from '@clerk/nextjs';
 import {
   Box,
   CssBaseline,
@@ -31,6 +31,7 @@ import CloudUploadIcon from '@mui/icons-material/CloudUpload';
 import BallotIcon from '@mui/icons-material/Ballot';
 import './globals.css';
 import { useRouter } from 'next/navigation';
+import UserMenu from './components/UserMenu';
 
 const ThemeContext = createContext({
   toggleTheme: () => {},
@@ -98,7 +99,6 @@ export default function RootLayout({
 
   const DrawerList = (
     <Box sx={{ width: 250 }} role='presentation'>
-      {/* Optional: Add a logo or branding here */}
       {/* <Box sx={{ display: 'flex', justifyContent: 'center', p: 2, mb: 2 }}>
         <img
           src='/ci-logo.png'
@@ -196,7 +196,8 @@ export default function RootLayout({
                         }}
                       /> */}
                     </Box>
-                    <UserButton afterSignOutUrl='/sign-in' />
+                    <UserMenu />
+                    {/* <UserButton afterSignOutUrl='/sign-in' /> */}
                   </Toolbar>
                 </AppBar>
                 {/* Sidebar Drawer */}
