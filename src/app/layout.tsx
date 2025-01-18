@@ -29,6 +29,7 @@ import LightModeIcon from '@mui/icons-material/LightMode';
 import HomeIcon from '@mui/icons-material/Home';
 import CloudUploadIcon from '@mui/icons-material/CloudUpload';
 import BallotIcon from '@mui/icons-material/Ballot';
+import NotificationsIcon from '@mui/icons-material/Notifications';
 import './globals.css';
 import { useRouter } from 'next/navigation';
 import UserMenu from './components/UserMenu';
@@ -99,13 +100,13 @@ export default function RootLayout({
 
   const DrawerList = (
     <Box sx={{ width: 250 }} role='presentation'>
-      {/* <Box sx={{ display: 'flex', justifyContent: 'center', p: 2, mb: 2 }}>
+      <Box sx={{ display: 'flex', justifyContent: 'center', p: 2, mb: 2 }}>
         <img
           src='/ci-logo.png'
           alt='CI Logo'
           style={{ width: '70%', maxWidth: '200px' }}
         />
-      </Box> */}
+      </Box>
       <List>
         <ListItemButton
           onClick={() => handleNavigation('/')}
@@ -196,8 +197,9 @@ export default function RootLayout({
                         }}
                       /> */}
                     </Box>
+                    <NotificationsIcon />
+
                     <UserMenu />
-                    {/* <UserButton afterSignOutUrl='/sign-in' /> */}
                   </Toolbar>
                 </AppBar>
                 {/* Sidebar Drawer */}

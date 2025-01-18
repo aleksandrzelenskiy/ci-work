@@ -1,6 +1,6 @@
 // app/api/reports/route.ts
 import { NextResponse } from 'next/server';
-import Report from '@/app/models/Report';
+import Report from '@/models/Report';
 import dbConnect from '@/utils/mongoose';
 
 export async function GET() {

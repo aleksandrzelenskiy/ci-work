@@ -5,7 +5,7 @@ import * as fs from 'fs';
 import * as path from 'path';
 import sharp from 'sharp';
 import ExifReader from 'exifreader';
-import Report from '@/app/models/Report';
+import Report from '@/models/Report';
 import { currentUser } from '@clerk/nextjs/server';
 import dbConnect from '@/utils/mongoose';
 

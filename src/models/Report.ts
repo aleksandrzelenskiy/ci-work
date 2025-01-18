@@ -1,7 +1,7 @@
 // /app/models/Report.ts
 
 import mongoose, { Schema } from 'mongoose';
-import { IReport, IEvent } from '../types/reportTypes';
+import { IReport, IEvent } from '../app/types/reportTypes';
 
 // Schema for a single history event (Event).
 

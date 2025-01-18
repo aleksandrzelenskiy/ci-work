@@ -2,19 +2,35 @@
 
 import React from 'react';
 import { Box, Paper, Typography } from '@mui/material';
-import { currentUser } from '@clerk/nextjs/server';
+import { GetCurrentUserFromMongoDB } from '@/server-actions/users';
 
 const DashboardPage: React.FC = async () => {
-  const loggedInUserData = await currentUser();
-  const userName = loggedInUserData
-    ? loggedInUserData.firstName + ' ' + loggedInUserData.lastName
-    : 'Guest';
+  const response = await GetCurrentUserFromMongoDB();
+
+  // Добавляем проверку на наличие данных
+  if (!response || !response.data) {
+    return (
+      <Box className='p-4 md:p-8' sx={{ minHeight: '100vh' }}>
+        <Typography variant='h4' component='h1' className='text-center'>
+          Error: User data not found
+        </Typography>
+      </Box>
+    );
+  }
+
+  const user = response.data;
+  const { name, email } = user;
+
+  console.log(`logged in user: ${name} | email: ${email}`);
 
   return (
     <Box className='p-4 md:p-8' sx={{ minHeight: '100vh' }}>
       <Box className='mb-6'>
         <Typography variant='h4' component='h1' className='text-center'>
-          Welcome, {userName}!
+          Welcome, {name}!
+        </Typography>
+        <Typography variant='body2' component='h1' className='text-center'>
+          {email}!
         </Typography>
       </Box>
       <Box className='mb-4'>

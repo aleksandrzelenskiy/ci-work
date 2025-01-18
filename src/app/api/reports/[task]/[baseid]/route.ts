@@ -1,6 +1,6 @@
 // app/api/reports/[task]/[baseid]/route.ts
 import { NextResponse } from 'next/server';
-import Report from '@/app/models/Report';
+import Report from '@/models/Report';
 import dbConnect from '@/utils/mongoose';
 import { currentUser } from '@clerk/nextjs/server';
 
