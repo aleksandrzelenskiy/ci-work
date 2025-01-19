@@ -28,6 +28,8 @@ const ReportSchema: Schema<IReport> = new Schema({
   createdAt: { type: Date, default: Date.now },
   userId: { type: String, required: true },
   userName: { type: String, default: 'Unknown' },
+  reviewerId: { type: String, required: true },
+  reviewerName: { type: String, default: 'Unknown' },
 
   events: { type: [EventSchema], default: [] },
 });

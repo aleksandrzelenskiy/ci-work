@@ -24,7 +24,7 @@ const DashboardPage: React.FC = async () => {
   }
 
   // Имя пользователя
-  const userName = `${loggedInUserData.firstName} ${loggedInUserData.lastName}`;
+  const userName = `${loggedInUserData.firstName}`;
 
   // Подключаемся к базе данных через mongoose
   await dbConnect();
@@ -145,6 +145,11 @@ const DashboardPage: React.FC = async () => {
 
       {/* Секция таблицы отчетов */}
       <Box>
+        <Box className='mb-4'>
+          <Typography variant='h5' component='h2' className='text-center'>
+            Your Reports
+          </Typography>
+        </Box>
         <ReportsPage />
       </Box>
     </Box>

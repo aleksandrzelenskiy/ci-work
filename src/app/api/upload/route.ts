@@ -192,6 +192,8 @@ export async function POST(request: Request) {
       baseId,
       userId: user.id,
       userName: name,
+      reviewerId: 'id',
+      reviewerName: 'reviewer',
       userAvatar: user.imageUrl || '',
       createdAt: new Date(),
       status: 'Pending',

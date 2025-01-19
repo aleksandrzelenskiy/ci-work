@@ -19,6 +19,8 @@ export interface IReport {
   createdAt: Date;
   userId: string;
   userName: string;
+  reviewerId: string;
+  reviewerName: string;
   events: IEvent[];
 }
 
