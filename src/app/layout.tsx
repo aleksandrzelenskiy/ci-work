@@ -167,7 +167,7 @@ export default function RootLayout({
                       <Menu />
                     </Button>
                     <Typography variant='h6' sx={{ flexGrow: 1 }}>
-                      CI Photo Report
+                      CI PR
                     </Typography>
                     <Box
                       sx={{
