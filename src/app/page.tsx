@@ -15,8 +15,15 @@ const DashboardPage: React.FC = async () => {
   // Если пользователь не авторизован
   if (!loggedInUserData) {
     return (
-      <Box className='p-4 md:p-8' sx={{ minHeight: '100vh' }}>
-        <Typography variant='h4' component='h1' className='text-center'>
+      <Box
+        className='p-4 md:p-8'
+        sx={{
+          minHeight: '100vh',
+          width: '100%',
+          boxSizing: 'border-box',
+        }}
+      >
+        <Typography variant='h4' component='h1' align='center'>
           Not signed in
         </Typography>
       </Box>
@@ -37,8 +44,15 @@ const DashboardPage: React.FC = async () => {
   // Если пользователь не найден в базе данных
   if (!userRecord) {
     return (
-      <Box className='p-4 md:p-8' sx={{ minHeight: '100vh' }}>
-        <Typography variant='h4' component='h1' className='text-center'>
+      <Box
+        className='p-4 md:p-8'
+        sx={{
+          minHeight: '100vh',
+          width: '100%',
+          boxSizing: 'border-box',
+        }}
+      >
+        <Typography variant='h4' component='h1' align='center'>
           User not found
         </Typography>
       </Box>
@@ -75,32 +89,49 @@ const DashboardPage: React.FC = async () => {
   });
 
   return (
-    <Box className='p-4 md:p-8' sx={{ minHeight: '100vh' }}>
+    <Box
+      className='p-4 md:p-8'
+      sx={{
+        minHeight: '100vh',
+        width: '100%',
+        boxSizing: 'border-box',
+      }}
+    >
       {/* Приветствие с именем и ролью */}
       <Box className='mb-6'>
-        <Typography variant='h4' component='h1' className='text-center'>
+        <Typography variant='h4' component='h1' align='center'>
           Welcome, {userName} ({role})!
         </Typography>
       </Box>
 
       {/* Секция статистики */}
-      <Box className='mb-4'>
-        <Typography variant='h5' component='h2' className='text-center'>
+      <Box className='mb-4' sx={{ width: '100%' }}>
+        <Typography variant='h5' component='h2' align='center'>
           Your Statistics
         </Typography>
       </Box>
 
-      <Box className='mb-8'>
-        <Box className='flex flex-wrap gap-4 justify-center'>
+      <Box className='mb-8' sx={{ width: '100%' }}>
+        <Box
+          sx={{
+            display: 'flex',
+            flexWrap: 'wrap',
+            gap: 2,
+            justifyContent: 'center',
+            width: '100%',
+          }}
+        >
           {/* Счетчик Pending */}
           <Paper
             className='flex flex-col items-center p-4 rounded-lg shadow-md'
-            sx={{ width: { xs: '100%', sm: '45%', md: '22%' } }}
+            sx={{
+              width: { xs: '100%', sm: '45%', md: '22%' },
+              boxSizing: 'border-box',
+            }}
           >
             <Typography variant='h6'>Pending</Typography>
             <Typography variant='h3'>{reportCounts.Pending}</Typography>
-            <Typography variant='body2' className='text-green-500'>
-              {/* Пример: +2% from last month */}
+            <Typography variant='body2' sx={{ color: 'green.500' }}>
               +2% from last month
             </Typography>
           </Paper>
@@ -108,11 +139,14 @@ const DashboardPage: React.FC = async () => {
           {/* Счетчик Issues */}
           <Paper
             className='flex flex-col items-center p-4 rounded-lg shadow-md'
-            sx={{ width: { xs: '100%', sm: '45%', md: '22%' } }}
+            sx={{
+              width: { xs: '100%', sm: '45%', md: '22%' },
+              boxSizing: 'border-box',
+            }}
           >
             <Typography variant='h6'>Issues</Typography>
             <Typography variant='h3'>{reportCounts.Issues}</Typography>
-            <Typography variant='body2' className='text-red-500'>
+            <Typography variant='body2' sx={{ color: 'red.500' }}>
               -1% from last month
             </Typography>
           </Paper>
@@ -120,11 +154,14 @@ const DashboardPage: React.FC = async () => {
           {/* Счетчик Fixed */}
           <Paper
             className='flex flex-col items-center p-4 rounded-lg shadow-md'
-            sx={{ width: { xs: '100%', sm: '45%', md: '22%' } }}
+            sx={{
+              width: { xs: '100%', sm: '45%', md: '22%' },
+              boxSizing: 'border-box',
+            }}
           >
             <Typography variant='h6'>Fixed</Typography>
             <Typography variant='h3'>{reportCounts.Fixed}</Typography>
-            <Typography variant='body2' className='text-green-500'>
+            <Typography variant='body2' sx={{ color: 'green.500' }}>
               +3% from last month
             </Typography>
           </Paper>
@@ -132,11 +169,14 @@ const DashboardPage: React.FC = async () => {
           {/* Счетчик Agreed */}
           <Paper
             className='flex flex-col items-center p-4 rounded-lg shadow-md'
-            sx={{ width: { xs: '100%', sm: '45%', md: '22%' } }}
+            sx={{
+              width: { xs: '100%', sm: '45%', md: '22%' },
+              boxSizing: 'border-box',
+            }}
           >
             <Typography variant='h6'>Agreed</Typography>
             <Typography variant='h3'>{reportCounts.Agreed}</Typography>
-            <Typography variant='body2' className='text-green-500'>
+            <Typography variant='body2' sx={{ color: 'green.500' }}>
               +4% from last month
             </Typography>
           </Paper>
@@ -144,9 +184,9 @@ const DashboardPage: React.FC = async () => {
       </Box>
 
       {/* Секция таблицы отчетов */}
-      <Box>
+      <Box sx={{ width: '100%' }}>
         <Box className='mb-4'>
-          <Typography variant='h5' component='h2' className='text-center'>
+          <Typography variant='h5' component='h2' align='center'>
             Your Reports
           </Typography>
         </Box>
