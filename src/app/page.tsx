@@ -2,69 +2,31 @@
 
 import React from 'react';
 import { Box, Paper, Typography } from '@mui/material';
-import { currentUser } from '@clerk/nextjs/server';
-import dbConnect from '../utils/mongoose';
-import UserModel from '../models/UserModel';
-import ReportModel from '../models/Report'; // Импорт модели отчетов
+import { GetCurrentUserFromMongoDB } from '@/server-actions/users';
+import ReportModel from '@/models/Report';
 import ReportsPage from './reports/page';
 
 const DashboardPage: React.FC = async () => {
-  // Получаем данные текущего пользователя
-  const loggedInUserData = await currentUser();
+  // Вызов функции для получения текущего пользователя из MongoDB
+  const response = await GetCurrentUserFromMongoDB();
 
-  // Если пользователь не авторизован
-  if (!loggedInUserData) {
+  // Проверка успешности запроса
+  if (!response || !response.success) {
     return (
-      <Box
-        className='p-4 md:p-8'
-        sx={{
-          minHeight: '100vh',
-          width: '100%',
-          boxSizing: 'border-box',
-        }}
-      >
-        <Typography variant='h4' component='h1' align='center'>
-          Not signed in
+      <Box className='p-4 md:p-8' sx={{ minHeight: '100vh' }}>
+        <Typography variant='h4' component='h1' align='center' color='error'>
+          {response?.message || 'User data not found'}
         </Typography>
       </Box>
     );
   }
 
-  // Имя пользователя
-  const userName = `${loggedInUserData.firstName}`;
-
-  // Подключаемся к базе данных через mongoose
-  await dbConnect();
-
-  // Находим пользователя в базе данных
-  const userRecord = await UserModel.findOne({
-    clerkUserId: loggedInUserData.id,
-  });
-
-  // Если пользователь не найден в базе данных
-  if (!userRecord) {
-    return (
-      <Box
-        className='p-4 md:p-8'
-        sx={{
-          minHeight: '100vh',
-          width: '100%',
-          boxSizing: 'border-box',
-        }}
-      >
-        <Typography variant='h4' component='h1' align='center'>
-          User not found
-        </Typography>
-      </Box>
-    );
-  }
-
-  // Роль пользователя
-  const role = userRecord.role;
+  const user = response.data;
+  const { name, email, clerkUserId, role } = user;
 
   // Выполняем агрегацию отчетов по статусам для текущего пользователя
   const reportsAggregation = await ReportModel.aggregate([
-    { $match: { userId: userRecord.clerkUserId } },
+    { $match: { userId: clerkUserId } },
     {
       $group: {
         _id: '$status',
@@ -89,18 +51,14 @@ const DashboardPage: React.FC = async () => {
   });
 
   return (
-    <Box
-      className='p-4 md:p-8'
-      sx={{
-        minHeight: '100vh',
-        width: '100%',
-        boxSizing: 'border-box',
-      }}
-    >
+    <Box className='p-4 md:p-8' sx={{ minHeight: '100vh' }}>
       {/* Приветствие с именем и ролью */}
       <Box className='mb-6'>
         <Typography variant='h4' component='h1' align='center'>
-          Welcome, {userName} ({role})!
+          Welcome, {name} ({role})!
+        </Typography>
+        <Typography variant='body2' component='p' align='center'>
+          {email}
         </Typography>
       </Box>
 

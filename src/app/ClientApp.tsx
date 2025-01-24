@@ -249,7 +249,6 @@ export default function ClientApp({ children }: { children: React.ReactNode }) {
               </Box>
             </>
           ) : (
-            // Для неавторизованных пользователей: отображаем содержимое на весь экран
             <Box
               component='main'
               sx={{
