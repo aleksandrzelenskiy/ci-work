@@ -31,6 +31,7 @@ export interface BaseStatus {
 }
 
 export interface ReportClient {
+  reviewerName: string | undefined;
   _id: string;
   task: string;
   userId: string;

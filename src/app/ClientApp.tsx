@@ -200,7 +200,13 @@ export default function ClientApp({ children }: { children: React.ReactNode }) {
                       size='medium'
                     />
                   </Box>
-                  <NotificationsIcon />
+                  <Box
+                    sx={{
+                      marginRight: '10px',
+                    }}
+                  >
+                    <NotificationsIcon />
+                  </Box>
 
                   <UserMenu />
                 </Toolbar>

@@ -54,7 +54,7 @@ const DashboardPage: React.FC = async () => {
     <Box className='p-4 md:p-8' sx={{ minHeight: '100vh' }}>
       {/* Приветствие с именем и ролью */}
       <Box className='mb-6'>
-        <Typography variant='h4' component='h1' align='center'>
+        <Typography variant='h5' component='h1' align='center'>
           Welcome, {name} ({role})!
         </Typography>
         <Typography variant='body2' component='p' align='center'>

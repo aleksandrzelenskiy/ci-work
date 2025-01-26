@@ -1,5 +1,3 @@
-// /app/reports/page.tsx
-
 'use client';
 
 import React, { useState, useEffect, useMemo } from 'react';
@@ -39,7 +37,7 @@ import { DatePicker } from '@mui/x-date-pickers/DatePicker';
 import { LocalizationProvider } from '@mui/x-date-pickers/LocalizationProvider';
 import { AdapterDateFns } from '@mui/x-date-pickers/AdapterDateFns';
 
-// Function to determine status styles
+// Получение стилей для статуса (цвет фона/текста)
 const getStatusStyles = (status: string) => {
   switch (status) {
     case 'Agreed':
@@ -55,7 +53,7 @@ const getStatusStyles = (status: string) => {
   }
 };
 
-// Function to determine folder icon color
+// Цвет иконки папки в зависимости от статуса
 const getFolderColor = (status: string) => {
   switch (status) {
     case 'Agreed':
@@ -66,27 +64,40 @@ const getFolderColor = (status: string) => {
     case 'Issues':
       return '#dc3545'; // Red
     default:
-      return '#787878'; // Default gray
+      return '#787878'; // Gray
   }
 };
 
-// Function to calculate the overall task status
-const getTaskStatus = (baseStatuses: BaseStatus[] = []): string => {
+// Общий статус задачи (если хотя бы один baseId не Agreed, то считаем общий статус тем же)
+const getTaskStatus = (baseStatuses: BaseStatus[] = []) => {
   const nonAgreedStatus = baseStatuses.find((bs) => bs.status !== 'Agreed');
   return nonAgreedStatus ? nonAgreedStatus.status : 'Agreed';
 };
 
-// Report row component
-function Row({ report }: { report: ReportClient }) {
+// Определяем количество колонок для colspan в раскрывающейся строке
+function getColSpanByRole(role: string) {
+  // Считаем столбцы:
+  // 1. Arrow (иконка раскрытия)
+  // 2. Task
+  // 3. (Author/Reviwer/оба) - от 1 до 2 столбцов
+  // 4. Created
+  // 5. Status
+  //
+  // Если role = 'author' или 'reviewer', у нас 1 столбец (либо Author, либо Reviewer) => итого 5.
+  // Если role = 'admin', у нас 2 столбца (Author + Reviewer) => итого 6.
+  if (role === 'admin') return 6;
+  return 5; // author/reviewer
+}
+
+// === Компонент строки (одной задачи) ===
+function Row({ report, role }: { report: ReportClient; role: string }) {
   const [open, setOpen] = useState(false);
 
-  // Function to handle link click
   const handleLinkClick = (event: React.MouseEvent<HTMLAnchorElement>) => {
     event.preventDefault();
     setOpen(!open);
   };
 
-  // Function to get report date
   const getReportDate = (dateStr: string) => {
     const date = new Date(dateStr);
     return !isNaN(date.getTime())
@@ -97,6 +108,7 @@ function Row({ report }: { report: ReportClient }) {
   return (
     <>
       <TableRow sx={{ '& > *': { borderBottom: 'unset' } }}>
+        {/* Стрелка-иконка для раскрытия */}
         <TableCell>
           <IconButton
             aria-label='expand row'
@@ -106,6 +118,8 @@ function Row({ report }: { report: ReportClient }) {
             {open ? <KeyboardArrowUpIcon /> : <KeyboardArrowDownIcon />}
           </IconButton>
         </TableCell>
+
+        {/* Task */}
         <TableCell>
           <Box sx={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
             <FolderIcon
@@ -125,19 +139,72 @@ function Row({ report }: { report: ReportClient }) {
             </Typography>
           </Box>
         </TableCell>
-        <TableCell>
-          <Box sx={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-            <Avatar
-              alt={report.userName}
-              src={report.userAvatar}
-              sx={{ width: 32, height: 32 }}
-            />
-            <Typography sx={{ fontSize: '0.9rem' }}>
-              {report.userName}
-            </Typography>
-          </Box>
-        </TableCell>
+
+        {/* Если role=reviewer => показываем столбец "Author" */}
+        {role === 'reviewer' && (
+          <TableCell>
+            <Box sx={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+              <Avatar
+                alt={report.userName}
+                src={report.userAvatar}
+                sx={{ width: 32, height: 32 }}
+              />
+              <Typography sx={{ fontSize: '0.9rem' }}>
+                {report.userName}
+              </Typography>
+            </Box>
+          </TableCell>
+        )}
+
+        {/* Если role=author => показываем столбец "Reviewer" */}
+        {role === 'author' && (
+          <TableCell>
+            <Box sx={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+              <Avatar alt={report.reviewerName} sx={{ width: 32, height: 32 }}>
+                R
+              </Avatar>
+              <Typography sx={{ fontSize: '0.9rem' }}>
+                {report.reviewerName}
+              </Typography>
+            </Box>
+          </TableCell>
+        )}
+
+        {/* Если role=admin => показываем Author + Reviewer */}
+        {role === 'admin' && (
+          <>
+            <TableCell>
+              <Box sx={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                <Avatar
+                  alt={report.userName}
+                  src={report.userAvatar}
+                  sx={{ width: 32, height: 32 }}
+                />
+                <Typography sx={{ fontSize: '0.9rem' }}>
+                  {report.userName}
+                </Typography>
+              </Box>
+            </TableCell>
+            <TableCell>
+              <Box sx={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                <Avatar
+                  alt={report.reviewerName}
+                  sx={{ width: 32, height: 32 }}
+                >
+                  R
+                </Avatar>
+                <Typography sx={{ fontSize: '0.9rem' }}>
+                  {report.reviewerName}
+                </Typography>
+              </Box>
+            </TableCell>
+          </>
+        )}
+
+        {/* Created */}
         <TableCell>{getReportDate(report.createdAt)}</TableCell>
+
+        {/* Status */}
         <TableCell>
           <Box
             sx={{
@@ -150,8 +217,13 @@ function Row({ report }: { report: ReportClient }) {
           </Box>
         </TableCell>
       </TableRow>
+
+      {/* Доп. информация (раскрывающаяся строка) */}
       <TableRow>
-        <TableCell style={{ paddingBottom: 0, paddingTop: 0 }} colSpan={5}>
+        <TableCell
+          style={{ paddingBottom: 0, paddingTop: 0 }}
+          colSpan={getColSpanByRole(role)}
+        >
           <Collapse in={open} timeout='auto' unmountOnExit>
             <Box sx={{ margin: 1, paddingLeft: 7 }}>
               {report.baseStatuses.map((baseStatus: BaseStatus) => (
@@ -209,36 +281,49 @@ function Row({ report }: { report: ReportClient }) {
   );
 }
 
-// Main component for the reports page
 export default function ReportsPage() {
+  const [role, setRole] = useState<string>(''); // храним роль текущего пользователя
   const [reports, setReports] = useState<ReportClient[]>([]);
   const [filteredReports, setFilteredReports] = useState<ReportClient[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
-  // States for filters and search
-  const [authorFilter, setAuthorFilter] = useState<string>('');
-  const [statusFilter, setStatusFilter] = useState<string>('');
-  const [taskSearch, setTaskSearch] = useState<string>('');
+  // Фильтры:
+  const [authorFilter, setAuthorFilter] = useState('');
+  const [reviewerFilter, setReviewerFilter] = useState(''); // <-- НОВЫЙ фильтр по reviewer
+  const [statusFilter, setStatusFilter] = useState('');
+  const [taskSearch, setTaskSearch] = useState('');
   const [createdAtFilter, setCreatedAtFilter] = useState<Date | null>(null);
 
-  // States for filter popover
+  // Popover:
   const [anchorEl, setAnchorEl] = useState<HTMLElement | null>(null);
   const [currentFilter, setCurrentFilter] = useState<string>('');
 
-  // Determine the number of active filters
+  // Подсчитываем количество активных фильтров
   const activeFiltersCount = useMemo(() => {
-    return [authorFilter, statusFilter, taskSearch, createdAtFilter].filter(
-      Boolean
-    ).length;
-  }, [authorFilter, statusFilter, taskSearch, createdAtFilter]);
+    // Добавили reviewerFilter в массив
+    return [
+      authorFilter,
+      reviewerFilter,
+      statusFilter,
+      taskSearch,
+      createdAtFilter,
+    ].filter(Boolean).length;
+  }, [authorFilter, reviewerFilter, statusFilter, taskSearch, createdAtFilter]);
 
-  // Get unique authors and statuses for filters
+  // Получаем уникальных авторов
   const uniqueAuthors = useMemo(() => {
     const authors = reports.map((report) => report.userName);
     return Array.from(new Set(authors));
   }, [reports]);
 
+  // Получаем уникальных ревьюеров
+  const uniqueReviewers = useMemo(() => {
+    const reviewers = reports.map((report) => report.reviewerName);
+    return Array.from(new Set(reviewers));
+  }, [reports]);
+
+  // Получаем уникальные статусы
   const uniqueStatuses = useMemo(() => {
     const statuses = reports.flatMap((report) =>
       report.baseStatuses.map((bs) => bs.status)
@@ -246,34 +331,39 @@ export default function ReportsPage() {
     return Array.from(new Set(statuses));
   }, [reports]);
 
+  // Загружаем данные
   useEffect(() => {
     const fetchReports = async () => {
       try {
         const response = await fetch('/api/reports');
-        const data: ApiResponse = await response.json();
-
-        // console.log('Fetched data:', data);
+        // userRole - мы возвращаем с сервера
+        const data: ApiResponse & { userRole?: string } = await response.json();
 
         if (!response.ok) {
           const errorMessage = data.error || 'Unknown error';
           throw new Error(errorMessage);
         }
-
         if (!Array.isArray(data.reports)) {
           throw new Error('Invalid data format');
         }
 
-        setReports(
-          data.reports.map((report: ReportClient) => ({
-            ...report,
-            baseStatuses: report.baseStatuses.map((bs: BaseStatus) => ({
-              ...bs,
-              latestStatusChangeDate: new Date(
-                bs.latestStatusChangeDate
-              ).toISOString(),
-            })),
-          }))
-        );
+        // Устанавливаем роль (author, reviewer, admin и т.д.)
+        if (data.userRole) {
+          setRole(data.userRole);
+        }
+
+        // Преобразуем даты в ISO
+        const mappedReports = data.reports.map((report: ReportClient) => ({
+          ...report,
+          baseStatuses: report.baseStatuses.map((bs: BaseStatus) => ({
+            ...bs,
+            latestStatusChangeDate: new Date(
+              bs.latestStatusChangeDate
+            ).toISOString(),
+          })),
+        }));
+
+        setReports(mappedReports);
         setLoading(false);
       } catch (error: unknown) {
         if (error instanceof Error) {
@@ -290,7 +380,7 @@ export default function ReportsPage() {
     fetchReports();
   }, []);
 
-  // Function to filter reports
+  // Фильтруем отчёты
   useEffect(() => {
     let tempReports = [...reports];
 
@@ -298,6 +388,13 @@ export default function ReportsPage() {
     if (authorFilter) {
       tempReports = tempReports.filter(
         (report) => report.userName === authorFilter
+      );
+    }
+
+    // Filter by reviewer
+    if (reviewerFilter) {
+      tempReports = tempReports.filter(
+        (report) => report.reviewerName === reviewerFilter
       );
     }
 
@@ -325,27 +422,16 @@ export default function ReportsPage() {
     }
 
     setFilteredReports(tempReports);
-  }, [reports, authorFilter, statusFilter, createdAtFilter, taskSearch]);
+  }, [
+    reports,
+    authorFilter,
+    reviewerFilter,
+    statusFilter,
+    createdAtFilter,
+    taskSearch,
+  ]);
 
-  if (loading) {
-    return (
-      <div
-        style={{ display: 'flex', justifyContent: 'center', marginTop: '20px' }}
-      >
-        <CircularProgress />
-      </div>
-    );
-  }
-
-  if (error) {
-    return (
-      <Typography color='error' align='center' sx={{ marginTop: '20px' }}>
-        {error}
-      </Typography>
-    );
-  }
-
-  // Handlers for filter popover
+  // Popover handlers
   const handleFilterClick = (
     event: React.MouseEvent<HTMLElement>,
     filterType: string
@@ -362,9 +448,27 @@ export default function ReportsPage() {
   const openPopover = Boolean(anchorEl);
   const popoverId = openPopover ? 'filter-popover' : undefined;
 
+  if (loading) {
+    return (
+      <Box
+        sx={{ display: 'flex', justifyContent: 'center', marginTop: '20px' }}
+      >
+        <CircularProgress />
+      </Box>
+    );
+  }
+
+  if (error) {
+    return (
+      <Typography color='error' align='center' sx={{ marginTop: '20px' }}>
+        {error}
+      </Typography>
+    );
+  }
+
   return (
     <Box sx={{ padding: 2 }}>
-      {/* Conditional display of filters block */}
+      {/* Блок "Active filters" */}
       {activeFiltersCount > 0 && (
         <Paper sx={{ padding: 2, marginBottom: 2 }}>
           <Typography variant='subtitle1' sx={{ mb: 1 }}>
@@ -375,6 +479,14 @@ export default function ReportsPage() {
               <Chip
                 label={`Author: ${authorFilter}`}
                 onDelete={() => setAuthorFilter('')}
+                color='primary'
+                size='small'
+              />
+            )}
+            {reviewerFilter && (
+              <Chip
+                label={`Reviewer: ${reviewerFilter}`}
+                onDelete={() => setReviewerFilter('')}
                 color='primary'
                 size='small'
               />
@@ -409,6 +521,7 @@ export default function ReportsPage() {
               <Button
                 onClick={() => {
                   setAuthorFilter('');
+                  setReviewerFilter('');
                   setStatusFilter('');
                   setTaskSearch('');
                   setCreatedAtFilter(null);
@@ -421,12 +534,14 @@ export default function ReportsPage() {
         </Paper>
       )}
 
-      {/* Reports table */}
+      {/* Таблица */}
       <TableContainer component={Paper}>
         <Table aria-label='collapsible table'>
           <TableHead>
             <TableRow>
+              {/* 1) Пустая ячейка (стрелка) */}
               <TableCell />
+              {/* 2) Task */}
               <TableCell
                 sx={{
                   fontSize: '14px',
@@ -455,33 +570,133 @@ export default function ReportsPage() {
                   </IconButton>
                 </Tooltip>
               </TableCell>
-              <TableCell
-                sx={{
-                  fontSize: '14px',
-                  fontWeight: 'bold',
-                  textTransform: 'uppercase',
-                  whiteSpace: 'nowrap',
-                  padding: '16px',
-                }}
-              >
-                Author
-                <Tooltip title='Author filter'>
-                  <IconButton
-                    size='small'
-                    onClick={(event) => handleFilterClick(event, 'author')}
-                    color={authorFilter ? 'primary' : 'default'}
-                    aria-label='Author filter'
-                    aria-controls={
-                      openPopover && currentFilter === 'author'
-                        ? 'filter-popover'
-                        : undefined
-                    }
-                    aria-haspopup='true'
+
+              {/* Если reviewer → столбец Author */}
+              {role === 'reviewer' && (
+                <TableCell
+                  sx={{
+                    fontSize: '14px',
+                    fontWeight: 'bold',
+                    textTransform: 'uppercase',
+                    whiteSpace: 'nowrap',
+                    padding: '16px',
+                  }}
+                >
+                  Author
+                  <Tooltip title='Author filter'>
+                    <IconButton
+                      size='small'
+                      onClick={(event) => handleFilterClick(event, 'author')}
+                      color={authorFilter ? 'primary' : 'default'}
+                      aria-label='Author filter'
+                      aria-controls={
+                        openPopover && currentFilter === 'author'
+                          ? 'filter-popover'
+                          : undefined
+                      }
+                      aria-haspopup='true'
+                    >
+                      <FilterListIcon fontSize='small' />
+                    </IconButton>
+                  </Tooltip>
+                </TableCell>
+              )}
+
+              {/* Если author → столбец Reviewer */}
+              {role === 'author' && (
+                <TableCell
+                  sx={{
+                    fontSize: '14px',
+                    fontWeight: 'bold',
+                    textTransform: 'uppercase',
+                    whiteSpace: 'nowrap',
+                    padding: '16px',
+                  }}
+                >
+                  Reviewer
+                  {/* Иконка для фильтра Reviewer */}
+                  <Tooltip title='Reviewer filter'>
+                    <IconButton
+                      size='small'
+                      onClick={(event) => handleFilterClick(event, 'reviewer')}
+                      color={reviewerFilter ? 'primary' : 'default'}
+                      aria-label='Reviewer filter'
+                      aria-controls={
+                        openPopover && currentFilter === 'reviewer'
+                          ? 'filter-popover'
+                          : undefined
+                      }
+                      aria-haspopup='true'
+                    >
+                      <FilterListIcon fontSize='small' />
+                    </IconButton>
+                  </Tooltip>
+                </TableCell>
+              )}
+
+              {/* Если admin → столбцы Author + Reviewer */}
+              {role === 'admin' && (
+                <>
+                  <TableCell
+                    sx={{
+                      fontSize: '14px',
+                      fontWeight: 'bold',
+                      textTransform: 'uppercase',
+                      whiteSpace: 'nowrap',
+                      padding: '16px',
+                    }}
                   >
-                    <FilterListIcon fontSize='small' />
-                  </IconButton>
-                </Tooltip>
-              </TableCell>
+                    Author
+                    <Tooltip title='Author filter'>
+                      <IconButton
+                        size='small'
+                        onClick={(event) => handleFilterClick(event, 'author')}
+                        color={authorFilter ? 'primary' : 'default'}
+                        aria-label='Author filter'
+                        aria-controls={
+                          openPopover && currentFilter === 'author'
+                            ? 'filter-popover'
+                            : undefined
+                        }
+                        aria-haspopup='true'
+                      >
+                        <FilterListIcon fontSize='small' />
+                      </IconButton>
+                    </Tooltip>
+                  </TableCell>
+                  <TableCell
+                    sx={{
+                      fontSize: '14px',
+                      fontWeight: 'bold',
+                      textTransform: 'uppercase',
+                      whiteSpace: 'nowrap',
+                      padding: '16px',
+                    }}
+                  >
+                    Reviewer
+                    <Tooltip title='Reviewer filter'>
+                      <IconButton
+                        size='small'
+                        onClick={(event) =>
+                          handleFilterClick(event, 'reviewer')
+                        }
+                        color={reviewerFilter ? 'primary' : 'default'}
+                        aria-label='Reviewer filter'
+                        aria-controls={
+                          openPopover && currentFilter === 'reviewer'
+                            ? 'filter-popover'
+                            : undefined
+                        }
+                        aria-haspopup='true'
+                      >
+                        <FilterListIcon fontSize='small' />
+                      </IconButton>
+                    </Tooltip>
+                  </TableCell>
+                </>
+              )}
+
+              {/* Created */}
               <TableCell
                 sx={{
                   fontSize: '14px',
@@ -509,6 +724,8 @@ export default function ReportsPage() {
                   </IconButton>
                 </Tooltip>
               </TableCell>
+
+              {/* Status */}
               <TableCell
                 sx={{
                   fontSize: '14px',
@@ -538,14 +755,15 @@ export default function ReportsPage() {
               </TableCell>
             </TableRow>
           </TableHead>
+
           <TableBody>
             {filteredReports.length > 0 ? (
               filteredReports.map((report: ReportClient) => (
-                <Row key={report._id} report={report} />
+                <Row key={report._id} report={report} role={role} />
               ))
             ) : (
               <TableRow>
-                <TableCell colSpan={5} align='center'>
+                <TableCell colSpan={getColSpanByRole(role)} align='center'>
                   There are no reports that meet the specified conditions.
                 </TableCell>
               </TableRow>
@@ -554,7 +772,7 @@ export default function ReportsPage() {
         </Table>
       </TableContainer>
 
-      {/* Filter popover */}
+      {/* Popover для фильтров */}
       <Popover
         id={popoverId}
         open={openPopover}
@@ -581,6 +799,7 @@ export default function ReportsPage() {
               }}
             />
           )}
+
           {currentFilter === 'author' && (
             <FormControl fullWidth variant='outlined' size='small'>
               <InputLabel id='author-filter-label' sx={{ fontSize: '0.75rem' }}>
@@ -608,6 +827,38 @@ export default function ReportsPage() {
               </Select>
             </FormControl>
           )}
+
+          {currentFilter === 'reviewer' && (
+            <FormControl fullWidth variant='outlined' size='small'>
+              <InputLabel
+                id='reviewer-filter-label'
+                sx={{ fontSize: '0.75rem' }}
+              >
+                Reviewer
+              </InputLabel>
+              <Select
+                labelId='reviewer-filter-label'
+                value={reviewerFilter}
+                label='Reviewer'
+                onChange={(e) => setReviewerFilter(e.target.value)}
+                autoFocus
+                sx={{
+                  '& .MuiSelect-select': { fontSize: '0.75rem' },
+                  '& .MuiInputLabel-root': { fontSize: '0.75rem' },
+                }}
+              >
+                <MenuItem value=''>
+                  <em>All</em>
+                </MenuItem>
+                {uniqueReviewers.map((rev) => (
+                  <MenuItem key={rev} value={rev}>
+                    {rev}
+                  </MenuItem>
+                ))}
+              </Select>
+            </FormControl>
+          )}
+
           {currentFilter === 'status' && (
             <FormControl fullWidth variant='outlined' size='small'>
               <InputLabel id='status-filter-label' sx={{ fontSize: '0.75rem' }}>
@@ -635,6 +886,7 @@ export default function ReportsPage() {
               </Select>
             </FormControl>
           )}
+
           {currentFilter === 'createdAt' && (
             <LocalizationProvider dateAdapter={AdapterDateFns}>
               <DatePicker
@@ -658,7 +910,8 @@ export default function ReportsPage() {
               />
             </LocalizationProvider>
           )}
-          {/* Buttons for closing and resetting filter */}
+
+          {/* Кнопки "Close" и "Delete" (сброс) */}
           <Box sx={{ mt: 1, display: 'flex', justifyContent: 'space-between' }}>
             <Button
               variant='contained'
@@ -674,6 +927,7 @@ export default function ReportsPage() {
               onClick={() => {
                 if (currentFilter === 'task') setTaskSearch('');
                 if (currentFilter === 'author') setAuthorFilter('');
+                if (currentFilter === 'reviewer') setReviewerFilter('');
                 if (currentFilter === 'status') setStatusFilter('');
                 if (currentFilter === 'createdAt') setCreatedAtFilter(null);
               }}

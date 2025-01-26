@@ -1,3 +1,5 @@
+// server-actions/users.ts
+
 'use server';
 
 import UserModel from '@/models/UserModel';
@@ -9,7 +11,15 @@ dbConnect();
 export const GetCurrentUserFromMongoDB = async () => {
   try {
     const clerkUser = await currentUser();
-    const user = await UserModel.findOne({ clerkUserId: clerkUser?.id });
+    if (!clerkUser) {
+      return {
+        success: false,
+        message: 'No user session found',
+      };
+    }
+
+    const user = await UserModel.findOne({ clerkUserId: clerkUser.id });
+
     if (user) {
       return {
         success: true,
@@ -17,6 +27,7 @@ export const GetCurrentUserFromMongoDB = async () => {
       };
     }
 
+    // Если пользователя в БД нет — создаём
     const newUser = new UserModel({
       name: clerkUser?.firstName + ' ' + clerkUser?.lastName,
       email: clerkUser?.emailAddresses[0]?.emailAddress,

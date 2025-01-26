@@ -73,15 +73,11 @@ export default function UserMenu() {
         open={Boolean(anchorElUser)}
         onClose={handleCloseUserMenu}
       >
-        <Box sx={{ minWidth: 200 }}>
-          <Typography textAlign='center' fontWeight='bold'>
+        <Box sx={{ minWidth: 200, textAlign: 'center' }}>
+          <Typography variant='button' margin='5px' fontWeight='bold'>
             {userName}
           </Typography>
-          <Typography
-            textAlign='center'
-            fontSize='0.85rem'
-            color='text.secondary'
-          >
+          <Typography fontSize='0.85rem' color='text.secondary'>
             {userEmail}
           </Typography>
           {menu.map((setting) => (

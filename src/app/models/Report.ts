@@ -4,7 +4,6 @@ import mongoose, { Schema } from 'mongoose';
 import { IReport, IEvent } from '../types/reportTypes';
 
 // Schema for a single history event (Event).
-
 const EventSchema = new Schema<IEvent>(
   {
     action: { type: String, required: true },
@@ -17,7 +16,6 @@ const EventSchema = new Schema<IEvent>(
 );
 
 // Main report schema.
-
 const ReportSchema: Schema<IReport> = new Schema({
   task: { type: String, required: true },
   baseId: { type: String, required: true },
