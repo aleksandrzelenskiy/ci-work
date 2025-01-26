@@ -1,11 +1,14 @@
 // app/api/reports/[task]/[baseid]/route.ts
+
 import { NextResponse } from 'next/server';
 import Report from '@/models/Report';
 import dbConnect from '@/utils/mongoose';
 import { currentUser } from '@clerk/nextjs/server';
+import UserModel from '@/models/UserModel';
 
 /**
  * GET обработчик для получения информации о конкретном отчёте.
+ * Дополнительно возвращаем `role` текущего пользователя.
  */
 export async function GET(
   request: Request,
@@ -16,11 +19,7 @@ export async function GET(
     await dbConnect();
     console.log('Successfully connected to the database.');
 
-    const params = await context.params;
-    const { task, baseid } = params;
-
-    console.log(`Task: ${task}, BaseID: ${baseid}`);
-
+    const { task, baseid } = context.params;
     const decodedTask = decodeURIComponent(task);
     const decodedBaseId = decodeURIComponent(baseid);
 
@@ -28,6 +27,27 @@ export async function GET(
       `Decoded Task: ${decodedTask}, Decoded BaseID: ${decodedBaseId}`
     );
 
+    // Получаем текущего clerk-пользователя
+    const clerkUser = await currentUser();
+    if (!clerkUser) {
+      console.error('No user session found');
+      return NextResponse.json(
+        { error: 'No user session found' },
+        { status: 401 }
+      );
+    }
+
+    // Ищем запись пользователя в MongoDB, чтобы узнать роль
+    const dbUser = await UserModel.findOne({ clerkUserId: clerkUser.id });
+    if (!dbUser) {
+      console.warn('MongoDB user not found');
+      return NextResponse.json(
+        { error: 'User not found in the database' },
+        { status: 404 }
+      );
+    }
+
+    // Находим сам отчёт
     const report = await Report.findOne({
       task: decodedTask,
       baseId: decodedBaseId,
@@ -43,6 +63,7 @@ export async function GET(
 
     console.log('Report found:', report);
 
+    // Возвращаем всё, что нужно, включая `role`
     return NextResponse.json({
       files: report.files,
       createdAt: report.createdAt,
@@ -51,6 +72,7 @@ export async function GET(
       issues: report.issues || [],
       fixedFiles: report.fixedFiles || [],
       events: report.events || [],
+      role: dbUser.role, // <-- Добавляем роль
     });
   } catch (error) {
     console.error('Error when receiving the report:', error);
@@ -63,6 +85,7 @@ export async function GET(
 
 /**
  * PATCH обработчик для обновления информации о конкретном отчёте.
+ * (Исходный функционал остаётся неизменным)
  */
 export async function PATCH(
   request: Request,
@@ -73,17 +96,9 @@ export async function PATCH(
     await dbConnect();
     console.log('Successfully connected to the database.');
 
-    const params = await context.params;
-    const { task, baseid } = params;
-
-    console.log(`Task: ${task}, BaseID: ${baseid}`);
-
+    const { task, baseid } = context.params;
     const decodedTask = decodeURIComponent(task);
     const decodedBaseId = decodeURIComponent(baseid);
-
-    console.log(
-      `Decoded Task: ${decodedTask}, Decoded BaseID: ${decodedBaseId}`
-    );
 
     // Get the current user
     const user = await currentUser();

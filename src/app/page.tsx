@@ -1,16 +1,16 @@
-// app/page.tsx
-
 import React from 'react';
 import { Box, Paper, Typography } from '@mui/material';
 import { GetCurrentUserFromMongoDB } from '@/server-actions/users';
 import ReportModel from '@/models/Report';
 import ReportsPage from './reports/page';
 
+// Импортируем иконки
+import TrendingUpIcon from '@mui/icons-material/TrendingUp';
+import TrendingDownIcon from '@mui/icons-material/TrendingDown';
+
 const DashboardPage: React.FC = async () => {
-  // Вызов функции для получения текущего пользователя из MongoDB
   const response = await GetCurrentUserFromMongoDB();
 
-  // Проверка успешности запроса
   if (!response || !response.success) {
     return (
       <Box className='p-4 md:p-8' sx={{ minHeight: '100vh' }}>
@@ -24,9 +24,22 @@ const DashboardPage: React.FC = async () => {
   const user = response.data;
   const { name, email, clerkUserId, role } = user;
 
-  // Выполняем агрегацию отчетов по статусам для текущего пользователя
+  // Условие $match в зависимости от роли
+  let matchCondition: Record<string, string> = {};
+  if (role === 'author') {
+    matchCondition = { userId: clerkUserId };
+  } else if (role === 'reviewer') {
+    matchCondition = { reviewerId: clerkUserId };
+  } else {
+    // Например, admin => оставляем пустым, чтобы показывать все
+    matchCondition = {};
+  }
+
+  // =====================
+  // Текущая статистика (за всё время)
+  // =====================
   const reportsAggregation = await ReportModel.aggregate([
-    { $match: { userId: clerkUserId } },
+    { $match: matchCondition },
     {
       $group: {
         _id: '$status',
@@ -35,24 +48,121 @@ const DashboardPage: React.FC = async () => {
     },
   ]);
 
-  // Инициализируем объект с нулями для каждого статуса
   const reportCounts: { [key: string]: number } = {
     Pending: 0,
     Issues: 0,
     Fixed: 0,
     Agreed: 0,
   };
-
-  // Заполняем объект значениями из агрегации
   reportsAggregation.forEach((item) => {
     if (item._id in reportCounts) {
       reportCounts[item._id] = item.count;
     }
   });
 
+  // =====================
+  // Статистика за ПРЕДЫДУЩИЙ месяц
+  // =====================
+  const now = new Date();
+  const startOfThisMonth = new Date(now.getFullYear(), now.getMonth(), 1);
+  const startOfLastMonth = new Date(now.getFullYear(), now.getMonth() - 1, 1);
+
+  const reportsAggregationLastMonth = await ReportModel.aggregate([
+    {
+      $match: {
+        ...matchCondition,
+        createdAt: {
+          $gte: startOfLastMonth,
+          $lt: startOfThisMonth,
+        },
+      },
+    },
+    {
+      $group: {
+        _id: '$status',
+        count: { $sum: 1 },
+      },
+    },
+  ]);
+
+  const reportCountsLastMonth: { [key: string]: number } = {
+    Pending: 0,
+    Issues: 0,
+    Fixed: 0,
+    Agreed: 0,
+  };
+  reportsAggregationLastMonth.forEach((item) => {
+    if (item._id in reportCountsLastMonth) {
+      reportCountsLastMonth[item._id] = item.count;
+    }
+  });
+
+  // =====================
+  // Функция вычисления разницы в %
+  // =====================
+  function getDifferencePercent(current: number, previous: number) {
+    // (current - previous)/previous * 100
+    if (previous === 0) {
+      // Если раньше было 0, а сейчас > 0 — «бесконечный» рост
+      if (current > 0) return 999; // можно заменить на любое число или '∞'
+      // если обе величины 0 => 0
+      return 0;
+    }
+    const diff = ((current - previous) / previous) * 100;
+    return diff;
+  }
+
+  // Посчитаем для каждого статуса
+  const diffPending = getDifferencePercent(
+    reportCounts.Pending,
+    reportCountsLastMonth.Pending
+  );
+  const diffIssues = getDifferencePercent(
+    reportCounts.Issues,
+    reportCountsLastMonth.Issues
+  );
+  const diffFixed = getDifferencePercent(
+    reportCounts.Fixed,
+    reportCountsLastMonth.Fixed
+  );
+  const diffAgreed = getDifferencePercent(
+    reportCounts.Agreed,
+    reportCountsLastMonth.Agreed
+  );
+
+  // =====================
+  // Хэлпер для генерации нужного цвета/иконки
+  // =====================
+  function getColorAndIcon(diffValue: number) {
+    if (diffValue > 0) {
+      return {
+        color: 'green', // зелёный текст
+        Icon: <TrendingUpIcon sx={{ color: 'green' }} />,
+      };
+    } else if (diffValue < 0) {
+      return {
+        color: 'red', // красный текст
+        Icon: <TrendingDownIcon sx={{ color: 'red' }} />,
+      };
+    }
+    // diffValue === 0
+    return {
+      color: 'inherit',
+      Icon: null,
+    };
+  }
+
+  // Функция форматирования. Убираем десятичные (Math.round)
+  function formatDiff(diffValue: number): string {
+    const rounded = Math.round(Math.abs(diffValue));
+    // + / - / (нет знака)
+    const sign = diffValue > 0 ? '+' : diffValue < 0 ? '-' : '';
+    return `${sign}${rounded}% from last month`;
+  }
+
   return (
     <Box className='p-4 md:p-8' sx={{ minHeight: '100vh' }}>
-      {/* Приветствие с именем и ролью */}
+      {/* Приветствие */}
       <Box className='mb-6'>
         <Typography variant='h5' component='h1' align='center'>
           Welcome, {name} ({role})!
@@ -62,13 +172,14 @@ const DashboardPage: React.FC = async () => {
         </Typography>
       </Box>
 
-      {/* Секция статистики */}
+      {/* Заголовок статистики */}
       <Box className='mb-4' sx={{ width: '100%' }}>
         <Typography variant='h5' component='h2' align='center'>
           Your Statistics
         </Typography>
       </Box>
 
+      {/* Блок счётчиков */}
       <Box className='mb-8' sx={{ width: '100%' }}>
         <Box
           sx={{
@@ -79,7 +190,7 @@ const DashboardPage: React.FC = async () => {
             width: '100%',
           }}
         >
-          {/* Счетчик Pending */}
+          {/* Pending */}
           <Paper
             className='flex flex-col items-center p-4 rounded-lg shadow-md'
             sx={{
@@ -87,14 +198,29 @@ const DashboardPage: React.FC = async () => {
               boxSizing: 'border-box',
             }}
           >
-            <Typography variant='h6'>Pending</Typography>
-            <Typography variant='h3'>{reportCounts.Pending}</Typography>
-            <Typography variant='body2' sx={{ color: 'green.500' }}>
-              +2% from last month
-            </Typography>
+            {(() => {
+              const { color, Icon } = getColorAndIcon(diffPending);
+              return (
+                <>
+                  <Box
+                    sx={{
+                      display: 'flex',
+                      alignItems: 'center',
+                      gap: '4px',
+                    }}
+                  >
+                    <Typography variant='h6'>Pending</Typography>
+                  </Box>
+                  <Typography variant='h3'>{reportCounts.Pending}</Typography>
+                  <Typography variant='body2' sx={{ color }}>
+                    {Icon} {formatDiff(diffPending)}
+                  </Typography>
+                </>
+              );
+            })()}
           </Paper>
 
-          {/* Счетчик Issues */}
+          {/* Issues */}
           <Paper
             className='flex flex-col items-center p-4 rounded-lg shadow-md'
             sx={{
@@ -102,14 +228,29 @@ const DashboardPage: React.FC = async () => {
               boxSizing: 'border-box',
             }}
           >
-            <Typography variant='h6'>Issues</Typography>
-            <Typography variant='h3'>{reportCounts.Issues}</Typography>
-            <Typography variant='body2' sx={{ color: 'red.500' }}>
-              -1% from last month
-            </Typography>
+            {(() => {
+              const { color, Icon } = getColorAndIcon(diffIssues);
+              return (
+                <>
+                  <Box
+                    sx={{
+                      display: 'flex',
+                      alignItems: 'center',
+                      gap: '4px',
+                    }}
+                  >
+                    <Typography variant='h6'>Issues</Typography>
+                  </Box>
+                  <Typography variant='h3'>{reportCounts.Issues}</Typography>
+                  <Typography variant='body2' sx={{ color }}>
+                    {Icon} {formatDiff(diffIssues)}
+                  </Typography>
+                </>
+              );
+            })()}
           </Paper>
 
-          {/* Счетчик Fixed */}
+          {/* Fixed */}
           <Paper
             className='flex flex-col items-center p-4 rounded-lg shadow-md'
             sx={{
@@ -117,14 +258,29 @@ const DashboardPage: React.FC = async () => {
               boxSizing: 'border-box',
             }}
           >
-            <Typography variant='h6'>Fixed</Typography>
-            <Typography variant='h3'>{reportCounts.Fixed}</Typography>
-            <Typography variant='body2' sx={{ color: 'green.500' }}>
-              +3% from last month
-            </Typography>
+            {(() => {
+              const { color, Icon } = getColorAndIcon(diffFixed);
+              return (
+                <>
+                  <Box
+                    sx={{
+                      display: 'flex',
+                      alignItems: 'center',
+                      gap: '4px',
+                    }}
+                  >
+                    <Typography variant='h6'>Fixed</Typography>
+                  </Box>
+                  <Typography variant='h3'>{reportCounts.Fixed}</Typography>
+                  <Typography variant='body2' sx={{ color }}>
+                    {Icon} {formatDiff(diffFixed)}
+                  </Typography>
+                </>
+              );
+            })()}
           </Paper>
 
-          {/* Счетчик Agreed */}
+          {/* Agreed */}
           <Paper
             className='flex flex-col items-center p-4 rounded-lg shadow-md'
             sx={{
@@ -132,16 +288,31 @@ const DashboardPage: React.FC = async () => {
               boxSizing: 'border-box',
             }}
           >
-            <Typography variant='h6'>Agreed</Typography>
-            <Typography variant='h3'>{reportCounts.Agreed}</Typography>
-            <Typography variant='body2' sx={{ color: 'green.500' }}>
-              +4% from last month
-            </Typography>
+            {(() => {
+              const { color, Icon } = getColorAndIcon(diffAgreed);
+              return (
+                <>
+                  <Box
+                    sx={{
+                      display: 'flex',
+                      alignItems: 'center',
+                      gap: '4px',
+                    }}
+                  >
+                    <Typography variant='h6'>Agreed</Typography>
+                  </Box>
+                  <Typography variant='h3'>{reportCounts.Agreed}</Typography>
+                  <Typography variant='body2' sx={{ color }}>
+                    {Icon} {formatDiff(diffAgreed)}
+                  </Typography>
+                </>
+              );
+            })()}
           </Paper>
         </Box>
       </Box>
 
-      {/* Секция таблицы отчетов */}
+      {/* Блок "Your Reports" */}
       <Box sx={{ width: '100%' }}>
         <Box className='mb-4'>
           <Typography variant='h5' component='h2' align='center'>

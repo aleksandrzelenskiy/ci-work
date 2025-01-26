@@ -42,7 +42,7 @@ import { PhotoProvider, PhotoView } from 'react-photo-view';
 import 'react-photo-view/dist/react-photo-view.css';
 import Link from 'next/link';
 
-// Interface for managing uploaded files
+// Interfaces
 interface UploadedFile {
   id: string;
   file: File;
@@ -50,13 +50,11 @@ interface UploadedFile {
   progress: number;
 }
 
-// Interface for details in STATUS_CHANGED
 interface IStatusChangedDetails {
   oldStatus: string;
   newStatus: string;
 }
 
-// Interface for event
 interface IEvent {
   action: string;
   author: string;
@@ -64,6 +62,7 @@ interface IEvent {
   details?: IStatusChangedDetails;
 }
 
+// Constants
 const ACTIONS = {
   REPORT_CREATED: 'REPORT_CREATED',
   STATUS_CHANGED: 'STATUS_CHANGED',
@@ -75,9 +74,12 @@ const ACTIONS = {
 export default function PhotoReportPage() {
   const { task, baseid } = useParams() as { task: string; baseid: string };
 
-  // Current user's name
-  const currentUser = 'Ivan Petrov';
+  // ======================
+  // Role state
+  // ======================
+  const [role, setRole] = useState<string>(''); // "author", "reviewer", etc.
 
+  // Basic states
   const [photos, setPhotos] = useState<string[]>([]);
   const [fixedPhotos, setFixedPhotos] = useState<string[]>([]);
   const [issues, setIssues] = useState<{ text: string; checked: boolean }[]>(
@@ -94,8 +96,6 @@ export default function PhotoReportPage() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [uploading, setUploading] = useState(false);
-
-  // State for report dowloading
   const [downloading, setDownloading] = useState(false);
 
   // State for events
@@ -108,46 +108,57 @@ export default function PhotoReportPage() {
   // New state to track if all issues are fixed
   const [issuesFixed, setIssuesFixed] = useState(false);
 
-  // States for agreement confirmation dialog and message
+  // Agreement confirmation dialog
   const [openAgreeDialog, setOpenAgreeDialog] = useState(false);
 
-  // New state to track current status
+  // Current status
   const [status, setStatus] = useState<string>('Pending');
 
-  // For cleaning up object URLs
-  useEffect(() => {
-    return () => {
-      uploadedFiles.forEach((file) => URL.revokeObjectURL(file.preview));
-    };
-  }, [uploadedFiles]);
+  // Notification (Snackbar)
+  const [alertState, setAlertState] = useState<{
+    open: boolean;
+    message: string;
+    severity: 'success' | 'error' | 'info' | 'warning';
+  }>({ open: false, message: '', severity: 'success' });
 
-  // Helper function to get the latest event by action and filter
+  const showAlert = (
+    message: string,
+    severity: 'success' | 'error' | 'info' | 'warning'
+  ) => {
+    setAlertState({ open: true, message, severity });
+  };
+  const handleCloseAlert = (
+    event?: React.SyntheticEvent | Event,
+    reason?: string
+  ) => {
+    if (reason === 'clickaway') return;
+    setAlertState((prev) => ({ ...prev, open: false }));
+  };
+
+  // Helper: latest event
   const getLatestEvent = useCallback(
     (action: string, filter?: (event: IEvent) => boolean): IEvent | null => {
-      let relatedEvents = events.filter((event) => event.action === action);
-      if (filter) {
-        relatedEvents = relatedEvents.filter(filter);
-      }
-      console.log(`Events with action "${action}":`, relatedEvents);
-      if (relatedEvents.length === 0) return null;
-      return relatedEvents.reduce((latest, event) =>
-        new Date(event.date) > new Date(latest.date) ? event : latest
+      let related = events.filter((evt) => evt.action === action);
+      if (filter) related = related.filter(filter);
+      if (related.length === 0) return null;
+      return related.reduce((latest, evt) =>
+        new Date(evt.date) > new Date(latest.date) ? evt : latest
       );
     },
     [events]
   );
 
-  // Get the latest events for each section
   const photoReportEvent = getLatestEvent(ACTIONS.REPORT_CREATED);
   const issuesCreatedEvent = getLatestEvent(ACTIONS.ISSUES_CREATED);
   const issuesUpdatedEvent = getLatestEvent(ACTIONS.ISSUES_UPDATED);
   const fixedPhotosEvent = getLatestEvent(ACTIONS.FIXED_PHOTOS);
-  // Now REPORT_AGREED looks for STATUS_CHANGED with newStatus: 'Agreed'
-  const reportStatusEvent = getLatestEvent(ACTIONS.STATUS_CHANGED, (event) =>
-    event.details ? event.details.newStatus === 'Agreed' : false
+  const reportStatusEvent = getLatestEvent(ACTIONS.STATUS_CHANGED, (evt) =>
+    evt.details ? evt.details.newStatus === 'Agreed' : false
   );
 
-  // Function to fetch the report
+  // ======================
+  // Fetch report (GET /api/reports/[task]/[baseid])
+  // ======================
   const fetchReport = useCallback(async () => {
     try {
       const response = await fetch(`/api/reports/${task}/${baseid}`);
@@ -156,34 +167,27 @@ export default function PhotoReportPage() {
       }
 
       const data = await response.json();
+
+      // Set role:
+      setRole(data.role || '');
+
       setPhotos(data.files || []);
       setFixedPhotos(data.fixedFiles || []);
 
-      // Determine if status is 'Fixed' or 'Agreed'
       const isFixedOrAgreed =
         data.status === 'Fixed' || data.status === 'Agreed';
-
       setIssues(
         (data.issues || []).map((issue: string) => ({
           text: issue,
-          checked: isFixedOrAgreed, // Set checked to true for 'Fixed' and 'Agreed' statuses
+          checked: isFixedOrAgreed,
         }))
       );
 
-      // Set createdAt and userName
       setCreatedAt(new Date(data.createdAt).toLocaleDateString() || 'N/A');
       setUserName(data.userName || 'Unknown');
-
-      // Set events
       setEvents(data.events || []);
-
-      // Set issuesFixed state based on fixedFiles
       setIssuesFixed((data.fixedFiles || []).length > 0);
-
-      // Set current status
       setStatus(data.status || 'Pending');
-
-      console.log('Fetched events:', data.events);
     } catch (err: unknown) {
       console.error('Error fetching report:', err);
       setError(
@@ -196,26 +200,145 @@ export default function PhotoReportPage() {
     }
   }, [task, baseid]);
 
-  // Load the report from the database on mount and when task/baseid changes
   useEffect(() => {
     fetchReport();
   }, [fetchReport]);
 
+  // ======================
+  // Issues logic
+  // ======================
   const handleAddIssueField = () => {
-    setNewIssues([...newIssues, '']);
+    setNewIssues((prev) => [...prev, '']);
   };
-
   const handleIssueChange = (index: number, value: string) => {
-    const updatedNewIssues = [...newIssues];
-    updatedNewIssues[index] = value;
-    setNewIssues(updatedNewIssues);
+    const updated = [...newIssues];
+    updated[index] = value;
+    setNewIssues(updated);
+  };
+  const handleCloseIssuesFields = () => {
+    setShowIssuesFields(false);
+    setNewIssues(['']);
+  };
+  const confirmRemoveIssue = (index: number) => {
+    setConfirmDeleteIndex(index);
+  };
+  const handleDeleteIssueField = async () => {
+    if (confirmDeleteIndex === null) return;
+
+    const issueToDelete = newIssues[confirmDeleteIndex];
+    if (!issueToDelete) {
+      setConfirmDeleteIndex(null);
+      return;
+    }
+
+    const updated = [...newIssues];
+    updated.splice(confirmDeleteIndex, 1);
+    setNewIssues(updated);
+    setConfirmDeleteIndex(null);
+
+    try {
+      const response = await fetch(`/api/reports/${task}/${baseid}`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          deleteIssueIndex: confirmDeleteIndex,
+        }),
+      });
+
+      if (!response.ok) {
+        throw new Error('Failed to delete issue.');
+      }
+    } catch (error) {
+      console.error('Error deleting issue:', error);
+      showAlert('Failed to delete issue. Please try again.', 'error');
+      // rollback
+      setNewIssues((prev) => {
+        const restored = [...prev];
+        restored.splice(confirmDeleteIndex, 0, issueToDelete);
+        return restored;
+      });
+    }
+  };
+  const handleIssuesClick = () => {
+    const currentIssueTexts = issues.map((iss) => iss.text);
+    setNewIssues(currentIssueTexts.length > 0 ? currentIssueTexts : ['']);
+    setShowIssuesFields(true);
+    setButtonText(issues.length > 0 ? 'Update' : 'Add Issues');
+  };
+  const handleAddIssuesClick = async () => {
+    const currentIssueTexts = issues.map((iss) => iss.text);
+    const filteredNew = newIssues.filter((i) => i.trim() !== '');
+
+    const addedIssues = filteredNew.filter(
+      (i) => !currentIssueTexts.includes(i)
+    );
+    const updatedIssues = filteredNew.filter(
+      (i, idx) => currentIssueTexts[idx] !== i
+    );
+    const deletedIssues = currentIssueTexts.filter(
+      (i) => !filteredNew.includes(i)
+    );
+
+    if (
+      addedIssues.length === 0 &&
+      updatedIssues.length === 0 &&
+      deletedIssues.length === 0
+    ) {
+      setShowIssuesFields(false);
+      return;
+    }
+
+    try {
+      const response = await fetch(`/api/reports/${task}/${baseid}`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          issues: filteredNew,
+          status: 'Issues',
+        }),
+      });
+
+      if (!response.ok) {
+        throw new Error('Failed to update issues.');
+      }
+
+      setStatus('Issues');
+
+      const newEvent: IEvent = {
+        action:
+          addedIssues.length > 0
+            ? ACTIONS.ISSUES_CREATED
+            : ACTIONS.ISSUES_UPDATED,
+        author: 'Ivan Petrov', // or currentUser
+        date: new Date().toISOString(),
+      };
+      setEvents((prev) => [...prev, newEvent]);
+
+      setIssues(filteredNew.map((iss) => ({ text: iss, checked: false })));
+      setShowIssuesFields(false);
+      setNewIssues(['']);
+      setIssuesFixed(false);
+    } catch (error) {
+      console.error('Error updating issues:', error);
+      showAlert('Failed to update issues. Please try again.', 'error');
+    }
+  };
+  const handleCheckboxChange = (index: number) => {
+    const updated = [...issues];
+    updated[index].checked = !updated[index].checked;
+    setIssues(updated);
+
+    const allFixed = updated.every((iss) => iss.checked);
+    setIsFixedReady(allFixed);
+    setIssuesFixed(allFixed);
   };
 
+  // ======================
+  // Agree logic
+  // ======================
   const handleAgreeClick = () => {
-    // Open the agreement confirmation dialog
     setOpenAgreeDialog(true);
   };
-
   const handleConfirmAgree = async () => {
     setOpenAgreeDialog(false);
     try {
@@ -246,159 +369,30 @@ export default function PhotoReportPage() {
       }
 
       showAlert('Status has been updated to Agreed.', 'success');
-
-      // **Optimistically update the status state**
       setStatus('Agreed');
 
-      // **Add a new event to the events array**
       const newEvent: IEvent = {
         action: ACTIONS.STATUS_CHANGED,
-        author: currentUser,
+        author: 'Ivan Petrov', // or currentUser
         date: new Date().toISOString(),
         details: {
           oldStatus: data.status,
           newStatus: 'Agreed',
         },
       };
-      setEvents((prevEvents) => [...prevEvents, newEvent]);
+      setEvents((prev) => [...prev, newEvent]);
     } catch (error) {
       console.error('Error updating status:', error);
       showAlert('Error updating status. Please try again.', 'error');
     }
   };
-
   const handleCancelAgree = () => {
-    // Close the agreement confirmation dialog without actions
     setOpenAgreeDialog(false);
   };
 
-  // Removing issues (by index)
-  const confirmRemoveIssue = (index: number) => {
-    setConfirmDeleteIndex(index);
-  };
-
-  const handleDeleteIssueField = async () => {
-    if (confirmDeleteIndex === null) return;
-
-    const issueToDelete = newIssues[confirmDeleteIndex];
-    if (!issueToDelete) {
-      setConfirmDeleteIndex(null);
-      return;
-    }
-
-    // Optimistically remove from the UI
-    const updatedNewIssues = [...newIssues];
-    updatedNewIssues.splice(confirmDeleteIndex, 1);
-    setNewIssues(updatedNewIssues);
-    setConfirmDeleteIndex(null);
-
-    try {
-      const response = await fetch(`/api/reports/${task}/${baseid}`, {
-        method: 'PATCH',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          deleteIssueIndex: confirmDeleteIndex,
-        }),
-      });
-
-      if (!response.ok) {
-        throw new Error('Failed to delete issue.');
-      }
-    } catch (error) {
-      console.error('Error deleting issue:', error);
-      showAlert('Failed to delete issue. Please try again.', 'error');
-      // In case of error, rollback
-      setNewIssues((prevIssues) => {
-        const restoredIssues = [...prevIssues];
-        restoredIssues.splice(confirmDeleteIndex, 0, issueToDelete);
-        return restoredIssues;
-      });
-    }
-  };
-
-  const handleCheckboxChange = (index: number) => {
-    const updatedIssues = [...issues];
-    updatedIssues[index].checked = !updatedIssues[index].checked;
-    setIssues(updatedIssues);
-
-    const allFixed = updatedIssues.every((issue) => issue.checked);
-    setIsFixedReady(allFixed);
-
-    // Update issuesFixed based on all issues
-    setIssuesFixed(allFixed);
-  };
-
-  const handleIssuesClick = () => {
-    const currentIssuesTexts = issues.map((issue) => issue.text);
-    setNewIssues(currentIssuesTexts.length > 0 ? currentIssuesTexts : ['']);
-    setShowIssuesFields(true);
-    setButtonText(issues.length > 0 ? 'Update' : 'Add Issues');
-  };
-
-  const handleAddIssuesClick = async () => {
-    const currentIssues = issues.map((issue) => issue.text);
-    const filteredNewIssues = newIssues.filter((issue) => issue.trim() !== '');
-
-    const addedIssues = filteredNewIssues.filter(
-      (issue) => !currentIssues.includes(issue)
-    );
-    const updatedIssues = filteredNewIssues.filter(
-      (issue, index) => currentIssues[index] !== issue
-    );
-    const deletedIssues = currentIssues.filter(
-      (issue) => !filteredNewIssues.includes(issue)
-    );
-
-    if (
-      addedIssues.length === 0 &&
-      updatedIssues.length === 0 &&
-      deletedIssues.length === 0
-    ) {
-      setShowIssuesFields(false);
-      return;
-    }
-
-    try {
-      const response = await fetch(`/api/reports/${task}/${baseid}`, {
-        method: 'PATCH',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          issues: filteredNewIssues,
-          status: 'Issues',
-        }),
-      });
-
-      if (!response.ok) {
-        throw new Error('Failed to update issues.');
-      }
-
-      // **Optimistically update the status state**
-      setStatus('Issues');
-
-      // **Add a new event to the events array**
-      const newEvent: IEvent = {
-        action:
-          addedIssues.length > 0
-            ? ACTIONS.ISSUES_CREATED
-            : ACTIONS.ISSUES_UPDATED,
-        author: currentUser,
-        date: new Date().toISOString(),
-      };
-      setEvents((prevEvents) => [...prevEvents, newEvent]);
-
-      setIssues(
-        filteredNewIssues.map((issue) => ({ text: issue, checked: false }))
-      );
-      setShowIssuesFields(false);
-      setNewIssues(['']);
-      setIssuesFixed(false);
-    } catch (error) {
-      console.error('Error updating issues:', error);
-      showAlert('Failed to update issues. Please try again.', 'error');
-    }
-  };
-
-  // Handling files on drop
+  // ======================
+  // Upload logic
+  // ======================
   const onDrop = useCallback((acceptedFiles: File[]) => {
     const newFiles = acceptedFiles.map((file) => ({
       id: `${Date.now()}-${file.name}`,
@@ -406,16 +400,15 @@ export default function PhotoReportPage() {
       preview: URL.createObjectURL(file),
       progress: 0,
     }));
-    setUploadedFiles((prevFiles) => [...prevFiles, ...newFiles]);
+    setUploadedFiles((prev) => [...prev, ...newFiles]);
   }, []);
-
   const { getRootProps, getInputProps } = useDropzone({
     onDrop,
     accept: { 'image/*': [] } as Accept,
     maxSize: 5 * 1024 * 1024,
-    onDropRejected: (fileRejections) => {
-      fileRejections.forEach((rejection) => {
-        rejection.errors.forEach((error) => {
+    onDropRejected: (rejections) => {
+      rejections.forEach((rej) => {
+        rej.errors.forEach((error) => {
           showAlert(`Error: ${error.message}`, 'error');
         });
       });
@@ -423,10 +416,8 @@ export default function PhotoReportPage() {
   });
 
   const handleRemoveFile = (id: string) => {
-    setUploadedFiles((prevFiles) => prevFiles.filter((file) => file.id !== id));
+    setUploadedFiles((prev) => prev.filter((f) => f.id !== id));
   };
-
-  // State for deleting files (fixed)
   const [fileToDelete, setFileToDelete] = useState<UploadedFile | null>(null);
   const handleDeleteFile = () => {
     if (fileToDelete) {
@@ -440,27 +431,22 @@ export default function PhotoReportPage() {
     }
     setFileToDelete(null);
   };
-
   const handleUploadClick = async () => {
     if (uploadedFiles.length === 0) {
       showAlert('Please select images to upload.', 'warning');
       return;
     }
-
     setUploading(true);
 
     try {
-      // Create a single FormData
       const formData = new FormData();
       formData.append('baseId', baseid);
       formData.append('task', task);
 
-      // Add all files
-      for (const uploadedFile of uploadedFiles) {
-        formData.append('image[]', uploadedFile.file);
+      for (const uf of uploadedFiles) {
+        formData.append('image[]', uf.file);
       }
 
-      // Single XMLHttpRequest for all files
       const xhr = new XMLHttpRequest();
       xhr.open('POST', '/api/upload/fixed', true);
 
@@ -479,19 +465,15 @@ export default function PhotoReportPage() {
           setUploadedFiles([]);
           setIsFixedReady(false);
           setIssuesFixed(true);
-
-          // **Optimistically update the status state**
           setStatus('Fixed');
 
-          // **Add a new event to the events array**
           const newEvent: IEvent = {
             action: ACTIONS.FIXED_PHOTOS,
-            author: currentUser,
+            author: 'Ivan Petrov', // or currentUser
             date: new Date().toISOString(),
           };
-          setEvents((prevEvents) => [...prevEvents, newEvent]);
+          setEvents((prev) => [...prev, newEvent]);
 
-          // Update the photos list
           await fetchReport();
         } else {
           showAlert('Failed to upload image(s).', 'error');
@@ -512,14 +494,49 @@ export default function PhotoReportPage() {
     }
   };
 
-  const handleCloseIssuesFields = () => {
-    setShowIssuesFields(false);
-    setNewIssues(['']);
+  // ======================
+  // Download
+  // ======================
+  const handleDownloadReport = async () => {
+    setDownloading(true);
+    try {
+      const response = await fetch(`/api/reports/${task}/${baseid}/download`);
+      if (!response.ok) {
+        throw new Error(
+          `Failed to download report. Status: ${response.status}`
+        );
+      }
+      const blob = await response.blob();
+      const url = window.URL.createObjectURL(new Blob([blob]));
+      const link = document.createElement('a');
+      link.href = url;
+
+      const contentDisposition = response.headers.get('content-disposition');
+      let fileName = 'report.zip';
+      if (contentDisposition) {
+        const match = contentDisposition.match(/filename="(.+)"/);
+        if (match && match[1]) fileName = match[1];
+      }
+
+      link.setAttribute('download', fileName);
+      document.body.appendChild(link);
+      link.click();
+      link.parentNode?.removeChild(link);
+      window.URL.revokeObjectURL(url);
+      showAlert('Report downloaded successfully.', 'success');
+    } catch (error) {
+      console.error('Error downloading report:', error);
+      showAlert('Failed to download report. Please try again.', 'error');
+    } finally {
+      setDownloading(false);
+    }
   };
 
-  // Function to get badge color based on status
-  const getStatusColor = (status: string) => {
-    switch (status) {
+  // ======================
+  // Helpers for status
+  // ======================
+  const getStatusColor = (s: string) => {
+    switch (s) {
       case 'Pending':
         return 'warning';
       case 'Issues':
@@ -533,7 +550,6 @@ export default function PhotoReportPage() {
     }
   };
 
-  // Function to get message based on status
   const getStatusMessage = () => {
     switch (status) {
       case 'Pending':
@@ -569,88 +585,6 @@ export default function PhotoReportPage() {
     }
   };
 
-  // Add state for managing notifications
-  const [alertState, setAlertState] = useState<{
-    open: boolean;
-    message: string;
-    severity: 'success' | 'error' | 'info' | 'warning';
-  }>({ open: false, message: '', severity: 'success' });
-
-  // Function to display notification
-  const showAlert = (
-    message: string,
-    severity: 'success' | 'error' | 'info' | 'warning'
-  ) => {
-    setAlertState({ open: true, message, severity });
-  };
-
-  // Function for download report
-  const handleDownloadReport = async () => {
-    setDownloading(true);
-    try {
-      const response = await fetch(`/api/reports/${task}/${baseid}/download`, {
-        method: 'GET',
-      });
-      if (!response.ok) {
-        throw new Error(
-          `Failed to download report. Status: ${response.status}`
-        );
-      }
-      const blob = await response.blob();
-      const url = window.URL.createObjectURL(new Blob([blob]));
-      const link = document.createElement('a');
-      link.href = url;
-
-      // Trying to extract the file name from the response headers
-      const contentDisposition = response.headers.get('content-disposition');
-      let fileName = 'report.zip';
-      if (contentDisposition) {
-        const fileNameMatch = contentDisposition.match(/filename="(.+)"/);
-        if (fileNameMatch && fileNameMatch.length > 1)
-          fileName = fileNameMatch[1];
-      }
-
-      link.setAttribute('download', fileName);
-      document.body.appendChild(link);
-      link.click();
-      link.parentNode?.removeChild(link);
-      window.URL.revokeObjectURL(url);
-      showAlert('Report downloaded successfully.', 'success');
-    } catch (error) {
-      console.error('Error downloading report:', error);
-      showAlert('Failed to download report. Please try again.', 'error');
-    } finally {
-      setDownloading(false);
-    }
-  };
-
-  // Function to close notification
-  const handleCloseAlert = (
-    event?: React.SyntheticEvent | Event,
-    reason?: string
-  ) => {
-    if (reason === 'clickaway') {
-      return;
-    }
-    setAlertState((prev) => ({ ...prev, open: false }));
-  };
-
-  if (loading) {
-    return (
-      <Box display='flex' justifyContent='center' mt={4}>
-        <CircularProgress />
-      </Box>
-    );
-  }
-
-  if (error) {
-    return (
-      <Box display='flex' justifyContent='center' mt={4}>
-        <Typography color='error'>{error}</Typography>
-      </Box>
-    );
-  }
-
   const generateAgreeMessage = () => {
     if (status === 'Agreed' && reportStatusEvent) {
       return `Photo report ${decodeURIComponent(
@@ -661,12 +595,29 @@ export default function PhotoReportPage() {
     }
     return null;
   };
-
   const agreeMessage = generateAgreeMessage();
+
+  // ======================
+  // RENDER
+  // ======================
+  if (loading) {
+    return (
+      <Box display='flex' justifyContent='center' mt={4}>
+        <CircularProgress />
+      </Box>
+    );
+  }
+  if (error) {
+    return (
+      <Box display='flex' justifyContent='center' mt={4}>
+        <Typography color='error'>{error}</Typography>
+      </Box>
+    );
+  }
 
   return (
     <Box>
-      {/* Snackbar for displaying notifications */}
+      {/* Snackbar */}
       <Snackbar
         open={alertState.open}
         autoHideDuration={3000}
@@ -753,12 +704,12 @@ export default function PhotoReportPage() {
         )}
       >
         <Grid container spacing={1}>
-          {photos.map((photo, index) => (
-            <Grid item xs={6} sm={4} md={2} key={index}>
+          {photos.map((photo, idx) => (
+            <Grid item xs={6} sm={4} md={2} key={idx}>
               <PhotoView src={photo}>
                 <img
                   src={photo}
-                  alt={`Photo ${index + 1}`}
+                  alt={`Photo ${idx + 1}`}
                   style={{
                     width: '100%',
                     aspectRatio: '1 / 1',
@@ -774,15 +725,16 @@ export default function PhotoReportPage() {
         </Grid>
       </PhotoProvider>
 
-      {/* Buttons: Agree and Issues */}
-      {status !== 'Agreed' && (
+      {/* Buttons: Agree and Issues
+          Скрываем, если role === 'author'
+      */}
+      {status !== 'Agreed' && role !== 'author' && (
         <Box
           display='flex'
           justifyContent='center'
           alignItems='center'
           sx={{ mt: '20px', mb: '20px', gap: '10px' }}
         >
-          {/* The "Agree" button is always displayed but disabled if issuesFixed = false or status is not "Fixed" */}
           <Button
             variant='contained'
             color='success'
@@ -803,7 +755,7 @@ export default function PhotoReportPage() {
         <DialogContent>
           <DialogContentText>
             Are you sure you want to agree to the photo report{' '}
-            {decodeURIComponent(task)} | Base ID:{baseid}?
+            {decodeURIComponent(task)} | Base ID: {decodeURIComponent(baseid)}?
           </DialogContentText>
         </DialogContent>
         <DialogActions>
@@ -819,19 +771,19 @@ export default function PhotoReportPage() {
       {/* Issues Section */}
       {showIssuesFields && (
         <Box mt={4}>
-          {newIssues.map((issue, index) => (
-            <Box key={index} display='flex' alignItems='center' mb={2}>
+          {newIssues.map((issue, idx) => (
+            <Box key={idx} display='flex' alignItems='center' mb={2}>
               <TextField
-                label={`Issue ${index + 1}`}
+                label={`Issue ${idx + 1}`}
                 value={issue}
-                onChange={(e) => handleIssueChange(index, e.target.value)}
+                onChange={(e) => handleIssueChange(idx, e.target.value)}
                 fullWidth
                 margin='normal'
               />
               <Tooltip title='Delete'>
                 <IconButton
-                  onClick={() => confirmRemoveIssue(index)}
-                  sx={{ marginLeft: 1 }}
+                  onClick={() => confirmRemoveIssue(idx)}
+                  sx={{ ml: 1 }}
                 >
                   <DeleteIcon />
                 </IconButton>
@@ -851,7 +803,7 @@ export default function PhotoReportPage() {
                 variant='contained'
                 color='error'
                 onClick={handleAddIssuesClick}
-                sx={{ marginRight: 1 }}
+                sx={{ mr: 1 }}
               >
                 {buttonText}
               </Button>
@@ -891,7 +843,6 @@ export default function PhotoReportPage() {
               </Typography>
             )
           )}
-          {/* Issues Content */}
           <TableContainer component={Paper}>
             <Table>
               <TableHead>
@@ -901,14 +852,14 @@ export default function PhotoReportPage() {
                 </TableRow>
               </TableHead>
               <TableBody>
-                {issues.map((issue, index) => (
-                  <TableRow key={index}>
-                    <TableCell>{`${index + 1}. ${issue.text}`}</TableCell>
+                {issues.map((issue, idx) => (
+                  <TableRow key={idx}>
+                    <TableCell>{`${idx + 1}. ${issue.text}`}</TableCell>
                     <TableCell align='center'>
                       {status === 'Issues' ? (
                         <Checkbox
                           checked={issue.checked}
-                          onChange={() => handleCheckboxChange(index)}
+                          onChange={() => handleCheckboxChange(idx)}
                         />
                       ) : issue.checked ? (
                         <CheckIcon color='success' />
@@ -937,8 +888,8 @@ export default function PhotoReportPage() {
               {uploadedFiles.length > 0 && (
                 <Box mt={2}>
                   <Grid container spacing={2}>
-                    {uploadedFiles.map((uploadedFile) => (
-                      <Grid item xs={6} sm={4} md={3} key={uploadedFile.id}>
+                    {uploadedFiles.map((uf) => (
+                      <Grid item xs={6} sm={4} md={3} key={uf.id}>
                         <Box
                           sx={{
                             position: 'relative',
@@ -949,8 +900,8 @@ export default function PhotoReportPage() {
                           }}
                         >
                           <img
-                            src={uploadedFile.preview}
-                            alt={uploadedFile.file.name}
+                            src={uf.preview}
+                            alt={uf.file.name}
                             style={{
                               width: '100%',
                               height: 'auto',
@@ -958,7 +909,7 @@ export default function PhotoReportPage() {
                             }}
                           />
                           <IconButton
-                            onClick={() => setFileToDelete(uploadedFile)}
+                            onClick={() => setFileToDelete(uf)}
                             sx={{
                               position: 'absolute',
                               top: 8,
@@ -972,13 +923,13 @@ export default function PhotoReportPage() {
                             <DeleteIcon />
                           </IconButton>
                           <Typography variant='body2' noWrap>
-                            {uploadedFile.file.name}
+                            {uf.file.name}
                           </Typography>
                           {uploading && (
                             <LinearProgress
                               variant='determinate'
-                              value={uploadedFile.progress}
-                              sx={{ marginTop: 1 }}
+                              value={uf.progress}
+                              sx={{ mt: 1 }}
                             />
                           )}
                         </Box>
@@ -993,10 +944,10 @@ export default function PhotoReportPage() {
                 sx={{
                   border: '2px dashed #ccc',
                   borderRadius: '8px',
-                  padding: 2,
+                  p: 2,
                   textAlign: 'center',
-                  marginTop: 2,
-                  marginBottom: 2,
+                  mt: 2,
+                  mb: 2,
                 }}
               >
                 <input {...getInputProps()} />
@@ -1010,7 +961,7 @@ export default function PhotoReportPage() {
                   display: 'flex',
                   justifyContent: 'center',
                   alignItems: 'center',
-                  marginTop: 2,
+                  mt: 2,
                 }}
               >
                 <Button
@@ -1035,7 +986,6 @@ export default function PhotoReportPage() {
               >
                 Issues Fixed
               </Typography>
-              {/* Displaying events for Issues Fixed */}
               {fixedPhotosEvent ? (
                 <Typography variant='body2' gutterBottom>
                   Created by {fixedPhotosEvent.author} |{' '}
@@ -1046,7 +996,6 @@ export default function PhotoReportPage() {
                   No information available.
                 </Typography>
               )}
-              {/* Fixed Photos Content */}
               <PhotoProvider
                 toolbarRender={({ onScale, scale, onRotate, rotate }) => (
                   <Box
@@ -1081,12 +1030,12 @@ export default function PhotoReportPage() {
                 )}
               >
                 <Grid container spacing={1}>
-                  {fixedPhotos.map((photo, index) => (
-                    <Grid item xs={6} sm={4} md={2} key={`fixed-${index}`}>
+                  {fixedPhotos.map((photo, idx) => (
+                    <Grid item xs={6} sm={4} md={2} key={`fixed-${idx}`}>
                       <PhotoView src={photo}>
                         <img
                           src={photo}
-                          alt={`Fixed Photo ${index + 1}`}
+                          alt={`Fixed Photo ${idx + 1}`}
                           style={{
                             width: '100%',
                             aspectRatio: '1 / 1',

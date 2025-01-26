@@ -467,7 +467,16 @@ export default function ReportsPage() {
   }
 
   return (
-    <Box sx={{ padding: 2 }}>
+    <Box
+      sx={{
+        position: 'relative',
+        left: '50%',
+        right: '50%',
+        marginLeft: '-49vw',
+        marginRight: '-49vw',
+        width: '98vw',
+      }}
+    >
       {/* Блок "Active filters" */}
       {activeFiltersCount > 0 && (
         <Paper sx={{ padding: 2, marginBottom: 2 }}>
