@@ -3,8 +3,6 @@ import { Box, Paper, Typography } from '@mui/material';
 import { GetCurrentUserFromMongoDB } from '@/server-actions/users';
 import ReportModel from '@/models/Report';
 import ReportsPage from './reports/page';
-
-// Импортируем иконки
 import TrendingUpIcon from '@mui/icons-material/TrendingUp';
 import TrendingDownIcon from '@mui/icons-material/TrendingDown';
 

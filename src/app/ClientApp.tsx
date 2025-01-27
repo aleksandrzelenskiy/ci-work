@@ -31,6 +31,7 @@ import LightModeIcon from '@mui/icons-material/LightMode';
 import HomeIcon from '@mui/icons-material/Home';
 import CloudUploadIcon from '@mui/icons-material/CloudUpload';
 import BallotIcon from '@mui/icons-material/Ballot';
+import Badge from '@mui/material/Badge';
 import NotificationsIcon from '@mui/icons-material/Notifications';
 import { useRouter } from 'next/navigation';
 import UserMenu from './components/UserMenu';
@@ -202,10 +203,12 @@ export default function ClientApp({ children }: { children: React.ReactNode }) {
                   </Box>
                   <Box
                     sx={{
-                      marginRight: '10px',
+                      marginRight: '20px',
                     }}
                   >
-                    <NotificationsIcon />
+                    <Badge badgeContent={4} color='primary'>
+                      <NotificationsIcon />
+                    </Badge>
                   </Box>
 
                   <UserMenu />

@@ -1,5 +1,7 @@
 // app/api/reports/[task]/[baseid]/route.ts
 
+// export const dynamic = 'force-dynamic';
+
 import { NextResponse } from 'next/server';
 import Report from '@/models/Report';
 import dbConnect from '@/utils/mongoose';
@@ -12,72 +14,70 @@ import UserModel from '@/models/UserModel';
  */
 export async function GET(
   request: Request,
-  context: { params: { task: string; baseid: string } }
+  { params }: { params: { task: string; baseid: string } }
 ) {
   try {
-    console.log('Connecting to the database...');
+    console.log('Подключаемся к базе данных...');
     await dbConnect();
-    console.log('Successfully connected to the database.');
+    console.log('Успешное подключение к базе данных.');
 
-    const { task, baseid } = context.params;
+    const { task, baseid } = params;
     const decodedTask = decodeURIComponent(task);
     const decodedBaseId = decodeURIComponent(baseid);
 
     console.log(
-      `Decoded Task: ${decodedTask}, Decoded BaseID: ${decodedBaseId}`
+      `Значения после decodeURIComponent -> Task: ${decodedTask}, BaseID: ${decodedBaseId}`
     );
 
-    // Получаем текущего clerk-пользователя
+    // Получаем текущего пользователя из Clerk
     const clerkUser = await currentUser();
     if (!clerkUser) {
-      console.error('No user session found');
+      console.error('Нет активной сессии пользователя');
       return NextResponse.json(
-        { error: 'No user session found' },
+        { error: 'Нет активной сессии пользователя' },
         { status: 401 }
       );
     }
 
-    // Ищем запись пользователя в MongoDB, чтобы узнать роль
+    // Ищем соответствующего пользователя в MongoDB, чтобы узнать его роль
     const dbUser = await UserModel.findOne({ clerkUserId: clerkUser.id });
     if (!dbUser) {
-      console.warn('MongoDB user not found');
+      console.warn('Пользователь не найден в базе данных MongoDB');
       return NextResponse.json(
-        { error: 'User not found in the database' },
+        { error: 'Пользователь не найден в базе данных' },
         { status: 404 }
       );
     }
 
-    // Находим сам отчёт
+    // Находим отчёт по task и baseId
     const report = await Report.findOne({
       task: decodedTask,
       baseId: decodedBaseId,
     });
 
     if (!report) {
-      console.warn('The report was not found.');
-      return NextResponse.json(
-        { error: 'The report was not found' },
-        { status: 404 }
-      );
+      console.warn('Отчёт не найден');
+      return NextResponse.json({ error: 'Отчёт не найден' }, { status: 404 });
     }
 
-    console.log('Report found:', report);
+    console.log('Отчёт найден:', report);
 
-    // Возвращаем всё, что нужно, включая `role`
+    // Возвращаем необходимые данные, включая роль пользователя
     return NextResponse.json({
       files: report.files,
       createdAt: report.createdAt,
       userName: report.userName,
+      reviewerName: report.reviewerName,
       status: report.status,
       issues: report.issues || [],
       fixedFiles: report.fixedFiles || [],
       events: report.events || [],
-      role: dbUser.role, // <-- Добавляем роль
+      role: dbUser.role,
     });
   } catch (error) {
-    console.error('Error when receiving the report:', error);
+    console.error('Ошибка при получении отчёта:', error);
     return NextResponse.json(
-      { error: 'Could not get the report' },
+      { error: 'Не удалось получить отчёт' },
       { status: 500 }
     );
   }
@@ -85,35 +85,35 @@ export async function GET(
 
 /**
  * PATCH обработчик для обновления информации о конкретном отчёте.
- * (Исходный функционал остаётся неизменным)
+ * Исходный функционал остаётся неизменным.
  */
 export async function PATCH(
   request: Request,
-  context: { params: { task: string; baseid: string } }
+  { params }: { params: { task: string; baseid: string } }
 ) {
   try {
-    console.log('Connecting to the database...');
+    console.log('Подключаемся к базе данных...');
     await dbConnect();
-    console.log('Successfully connected to the database.');
+    console.log('Успешное подключение к базе данных.');
 
-    const { task, baseid } = context.params;
+    const { task, baseid } = params;
     const decodedTask = decodeURIComponent(task);
     const decodedBaseId = decodeURIComponent(baseid);
 
-    // Get the current user
+    // Получаем текущего пользователя
     const user = await currentUser();
     if (!user) {
-      console.error('Authentication error: User is not authenticated');
+      console.error('Ошибка аутентификации: пользователь не авторизован');
       return NextResponse.json(
-        { error: 'User is not authenticated' },
+        { error: 'Пользователь не авторизован' },
         { status: 401 }
       );
     }
 
     const name = `${user.firstName || 'Unknown'} ${user.lastName || ''}`.trim();
-    console.log(`Authenticated user: ${name}`);
+    console.log(`Авторизованный пользователь: ${name}`);
 
-    // Extract the request body
+    // Парсим тело запроса
     const body: {
       status?: string;
       issues?: string[];
@@ -121,33 +121,33 @@ export async function PATCH(
       deleteIssueIndex?: number;
     } = await request.json();
 
-    console.log('Request body:', body);
+    console.log('Тело запроса:', body);
 
     const { status, issues, updateIssue, deleteIssueIndex } = body;
 
-    // Find the report in the database
+    // Находим отчёт в базе данных
     const report = await Report.findOne({
       task: decodedTask,
       baseId: decodedBaseId,
     });
 
     if (!report) {
-      console.warn('Report not found.');
-      return NextResponse.json({ error: 'Report not found' }, { status: 404 });
+      console.warn('Отчёт не найден.');
+      return NextResponse.json({ error: 'Отчёт не найден' }, { status: 404 });
     }
 
-    console.log('Report found for updating:', report);
+    console.log('Отчёт найден для обновления:', report);
 
-    // Save old values for comparison
+    // Сохраняем старые значения для истории изменений
     const oldStatus = report.status;
     const oldIssues = [...report.issues];
 
-    // --- Update status ---
+    // -- Обновление статуса --
     if (status && status !== oldStatus) {
-      console.log(`Updating status to: ${status}`);
+      console.log(`Обновляем статус на: ${status}`);
       report.status = status;
 
-      // Add an event to the change history
+      // Добавляем событие в массив events (история изменений)
       if (!report.events) report.events = [];
       report.events.push({
         action: 'STATUS_CHANGED',
@@ -161,14 +161,14 @@ export async function PATCH(
       });
     }
 
-    // --- Update issues array ---
+    // -- Обновление массива issues --
     let issuesChanged = false;
 
     if (Array.isArray(issues)) {
-      // Compare old and new issues to determine changes
       const oldIssuesSet = new Set(oldIssues);
       const newIssuesSet = new Set(issues);
 
+      // Определяем, какие issues были добавлены, а какие удалены
       const addedIssues = issues.filter((issue) => !oldIssuesSet.has(issue));
       const removedIssues = oldIssues.filter(
         (issue) => !newIssuesSet.has(issue)
@@ -180,9 +180,10 @@ export async function PATCH(
       }
     }
 
+    // Точечное обновление конкретного issue по индексу
     if (updateIssue) {
       const { index, text } = updateIssue;
-      console.log(`Updating issue at index ${index} with text: ${text}`);
+      console.log(`Обновляем issue по индексу ${index} на текст: ${text}`);
       if (
         index >= 0 &&
         Array.isArray(report.issues) &&
@@ -191,16 +192,17 @@ export async function PATCH(
         report.issues[index] = text;
         issuesChanged = true;
       } else {
-        console.warn('Invalid index for updating issue.');
+        console.warn('Неверный индекс для обновления issue.');
         return NextResponse.json(
-          { error: 'Invalid index for updating issue' },
+          { error: 'Неверный индекс для обновления issue' },
           { status: 400 }
         );
       }
     }
 
+    // Удаление конкретного issue по индексу
     if (typeof deleteIssueIndex === 'number') {
-      console.log(`Deleting issue at index: ${deleteIssueIndex}`);
+      console.log(`Удаляем issue по индексу: ${deleteIssueIndex}`);
       if (
         deleteIssueIndex >= 0 &&
         Array.isArray(report.issues) &&
@@ -209,15 +211,15 @@ export async function PATCH(
         report.issues.splice(deleteIssueIndex, 1);
         issuesChanged = true;
       } else {
-        console.warn('Invalid index for deleting issue.');
+        console.warn('Неверный индекс для удаления issue.');
         return NextResponse.json(
-          { error: 'Invalid index for deleting issue' },
+          { error: 'Неверный индекс для удаления issue' },
           { status: 400 }
         );
       }
     }
 
-    // If the issues array has changed, add an event
+    // Если список issues был изменён, добавляем событие в историю
     if (issuesChanged) {
       if (!report.events) report.events = [];
       report.events.push({
@@ -232,15 +234,15 @@ export async function PATCH(
       });
     }
 
-    // Save changes to the database
+    // Сохраняем изменения в базе
     await report.save();
-    console.log('Report successfully updated.');
+    console.log('Отчёт успешно обновлён.');
 
-    return NextResponse.json({ message: 'Report successfully updated' });
+    return NextResponse.json({ message: 'Отчёт успешно обновлён' });
   } catch (error) {
-    console.error('Error updating the report:', error);
+    console.error('Ошибка при обновлении отчёта:', error);
     return NextResponse.json(
-      { error: 'Could not update the report' },
+      { error: 'Не удалось обновить отчёт' },
       { status: 500 }
     );
   }

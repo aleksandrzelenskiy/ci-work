@@ -109,7 +109,11 @@ function Row({ report, role }: { report: ReportClient; role: string }) {
     <>
       <TableRow sx={{ '& > *': { borderBottom: 'unset' } }}>
         {/* Стрелка-иконка для раскрытия */}
-        <TableCell>
+        <TableCell
+          sx={{
+            padding: '4px', // Уменьшенный padding
+          }}
+        >
           <IconButton
             aria-label='expand row'
             size='small'
@@ -120,7 +124,12 @@ function Row({ report, role }: { report: ReportClient; role: string }) {
         </TableCell>
 
         {/* Task */}
-        <TableCell>
+        <TableCell
+          sx={{
+            padding: '4px', // Уменьшенный padding
+            textAlign: 'center', // Центрирование содержимого
+          }}
+        >
           <Box sx={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
             <FolderIcon
               fontSize='small'
@@ -142,7 +151,12 @@ function Row({ report, role }: { report: ReportClient; role: string }) {
 
         {/* Если role=reviewer => показываем столбец "Author" */}
         {role === 'reviewer' && (
-          <TableCell>
+          <TableCell
+            align='center' // Уже выровнено по центру
+            sx={{
+              padding: '8px', // Можно оставить стандартный padding или немного уменьшить
+            }}
+          >
             <Box sx={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
               <Avatar
                 alt={report.userName}
@@ -158,7 +172,12 @@ function Row({ report, role }: { report: ReportClient; role: string }) {
 
         {/* Если role=author => показываем столбец "Reviewer" */}
         {role === 'author' && (
-          <TableCell>
+          <TableCell
+            align='center' // Уже выровнено по центру
+            sx={{
+              padding: '8px', // Можно оставить стандартный padding или немного уменьшить
+            }}
+          >
             <Box sx={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
               <Avatar alt={report.reviewerName} sx={{ width: 32, height: 32 }}>
                 R
@@ -173,7 +192,12 @@ function Row({ report, role }: { report: ReportClient; role: string }) {
         {/* Если role=admin => показываем Author + Reviewer */}
         {role === 'admin' && (
           <>
-            <TableCell>
+            <TableCell
+              align='center' // Уже выровнено по центру
+              sx={{
+                padding: '8px', // Можно оставить стандартный padding или немного уменьшить
+              }}
+            >
               <Box sx={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
                 <Avatar
                   alt={report.userName}
@@ -185,7 +209,12 @@ function Row({ report, role }: { report: ReportClient; role: string }) {
                 </Typography>
               </Box>
             </TableCell>
-            <TableCell>
+            <TableCell
+              align='center' // Уже выровнено по центру
+              sx={{
+                padding: '8px', // Можно оставить стандартный padding или немного уменьшить
+              }}
+            >
               <Box sx={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
                 <Avatar
                   alt={report.reviewerName}
@@ -202,10 +231,22 @@ function Row({ report, role }: { report: ReportClient; role: string }) {
         )}
 
         {/* Created */}
-        <TableCell>{getReportDate(report.createdAt)}</TableCell>
+        <TableCell
+          align='center' // Уже выровнено по центру
+          sx={{
+            padding: '8px', // Можно оставить стандартный padding или немного уменьшить
+          }}
+        >
+          {getReportDate(report.createdAt)}
+        </TableCell>
 
         {/* Status */}
-        <TableCell>
+        <TableCell
+          align='center' // Уже выровнено по центру
+          sx={{
+            padding: '8px', // Можно оставить стандартный padding или немного уменьшить
+          }}
+        >
           <Box
             sx={{
               ...getStatusStyles(getTaskStatus(report.baseStatuses)),
@@ -550,8 +591,10 @@ export default function ReportsPage() {
             <TableRow>
               {/* 1) Пустая ячейка (стрелка) */}
               <TableCell />
+
               {/* 2) Task */}
               <TableCell
+                align='left'
                 sx={{
                   fontSize: '14px',
                   fontWeight: 'bold',
@@ -583,6 +626,7 @@ export default function ReportsPage() {
               {/* Если reviewer → столбец Author */}
               {role === 'reviewer' && (
                 <TableCell
+                  align='center'
                   sx={{
                     fontSize: '14px',
                     fontWeight: 'bold',
@@ -614,6 +658,7 @@ export default function ReportsPage() {
               {/* Если author → столбец Reviewer */}
               {role === 'author' && (
                 <TableCell
+                  align='center'
                   sx={{
                     fontSize: '14px',
                     fontWeight: 'bold',
@@ -647,6 +692,7 @@ export default function ReportsPage() {
               {role === 'admin' && (
                 <>
                   <TableCell
+                    align='center'
                     sx={{
                       fontSize: '14px',
                       fontWeight: 'bold',
@@ -674,6 +720,7 @@ export default function ReportsPage() {
                     </Tooltip>
                   </TableCell>
                   <TableCell
+                    align='center'
                     sx={{
                       fontSize: '14px',
                       fontWeight: 'bold',
@@ -707,6 +754,7 @@ export default function ReportsPage() {
 
               {/* Created */}
               <TableCell
+                align='center'
                 sx={{
                   fontSize: '14px',
                   fontWeight: 'bold',
@@ -736,6 +784,7 @@ export default function ReportsPage() {
 
               {/* Status */}
               <TableCell
+                align='center'
                 sx={{
                   fontSize: '14px',
                   fontWeight: 'bold',
