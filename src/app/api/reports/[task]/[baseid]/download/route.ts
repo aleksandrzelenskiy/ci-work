@@ -2,7 +2,7 @@
 
 import { NextRequest, NextResponse } from 'next/server';
 import dbConnect from '@/utils/mongoose';
-import Report from '@/models/Report';
+import Report from '@/app/models/ReportModel';
 import archiver from 'archiver';
 import path from 'path';
 import fs from 'fs';

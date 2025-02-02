@@ -1,7 +1,7 @@
 // app/api/users/route.ts
 import { NextResponse } from 'next/server';
 import dbConnect from '@/utils/mongoose';
-import UserModel from '@/models/UserModel';
+import UserModel from '@/app/models/UserModel';
 
 export async function GET() {
   try {

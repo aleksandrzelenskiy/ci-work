@@ -1,8 +1,8 @@
 // app/api/reports/route.ts
 import { NextResponse } from 'next/server';
 import dbConnect from '@/utils/mongoose';
-import Report from '@/models/Report';
-import UserModel from '@/models/UserModel';
+import Report from '@/app/models/ReportModel';
+import UserModel from '@/app/models/UserModel';
 import { currentUser } from '@clerk/nextjs/server';
 import type { PipelineStage } from 'mongoose'; // Тип для этапов агрегации
 

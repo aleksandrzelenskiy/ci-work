@@ -3,10 +3,10 @@
 // export const dynamic = 'force-dynamic';
 
 import { NextResponse } from 'next/server';
-import Report from '@/models/Report';
+import Report from '@/app/models/ReportModel';
 import dbConnect from '@/utils/mongoose';
 import { currentUser } from '@clerk/nextjs/server';
-import UserModel from '@/models/UserModel';
+import UserModel from '@/app/models/UserModel';
 
 /**
  * GET обработчик для получения информации о конкретном отчёте.

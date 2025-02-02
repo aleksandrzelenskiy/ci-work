@@ -2,7 +2,7 @@
 
 'use server';
 
-import UserModel from '@/models/UserModel';
+import UserModel from '@/app/models/UserModel';
 import dbConnect from '@/utils/mongoose';
 import { currentUser } from '@clerk/nextjs/server';
 
