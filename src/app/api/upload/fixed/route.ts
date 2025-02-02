@@ -112,7 +112,13 @@ export async function POST(request: Request) {
   }
 
   // Define directories
-  const uploadsDir = path.join(process.cwd(), 'public', 'uploads', task);
+  const uploadsDir = path.join(
+    process.cwd(),
+    'public',
+    'uploads',
+    'reports',
+    task
+  );
   const taskDir = path.join(uploadsDir, baseId);
   const issuesFixedDir = path.join(taskDir, `${baseId} issues fixed`);
 
@@ -197,7 +203,7 @@ export async function POST(request: Request) {
         ])
         .toFile(outputPath);
 
-      const fileUrl = `/uploads/${task}/${baseId}/${baseId} issues fixed/${outputFilename}`;
+      const fileUrl = `/uploads/reports/${task}/${baseId}/${baseId} issues fixed/${outputFilename}`;
       fileUrls.push(fileUrl);
       fileCounter++;
     } catch (error) {

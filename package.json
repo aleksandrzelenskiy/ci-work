@@ -16,6 +16,7 @@
     "@mui/icons-material": "^6.3.1",
     "@mui/material": "^6.3.1",
     "@mui/x-date-pickers": "^7.23.6",
+    "@types/xlsx": "^0.0.35",
     "archiver": "^7.0.1",
     "aws-sdk": "^2.1692.0",
     "date-fns": "^2.30.0",
@@ -35,6 +36,7 @@
     "sharp": "^0.33.5",
     "socket.io": "^4.8.1",
     "socket.io-client": "^4.8.1",
+    "xlsx": "^0.18.5",
     "zod": "^3.24.1"
   },
   "devDependencies": {

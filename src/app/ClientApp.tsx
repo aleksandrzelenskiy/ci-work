@@ -29,10 +29,13 @@ import {
 import { Menu } from '@mui/icons-material';
 import LightModeIcon from '@mui/icons-material/LightMode';
 import HomeIcon from '@mui/icons-material/Home';
+import TaskIcon from '@mui/icons-material/Task';
+import PlaceIcon from '@mui/icons-material/Place';
 import CloudUploadIcon from '@mui/icons-material/CloudUpload';
+import PermMediaIcon from '@mui/icons-material/PermMedia';
 import BallotIcon from '@mui/icons-material/Ballot';
 import Badge from '@mui/material/Badge';
-import NotificationsIcon from '@mui/icons-material/Notifications';
+import MailIcon from '@mui/icons-material/Mail';
 import { useRouter } from 'next/navigation';
 import UserMenu from './components/UserMenu';
 
@@ -116,11 +119,29 @@ export default function ClientApp({ children }: { children: React.ReactNode }) {
           <ListItemText primary='Home' />
         </ListItemButton>
         <ListItemButton
+          onClick={() => handleNavigation('/tasks')}
+          sx={{ paddingLeft: 5 }}
+        >
+          <ListItemIcon sx={{ minWidth: 30 }}>
+            <TaskIcon />
+          </ListItemIcon>
+          <ListItemText primary='Task Manager' />
+        </ListItemButton>
+        <ListItemButton
+          onClick={() => handleNavigation('/map')}
+          sx={{ paddingLeft: 5 }}
+        >
+          <ListItemIcon sx={{ minWidth: 30 }}>
+            <PlaceIcon />
+          </ListItemIcon>
+          <ListItemText primary='Locations' />
+        </ListItemButton>
+        <ListItemButton
           onClick={() => handleNavigation('/upload')}
           sx={{ paddingLeft: 5 }}
         >
           <ListItemIcon sx={{ minWidth: 30 }}>
-            <CloudUploadIcon />
+            <PermMediaIcon />
           </ListItemIcon>
           <ListItemText primary='Upload Report' />
         </ListItemButton>
@@ -132,6 +153,15 @@ export default function ClientApp({ children }: { children: React.ReactNode }) {
             <BallotIcon />
           </ListItemIcon>
           <ListItemText primary='Reports List' />
+        </ListItemButton>
+        <ListItemButton
+          onClick={() => handleNavigation('/orders')}
+          sx={{ paddingLeft: 5 }}
+        >
+          <ListItemIcon sx={{ minWidth: 30 }}>
+            <CloudUploadIcon />
+          </ListItemIcon>
+          <ListItemText primary='Upload Order' />
         </ListItemButton>
       </List>
     </Box>
@@ -178,7 +208,7 @@ export default function ClientApp({ children }: { children: React.ReactNode }) {
                     <Menu />
                   </Button>
                   <Typography variant='h6' sx={{ flexGrow: 1 }}>
-                    CIPR
+                    CI Work
                   </Typography>
                   <Box
                     sx={{
@@ -207,7 +237,7 @@ export default function ClientApp({ children }: { children: React.ReactNode }) {
                     }}
                   >
                     <Badge badgeContent={4} color='primary'>
-                      <NotificationsIcon />
+                      <MailIcon />
                     </Badge>
                   </Box>
 

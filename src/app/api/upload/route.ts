@@ -75,7 +75,13 @@ export async function POST(request: Request) {
   }
 
   // Prepare directories
-  const uploadsDir = path.join(process.cwd(), 'public', 'uploads', task);
+  const uploadsDir = path.join(
+    process.cwd(),
+    'public',
+    'uploads',
+    'reports',
+    task
+  );
   const taskDir = path.join(uploadsDir, baseId);
 
   if (!fs.existsSync(uploadsDir)) {
@@ -159,7 +165,7 @@ export async function POST(request: Request) {
         ])
         .toFile(outputPath);
 
-      const fileUrl = `/uploads/${task}/${baseId}/${outputFilename}`;
+      const fileUrl = `/uploads/reports/${task}/${baseId}/${outputFilename}`;
       fileUrls.push(fileUrl);
       fileCounter++;
     } catch (error) {

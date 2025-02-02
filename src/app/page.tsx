@@ -173,7 +173,7 @@ const DashboardPage: React.FC = async () => {
       {/* Заголовок статистики */}
       <Box className='mb-4' sx={{ width: '100%' }}>
         <Typography variant='h5' component='h2' align='center'>
-          Your Statistics
+          Report Statistics
         </Typography>
       </Box>
 
