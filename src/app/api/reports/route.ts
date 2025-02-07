@@ -4,7 +4,7 @@ import dbConnect from '@/utils/mongoose';
 import Report from '@/app/models/ReportModel';
 import UserModel from '@/app/models/UserModel';
 import { currentUser } from '@clerk/nextjs/server';
-import type { PipelineStage } from 'mongoose'; // Тип для этапов агрегации
+import type { PipelineStage } from 'mongoose';
 
 export async function GET() {
   // 1. Подключаемся к базе
@@ -37,17 +37,17 @@ export async function GET() {
     );
   }
 
-  const userRole = existingUser.role; // "author", "reviewer", "admin" и т.д.
+  const userRole = existingUser.role; // "executor", "initiator", "admin" и т.д.
 
   // 4. Формируем pipeline для агрегации
   const pipeline: PipelineStage[] = [];
 
-  // Если author — смотреть только свои отчёты, если reviewer — те, в которых он reviewer
-  if (userRole === 'author') {
-    pipeline.push({ $match: { userId: clerkUser.id } });
+  // Если executor — смотреть только свои отчёты, если initiator — те, в которых он initiator
+  if (userRole === 'executor') {
+    pipeline.push({ $match: { executorId: clerkUser.id } });
   }
-  if (userRole === 'reviewer') {
-    pipeline.push({ $match: { reviewerId: clerkUser.id } });
+  if (userRole === 'initiator') {
+    pipeline.push({ $match: { initiatorId: clerkUser.id } });
   }
 
   // Существующий pipeline:

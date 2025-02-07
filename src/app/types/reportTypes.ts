@@ -17,10 +17,10 @@ export interface IReport {
   issues: string[];
   status: string;
   createdAt: Date;
-  userId: string;
-  userName: string;
-  reviewerId: string;
-  reviewerName: string;
+  executorId: string;
+  executorName: string;
+  initiatorId: string;
+  initiatorName: string;
   events: IEvent[];
 }
 

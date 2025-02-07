@@ -114,7 +114,7 @@ export default function ClientApp({ children }: { children: React.ReactNode }) {
           sx={{ paddingLeft: 5 }}
         >
           <ListItemIcon sx={{ minWidth: 30 }}>
-            <HomeIcon />
+            <HomeIcon sx={{ fontSize: 20 }} />
           </ListItemIcon>
           <ListItemText primary='Home' />
         </ListItemButton>
@@ -123,7 +123,7 @@ export default function ClientApp({ children }: { children: React.ReactNode }) {
           sx={{ paddingLeft: 5 }}
         >
           <ListItemIcon sx={{ minWidth: 30 }}>
-            <TaskIcon />
+            <TaskIcon sx={{ fontSize: 20 }} />
           </ListItemIcon>
           <ListItemText primary='Task Manager' />
         </ListItemButton>
@@ -132,7 +132,7 @@ export default function ClientApp({ children }: { children: React.ReactNode }) {
           sx={{ paddingLeft: 5 }}
         >
           <ListItemIcon sx={{ minWidth: 30 }}>
-            <PlaceIcon />
+            <PlaceIcon sx={{ fontSize: 20 }} />
           </ListItemIcon>
           <ListItemText primary='Locations' />
         </ListItemButton>
@@ -141,7 +141,7 @@ export default function ClientApp({ children }: { children: React.ReactNode }) {
           sx={{ paddingLeft: 5 }}
         >
           <ListItemIcon sx={{ minWidth: 30 }}>
-            <PermMediaIcon />
+            <PermMediaIcon sx={{ fontSize: 20 }} />
           </ListItemIcon>
           <ListItemText primary='Upload Report' />
         </ListItemButton>
@@ -150,7 +150,7 @@ export default function ClientApp({ children }: { children: React.ReactNode }) {
           sx={{ paddingLeft: 5 }}
         >
           <ListItemIcon sx={{ minWidth: 30 }}>
-            <BallotIcon />
+            <BallotIcon sx={{ fontSize: 20 }} />
           </ListItemIcon>
           <ListItemText primary='Reports List' />
         </ListItemButton>
@@ -159,7 +159,7 @@ export default function ClientApp({ children }: { children: React.ReactNode }) {
           sx={{ paddingLeft: 5 }}
         >
           <ListItemIcon sx={{ minWidth: 30 }}>
-            <CloudUploadIcon />
+            <CloudUploadIcon sx={{ fontSize: 20 }} />
           </ListItemIcon>
           <ListItemText primary='Upload Order' />
         </ListItemButton>

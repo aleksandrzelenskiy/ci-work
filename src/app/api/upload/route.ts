@@ -156,7 +156,7 @@ export async function POST(request: Request) {
                   ${date} | Task: ${task} | BS: ${baseId}
                 </text>
                 <text x="20" y="180" font-size="20" font-family="Arial, sans-serif" fill="white" text-anchor="start">
-                  Location: ${coordinates} | Author: ${name}
+                  Location: ${coordinates} | Executor: ${name}
                 </text>
               </svg>`
             ),
@@ -196,10 +196,10 @@ export async function POST(request: Request) {
     const report = new Report({
       task,
       baseId,
-      userId: user.id,
-      userName: name,
-      reviewerId: 'id',
-      reviewerName: 'reviewer',
+      executorId: user.id,
+      executorName: name,
+      initiatorId: 'id',
+      initiatorName: 'initiator',
       userAvatar: user.imageUrl || '',
       createdAt: new Date(),
       status: 'Pending',

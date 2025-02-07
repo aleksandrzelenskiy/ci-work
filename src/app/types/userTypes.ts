@@ -2,7 +2,7 @@
 
 export interface IUserRole {
   clerkUserId: string;
-  role: 'author' | 'reviewer' | 'admin' | 'member';
+  role: 'admin' | 'author' | 'initiator' | 'executor' | 'member';
   createdAt?: Date;
   updatedAt?: Date;
 }

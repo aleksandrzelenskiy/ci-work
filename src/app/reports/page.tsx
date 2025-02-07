@@ -79,14 +79,14 @@ function getColSpanByRole(role: string) {
   // Считаем столбцы:
   // 1. Arrow (иконка раскрытия)
   // 2. Task
-  // 3. (Author/Reviwer/оба) - от 1 до 2 столбцов
+  // 3. (Executor/Initiator/оба) - от 1 до 2 столбцов
   // 4. Created
   // 5. Status
   //
-  // Если role = 'author' или 'reviewer', у нас 1 столбец (либо Author, либо Reviewer) => итого 5.
-  // Если role = 'admin', у нас 2 столбца (Author + Reviewer) => итого 6.
+  // Если role = 'executor' или 'initiator', у нас 1 столбец (либо Executor, либо initiator) => итого 5.
+  // Если role = 'admin', у нас 2 столбца (Executor + Initiator) => итого 6.
   if (role === 'admin') return 6;
-  return 5; // author/reviewer
+  return 5; // executor/initiator
 }
 
 // === Компонент строки (одной задачи) ===
@@ -111,7 +111,7 @@ function Row({ report, role }: { report: ReportClient; role: string }) {
         {/* Стрелка-иконка для раскрытия */}
         <TableCell
           sx={{
-            padding: '4px', // Уменьшенный padding
+            padding: '4px',
           }}
         >
           <IconButton
@@ -126,8 +126,8 @@ function Row({ report, role }: { report: ReportClient; role: string }) {
         {/* Task */}
         <TableCell
           sx={{
-            padding: '4px', // Уменьшенный padding
-            textAlign: 'center', // Центрирование содержимого
+            padding: '4px',
+            textAlign: 'center',
           }}
         >
           <Box sx={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
@@ -149,12 +149,12 @@ function Row({ report, role }: { report: ReportClient; role: string }) {
           </Box>
         </TableCell>
 
-        {/* Если role=reviewer => показываем столбец "Author" */}
-        {role === 'reviewer' && (
+        {/* Если role=initiator => показываем столбец "Executor" */}
+        {role === 'initiator' && (
           <TableCell
-            align='center' // Уже выровнено по центру
+            align='center'
             sx={{
-              padding: '8px', // Можно оставить стандартный padding или немного уменьшить
+              padding: '8px',
             }}
           >
             <Box sx={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
@@ -170,12 +170,12 @@ function Row({ report, role }: { report: ReportClient; role: string }) {
           </TableCell>
         )}
 
-        {/* Если role=author => показываем столбец "Reviewer" */}
-        {role === 'author' && (
+        {/* Если role=executor => показываем столбец "initiator" */}
+        {role === 'executor' && (
           <TableCell
-            align='center' // Уже выровнено по центру
+            align='center'
             sx={{
-              padding: '8px', // Можно оставить стандартный padding или немного уменьшить
+              padding: '8px',
             }}
           >
             <Box sx={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
@@ -189,13 +189,13 @@ function Row({ report, role }: { report: ReportClient; role: string }) {
           </TableCell>
         )}
 
-        {/* Если role=admin => показываем Author + Reviewer */}
+        {/* Если role=admin => показываем executor + initiator */}
         {role === 'admin' && (
           <>
             <TableCell
-              align='center' // Уже выровнено по центру
+              align='center'
               sx={{
-                padding: '8px', // Можно оставить стандартный padding или немного уменьшить
+                padding: '8px',
               }}
             >
               <Box sx={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
@@ -210,9 +210,9 @@ function Row({ report, role }: { report: ReportClient; role: string }) {
               </Box>
             </TableCell>
             <TableCell
-              align='center' // Уже выровнено по центру
+              align='center'
               sx={{
-                padding: '8px', // Можно оставить стандартный padding или немного уменьшить
+                padding: '8px',
               }}
             >
               <Box sx={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
@@ -232,9 +232,9 @@ function Row({ report, role }: { report: ReportClient; role: string }) {
 
         {/* Created */}
         <TableCell
-          align='center' // Уже выровнено по центру
+          align='center'
           sx={{
-            padding: '8px', // Можно оставить стандартный padding или немного уменьшить
+            padding: '8px',
           }}
         >
           {getReportDate(report.createdAt)}
@@ -242,9 +242,9 @@ function Row({ report, role }: { report: ReportClient; role: string }) {
 
         {/* Status */}
         <TableCell
-          align='center' // Уже выровнено по центру
+          align='center'
           sx={{
-            padding: '8px', // Можно оставить стандартный padding или немного уменьшить
+            padding: '8px',
           }}
         >
           <Box
@@ -330,8 +330,8 @@ export default function ReportsPage() {
   const [error, setError] = useState<string | null>(null);
 
   // Фильтры:
-  const [authorFilter, setAuthorFilter] = useState('');
-  const [reviewerFilter, setReviewerFilter] = useState(''); // <-- НОВЫЙ фильтр по reviewer
+  const [executorFilter, setExecutorFilter] = useState('');
+  const [initiatorFilter, setinitiatorFilter] = useState('');
   const [statusFilter, setStatusFilter] = useState('');
   const [taskSearch, setTaskSearch] = useState('');
   const [createdAtFilter, setCreatedAtFilter] = useState<Date | null>(null);
@@ -342,26 +342,32 @@ export default function ReportsPage() {
 
   // Подсчитываем количество активных фильтров
   const activeFiltersCount = useMemo(() => {
-    // Добавили reviewerFilter в массив
+    // initiatorFilter в массивe
     return [
-      authorFilter,
-      reviewerFilter,
+      executorFilter,
+      initiatorFilter,
       statusFilter,
       taskSearch,
       createdAtFilter,
     ].filter(Boolean).length;
-  }, [authorFilter, reviewerFilter, statusFilter, taskSearch, createdAtFilter]);
+  }, [
+    executorFilter,
+    initiatorFilter,
+    statusFilter,
+    taskSearch,
+    createdAtFilter,
+  ]);
 
   // Получаем уникальных авторов
-  const uniqueAuthors = useMemo(() => {
-    const authors = reports.map((report) => report.userName);
-    return Array.from(new Set(authors));
+  const uniqueExecutors = useMemo(() => {
+    const executors = reports.map((report) => report.userName);
+    return Array.from(new Set(executors));
   }, [reports]);
 
   // Получаем уникальных ревьюеров
-  const uniqueReviewers = useMemo(() => {
-    const reviewers = reports.map((report) => report.reviewerName);
-    return Array.from(new Set(reviewers));
+  const uniqueinitiators = useMemo(() => {
+    const initiators = reports.map((report) => report.reviewerName);
+    return Array.from(new Set(initiators));
   }, [reports]);
 
   // Получаем уникальные статусы
@@ -388,7 +394,7 @@ export default function ReportsPage() {
           throw new Error('Invalid data format');
         }
 
-        // Устанавливаем роль (author, reviewer, admin и т.д.)
+        // Устанавливаем роль (executor, initiator, admin и т.д.)
         if (data.userRole) {
           setRole(data.userRole);
         }
@@ -425,17 +431,17 @@ export default function ReportsPage() {
   useEffect(() => {
     let tempReports = [...reports];
 
-    // Filter by author
-    if (authorFilter) {
+    // Filter by executor
+    if (executorFilter) {
       tempReports = tempReports.filter(
-        (report) => report.userName === authorFilter
+        (report) => report.userName === executorFilter
       );
     }
 
-    // Filter by reviewer
-    if (reviewerFilter) {
+    // Filter by initiator
+    if (initiatorFilter) {
       tempReports = tempReports.filter(
-        (report) => report.reviewerName === reviewerFilter
+        (report) => report.reviewerName === initiatorFilter
       );
     }
 
@@ -465,8 +471,8 @@ export default function ReportsPage() {
     setFilteredReports(tempReports);
   }, [
     reports,
-    authorFilter,
-    reviewerFilter,
+    executorFilter,
+    initiatorFilter,
     statusFilter,
     createdAtFilter,
     taskSearch,
@@ -525,18 +531,18 @@ export default function ReportsPage() {
             Active filters
           </Typography>
           <Box sx={{ display: 'flex', gap: 1, flexWrap: 'wrap', mb: 2 }}>
-            {authorFilter && (
+            {executorFilter && (
               <Chip
-                label={`Author: ${authorFilter}`}
-                onDelete={() => setAuthorFilter('')}
+                label={`Executor: ${executorFilter}`}
+                onDelete={() => setExecutorFilter('')}
                 color='primary'
                 size='small'
               />
             )}
-            {reviewerFilter && (
+            {initiatorFilter && (
               <Chip
-                label={`Reviewer: ${reviewerFilter}`}
-                onDelete={() => setReviewerFilter('')}
+                label={`initiator: ${initiatorFilter}`}
+                onDelete={() => setinitiatorFilter('')}
                 color='primary'
                 size='small'
               />
@@ -570,8 +576,8 @@ export default function ReportsPage() {
             <Grid item xs={12} sm={6} md={3}>
               <Button
                 onClick={() => {
-                  setAuthorFilter('');
-                  setReviewerFilter('');
+                  setExecutorFilter('');
+                  setinitiatorFilter('');
                   setStatusFilter('');
                   setTaskSearch('');
                   setCreatedAtFilter(null);
@@ -623,8 +629,8 @@ export default function ReportsPage() {
                 </Tooltip>
               </TableCell>
 
-              {/* Если reviewer → столбец Author */}
-              {role === 'reviewer' && (
+              {/* Если initiator → столбец executor */}
+              {role === 'initiator' && (
                 <TableCell
                   align='center'
                   sx={{
@@ -635,15 +641,15 @@ export default function ReportsPage() {
                     padding: '16px',
                   }}
                 >
-                  Author
-                  <Tooltip title='Author filter'>
+                  Executor
+                  <Tooltip title='Executor filter'>
                     <IconButton
                       size='small'
-                      onClick={(event) => handleFilterClick(event, 'author')}
-                      color={authorFilter ? 'primary' : 'default'}
-                      aria-label='Author filter'
+                      onClick={(event) => handleFilterClick(event, 'executor')}
+                      color={executorFilter ? 'primary' : 'default'}
+                      aria-label='Executor filter'
                       aria-controls={
-                        openPopover && currentFilter === 'author'
+                        openPopover && currentFilter === 'executor'
                           ? 'filter-popover'
                           : undefined
                       }
@@ -655,8 +661,8 @@ export default function ReportsPage() {
                 </TableCell>
               )}
 
-              {/* Если author → столбец Reviewer */}
-              {role === 'author' && (
+              {/* Если executor → столбец initiator */}
+              {role === 'executor' && (
                 <TableCell
                   align='center'
                   sx={{
@@ -667,16 +673,16 @@ export default function ReportsPage() {
                     padding: '16px',
                   }}
                 >
-                  Reviewer
-                  {/* Иконка для фильтра Reviewer */}
-                  <Tooltip title='Reviewer filter'>
+                  initiator
+                  {/* Иконка для фильтра initiator */}
+                  <Tooltip title='initiator filter'>
                     <IconButton
                       size='small'
-                      onClick={(event) => handleFilterClick(event, 'reviewer')}
-                      color={reviewerFilter ? 'primary' : 'default'}
-                      aria-label='Reviewer filter'
+                      onClick={(event) => handleFilterClick(event, 'initiator')}
+                      color={initiatorFilter ? 'primary' : 'default'}
+                      aria-label='initiator filter'
                       aria-controls={
-                        openPopover && currentFilter === 'reviewer'
+                        openPopover && currentFilter === 'initiator'
                           ? 'filter-popover'
                           : undefined
                       }
@@ -688,7 +694,7 @@ export default function ReportsPage() {
                 </TableCell>
               )}
 
-              {/* Если admin → столбцы Author + Reviewer */}
+              {/* Если admin → столбцы executor + initiator */}
               {role === 'admin' && (
                 <>
                   <TableCell
@@ -701,15 +707,17 @@ export default function ReportsPage() {
                       padding: '16px',
                     }}
                   >
-                    Author
-                    <Tooltip title='Author filter'>
+                    Executor
+                    <Tooltip title='Executor filter'>
                       <IconButton
                         size='small'
-                        onClick={(event) => handleFilterClick(event, 'author')}
-                        color={authorFilter ? 'primary' : 'default'}
-                        aria-label='Author filter'
+                        onClick={(event) =>
+                          handleFilterClick(event, 'executor')
+                        }
+                        color={executorFilter ? 'primary' : 'default'}
+                        aria-label='Executor filter'
                         aria-controls={
-                          openPopover && currentFilter === 'author'
+                          openPopover && currentFilter === 'executor'
                             ? 'filter-popover'
                             : undefined
                         }
@@ -729,17 +737,17 @@ export default function ReportsPage() {
                       padding: '16px',
                     }}
                   >
-                    Reviewer
-                    <Tooltip title='Reviewer filter'>
+                    initiator
+                    <Tooltip title='initiator filter'>
                       <IconButton
                         size='small'
                         onClick={(event) =>
-                          handleFilterClick(event, 'reviewer')
+                          handleFilterClick(event, 'initiator')
                         }
-                        color={reviewerFilter ? 'primary' : 'default'}
-                        aria-label='Reviewer filter'
+                        color={initiatorFilter ? 'primary' : 'default'}
+                        aria-label='initiator filter'
                         aria-controls={
-                          openPopover && currentFilter === 'reviewer'
+                          openPopover && currentFilter === 'initiator'
                             ? 'filter-popover'
                             : undefined
                         }
@@ -858,16 +866,19 @@ export default function ReportsPage() {
             />
           )}
 
-          {currentFilter === 'author' && (
+          {currentFilter === 'executor' && (
             <FormControl fullWidth variant='outlined' size='small'>
-              <InputLabel id='author-filter-label' sx={{ fontSize: '0.75rem' }}>
-                Author
+              <InputLabel
+                id='executor-filter-label'
+                sx={{ fontSize: '0.75rem' }}
+              >
+                Executor
               </InputLabel>
               <Select
-                labelId='author-filter-label'
-                value={authorFilter}
-                label='Author'
-                onChange={(e) => setAuthorFilter(e.target.value)}
+                labelId='executor-filter-label'
+                value={executorFilter}
+                label='Executor'
+                onChange={(e) => setExecutorFilter(e.target.value)}
                 autoFocus
                 sx={{
                   '& .MuiSelect-select': { fontSize: '0.75rem' },
@@ -877,28 +888,28 @@ export default function ReportsPage() {
                 <MenuItem value=''>
                   <em>All</em>
                 </MenuItem>
-                {uniqueAuthors.map((author) => (
-                  <MenuItem key={author} value={author}>
-                    {author}
+                {uniqueExecutors.map((executor) => (
+                  <MenuItem key={executor} value={executor}>
+                    {executor}
                   </MenuItem>
                 ))}
               </Select>
             </FormControl>
           )}
 
-          {currentFilter === 'reviewer' && (
+          {currentFilter === 'initiator' && (
             <FormControl fullWidth variant='outlined' size='small'>
               <InputLabel
-                id='reviewer-filter-label'
+                id='initiator-filter-label'
                 sx={{ fontSize: '0.75rem' }}
               >
-                Reviewer
+                initiator
               </InputLabel>
               <Select
-                labelId='reviewer-filter-label'
-                value={reviewerFilter}
-                label='Reviewer'
-                onChange={(e) => setReviewerFilter(e.target.value)}
+                labelId='initiator-filter-label'
+                value={initiatorFilter}
+                label='initiator'
+                onChange={(e) => setinitiatorFilter(e.target.value)}
                 autoFocus
                 sx={{
                   '& .MuiSelect-select': { fontSize: '0.75rem' },
@@ -908,7 +919,7 @@ export default function ReportsPage() {
                 <MenuItem value=''>
                   <em>All</em>
                 </MenuItem>
-                {uniqueReviewers.map((rev) => (
+                {uniqueinitiators.map((rev) => (
                   <MenuItem key={rev} value={rev}>
                     {rev}
                   </MenuItem>
@@ -984,8 +995,8 @@ export default function ReportsPage() {
               size='small'
               onClick={() => {
                 if (currentFilter === 'task') setTaskSearch('');
-                if (currentFilter === 'author') setAuthorFilter('');
-                if (currentFilter === 'reviewer') setReviewerFilter('');
+                if (currentFilter === 'executor') setExecutorFilter('');
+                if (currentFilter === 'initiator') setinitiatorFilter('');
                 if (currentFilter === 'status') setStatusFilter('');
                 if (currentFilter === 'createdAt') setCreatedAtFilter(null);
               }}

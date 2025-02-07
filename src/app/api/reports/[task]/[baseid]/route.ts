@@ -1,9 +1,7 @@
 // app/api/reports/[task]/[baseid]/route.ts
 
-// export const dynamic = 'force-dynamic';
-
 import { NextResponse } from 'next/server';
-import Report from '@/app/models/ReportModel';
+import ReportModel from '@/app/models/ReportModel';
 import dbConnect from '@/utils/mongoose';
 import { currentUser } from '@clerk/nextjs/server';
 import UserModel from '@/app/models/UserModel';
@@ -25,9 +23,9 @@ export async function GET(
     const decodedTask = decodeURIComponent(task);
     const decodedBaseId = decodeURIComponent(baseid);
 
-    console.log(
-      `Значения после decodeURIComponent -> Task: ${decodedTask}, BaseID: ${decodedBaseId}`
-    );
+    // console.log(
+    //   `Значения после decodeURIComponent -> Task: ${decodedTask}, BaseID: ${decodedBaseId}`
+    // );
 
     // Получаем текущего пользователя из Clerk
     const clerkUser = await currentUser();
@@ -50,7 +48,7 @@ export async function GET(
     }
 
     // Находим отчёт по task и baseId
-    const report = await Report.findOne({
+    const report = await ReportModel.findOne({
       task: decodedTask,
       baseId: decodedBaseId,
     });
@@ -60,7 +58,7 @@ export async function GET(
       return NextResponse.json({ error: 'Отчёт не найден' }, { status: 404 });
     }
 
-    console.log('Отчёт найден:', report);
+    // console.log('Отчёт найден:', report);
 
     // Возвращаем необходимые данные, включая роль пользователя
     return NextResponse.json({
@@ -121,12 +119,12 @@ export async function PATCH(
       deleteIssueIndex?: number;
     } = await request.json();
 
-    console.log('Тело запроса:', body);
+    // console.log('Тело запроса:', body);
 
     const { status, issues, updateIssue, deleteIssueIndex } = body;
 
     // Находим отчёт в базе данных
-    const report = await Report.findOne({
+    const report = await ReportModel.findOne({
       task: decodedTask,
       baseId: decodedBaseId,
     });

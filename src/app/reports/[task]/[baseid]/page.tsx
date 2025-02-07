@@ -1,3 +1,5 @@
+// app/reports/[task]/[baseid]/page.tsx
+
 'use client';
 
 import React, { useState, useEffect, useCallback } from 'react';
@@ -77,7 +79,7 @@ export default function PhotoReportPage() {
   // ======================
   // Role state
   // ======================
-  const [role, setRole] = useState<string>(''); // "author", "reviewer", etc.
+  const [role, setRole] = useState<string>(''); // "author", "initiator", etc.
 
   // Basic states
   const [photos, setPhotos] = useState<string[]>([]);
@@ -728,7 +730,7 @@ export default function PhotoReportPage() {
       {/* Buttons: Agree and Issues
           Скрываем, если role === 'author'
       */}
-      {status !== 'Agreed' && role !== 'author' && (
+      {status !== 'Agreed' && role !== 'executor' && (
         <Box
           display='flex'
           justifyContent='center'

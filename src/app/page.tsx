@@ -26,7 +26,7 @@ const DashboardPage: React.FC = async () => {
   let matchCondition: Record<string, string> = {};
   if (role === 'author') {
     matchCondition = { userId: clerkUserId };
-  } else if (role === 'reviewer') {
+  } else if (role === 'initiator') {
     matchCondition = { reviewerId: clerkUserId };
   } else {
     // Например, admin => оставляем пустым, чтобы показывать все

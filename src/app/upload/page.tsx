@@ -16,6 +16,7 @@ import {
   DialogContent,
   DialogContentText,
   DialogTitle,
+  Paper,
 } from '@mui/material';
 import { useDropzone } from 'react-dropzone';
 import DeleteIcon from '@mui/icons-material/Delete';
@@ -30,7 +31,7 @@ interface UploadedFile {
 
 export default function UploadPage() {
   const { isLoaded, isSignedIn } = useUser();
-  const router = useRouter(); // Used for redirection
+  const router = useRouter();
   const [baseId, setBaseId] = useState('');
   const [task, setTask] = useState('');
   const [files, setFiles] = useState<UploadedFile[]>([]);
@@ -137,122 +138,156 @@ export default function UploadPage() {
 
   return (
     <>
-      <Box sx={{ padding: 2 }}>
-        <Typography variant='h4' gutterBottom>
-          Upload Images to Photo Report
-        </Typography>
-
-        <TextField
-          fullWidth
-          label='Task'
-          value={task}
-          onChange={(e) => setTask(e.target.value)}
-          margin='normal'
-        />
-        <TextField
-          fullWidth
-          label='Base ID'
-          value={baseId}
-          onChange={(e) => setBaseId(e.target.value)}
-          margin='normal'
-        />
-        <Box sx={{ marginBottom: 3 }}>
-          <Grid container spacing={2}>
-            {files.map((uploadedFile) => (
-              <Grid item xs={6} sm={4} md={3} key={uploadedFile.id}>
-                <Box sx={{ position: 'relative', textAlign: 'center' }}>
-                  <img
-                    src={uploadedFile.preview}
-                    alt={uploadedFile.file.name}
-                    style={{
-                      width: '100%',
-                      height: 'auto',
-                      borderRadius: '8px',
-                    }}
-                  />
-                  <IconButton
-                    onClick={() => confirmRemoveFile(uploadedFile)}
-                    sx={{
-                      position: 'absolute',
-                      top: 8,
-                      right: 8,
-                      background: 'rgba(255, 255, 255, 0.8)',
-                      '&:hover': { background: 'rgba(255, 255, 255, 1)' },
-                    }}
-                  >
-                    <DeleteIcon />
-                  </IconButton>
-                  <Typography variant='body2' noWrap>
-                    {uploadedFile.file.name}
-                  </Typography>
-                  <LinearProgress
-                    variant='determinate'
-                    value={uploadedFile.progress}
-                    sx={{ marginTop: 1 }}
-                  />
-                </Box>
-              </Grid>
-            ))}
+      <Box sx={{ flexGrow: 1, padding: 2 }}>
+        <Grid container spacing={2}>
+          <Grid item xs={12} md={6}>
+            <Paper>
+              <Box sx={{ padding: 2 }}>
+                <Typography variant='h5' gutterBottom>
+                  Placeholder Text
+                </Typography>
+                <Typography variant='body1'>
+                  Lorem ipsum dolor sit amet, consectetur adipiscing elit. Sed
+                  do eiusmod tempor incididunt ut labore et dolore magna aliqua.
+                  Ut enim ad minim veniam, quis nostrud exercitation ullamco
+                  laboris nisi ut aliquip ex ea commodo consequat.
+                </Typography>
+              </Box>
+            </Paper>
           </Grid>
-        </Box>
+          <Grid item xs={12} md={6}>
+            <Paper>
+              <Box sx={{ padding: 2 }}>
+                <Typography variant='h5' gutterBottom>
+                  Upload Images to Photo Report
+                </Typography>
 
-        <Box
-          {...getRootProps()}
-          sx={{
-            border: '2px dashed #ccc',
-            borderRadius: '8px',
-            padding: 2,
-            textAlign: 'center',
-            marginBottom: 2,
-            cursor: 'pointer',
-          }}
-        >
-          <input {...getInputProps()} />
-          <Typography variant='body1'>
-            Drag & drop images here, or click to select
-          </Typography>
-        </Box>
+                <TextField
+                  fullWidth
+                  label='Task'
+                  value={task}
+                  onChange={(e) => setTask(e.target.value)}
+                  margin='normal'
+                />
+                <TextField
+                  fullWidth
+                  label='Base ID'
+                  value={baseId}
+                  onChange={(e) => setBaseId(e.target.value)}
+                  margin='normal'
+                />
+                <Box sx={{ marginBottom: 3 }}>
+                  <Grid container spacing={2}>
+                    {files.map((uploadedFile) => (
+                      <Grid item xs={6} sm={4} md={3} key={uploadedFile.id}>
+                        <Box sx={{ position: 'relative', textAlign: 'center' }}>
+                          <img
+                            src={uploadedFile.preview}
+                            alt={uploadedFile.file.name}
+                            style={{
+                              width: '100%',
+                              height: 'auto',
+                              borderRadius: '8px',
+                            }}
+                          />
+                          <IconButton
+                            onClick={() => confirmRemoveFile(uploadedFile)}
+                            sx={{
+                              position: 'absolute',
+                              top: 8,
+                              right: 8,
+                              background: 'rgba(255, 255, 255, 0.8)',
+                              '&:hover': {
+                                background: 'rgba(255, 255, 255, 1)',
+                              },
+                            }}
+                          >
+                            <DeleteIcon />
+                          </IconButton>
+                          <Typography variant='body2' noWrap>
+                            {uploadedFile.file.name}
+                          </Typography>
+                          <LinearProgress
+                            variant='determinate'
+                            value={uploadedFile.progress}
+                            sx={{ marginTop: 1 }}
+                          />
+                        </Box>
+                      </Grid>
+                    ))}
+                  </Grid>
+                </Box>
 
-        <Box
-          sx={{
-            display: 'flex',
-            justifyContent: 'center',
-            alignItems: 'center',
-            marginTop: 5,
-          }}
-        >
-          <Button
-            variant='contained'
-            startIcon={<CloudUploadIcon />}
-            color='primary'
-            onClick={handleUploadClick}
-            disabled={!baseId || !task || files.length === 0}
-          >
-            Upload Photo
-          </Button>
-        </Box>
+                <Box
+                  {...getRootProps()}
+                  sx={{
+                    border: '2px dashed #ccc',
+                    borderRadius: '8px',
+                    padding: 2,
+                    textAlign: 'center',
+                    marginBottom: 2,
+                    cursor: 'pointer',
+                  }}
+                >
+                  <input {...getInputProps()} />
+                  <Typography variant='body1'>
+                    Drag & drop images here, or click to select
+                  </Typography>
+                </Box>
 
-        {/* Confirmation dialog for deletion */}
-        <Dialog
-          open={!!fileToDelete}
-          onClose={() => setFileToDelete(null)}
-          aria-labelledby='confirm-delete-title'
-        >
-          <DialogTitle id='confirm-delete-title'>Confirm Deletion</DialogTitle>
-          <DialogContent>
-            <DialogContentText>
-              Are you sure you want to delete this image?
-            </DialogContentText>
-          </DialogContent>
-          <DialogActions>
-            <Button onClick={() => setFileToDelete(null)} color='primary'>
-              Cancel
-            </Button>
-            <Button onClick={handleDeleteConfirmed} color='secondary' autoFocus>
-              Delete
-            </Button>
-          </DialogActions>
-        </Dialog>
+                <Box
+                  sx={{
+                    display: 'flex',
+                    justifyContent: 'center',
+                    alignItems: 'center',
+                    marginTop: 5,
+                  }}
+                >
+                  <Button
+                    variant='contained'
+                    startIcon={<CloudUploadIcon />}
+                    color='primary'
+                    onClick={handleUploadClick}
+                    disabled={!baseId || !task || files.length === 0}
+                  >
+                    Upload Photo
+                  </Button>
+                </Box>
+
+                {/* Confirmation dialog for deletion */}
+                <Dialog
+                  open={!!fileToDelete}
+                  onClose={() => setFileToDelete(null)}
+                  aria-labelledby='confirm-delete-title'
+                >
+                  <DialogTitle id='confirm-delete-title'>
+                    Confirm Deletion
+                  </DialogTitle>
+                  <DialogContent>
+                    <DialogContentText>
+                      Are you sure you want to delete this image?
+                    </DialogContentText>
+                  </DialogContent>
+                  <DialogActions>
+                    <Button
+                      onClick={() => setFileToDelete(null)}
+                      color='primary'
+                    >
+                      Cancel
+                    </Button>
+                    <Button
+                      onClick={handleDeleteConfirmed}
+                      color='secondary'
+                      autoFocus
+                    >
+                      Delete
+                    </Button>
+                  </DialogActions>
+                </Dialog>
+              </Box>
+            </Paper>
+          </Grid>
+        </Grid>
       </Box>
     </>
   );

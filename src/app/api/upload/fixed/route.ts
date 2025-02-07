@@ -4,7 +4,7 @@ import sharp from 'sharp';
 import * as fs from 'fs';
 import * as path from 'path';
 import dbConnect from '@/utils/mongoose';
-import Report from '@/app/models/ReportModel';
+import ReportModel from '@/app/models/ReportModel';
 import { currentUser } from '@clerk/nextjs/server';
 import ExifReader from 'exifreader';
 
@@ -218,7 +218,7 @@ export async function POST(request: Request) {
   // Save file URLs to the database
   try {
     // Find the report
-    const report = await Report.findOne({ task, baseId });
+    const report = await ReportModel.findOne({ task, baseId });
     if (!report) {
       console.error('Report was not found.');
       return NextResponse.json(

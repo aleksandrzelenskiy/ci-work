@@ -1,3 +1,5 @@
+// app/ordrs/page.tsx
+
 'use client';
 
 import React, { useCallback, useEffect, useState } from 'react';
@@ -29,9 +31,9 @@ import {
   IconButton,
   Collapse,
 } from '@mui/material';
-
 import { DatePicker, LocalizationProvider } from '@mui/x-date-pickers';
 import { AdapterDateFns } from '@mui/x-date-pickers/AdapterDateFns';
+import { useUser } from '@clerk/nextjs';
 import { useDropzone, FileRejection } from 'react-dropzone';
 import { Task, PriorityLevel, WorkItem } from '@/app/types/taskTypes';
 import Autocomplete from '@mui/material/Autocomplete';
@@ -61,7 +63,13 @@ interface User {
   role: string;
 }
 
+const generateTaskId = (): string => {
+  const randomPart = Math.random().toString(36).substr(2, 5).toUpperCase();
+  return `TASK-${randomPart}`;
+};
+
 const OrderUploadPage: React.FC = () => {
+  const { isLoaded, user } = useUser();
   const [users, setUsers] = useState<User[]>([]);
   const [loadingUsers, setLoadingUsers] = useState(false);
   const [file, setFile] = useState<File | null>(null);
@@ -76,6 +84,7 @@ const OrderUploadPage: React.FC = () => {
   });
   const [openDialog, setOpenDialog] = useState(false);
   const [formData, setFormData] = useState<Partial<Task>>({
+    taskId: '',
     taskName: '',
     taskDescription: '',
     priority: 'medium',
@@ -106,6 +115,20 @@ const OrderUploadPage: React.FC = () => {
         option.name.toLowerCase().includes(inputValue.toLowerCase()) ||
         option.email.toLowerCase().includes(inputValue.toLowerCase())
     );
+  };
+
+  const getDisplayName = () => {
+    if (user?.fullName) return user.fullName;
+    if (user?.firstName && user?.lastName)
+      return `${user.firstName} ${user.lastName}`;
+    if (user?.username) return user.username;
+    return user?.primaryEmailAddress?.emailAddress || 'Unknown User';
+  };
+
+  const getDisplayNameWithEmail = () => {
+    const displayName = getDisplayName();
+    const email = user?.primaryEmailAddress?.emailAddress;
+    return email ? `${displayName} (${email})` : displayName;
   };
 
   useEffect(() => {
@@ -318,10 +341,9 @@ const OrderUploadPage: React.FC = () => {
       setFormData({
         ...taskData,
         dueDate: new Date(),
-        author: 'current_user@example.com',
+        author: user?.primaryEmailAddress?.emailAddress || '',
       });
       setOpenDialog(true);
-      // handleClear();
     }
   };
 
@@ -334,9 +356,18 @@ const OrderUploadPage: React.FC = () => {
         return;
       }
 
+      if (!user?.primaryEmailAddress?.emailAddress) {
+        showNotification('User email not found!', 'error');
+        return;
+      }
+
       const formDataToSend = new FormData();
 
-      // Добавляем основные данные
+      // Генерация taskId и добавление в форму
+      const taskId = generateTaskId();
+
+      // Основные данные
+      formDataToSend.append('taskId', taskId);
       formDataToSend.append('taskName', formData.taskName);
       formDataToSend.append('bsNumber', values.bsNumber);
       formDataToSend.append('bsAddress', values.bsAddress || '');
@@ -346,14 +377,15 @@ const OrderUploadPage: React.FC = () => {
       formDataToSend.append('taskDescription', formData.taskDescription || '');
       formDataToSend.append('executor', formData.executor || '');
       formDataToSend.append('initiator', formData.initiator || '');
+      formDataToSend.append('author', user.primaryEmailAddress.emailAddress);
 
-      // Добавляем файлы
+      // Файлы
       formDataToSend.append('excelFile', file);
       attachmentFiles.forEach((file, index) => {
         formDataToSend.append(`attachments_${index}`, file);
       });
 
-      // Добавляем данные работ
+      // Данные работ
       const workItems = getTableData().map((row) => ({
         workType: String(row['__EMPTY_1']),
         quantity: Number(row['__EMPTY_2']),
@@ -362,7 +394,7 @@ const OrderUploadPage: React.FC = () => {
       }));
       formDataToSend.append('workItems', JSON.stringify(workItems));
 
-      const response = await fetch('/api/tasks', {
+      const response = await fetch('/api/addtasks', {
         method: 'POST',
         body: formDataToSend,
       });
@@ -388,6 +420,21 @@ const OrderUploadPage: React.FC = () => {
   };
 
   const tableData = getTableData();
+
+  if (!isLoaded) {
+    return (
+      <Box
+        sx={{
+          display: 'flex',
+          justifyContent: 'center',
+          alignItems: 'center',
+          height: '100vh',
+        }}
+      >
+        <CircularProgress />
+      </Box>
+    );
+  }
 
   return (
     <LocalizationProvider dateAdapter={AdapterDateFns}>
@@ -645,13 +692,16 @@ const OrderUploadPage: React.FC = () => {
                 </Box>
                 <TextField
                   label='Task Author'
-                  value={formData.author || ''}
-                  onChange={(e) =>
-                    setFormData({ ...formData, author: e.target.value })
-                  }
+                  value={getDisplayNameWithEmail()}
                   fullWidth
                   required
                   disabled
+                  sx={{
+                    '& .MuiInputBase-input': {
+                      color: 'rgba(0, 0, 0, 0.6)',
+                      pointerEvents: 'none',
+                    },
+                  }}
                 />
                 <FormControl fullWidth sx={{ mt: 2 }}>
                   <Autocomplete
