@@ -166,7 +166,7 @@ function DroppableColumn({
         position: 'relative',
       }}
     >
-      <Typography variant='h6' sx={{ mb: 2, textTransform: 'capitalize' }}>
+      <Typography variant='h6' sx={{ mb: 2, textTransform: 'lowercase' }}>
         {status} ({tasks.length})
       </Typography>
       {tasks.map((task) => (

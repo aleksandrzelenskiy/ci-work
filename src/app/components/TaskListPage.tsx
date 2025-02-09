@@ -27,23 +27,50 @@ import {
   Link,
   Chip,
 } from '@mui/material';
+import {
+  KeyboardDoubleArrowUp as KeyboardDoubleArrowUpIcon,
+  KeyboardArrowUp as KeyboardArrowUpIcon,
+  DragHandle as DragHandleIcon,
+  Remove as RemoveIcon,
+} from '@mui/icons-material';
 import FilterListIcon from '@mui/icons-material/FilterList';
 import SearchIcon from '@mui/icons-material/Search';
 import KeyboardArrowDownIcon from '@mui/icons-material/KeyboardArrowDown';
-import KeyboardArrowUpIcon from '@mui/icons-material/KeyboardArrowUp';
 
+import { LocalizationProvider } from '@mui/x-date-pickers/LocalizationProvider';
+import { AdapterDateFns } from '@mui/x-date-pickers/AdapterDateFns';
 import { Task, WorkItem } from '../types/taskTypes';
+import { DatePicker } from '@mui/x-date-pickers';
 
-const getStatusStyles = (status: string) => {
+const getStatusColor = (status: string) => {
   switch (status) {
-    case 'Completed':
-      return { backgroundColor: '#d4edda', color: '#155724' };
-    case 'In Progress':
-      return { backgroundColor: '#fff3cd', color: '#856404' };
-    case 'Overdue':
-      return { backgroundColor: '#f8d7da', color: '#721c24' };
+    case 'to do':
+      return 'default';
+    case 'assigned':
+      return 'info';
+    case 'at work':
+      return 'secondary';
+    case 'done':
+      return 'primary';
+    case 'agreed':
+      return 'success';
     default:
-      return { backgroundColor: '#f1f1f1', color: '#6c757d' };
+      return 'default';
+  }
+};
+
+const getPriorityIcon = (priority: string) => {
+  switch (priority) {
+    case 'low':
+      return <RemoveIcon sx={{ color: '#28a0e9' }} />;
+    case 'medium':
+      return <DragHandleIcon sx={{ color: '#df9b18' }} />;
+    case 'high':
+      return <KeyboardArrowUpIcon sx={{ color: '#ca3131' }} />;
+    case 'urgent':
+      return <KeyboardDoubleArrowUpIcon sx={{ color: '#ff0000' }} />;
+    default:
+      return null;
   }
 };
 
@@ -103,9 +130,12 @@ function Row({ task }: { task: Task }) {
         <TableCell>{new Date(task.createdAt).toLocaleDateString()}</TableCell>
         <TableCell>{new Date(task.dueDate).toLocaleDateString()}</TableCell>
         <TableCell>
-          <Chip label={task.status} sx={getStatusStyles(task.status)} />
+          <Chip label={task.status} color={getStatusColor(task.status)} />
         </TableCell>
-        <TableCell>{task.priority}</TableCell>
+        <TableCell>
+          {getPriorityIcon(task.priority)}
+          {task.priority}
+        </TableCell>
       </TableRow>
 
       <TableRow>
@@ -179,6 +209,15 @@ export default function TaskListPage() {
   const [createdAtFilter, setCreatedAtFilter] = useState<Date | null>(null);
   const [dueDateFilter, setDueDateFilter] = useState<Date | null>(null);
   const [bsSearch, setBsSearch] = useState('');
+  //
+  const [createdDateRange, setCreatedDateRange] = useState<{
+    start: Date | null;
+    end: Date | null;
+  }>({ start: null, end: null });
+  const [dueDateRange, setDueDateRange] = useState<{
+    start: Date | null;
+    end: Date | null;
+  }>({ start: null, end: null });
 
   // Popover
   const [anchorEl, setAnchorEl] = useState<HTMLElement | null>(null);
@@ -318,373 +357,430 @@ export default function TaskListPage() {
     );
 
   return (
-    <Box sx={{ width: '100%', margin: '0 auto' }}>
-      {activeFiltersCount > 0 && (
-        <Box sx={{ p: 2, mb: 2 }}>
-          <Typography variant='subtitle1'>Active filters</Typography>
-          <Box sx={{ display: 'flex', gap: 1, flexWrap: 'wrap', my: 1 }}>
-            {[
-              {
-                label: 'Author',
-                value: authorFilter,
-                reset: () => setAuthorFilter(''),
-              },
-              {
-                label: 'Initiator',
-                value: initiatorFilter,
-                reset: () => setInitiatorFilter(''),
-              },
-              {
-                label: 'Executor',
-                value: executorFilter,
-                reset: () => setExecutorFilter(''),
-              },
-              {
-                label: 'Status',
-                value: statusFilter,
-                reset: () => setStatusFilter(''),
-              },
-              {
-                label: 'Priority',
-                value: priorityFilter,
-                reset: () => setPriorityFilter(''),
-              },
-              {
-                label: 'Created',
-                value: createdAtFilter,
-                reset: () => setCreatedAtFilter(null),
-              },
-              {
-                label: 'Due Date',
-                value: dueDateFilter,
-                reset: () => setDueDateFilter(null),
-              },
-              {
-                label: 'BS Number',
-                value: bsSearch,
-                reset: () => setBsSearch(''),
-              },
-            ].map(
-              ({ label, value, reset }) =>
-                value && (
-                  <Chip
-                    key={label}
-                    label={`${label}: ${
-                      value instanceof Date ? value.toLocaleDateString() : value
-                    }`}
-                    onDelete={reset}
-                    color='primary'
-                    size='small'
-                  />
-                )
-            )}
-          </Box>
-          <Button
-            onClick={() => {
-              setAuthorFilter('');
-              setInitiatorFilter('');
-              setExecutorFilter('');
-              setStatusFilter('');
-              setPriorityFilter('');
-              setCreatedAtFilter(null);
-              setDueDateFilter(null);
-              setBsSearch('');
-            }}
-          >
-            Clear All
-          </Button>
-        </Box>
-      )}
-
-      <TableContainer component={Box}>
-        <Table>
-          <TableHead>
-            <TableRow>
-              <TableCell />
-              <TableCell
-                sx={{
-                  fontSize: '14px',
-                  fontWeight: 'bold',
-                  textTransform: 'uppercase',
-                  whiteSpace: 'nowrap',
-                  padding: '16px',
-                }}
-              >
-                Task
-                <Tooltip title='Search BS Number'>
-                  <IconButton onClick={(e) => handleFilterClick(e, 'bs')}>
-                    <SearchIcon />
-                  </IconButton>
-                </Tooltip>
-              </TableCell>
-              <TableCell
-                sx={{
-                  fontSize: '14px',
-                  fontWeight: 'bold',
-                  textTransform: 'uppercase',
-                  whiteSpace: 'nowrap',
-                  padding: '16px',
-                }}
-              >
-                Author
-                <Tooltip title='Filter by Author'>
-                  <IconButton onClick={(e) => handleFilterClick(e, 'author')}>
-                    <FilterListIcon />
-                  </IconButton>
-                </Tooltip>
-              </TableCell>
-              <TableCell
-                sx={{
-                  fontSize: '14px',
-                  fontWeight: 'bold',
-                  textTransform: 'uppercase',
-                  whiteSpace: 'nowrap',
-                  padding: '16px',
-                }}
-              >
-                Initiator
-                <Tooltip title='Filter by Initiator'>
-                  <IconButton
-                    onClick={(e) => handleFilterClick(e, 'initiator')}
-                  >
-                    <FilterListIcon />
-                  </IconButton>
-                </Tooltip>
-              </TableCell>
-              <TableCell
-                sx={{
-                  fontSize: '14px',
-                  fontWeight: 'bold',
-                  textTransform: 'uppercase',
-                  whiteSpace: 'nowrap',
-                  padding: '16px',
-                }}
-              >
-                Executor
-                <Tooltip title='Filter by Executor'>
-                  <IconButton onClick={(e) => handleFilterClick(e, 'executor')}>
-                    <FilterListIcon />
-                  </IconButton>
-                </Tooltip>
-              </TableCell>
-              <TableCell
-                sx={{
-                  fontSize: '14px',
-                  fontWeight: 'bold',
-                  textTransform: 'uppercase',
-                  whiteSpace: 'nowrap',
-                  padding: '16px',
-                }}
-              >
-                Created
-                <Tooltip title='Filter by Creation Date'>
-                  <IconButton onClick={(e) => handleFilterClick(e, 'created')}>
-                    <FilterListIcon />
-                  </IconButton>
-                </Tooltip>
-              </TableCell>
-              <TableCell
-                sx={{
-                  fontSize: '14px',
-                  fontWeight: 'bold',
-                  textTransform: 'uppercase',
-                  whiteSpace: 'nowrap',
-                  padding: '16px',
-                }}
-              >
-                Due Date
-                <Tooltip title='Filter by Due Date'>
-                  <IconButton onClick={(e) => handleFilterClick(e, 'due')}>
-                    <FilterListIcon />
-                  </IconButton>
-                </Tooltip>
-              </TableCell>
-              <TableCell
-                sx={{
-                  fontSize: '14px',
-                  fontWeight: 'bold',
-                  textTransform: 'uppercase',
-                  whiteSpace: 'nowrap',
-                  padding: '16px',
-                }}
-              >
-                Status
-                <Tooltip title='Filter by Status'>
-                  <IconButton onClick={(e) => handleFilterClick(e, 'status')}>
-                    <FilterListIcon />
-                  </IconButton>
-                </Tooltip>
-              </TableCell>
-              <TableCell
-                sx={{
-                  fontSize: '14px',
-                  fontWeight: 'bold',
-                  textTransform: 'uppercase',
-                  whiteSpace: 'nowrap',
-                  padding: '16px',
-                }}
-              >
-                Priority
-                <Tooltip title='Filter by Priority'>
-                  <IconButton onClick={(e) => handleFilterClick(e, 'priority')}>
-                    <FilterListIcon />
-                  </IconButton>
-                </Tooltip>
-              </TableCell>
-            </TableRow>
-          </TableHead>
-
-          <TableBody>
-            {filteredTasks.map((task) => (
-              <Row key={task.taskId} task={task} />
-            ))}
-          </TableBody>
-        </Table>
-      </TableContainer>
-
-      <Popover
-        open={Boolean(anchorEl)}
-        anchorEl={anchorEl}
-        onClose={handleClose}
-        anchorOrigin={{ vertical: 'bottom', horizontal: 'left' }}
-      >
-        <Box sx={{ p: 2, minWidth: 200 }}>
-          {currentFilter === 'bs' && (
-            <TextField
-              label='Search BS Number'
-              value={bsSearch}
-              onChange={(e) => setBsSearch(e.target.value)}
-              fullWidth
-              autoFocus
-            />
-          )}
-
-          {currentFilter === 'author' && (
-            <FormControl fullWidth>
-              <InputLabel>Author</InputLabel>
-              <Select
-                value={authorFilter}
-                onChange={(e) => setAuthorFilter(e.target.value)}
-              >
-                <MenuItem value=''>
-                  <em>All</em>
-                </MenuItem>
-                {uniqueValues.authors.map((author) => (
-                  <MenuItem key={author} value={author}>
-                    {author}
-                  </MenuItem>
-                ))}
-              </Select>
-            </FormControl>
-          )}
-
-          {currentFilter === 'initiator' && (
-            <FormControl fullWidth>
-              <InputLabel>Initiator</InputLabel>
-              <Select
-                value={initiatorFilter}
-                onChange={(e) => setInitiatorFilter(e.target.value)}
-              >
-                <MenuItem value=''>
-                  <em>All</em>
-                </MenuItem>
-                {uniqueValues.initiators.map((initiator) => (
-                  <MenuItem key={initiator} value={initiator}>
-                    {initiator}
-                  </MenuItem>
-                ))}
-              </Select>
-            </FormControl>
-          )}
-
-          {currentFilter === 'executor' && (
-            <FormControl fullWidth>
-              <InputLabel>Executor</InputLabel>
-              <Select
-                value={executorFilter}
-                onChange={(e) => setExecutorFilter(e.target.value)}
-              >
-                <MenuItem value=''>
-                  <em>All</em>
-                </MenuItem>
-                {uniqueValues.executors.map((executor) => (
-                  <MenuItem key={executor} value={executor}>
-                    {executor}
-                  </MenuItem>
-                ))}
-              </Select>
-            </FormControl>
-          )}
-
-          {currentFilter === 'status' && (
-            <FormControl fullWidth>
-              <InputLabel>Status</InputLabel>
-              <Select
-                value={statusFilter}
-                onChange={(e) => setStatusFilter(e.target.value)}
-              >
-                <MenuItem value=''>
-                  <em>All</em>
-                </MenuItem>
-                {uniqueValues.statuses.map((status) => (
-                  <MenuItem key={status} value={status}>
-                    {status}
-                  </MenuItem>
-                ))}
-              </Select>
-            </FormControl>
-          )}
-
-          {currentFilter === 'priority' && (
-            <FormControl fullWidth>
-              <InputLabel>Priority</InputLabel>
-              <Select
-                value={priorityFilter}
-                onChange={(e) => setPriorityFilter(e.target.value)}
-              >
-                <MenuItem value=''>
-                  <em>All</em>
-                </MenuItem>
-                {uniqueValues.priorities.map((priority) => (
-                  <MenuItem key={priority} value={priority}>
-                    {priority}
-                  </MenuItem>
-                ))}
-              </Select>
-            </FormControl>
-          )}
-
-          <Box sx={{ mt: 2, display: 'flex', justifyContent: 'space-between' }}>
-            <Button onClick={handleClose}>Close</Button>
+    <LocalizationProvider dateAdapter={AdapterDateFns}>
+      <Box sx={{ width: '100%', margin: '0 auto' }}>
+        {activeFiltersCount > 0 && (
+          <Box sx={{ p: 2, mb: 2 }}>
+            <Typography variant='subtitle1'>Active filters</Typography>
+            <Box sx={{ display: 'flex', gap: 1, flexWrap: 'wrap', my: 1 }}>
+              {[
+                {
+                  label: 'Author',
+                  value: authorFilter,
+                  reset: () => setAuthorFilter(''),
+                },
+                {
+                  label: 'Initiator',
+                  value: initiatorFilter,
+                  reset: () => setInitiatorFilter(''),
+                },
+                {
+                  label: 'Executor',
+                  value: executorFilter,
+                  reset: () => setExecutorFilter(''),
+                },
+                {
+                  label: 'Status',
+                  value: statusFilter,
+                  reset: () => setStatusFilter(''),
+                },
+                {
+                  label: 'Priority',
+                  value: priorityFilter,
+                  reset: () => setPriorityFilter(''),
+                },
+                {
+                  label: 'Created',
+                  value: createdAtFilter,
+                  reset: () => setCreatedAtFilter(null),
+                },
+                {
+                  label: 'Due Date',
+                  value: dueDateFilter,
+                  reset: () => setDueDateFilter(null),
+                },
+                {
+                  label: 'BS Number',
+                  value: bsSearch,
+                  reset: () => setBsSearch(''),
+                },
+              ].map(
+                ({ label, value, reset }) =>
+                  value && (
+                    <Chip
+                      key={label}
+                      label={`${label}: ${
+                        value instanceof Date
+                          ? value.toLocaleDateString()
+                          : value
+                      }`}
+                      onDelete={reset}
+                      color='primary'
+                      size='small'
+                    />
+                  )
+              )}
+            </Box>
             <Button
               onClick={() => {
-                switch (currentFilter) {
-                  case 'bs':
-                    setBsSearch('');
-                    break;
-                  case 'author':
-                    setAuthorFilter('');
-                    break;
-                  case 'initiator':
-                    setInitiatorFilter('');
-                    break;
-                  case 'executor':
-                    setExecutorFilter('');
-                    break;
-                  case 'status':
-                    setStatusFilter('');
-                    break;
-                  case 'priority':
-                    setPriorityFilter('');
-                    break;
-                }
+                setAuthorFilter('');
+                setInitiatorFilter('');
+                setExecutorFilter('');
+                setStatusFilter('');
+                setPriorityFilter('');
+                setCreatedAtFilter(null);
+                setDueDateFilter(null);
+                setBsSearch('');
               }}
             >
-              Clear
+              Clear All
             </Button>
           </Box>
-        </Box>
-      </Popover>
-    </Box>
+        )}
+
+        <TableContainer component={Box}>
+          <Table>
+            <TableHead>
+              <TableRow>
+                <TableCell />
+                <TableCell
+                  sx={{
+                    fontSize: '14px',
+                    fontWeight: 'bold',
+                    textTransform: 'uppercase',
+                    whiteSpace: 'nowrap',
+                    padding: '16px',
+                  }}
+                >
+                  Task
+                  <Tooltip title='Search BS Number'>
+                    <IconButton onClick={(e) => handleFilterClick(e, 'bs')}>
+                      <SearchIcon />
+                    </IconButton>
+                  </Tooltip>
+                </TableCell>
+                <TableCell
+                  sx={{
+                    fontSize: '14px',
+                    fontWeight: 'bold',
+                    textTransform: 'uppercase',
+                    whiteSpace: 'nowrap',
+                    padding: '16px',
+                  }}
+                >
+                  Author
+                  <Tooltip title='Filter by Author'>
+                    <IconButton onClick={(e) => handleFilterClick(e, 'author')}>
+                      <FilterListIcon />
+                    </IconButton>
+                  </Tooltip>
+                </TableCell>
+                <TableCell
+                  sx={{
+                    fontSize: '14px',
+                    fontWeight: 'bold',
+                    textTransform: 'uppercase',
+                    whiteSpace: 'nowrap',
+                    padding: '16px',
+                  }}
+                >
+                  Initiator
+                  <Tooltip title='Filter by Initiator'>
+                    <IconButton
+                      onClick={(e) => handleFilterClick(e, 'initiator')}
+                    >
+                      <FilterListIcon />
+                    </IconButton>
+                  </Tooltip>
+                </TableCell>
+                <TableCell
+                  sx={{
+                    fontSize: '14px',
+                    fontWeight: 'bold',
+                    textTransform: 'uppercase',
+                    whiteSpace: 'nowrap',
+                    padding: '16px',
+                  }}
+                >
+                  Executor
+                  <Tooltip title='Filter by Executor'>
+                    <IconButton
+                      onClick={(e) => handleFilterClick(e, 'executor')}
+                    >
+                      <FilterListIcon />
+                    </IconButton>
+                  </Tooltip>
+                </TableCell>
+                <TableCell
+                  sx={{
+                    fontSize: '14px',
+                    fontWeight: 'bold',
+                    textTransform: 'uppercase',
+                    whiteSpace: 'nowrap',
+                    padding: '16px',
+                  }}
+                >
+                  Created
+                  <Tooltip title='Filter by Creation Date'>
+                    <IconButton
+                      onClick={(e) => handleFilterClick(e, 'created')}
+                    >
+                      <FilterListIcon />
+                    </IconButton>
+                  </Tooltip>
+                </TableCell>
+                <TableCell
+                  sx={{
+                    fontSize: '14px',
+                    fontWeight: 'bold',
+                    textTransform: 'uppercase',
+                    whiteSpace: 'nowrap',
+                    padding: '16px',
+                  }}
+                >
+                  Due Date
+                  <Tooltip title='Filter by Due Date'>
+                    <IconButton onClick={(e) => handleFilterClick(e, 'due')}>
+                      <FilterListIcon />
+                    </IconButton>
+                  </Tooltip>
+                </TableCell>
+                <TableCell
+                  sx={{
+                    fontSize: '14px',
+                    fontWeight: 'bold',
+                    textTransform: 'uppercase',
+                    whiteSpace: 'nowrap',
+                    padding: '16px',
+                  }}
+                >
+                  Status
+                  <Tooltip title='Filter by Status'>
+                    <IconButton onClick={(e) => handleFilterClick(e, 'status')}>
+                      <FilterListIcon />
+                    </IconButton>
+                  </Tooltip>
+                </TableCell>
+                <TableCell
+                  sx={{
+                    fontSize: '14px',
+                    fontWeight: 'bold',
+                    textTransform: 'uppercase',
+                    whiteSpace: 'nowrap',
+                    padding: '16px',
+                  }}
+                >
+                  Priority
+                  <Tooltip title='Filter by Priority'>
+                    <IconButton
+                      onClick={(e) => handleFilterClick(e, 'priority')}
+                    >
+                      <FilterListIcon />
+                    </IconButton>
+                  </Tooltip>
+                </TableCell>
+              </TableRow>
+            </TableHead>
+
+            <TableBody>
+              {filteredTasks.map((task) => (
+                <Row key={task.taskId} task={task} />
+              ))}
+            </TableBody>
+          </Table>
+        </TableContainer>
+
+        <Popover
+          open={Boolean(anchorEl)}
+          anchorEl={anchorEl}
+          onClose={handleClose}
+          anchorOrigin={{ vertical: 'bottom', horizontal: 'left' }}
+        >
+          <Box sx={{ p: 2, minWidth: 200 }}>
+            {currentFilter === 'bs' && (
+              <TextField
+                label='Search'
+                value={bsSearch}
+                onChange={(e) => setBsSearch(e.target.value)}
+                fullWidth
+                autoFocus
+              />
+            )}
+
+            {currentFilter === 'author' && (
+              <FormControl fullWidth>
+                <InputLabel>Author</InputLabel>
+                <Select
+                  value={authorFilter}
+                  onChange={(e) => setAuthorFilter(e.target.value)}
+                >
+                  <MenuItem value=''>
+                    <em>All</em>
+                  </MenuItem>
+                  {uniqueValues.authors.map((author) => (
+                    <MenuItem key={author} value={author}>
+                      {author}
+                    </MenuItem>
+                  ))}
+                </Select>
+              </FormControl>
+            )}
+
+            {currentFilter === 'initiator' && (
+              <FormControl fullWidth>
+                <InputLabel>Initiator</InputLabel>
+                <Select
+                  value={initiatorFilter}
+                  onChange={(e) => setInitiatorFilter(e.target.value)}
+                >
+                  <MenuItem value=''>
+                    <em>All</em>
+                  </MenuItem>
+                  {uniqueValues.initiators.map((initiator) => (
+                    <MenuItem key={initiator} value={initiator}>
+                      {initiator}
+                    </MenuItem>
+                  ))}
+                </Select>
+              </FormControl>
+            )}
+
+            {currentFilter === 'executor' && (
+              <FormControl fullWidth>
+                <InputLabel>Executor</InputLabel>
+                <Select
+                  value={executorFilter}
+                  onChange={(e) => setExecutorFilter(e.target.value)}
+                >
+                  <MenuItem value=''>
+                    <em>All</em>
+                  </MenuItem>
+                  {uniqueValues.executors.map((executor) => (
+                    <MenuItem key={executor} value={executor}>
+                      {executor}
+                    </MenuItem>
+                  ))}
+                </Select>
+              </FormControl>
+            )}
+
+            {currentFilter === 'created' && (
+              <Box sx={{ display: 'flex', gap: 2, mb: 2 }}>
+                <DatePicker
+                  label='Начало'
+                  value={createdDateRange.start}
+                  onChange={(newValue) =>
+                    setCreatedDateRange((prev) => ({
+                      ...prev,
+                      start: newValue,
+                    }))
+                  }
+                  slotProps={{ textField: { size: 'small' } }}
+                />
+                <DatePicker
+                  label='Конец'
+                  value={createdDateRange.end}
+                  onChange={(newValue) =>
+                    setCreatedDateRange((prev) => ({ ...prev, end: newValue }))
+                  }
+                  slotProps={{ textField: { size: 'small' } }}
+                />
+              </Box>
+            )}
+
+            {currentFilter === 'due' && (
+              <Box sx={{ display: 'flex', gap: 2, mb: 2 }}>
+                <DatePicker
+                  label='Начало'
+                  value={dueDateRange.start}
+                  onChange={(newValue) =>
+                    setDueDateRange((prev) => ({ ...prev, start: newValue }))
+                  }
+                  slotProps={{ textField: { size: 'small' } }}
+                />
+                <DatePicker
+                  label='Конец'
+                  value={dueDateRange.end}
+                  onChange={(newValue) =>
+                    setDueDateRange((prev) => ({ ...prev, end: newValue }))
+                  }
+                  slotProps={{ textField: { size: 'small' } }}
+                />
+              </Box>
+            )}
+
+            {currentFilter === 'status' && (
+              <FormControl fullWidth>
+                <InputLabel>Status</InputLabel>
+                <Select
+                  value={statusFilter}
+                  onChange={(e) => setStatusFilter(e.target.value)}
+                >
+                  <MenuItem value=''>
+                    <em>All</em>
+                  </MenuItem>
+                  {uniqueValues.statuses.map((status) => (
+                    <MenuItem key={status} value={status}>
+                      {status}
+                    </MenuItem>
+                  ))}
+                </Select>
+              </FormControl>
+            )}
+
+            {currentFilter === 'priority' && (
+              <FormControl fullWidth>
+                <InputLabel>Priority</InputLabel>
+                <Select
+                  value={priorityFilter}
+                  onChange={(e) => setPriorityFilter(e.target.value)}
+                >
+                  <MenuItem value=''>
+                    <em>All</em>
+                  </MenuItem>
+                  {uniqueValues.priorities.map((priority) => (
+                    <MenuItem key={priority} value={priority}>
+                      {priority}
+                    </MenuItem>
+                  ))}
+                </Select>
+              </FormControl>
+            )}
+
+            <Box
+              sx={{ mt: 2, display: 'flex', justifyContent: 'space-between' }}
+            >
+              <Button onClick={handleClose}>Close</Button>
+              <Button
+                onClick={() => {
+                  switch (currentFilter) {
+                    case 'bs':
+                      setBsSearch('');
+                      break;
+                    case 'author':
+                      setAuthorFilter('');
+                      break;
+                    case 'initiator':
+                      setInitiatorFilter('');
+                      break;
+                    case 'executor':
+                      setExecutorFilter('');
+                      break;
+                    case 'status':
+                      setStatusFilter('');
+                      break;
+                    case 'priority':
+                      setPriorityFilter('');
+                      break;
+                  }
+                }}
+              >
+                Clear
+              </Button>
+            </Box>
+          </Box>
+        </Popover>
+      </Box>
+    </LocalizationProvider>
   );
 }

@@ -45,38 +45,3 @@ export async function GET() {
     );
   }
 }
-
-export async function PATCH(request: Request) {
-  try {
-    await dbConnect();
-    console.log('Connected to MongoDB');
-  } catch (error: unknown) {
-    console.error('Failed to connect to MongoDB:', error);
-    return NextResponse.json(
-      { error: 'Failed to connect to database' },
-      { status: 500 }
-    );
-  }
-
-  try {
-    const { taskId, status } = await request.json();
-
-    const updatedTask = await TaskModel.findOneAndUpdate(
-      { taskId },
-      { status },
-      { new: true }
-    );
-
-    if (!updatedTask) {
-      return NextResponse.json({ error: 'Task not found' }, { status: 404 });
-    }
-
-    return NextResponse.json({ task: updatedTask });
-  } catch (error: unknown) {
-    console.error('Error updating task:', error);
-    return NextResponse.json(
-      { error: 'Failed to update task' },
-      { status: 500 }
-    );
-  }
-}
