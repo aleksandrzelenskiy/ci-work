@@ -58,12 +58,12 @@ export async function GET() {
         _id: { task: '$task', baseId: '$baseId' },
         status: { $last: '$status' },
         latestStatusChangeDate: { $max: '$events.date' },
-        userId: { $first: '$userId' },
-        userName: { $first: '$userName' },
-        userAvatar: { $first: '$userAvatar' },
+        executorId: { $first: '$executorId' },
+        executorName: { $first: '$executorName' },
+        executorAvatar: { $first: '$executorAvatar' },
 
-        // ДОБАВИЛИ reviewerName, чтобы вернуть его в итоговый объект
-        reviewerName: { $first: '$reviewerName' },
+        // ДОБАВИЛИ initiatorName, чтобы вернуть его в итоговый объект
+        initiatorName: { $first: '$initiatorName' },
 
         createdAt: { $first: '$createdAt' },
       },
@@ -72,12 +72,12 @@ export async function GET() {
       $group: {
         _id: '$_id.task',
         task: { $first: '$_id.task' },
-        userId: { $first: '$userId' },
-        userName: { $first: '$userName' },
-        userAvatar: { $first: '$userAvatar' },
+        executorId: { $first: '$executorId' },
+        executorName: { $first: '$executorName' },
+        executorAvatar: { $first: '$executorAvatar' },
 
-        // Также поднимаем reviewerName на уровень задачи
-        reviewerName: { $first: '$reviewerName' },
+        // Поднимаем initiatorName на уровень задачи
+        initiatorName: { $first: '$initiatorName' },
 
         createdAt: { $first: '$createdAt' },
         baseStatuses: {
@@ -110,10 +110,10 @@ export async function GET() {
   const reports = rawReports.map((report) => ({
     _id: report._id,
     task: report.task,
-    userId: report.userId,
-    userName: report.userName,
-    userAvatar: report.userAvatar || '',
-    reviewerName: report.reviewerName || 'Unknown',
+    executorId: report.executorId,
+    executorName: report.executorName,
+    executorAvatar: report.executorAvatar || '',
+    initiatorName: report.initiatorName || 'Unknown',
     createdAt: report.createdAt,
     baseStatuses: report.baseStatuses.map(
       (bs: {

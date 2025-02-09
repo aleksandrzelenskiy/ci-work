@@ -1,3 +1,5 @@
+// app/components/TaskListPage.tsx
+
 'use client';
 
 import React, { useState, useEffect, useMemo } from 'react';
@@ -13,7 +15,6 @@ import {
   TableHead,
   TableRow,
   Typography,
-  Paper,
   CircularProgress,
   Select,
   MenuItem,
@@ -49,9 +50,16 @@ const getStatusStyles = (status: string) => {
 function Row({ task }: { task: Task }) {
   const [open, setOpen] = useState(false);
 
-  const parseUserInfo = (userString: string) => {
-    const [name, email] = userString.replace(/\)$/, '').split(' (');
-    return { name, email };
+  const parseUserInfo = (userString?: string) => {
+    if (!userString) return { name: 'N/A', email: 'N/A' };
+
+    const cleanedString = userString.replace(/\)$/, '');
+    const parts = cleanedString.split(' (');
+
+    return {
+      name: parts[0] || 'N/A',
+      email: parts[1] || 'N/A',
+    };
   };
 
   return (
@@ -74,30 +82,21 @@ function Row({ task }: { task: Task }) {
         <TableCell>
           <Box>
             <Typography variant='subtitle2'>
-              {parseUserInfo(task.author).name}
-            </Typography>
-            <Typography variant='caption' color='text.secondary'>
-              {parseUserInfo(task.author).email}
+              {parseUserInfo(task.authorName).name}
             </Typography>
           </Box>
         </TableCell>
         <TableCell>
           <Box>
             <Typography variant='subtitle2'>
-              {parseUserInfo(task.initiator).name}
-            </Typography>
-            <Typography variant='caption' color='text.secondary'>
-              {parseUserInfo(task.initiator).email}
+              {parseUserInfo(task.initiatorName).name}
             </Typography>
           </Box>
         </TableCell>
         <TableCell>
           <Box>
             <Typography variant='subtitle2'>
-              {parseUserInfo(task.executor).name}
-            </Typography>
-            <Typography variant='caption' color='text.secondary'>
-              {parseUserInfo(task.executor).email}
+              {parseUserInfo(task.executorName).name}
             </Typography>
           </Box>
         </TableCell>
@@ -117,12 +116,22 @@ function Row({ task }: { task: Task }) {
                 Details
               </Typography>
               <Box sx={{ mb: 2 }}>
+                <Typography variant='subtitle1'>BS Number</Typography>
+                <Typography variant='body2' color='text.secondary'>
+                  {task.bsNumber}
+                </Typography>
                 <Typography variant='subtitle1'>Address</Typography>
                 <Typography variant='body2' color='text.secondary'>
                   {task.bsAddress}
                 </Typography>
+                <Typography variant='subtitle1'>Location</Typography>
+                <Typography variant='body2' color='text.secondary'>
+                  {task.objectDetails?.coordinates || 'N/A'}
+                </Typography>
                 <Typography variant='subtitle1'>Cost</Typography>
                 <Typography variant='body2'>{task.totalCost}</Typography>
+                <Typography variant='subtitle1'>Profit</Typography>
+                <Typography variant='body2'>{task.totalCost * 0.2}</Typography>
               </Box>
               <Typography variant='h6' gutterBottom>
                 Work Items
@@ -201,9 +210,9 @@ export default function TaskListPage() {
 
   const uniqueValues = useMemo(
     () => ({
-      authors: Array.from(new Set(tasks.map((t) => t.author))),
-      initiators: Array.from(new Set(tasks.map((t) => t.initiator))),
-      executors: Array.from(new Set(tasks.map((t) => t.executor))),
+      authors: Array.from(new Set(tasks.map((t) => t.authorName))),
+      initiators: Array.from(new Set(tasks.map((t) => t.initiatorName))),
+      executors: Array.from(new Set(tasks.map((t) => t.executorName))),
       statuses: Array.from(new Set(tasks.map((t) => t.status))),
       priorities: Array.from(new Set(tasks.map((t) => t.priority))),
     }),
@@ -247,11 +256,11 @@ export default function TaskListPage() {
     let filtered = [...tasks];
 
     if (authorFilter)
-      filtered = filtered.filter((t) => t.author === authorFilter);
+      filtered = filtered.filter((t) => t.authorName === authorFilter);
     if (initiatorFilter)
-      filtered = filtered.filter((t) => t.initiator === initiatorFilter);
+      filtered = filtered.filter((t) => t.initiatorName === initiatorFilter);
     if (executorFilter)
-      filtered = filtered.filter((t) => t.executor === executorFilter);
+      filtered = filtered.filter((t) => t.executorName === executorFilter);
     if (statusFilter)
       filtered = filtered.filter((t) => t.status === statusFilter);
     if (priorityFilter)
@@ -309,9 +318,9 @@ export default function TaskListPage() {
     );
 
   return (
-    <Box sx={{ width: '98vw', margin: '0 auto' }}>
+    <Box sx={{ width: '100%', margin: '0 auto' }}>
       {activeFiltersCount > 0 && (
-        <Paper sx={{ p: 2, mb: 2 }}>
+        <Box sx={{ p: 2, mb: 2 }}>
           <Typography variant='subtitle1'>Active filters</Typography>
           <Box sx={{ display: 'flex', gap: 1, flexWrap: 'wrap', my: 1 }}>
             {[
@@ -384,15 +393,23 @@ export default function TaskListPage() {
           >
             Clear All
           </Button>
-        </Paper>
+        </Box>
       )}
 
-      <TableContainer component={Paper}>
+      <TableContainer component={Box}>
         <Table>
           <TableHead>
             <TableRow>
               <TableCell />
-              <TableCell>
+              <TableCell
+                sx={{
+                  fontSize: '14px',
+                  fontWeight: 'bold',
+                  textTransform: 'uppercase',
+                  whiteSpace: 'nowrap',
+                  padding: '16px',
+                }}
+              >
                 Task
                 <Tooltip title='Search BS Number'>
                   <IconButton onClick={(e) => handleFilterClick(e, 'bs')}>
@@ -400,7 +417,15 @@ export default function TaskListPage() {
                   </IconButton>
                 </Tooltip>
               </TableCell>
-              <TableCell>
+              <TableCell
+                sx={{
+                  fontSize: '14px',
+                  fontWeight: 'bold',
+                  textTransform: 'uppercase',
+                  whiteSpace: 'nowrap',
+                  padding: '16px',
+                }}
+              >
                 Author
                 <Tooltip title='Filter by Author'>
                   <IconButton onClick={(e) => handleFilterClick(e, 'author')}>
@@ -408,7 +433,15 @@ export default function TaskListPage() {
                   </IconButton>
                 </Tooltip>
               </TableCell>
-              <TableCell>
+              <TableCell
+                sx={{
+                  fontSize: '14px',
+                  fontWeight: 'bold',
+                  textTransform: 'uppercase',
+                  whiteSpace: 'nowrap',
+                  padding: '16px',
+                }}
+              >
                 Initiator
                 <Tooltip title='Filter by Initiator'>
                   <IconButton
@@ -418,7 +451,15 @@ export default function TaskListPage() {
                   </IconButton>
                 </Tooltip>
               </TableCell>
-              <TableCell>
+              <TableCell
+                sx={{
+                  fontSize: '14px',
+                  fontWeight: 'bold',
+                  textTransform: 'uppercase',
+                  whiteSpace: 'nowrap',
+                  padding: '16px',
+                }}
+              >
                 Executor
                 <Tooltip title='Filter by Executor'>
                   <IconButton onClick={(e) => handleFilterClick(e, 'executor')}>
@@ -426,7 +467,15 @@ export default function TaskListPage() {
                   </IconButton>
                 </Tooltip>
               </TableCell>
-              <TableCell>
+              <TableCell
+                sx={{
+                  fontSize: '14px',
+                  fontWeight: 'bold',
+                  textTransform: 'uppercase',
+                  whiteSpace: 'nowrap',
+                  padding: '16px',
+                }}
+              >
                 Created
                 <Tooltip title='Filter by Creation Date'>
                   <IconButton onClick={(e) => handleFilterClick(e, 'created')}>
@@ -434,7 +483,15 @@ export default function TaskListPage() {
                   </IconButton>
                 </Tooltip>
               </TableCell>
-              <TableCell>
+              <TableCell
+                sx={{
+                  fontSize: '14px',
+                  fontWeight: 'bold',
+                  textTransform: 'uppercase',
+                  whiteSpace: 'nowrap',
+                  padding: '16px',
+                }}
+              >
                 Due Date
                 <Tooltip title='Filter by Due Date'>
                   <IconButton onClick={(e) => handleFilterClick(e, 'due')}>
@@ -442,7 +499,15 @@ export default function TaskListPage() {
                   </IconButton>
                 </Tooltip>
               </TableCell>
-              <TableCell>
+              <TableCell
+                sx={{
+                  fontSize: '14px',
+                  fontWeight: 'bold',
+                  textTransform: 'uppercase',
+                  whiteSpace: 'nowrap',
+                  padding: '16px',
+                }}
+              >
                 Status
                 <Tooltip title='Filter by Status'>
                   <IconButton onClick={(e) => handleFilterClick(e, 'status')}>
@@ -450,7 +515,15 @@ export default function TaskListPage() {
                   </IconButton>
                 </Tooltip>
               </TableCell>
-              <TableCell>
+              <TableCell
+                sx={{
+                  fontSize: '14px',
+                  fontWeight: 'bold',
+                  textTransform: 'uppercase',
+                  whiteSpace: 'nowrap',
+                  padding: '16px',
+                }}
+              >
                 Priority
                 <Tooltip title='Filter by Priority'>
                   <IconButton onClick={(e) => handleFilterClick(e, 'priority')}>

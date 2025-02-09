@@ -1,8 +1,13 @@
 import React from 'react';
-import { Box, Paper, Typography } from '@mui/material';
-import { GetCurrentUserFromMongoDB } from '@/server-actions/users';
 import ReportModel from '@/app/models/ReportModel';
-import ReportsPage from './reports/page';
+import ReportListPage from './components/ReportListPage';
+import TaskListPage from './components/TaskListPage';
+import Accordion from '@mui/material/Accordion';
+import AccordionSummary from '@mui/material/AccordionSummary';
+import AccordionDetails from '@mui/material/AccordionDetails';
+import ExpandMoreIcon from '@mui/icons-material/ExpandMore';
+import { Box, Typography } from '@mui/material';
+import { GetCurrentUserFromMongoDB } from '@/server-actions/users';
 import TrendingUpIcon from '@mui/icons-material/TrendingUp';
 import TrendingDownIcon from '@mui/icons-material/TrendingDown';
 
@@ -24,10 +29,10 @@ const DashboardPage: React.FC = async () => {
 
   // Условие $match в зависимости от роли
   let matchCondition: Record<string, string> = {};
-  if (role === 'author') {
-    matchCondition = { userId: clerkUserId };
+  if (role === 'executor') {
+    matchCondition = { executorId: clerkUserId };
   } else if (role === 'initiator') {
-    matchCondition = { reviewerId: clerkUserId };
+    matchCondition = { initiatorId: clerkUserId };
   } else {
     // Например, admin => оставляем пустым, чтобы показывать все
     matchCondition = {};
@@ -169,155 +174,200 @@ const DashboardPage: React.FC = async () => {
           {email}
         </Typography>
       </Box>
-
-      {/* Заголовок статистики */}
       <Box className='mb-4' sx={{ width: '100%' }}>
-        <Typography variant='h5' component='h2' align='center'>
-          Report Statistics
-        </Typography>
+        <Accordion defaultExpanded>
+          <AccordionSummary
+            expandIcon={<ExpandMoreIcon />}
+            aria-controls='panel1-content'
+            id='panel1-header'
+          >
+            <Typography variant='h5' align='center'>
+              Dashboards
+            </Typography>
+          </AccordionSummary>
+          <AccordionDetails>
+            {/* Блок счётчиков */}
+            <Typography> Reports stasistic </Typography>
+            <Box className='mb-8' sx={{ width: '100%' }}>
+              <Box
+                sx={{
+                  display: 'flex',
+                  flexWrap: 'wrap',
+                  gap: 2,
+                  justifyContent: 'center',
+                  width: '100%',
+                }}
+              >
+                {/* Pending */}
+                <Box
+                  className='flex flex-col items-center p-4'
+                  sx={{
+                    width: { xs: '100%', sm: '45%', md: '22%' },
+                    boxSizing: 'border-box',
+                  }}
+                >
+                  {(() => {
+                    const { color, Icon } = getColorAndIcon(diffPending);
+                    return (
+                      <>
+                        <Box
+                          sx={{
+                            display: 'flex',
+                            alignItems: 'center',
+                            gap: '4px',
+                          }}
+                        >
+                          <Typography variant='h6'>Pending</Typography>
+                        </Box>
+                        <Typography variant='h3'>
+                          {reportCounts.Pending}
+                        </Typography>
+                        <Typography variant='body2' sx={{ color }}>
+                          {Icon} {formatDiff(diffPending)}
+                        </Typography>
+                      </>
+                    );
+                  })()}
+                </Box>
+
+                {/* Issues */}
+                <Box
+                  className='flex flex-col items-center p-4'
+                  sx={{
+                    width: { xs: '100%', sm: '45%', md: '22%' },
+                    boxSizing: 'border-box',
+                  }}
+                >
+                  {(() => {
+                    const { color, Icon } = getColorAndIcon(diffIssues);
+                    return (
+                      <>
+                        <Box
+                          sx={{
+                            display: 'flex',
+                            alignItems: 'center',
+                            gap: '4px',
+                          }}
+                        >
+                          <Typography variant='h6'>Issues</Typography>
+                        </Box>
+                        <Typography variant='h3'>
+                          {reportCounts.Issues}
+                        </Typography>
+                        <Typography variant='body2' sx={{ color }}>
+                          {Icon} {formatDiff(diffIssues)}
+                        </Typography>
+                      </>
+                    );
+                  })()}
+                </Box>
+
+                {/* Fixed */}
+                <Box
+                  className='flex flex-col items-center p-4'
+                  sx={{
+                    width: { xs: '100%', sm: '45%', md: '22%' },
+                    boxSizing: 'border-box',
+                  }}
+                >
+                  {(() => {
+                    const { color, Icon } = getColorAndIcon(diffFixed);
+                    return (
+                      <>
+                        <Box
+                          sx={{
+                            display: 'flex',
+                            alignItems: 'center',
+                            gap: '4px',
+                          }}
+                        >
+                          <Typography variant='h6'>Fixed</Typography>
+                        </Box>
+                        <Typography variant='h3'>
+                          {reportCounts.Fixed}
+                        </Typography>
+                        <Typography variant='body2' sx={{ color }}>
+                          {Icon} {formatDiff(diffFixed)}
+                        </Typography>
+                      </>
+                    );
+                  })()}
+                </Box>
+
+                {/* Agreed */}
+                <Box
+                  className='flex flex-col items-center p-4'
+                  sx={{
+                    width: { xs: '100%', sm: '45%', md: '22%' },
+                    boxSizing: 'border-box',
+                  }}
+                >
+                  {(() => {
+                    const { color, Icon } = getColorAndIcon(diffAgreed);
+                    return (
+                      <>
+                        <Box
+                          sx={{
+                            display: 'flex',
+                            alignItems: 'center',
+                            gap: '4px',
+                          }}
+                        >
+                          <Typography variant='h6'>Agreed</Typography>
+                        </Box>
+                        <Typography variant='h3'>
+                          {reportCounts.Agreed}
+                        </Typography>
+                        <Typography variant='body2' sx={{ color }}>
+                          {Icon} {formatDiff(diffAgreed)}
+                        </Typography>
+                      </>
+                    );
+                  })()}
+                </Box>
+              </Box>
+            </Box>
+          </AccordionDetails>
+        </Accordion>
       </Box>
 
-      {/* Блок счётчиков */}
-      <Box className='mb-8' sx={{ width: '100%' }}>
-        <Box
-          sx={{
-            display: 'flex',
-            flexWrap: 'wrap',
-            gap: 2,
-            justifyContent: 'center',
-            width: '100%',
-          }}
-        >
-          {/* Pending */}
-          <Paper
-            className='flex flex-col items-center p-4 rounded-lg shadow-md'
-            sx={{
-              width: { xs: '100%', sm: '45%', md: '22%' },
-              boxSizing: 'border-box',
-            }}
-          >
-            {(() => {
-              const { color, Icon } = getColorAndIcon(diffPending);
-              return (
-                <>
-                  <Box
-                    sx={{
-                      display: 'flex',
-                      alignItems: 'center',
-                      gap: '4px',
-                    }}
-                  >
-                    <Typography variant='h6'>Pending</Typography>
-                  </Box>
-                  <Typography variant='h3'>{reportCounts.Pending}</Typography>
-                  <Typography variant='body2' sx={{ color }}>
-                    {Icon} {formatDiff(diffPending)}
-                  </Typography>
-                </>
-              );
-            })()}
-          </Paper>
+      {/* Блок Your Tasks */}
 
-          {/* Issues */}
-          <Paper
-            className='flex flex-col items-center p-4 rounded-lg shadow-md'
-            sx={{
-              width: { xs: '100%', sm: '45%', md: '22%' },
-              boxSizing: 'border-box',
-            }}
+      <Box className='mb-4' sx={{ width: '100%' }}>
+        <Accordion>
+          <AccordionSummary
+            expandIcon={<ExpandMoreIcon />}
+            aria-controls='panel2-content'
+            id='panel2-header'
           >
-            {(() => {
-              const { color, Icon } = getColorAndIcon(diffIssues);
-              return (
-                <>
-                  <Box
-                    sx={{
-                      display: 'flex',
-                      alignItems: 'center',
-                      gap: '4px',
-                    }}
-                  >
-                    <Typography variant='h6'>Issues</Typography>
-                  </Box>
-                  <Typography variant='h3'>{reportCounts.Issues}</Typography>
-                  <Typography variant='body2' sx={{ color }}>
-                    {Icon} {formatDiff(diffIssues)}
-                  </Typography>
-                </>
-              );
-            })()}
-          </Paper>
-
-          {/* Fixed */}
-          <Paper
-            className='flex flex-col items-center p-4 rounded-lg shadow-md'
-            sx={{
-              width: { xs: '100%', sm: '45%', md: '22%' },
-              boxSizing: 'border-box',
-            }}
-          >
-            {(() => {
-              const { color, Icon } = getColorAndIcon(diffFixed);
-              return (
-                <>
-                  <Box
-                    sx={{
-                      display: 'flex',
-                      alignItems: 'center',
-                      gap: '4px',
-                    }}
-                  >
-                    <Typography variant='h6'>Fixed</Typography>
-                  </Box>
-                  <Typography variant='h3'>{reportCounts.Fixed}</Typography>
-                  <Typography variant='body2' sx={{ color }}>
-                    {Icon} {formatDiff(diffFixed)}
-                  </Typography>
-                </>
-              );
-            })()}
-          </Paper>
-
-          {/* Agreed */}
-          <Paper
-            className='flex flex-col items-center p-4 rounded-lg shadow-md'
-            sx={{
-              width: { xs: '100%', sm: '45%', md: '22%' },
-              boxSizing: 'border-box',
-            }}
-          >
-            {(() => {
-              const { color, Icon } = getColorAndIcon(diffAgreed);
-              return (
-                <>
-                  <Box
-                    sx={{
-                      display: 'flex',
-                      alignItems: 'center',
-                      gap: '4px',
-                    }}
-                  >
-                    <Typography variant='h6'>Agreed</Typography>
-                  </Box>
-                  <Typography variant='h3'>{reportCounts.Agreed}</Typography>
-                  <Typography variant='body2' sx={{ color }}>
-                    {Icon} {formatDiff(diffAgreed)}
-                  </Typography>
-                </>
-              );
-            })()}
-          </Paper>
-        </Box>
+            <Typography variant='h5' align='center'>
+              Your Tasks
+            </Typography>
+          </AccordionSummary>
+          <AccordionDetails>
+            <Box sx={{ width: '100%' }}>
+              <TaskListPage />
+            </Box>
+          </AccordionDetails>
+        </Accordion>
       </Box>
-
-      {/* Блок "Your Reports" */}
-      <Box sx={{ width: '100%' }}>
-        <Box className='mb-4'>
-          <Typography variant='h5' component='h2' align='center'>
-            Your Reports
-          </Typography>
-        </Box>
-        <ReportsPage />
+      <Box className='mb-4' sx={{ width: '100%' }}>
+        <Accordion>
+          <AccordionSummary
+            expandIcon={<ExpandMoreIcon />}
+            aria-controls='panel2-content'
+            id='panel2-header'
+          >
+            <Typography variant='h5' align='center'>
+              Your Reports
+            </Typography>
+          </AccordionSummary>
+          <AccordionDetails>
+            <Box sx={{ width: '100%' }}>
+              <ReportListPage />
+            </Box>
+          </AccordionDetails>
+        </Accordion>
       </Box>
     </Box>
   );

@@ -19,7 +19,7 @@ export async function GET(
     await dbConnect();
     console.log('Успешное подключение к базе данных.');
 
-    const { task, baseid } = params;
+    const { task, baseid } = await params;
     const decodedTask = decodeURIComponent(task);
     const decodedBaseId = decodeURIComponent(baseid);
 

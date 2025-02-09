@@ -3,6 +3,14 @@
 import { Schema, Document, model, models } from 'mongoose';
 import { Task, PriorityLevel, CurrentStatus } from '../types/taskTypes';
 
+const WorkItemSchema = new Schema({
+  id: { type: String, required: true },
+  workType: { type: String, required: true },
+  quantity: { type: Number, required: true },
+  unit: { type: String, required: true },
+  note: { type: String },
+});
+
 const TaskSchema = new Schema<Task & Document>({
   taskId: { type: String, required: true },
   taskName: { type: String, required: true },
@@ -13,20 +21,17 @@ const TaskSchema = new Schema<Task & Document>({
     lng: Number,
   },
   totalCost: { type: Number, required: true },
-  workItems: [
-    {
-      workType: String,
-      quantity: Number,
-      unit: String,
-      note: String,
-    },
-  ],
+  workItems: [WorkItemSchema],
   taskDescription: { type: String },
-  author: { type: String },
-  initiator: { type: String },
-  initiatorId: { type: String },
-  executor: String,
-  executorId: String,
+  authorId: { type: String, required: true },
+  authorName: { type: String, required: true },
+  authorEmail: { type: String, required: true },
+  initiatorId: { type: String, required: true },
+  initiatorName: { type: String, required: true },
+  initiatorEmail: { type: String, required: true },
+  executorId: { type: String, required: true },
+  executorName: { type: String, required: true },
+  executorEmail: { type: String, required: true },
   dueDate: { type: Date, required: true },
   priority: {
     type: String,
@@ -39,14 +44,9 @@ const TaskSchema = new Schema<Task & Document>({
     enum: ['to do', 'assigned', 'at work', 'done', 'agreed'] as CurrentStatus[],
     default: 'to do',
   },
-  attachments: [
-    {
-      type: String,
-      required: false,
-    },
-  ],
+  attachments: [{ type: String }],
   createdAt: { type: Date, default: Date.now },
-  orderUrl: { type: String, required: true },
+  orderUrl: { type: String },
 });
 
 export default models.Task || model<Task & Document>('Task', TaskSchema);

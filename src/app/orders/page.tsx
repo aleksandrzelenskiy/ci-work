@@ -1,4 +1,4 @@
-// app/ordrs/page.tsx
+// app/orders/page.tsx
 
 'use client';
 
@@ -90,6 +90,15 @@ const OrderUploadPage: React.FC = () => {
     priority: 'medium',
     dueDate: new Date(),
     coordinates: { lat: 0, lng: 0 },
+    authorId: '',
+    authorName: '',
+    authorEmail: '',
+    initiatorId: '',
+    initiatorName: '',
+    initiatorEmail: '',
+    executorId: '',
+    executorName: '',
+    executorEmail: '',
   });
   const [attachmentFiles, setAttachmentFiles] = useState<File[]>([]);
   const [uploadProgress, setUploadProgress] = useState(0);
@@ -341,7 +350,7 @@ const OrderUploadPage: React.FC = () => {
       setFormData({
         ...taskData,
         dueDate: new Date(),
-        author: user?.primaryEmailAddress?.emailAddress || '',
+        authorEmail: user?.primaryEmailAddress?.emailAddress || '',
       });
       setOpenDialog(true);
     }
@@ -356,14 +365,12 @@ const OrderUploadPage: React.FC = () => {
         return;
       }
 
-      if (!user?.primaryEmailAddress?.emailAddress) {
-        showNotification('User email not found!', 'error');
+      if (!user?.id || !user?.primaryEmailAddress?.emailAddress) {
+        showNotification('User data not found!', 'error');
         return;
       }
 
       const formDataToSend = new FormData();
-
-      // Генерация taskId и добавление в форму
       const taskId = generateTaskId();
 
       // Основные данные
@@ -375,17 +382,31 @@ const OrderUploadPage: React.FC = () => {
       formDataToSend.append('priority', formData.priority || 'medium');
       formDataToSend.append('dueDate', formData.dueDate?.toISOString() || '');
       formDataToSend.append('taskDescription', formData.taskDescription || '');
-      formDataToSend.append('executor', formData.executor || '');
-      formDataToSend.append('initiator', formData.initiator || '');
-      formDataToSend.append('author', user.primaryEmailAddress.emailAddress);
 
-      // Файлы
+      // Данные автора
+      formDataToSend.append('authorId', user.id);
+      formDataToSend.append('authorName', getDisplayName());
+      formDataToSend.append(
+        'authorEmail',
+        user.primaryEmailAddress.emailAddress
+      );
+
+      // Данные исполнителя
+      formDataToSend.append('executorId', formData.executorId || '');
+      formDataToSend.append('executorName', formData.executorName || '');
+      formDataToSend.append('executorEmail', formData.executorEmail || '');
+
+      // Данные инициатора
+      formDataToSend.append('initiatorId', formData.initiatorId || '');
+      formDataToSend.append('initiatorName', formData.initiatorName || '');
+      formDataToSend.append('initiatorEmail', formData.initiatorEmail || '');
+
+      // Файлы и workItems (без изменений)
       formDataToSend.append('excelFile', file);
       attachmentFiles.forEach((file, index) => {
         formDataToSend.append(`attachments_${index}`, file);
       });
 
-      // Данные работ
       const workItems = getTableData().map((row) => ({
         workType: String(row['__EMPTY_1']),
         quantity: Number(row['__EMPTY_2']),
@@ -711,17 +732,19 @@ const OrderUploadPage: React.FC = () => {
                     }
                     getOptionLabel={(user) => `${user.name} (${user.email})`}
                     value={
-                      users.find((user) => user.email === formData.executor) ||
+                      users.find((user) => user._id === formData.executorId) ||
                       null
                     }
                     onChange={(_, newValue) => {
                       setFormData({
                         ...formData,
-                        executor: newValue?.email || '',
+                        executorId: newValue?._id || '',
+                        executorName: newValue?.name || '',
+                        executorEmail: newValue?.email || '',
                       });
                     }}
                     isOptionEqualToValue={(option, value) =>
-                      option.email === value.email
+                      option._id === value._id
                     }
                     renderInput={(params) => (
                       <TextField
@@ -747,17 +770,19 @@ const OrderUploadPage: React.FC = () => {
                     }
                     getOptionLabel={(user) => `${user.name} (${user.email})`}
                     value={
-                      users.find((user) => user.email === formData.initiator) ||
+                      users.find((user) => user._id === formData.initiatorId) ||
                       null
                     }
                     onChange={(_, newValue) => {
                       setFormData({
                         ...formData,
-                        initiator: newValue?.email || '',
+                        initiatorId: newValue?._id || '',
+                        initiatorName: newValue?.name || '',
+                        initiatorEmail: newValue?.email || '',
                       });
                     }}
                     isOptionEqualToValue={(option, value) =>
-                      option.email === value.email
+                      option._id === value._id
                     }
                     renderInput={(params) => (
                       <TextField

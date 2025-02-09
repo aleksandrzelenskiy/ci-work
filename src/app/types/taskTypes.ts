@@ -13,10 +13,11 @@ export interface WorkItem {
   quantity: number;
   unit: string;
   note?: string;
-  id: string;
+  id?: string;
 }
 
 export interface Task {
+  _id?: string;
   taskId: string;
   taskName: string;
   bsNumber: string;
@@ -28,17 +29,24 @@ export interface Task {
   taskDescription: string;
   totalCost: number;
   workItems: WorkItem[];
-  author: string;
-  initiator: string;
+  authorId: string;
+  authorEmail: string;
+  authorName: string;
   initiatorId: string;
-  executor: string;
+  initiatorName: string;
+  initiatorEmail: string;
   executorId: string;
+  executorName: string;
+  executorEmail: string;
   dueDate: Date;
   priority: PriorityLevel;
   status: CurrentStatus;
   createdAt: Date;
   attachments?: string[];
   orderUrl?: string[];
+  objectDetails?: {
+    coordinates: string;
+  };
 }
 
 export interface CreateTaskPayload extends Omit<Task, '_id' | 'createdAt'> {

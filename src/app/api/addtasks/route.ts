@@ -1,11 +1,34 @@
-// app/api/addTasks/route.ts
+/// app/api/addTasks/route.ts
 
 import { NextResponse } from 'next/server';
 import Task from '@/app/models/TaskModel';
 import dbConnect from '@/utils/mongoose';
 import { writeFileSync, mkdirSync, existsSync } from 'fs';
 import path from 'path';
-import { PriorityLevel } from '@/app/types/taskTypes';
+import { PriorityLevel, WorkItem } from '@/app/types/taskTypes';
+import { v4 as uuidv4 } from 'uuid';
+
+// Функция для нормализации номера базовой станции
+function normalizeBsNumber(bsNumber: string): string {
+  // Удаляем все символы, кроме букв и цифр
+  const cleanedBsNumber = bsNumber.replace(/[^a-zA-Z0-9-]/g, '');
+
+  // Разделяем номер на части по дефису (если есть)
+  const parts = cleanedBsNumber.split('-');
+
+  // Нормализуем каждую часть
+  const normalizedParts = parts.map((part) => {
+    // Извлекаем код региона (первые 2 символа)
+    const regionCode = part.substring(0, 2).toUpperCase();
+    // Извлекаем номер базовой станции (оставшиеся символы)
+    const bsDigits = part.substring(2).replace(/^0+/, ''); // Удаляем ведущие нули
+    // Возвращаем нормализованную часть
+    return `${regionCode}${bsDigits}`;
+  });
+
+  // Соединяем части обратно через дефис
+  return normalizedParts.join('-');
+}
 
 export async function POST(request: Request) {
   await dbConnect();
@@ -17,18 +40,27 @@ export async function POST(request: Request) {
     const taskData = {
       taskId: formData.get('taskId') as string,
       taskName: formData.get('taskName') as string,
-      bsNumber: formData.get('bsNumber') as string,
+      bsNumber: normalizeBsNumber(formData.get('bsNumber') as string), // Применяем нормализацию
       bsAddress: formData.get('bsAddress') as string,
       totalCost: parseFloat(formData.get('totalCost') as string),
       priority: formData.get('priority') as PriorityLevel,
       dueDate: new Date(formData.get('dueDate') as string),
       taskDescription: formData.get('taskDescription') as string,
-      author: formData.get('author') as string,
-      initiator: formData.get('initiator') as string,
-      initiatorId: 'initiatorId' as string,
-      executor: formData.get('executor') as string,
-      executorId: 'executorId' as string,
-      workItems: JSON.parse(formData.get('workItems') as string),
+      authorId: formData.get('authorId') as string,
+      authorName: formData.get('authorName') as string,
+      authorEmail: formData.get('authorEmail') as string,
+      initiatorId: formData.get('initiatorId') as string,
+      initiatorName: formData.get('initiatorName') as string,
+      initiatorEmail: formData.get('initiatorEmail') as string,
+      executorId: formData.get('executorId') as string,
+      executorName: formData.get('executorName') as string,
+      executorEmail: formData.get('executorEmail') as string,
+      workItems: JSON.parse(formData.get('workItems') as string).map(
+        (item: Omit<WorkItem, 'id'>) => ({
+          ...item,
+          id: uuidv4(),
+        })
+      ),
     };
 
     // Обработка файлов
@@ -45,7 +77,7 @@ export async function POST(request: Request) {
       .replace(/^_|_$/g, '');
 
     const cleanBsNumber = taskData.bsNumber
-      .replace(/[^a-z0-9]/gi, '_')
+      .replace(/[^a-z0-9-]/gi, '_') // Разрешаем дефис в имени директории
       .toLowerCase()
       .replace(/_+/g, '_')
       .replace(/^_|_$/g, '');
@@ -97,6 +129,7 @@ export async function POST(request: Request) {
       ...taskData,
       orderUrl: `/uploads/taskattach/${taskFolderName}/order/${excelFileName}`,
       attachments: attachmentsUrls,
+      createdAt: new Date(),
     });
 
     await newTask.save();
