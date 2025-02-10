@@ -2,6 +2,7 @@
 
 import { NextResponse } from 'next/server';
 import Task from '@/app/models/TaskModel';
+import ObjectModel from '@/app/models/ObjectModel';
 import dbConnect from '@/utils/mongoose';
 import { writeFileSync, mkdirSync, existsSync } from 'fs';
 import path from 'path';
@@ -36,11 +37,35 @@ export async function POST(request: Request) {
   try {
     const formData = await request.formData();
 
-    // Основные данные
+    // Нормализация номера базовой станции
+    const bsNumber = normalizeBsNumber(formData.get('bsNumber') as string);
+
+    // Разделение номера на отдельные части (если есть диапазон)
+    const bsNames = bsNumber.split('-');
+
+    // Получение координат для каждой базовой станции
+    const bsLocation = await Promise.all(
+      bsNames.map(async (name) => {
+        // Ищем объект в коллекции objects-t2-ir
+        const object = await ObjectModel.findOne({ name });
+        if (!object) {
+          throw new Error(
+            `Базовая станция ${name} не найдена в коллекции objects-t2-ir`
+          );
+        }
+        return {
+          name,
+          coordinates: object.coordinates,
+        };
+      })
+    );
+
+    // Основные данные задачи
     const taskData = {
       taskId: formData.get('taskId') as string,
       taskName: formData.get('taskName') as string,
-      bsNumber: normalizeBsNumber(formData.get('bsNumber') as string), // Применяем нормализацию
+      bsNumber,
+      bsLocation, // Добавляем массив с координатами
       bsAddress: formData.get('bsAddress') as string,
       totalCost: parseFloat(formData.get('totalCost') as string),
       priority: formData.get('priority') as PriorityLevel,

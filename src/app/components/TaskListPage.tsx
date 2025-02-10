@@ -156,7 +156,7 @@ function Row({ task }: { task: Task }) {
                 </Typography>
                 <Typography variant='subtitle1'>Location</Typography>
                 <Typography variant='body2' color='text.secondary'>
-                  {task.objectDetails?.coordinates || 'N/A'}
+                  координаты
                 </Typography>
                 <Typography variant='subtitle1'>Cost</Typography>
                 <Typography variant='body2'>{task.totalCost}</Typography>

@@ -8,6 +8,10 @@ export type CurrentStatus =
   | 'done'
   | 'agreed';
 
+export interface BsLocation {
+  name: string;
+  coordinates: string;
+}
 export interface WorkItem {
   workType: string;
   quantity: number;
@@ -21,11 +25,8 @@ export interface Task {
   taskId: string;
   taskName: string;
   bsNumber: string;
+  bsLocation: BsLocation[];
   bsAddress: string;
-  coordinates?: {
-    lat: number;
-    lng: number;
-  };
   taskDescription: string;
   totalCost: number;
   workItems: WorkItem[];
@@ -44,7 +45,8 @@ export interface Task {
   createdAt: Date;
   attachments?: string[];
   orderUrl?: string[];
-  objectDetails?: {
+  objectDetails: {
+    name: string;
     coordinates: string;
   };
 }

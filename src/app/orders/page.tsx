@@ -89,7 +89,6 @@ const OrderUploadPage: React.FC = () => {
     taskDescription: '',
     priority: 'medium',
     dueDate: new Date(),
-    coordinates: { lat: 0, lng: 0 },
     authorId: '',
     authorName: '',
     authorEmail: '',
@@ -331,7 +330,6 @@ const OrderUploadPage: React.FC = () => {
       bsAddress: values.bsAddress || '',
       totalCost: values.total || 0,
       workItems,
-      coordinates: { lat: 0, lng: 0 },
       priority: 'medium' as PriorityLevel,
     };
   };

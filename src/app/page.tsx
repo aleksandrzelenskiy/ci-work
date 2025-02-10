@@ -6,10 +6,12 @@ import Accordion from '@mui/material/Accordion';
 import AccordionSummary from '@mui/material/AccordionSummary';
 import AccordionDetails from '@mui/material/AccordionDetails';
 import ExpandMoreIcon from '@mui/icons-material/ExpandMore';
-import { Box, Typography } from '@mui/material';
+import { Box, Button, Typography } from '@mui/material';
 import { GetCurrentUserFromMongoDB } from '@/server-actions/users';
 import TrendingUpIcon from '@mui/icons-material/TrendingUp';
 import TrendingDownIcon from '@mui/icons-material/TrendingDown';
+import TaskOutlinedIcon from '@mui/icons-material/TaskOutlined';
+import PermMediaOutlinedIcon from '@mui/icons-material/PermMediaOutlined';
 
 const DashboardPage: React.FC = async () => {
   const response = await GetCurrentUserFromMongoDB();
@@ -348,6 +350,16 @@ const DashboardPage: React.FC = async () => {
             <Box sx={{ width: '100%' }}>
               <TaskListPage />
             </Box>
+            <Box sx={{ marginTop: '30px', textAlign: 'center' }}>
+              <Button
+                variant='contained'
+                startIcon={<TaskOutlinedIcon />}
+                size='small'
+                href='/tasks'
+              >
+                Open Tasks
+              </Button>
+            </Box>
           </AccordionDetails>
         </Accordion>
       </Box>
@@ -365,6 +377,16 @@ const DashboardPage: React.FC = async () => {
           <AccordionDetails>
             <Box sx={{ width: '100%' }}>
               <ReportListPage />
+            </Box>
+            <Box sx={{ marginTop: '30px', textAlign: 'center' }}>
+              <Button
+                variant='contained'
+                startIcon={<PermMediaOutlinedIcon />}
+                size='small'
+                href='/reports'
+              >
+                Reports List
+              </Button>
             </Box>
           </AccordionDetails>
         </Accordion>

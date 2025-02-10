@@ -33,7 +33,7 @@ import TaskIcon from '@mui/icons-material/Task';
 import PlaceIcon from '@mui/icons-material/Place';
 import CloudUploadIcon from '@mui/icons-material/CloudUpload';
 import PermMediaIcon from '@mui/icons-material/PermMedia';
-import BallotIcon from '@mui/icons-material/Ballot';
+import AddPhotoAlternateIcon from '@mui/icons-material/AddPhotoAlternate';
 import Badge from '@mui/material/Badge';
 import MailIcon from '@mui/icons-material/Mail';
 import { useRouter } from 'next/navigation';
@@ -141,7 +141,7 @@ export default function ClientApp({ children }: { children: React.ReactNode }) {
           sx={{ paddingLeft: 5 }}
         >
           <ListItemIcon sx={{ minWidth: 30 }}>
-            <PermMediaIcon sx={{ fontSize: 20 }} />
+            <AddPhotoAlternateIcon sx={{ fontSize: 20 }} />
           </ListItemIcon>
           <ListItemText primary='Upload Report' />
         </ListItemButton>
@@ -150,7 +150,7 @@ export default function ClientApp({ children }: { children: React.ReactNode }) {
           sx={{ paddingLeft: 5 }}
         >
           <ListItemIcon sx={{ minWidth: 30 }}>
-            <BallotIcon sx={{ fontSize: 20 }} />
+            <PermMediaIcon sx={{ fontSize: 20 }} />
           </ListItemIcon>
           <ListItemText primary='Reports List' />
         </ListItemButton>

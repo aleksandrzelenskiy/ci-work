@@ -18,17 +18,26 @@ export async function GET() {
   try {
     const tasks = await TaskModel.aggregate([
       {
-        $lookup: {
-          from: 'objects-t2-ir', // Название коллекции objects-t2-ir
-          localField: 'bsNumber', // Поле в коллекции tasks, которое соответствует name в objects-t2-ir
-          foreignField: 'name', // Поле в коллекции objects-t2-ir
-          as: 'objectDetails', // Название нового поля, в которое будут добавлены данные из objects-t2-ir
+        $addFields: {
+          bsNumbers: {
+            $split: ['$bsNumber', '-'],
+          },
         },
       },
       {
-        $unwind: {
-          path: '$objectDetails',
-          preserveNullAndEmptyArrays: true, // Если совпадений нет, объект все равно будет возвращен
+        $lookup: {
+          from: 'objects-t2-ir',
+          let: { bsNumbers: '$bsNumbers' },
+          pipeline: [
+            {
+              $match: {
+                $expr: {
+                  $in: ['$name', '$$bsNumbers'],
+                },
+              },
+            },
+          ],
+          as: 'objectDetails',
         },
       },
       {

@@ -91,19 +91,17 @@ function DraggableTask({ task }: { task: Task }) {
         boxShadow: 2,
       }}
     >
+      <Box sx={{ marginTop: '5px', marginLeft: '5px' }}>
+        <Typography variant='caption' color='text.secondary'>
+          {new Date(task.createdAt).toLocaleDateString()}
+        </Typography>
+      </Box>
       <CardContent>
         <Typography variant='subtitle1' gutterBottom>
           {task.taskName}
         </Typography>
         <Box sx={{ display: 'flex', justifyContent: 'space-between', mb: 1 }}>
           <Typography variant='caption'>BS: {task.bsNumber}</Typography>
-          <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
-            <Chip
-              label={task.status}
-              size='small'
-              color={getStatusColor(task.status)}
-            />
-          </Box>
         </Box>
         <Typography variant='body2' color='text.primary'>
           Due: {new Date(task.dueDate).toLocaleDateString()}
@@ -111,16 +109,17 @@ function DraggableTask({ task }: { task: Task }) {
       </CardContent>
       <Box
         sx={{
-          marginRight: '5px',
-          marginLeft: '10px',
+          margin: '10px',
           display: 'flex',
           justifyContent: 'space-between',
           alignItems: 'center',
         }}
       >
-        <Typography variant='caption' color='text.secondary'>
-          {new Date(task.createdAt).toLocaleDateString()}
-        </Typography>
+        <Chip
+          label={task.status}
+          size='small'
+          color={getStatusColor(task.status)}
+        />
         <Typography variant='caption'>
           {getPriorityIcon(task.priority)}
         </Typography>
