@@ -462,7 +462,6 @@ const OrderUploadPage: React.FC = () => {
           display: 'flex',
           justifyContent: 'center',
           alignItems: 'center',
-          p: 2,
           position: 'relative',
         }}
       >
@@ -649,6 +648,8 @@ const OrderUploadPage: React.FC = () => {
                     setFormData({ ...formData, bsNumber: e.target.value })
                   }
                   fullWidth
+                  required
+                  disabled
                 />
 
                 <TextField
@@ -658,6 +659,8 @@ const OrderUploadPage: React.FC = () => {
                     setFormData({ ...formData, bsAddress: e.target.value })
                   }
                   fullWidth
+                  required
+                  disabled
                 />
 
                 <Box sx={{ display: 'flex', gap: 2 }}>

@@ -39,7 +39,7 @@ import KeyboardArrowDownIcon from '@mui/icons-material/KeyboardArrowDown';
 
 import { LocalizationProvider } from '@mui/x-date-pickers/LocalizationProvider';
 import { AdapterDateFns } from '@mui/x-date-pickers/AdapterDateFns';
-import { Task, WorkItem } from '../types/taskTypes';
+import { BsLocation, Task, WorkItem } from '../types/taskTypes';
 import { DatePicker } from '@mui/x-date-pickers';
 
 const getStatusColor = (status: string) => {
@@ -100,39 +100,46 @@ function Row({ task }: { task: Task }) {
 
         <TableCell>
           <Box sx={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-            <Link sx={{ cursor: 'pointer' }} onClick={() => setOpen(!open)}>
+            <Link
+              href={`/tasks/${task.taskId.toLowerCase()}`}
+              sx={{ cursor: 'pointer' }}
+            >
               {task.taskName} | {task.bsNumber}
             </Link>
           </Box>
         </TableCell>
 
-        <TableCell>
+        <TableCell align='center'>
           <Box>
             <Typography variant='subtitle2'>
               {parseUserInfo(task.authorName).name}
             </Typography>
           </Box>
         </TableCell>
-        <TableCell>
+        <TableCell align='center'>
           <Box>
             <Typography variant='subtitle2'>
               {parseUserInfo(task.initiatorName).name}
             </Typography>
           </Box>
         </TableCell>
-        <TableCell>
+        <TableCell align='center'>
           <Box>
             <Typography variant='subtitle2'>
               {parseUserInfo(task.executorName).name}
             </Typography>
           </Box>
         </TableCell>
-        <TableCell>{new Date(task.createdAt).toLocaleDateString()}</TableCell>
-        <TableCell>{new Date(task.dueDate).toLocaleDateString()}</TableCell>
-        <TableCell>
+        <TableCell align='center'>
+          {new Date(task.createdAt).toLocaleDateString()}
+        </TableCell>
+        <TableCell align='center'>
+          {new Date(task.dueDate).toLocaleDateString()}
+        </TableCell>
+        <TableCell align='center'>
           <Chip label={task.status} color={getStatusColor(task.status)} />
         </TableCell>
-        <TableCell>
+        <TableCell align='center'>
           {getPriorityIcon(task.priority)}
           {task.priority}
         </TableCell>
@@ -141,11 +148,14 @@ function Row({ task }: { task: Task }) {
       <TableRow>
         <TableCell colSpan={11} style={{ paddingBottom: 0, paddingTop: 0 }}>
           <Collapse in={open} timeout='auto' unmountOnExit>
-            <Box sx={{ margin: 1 }}>
-              <Typography variant='h6' gutterBottom>
-                Details
-              </Typography>
-              <Box sx={{ mb: 2 }}>
+            <Chip
+              label={task.taskId}
+              size='small'
+              color='primary'
+              sx={{ mt: 1, marginLeft: 2 }}
+            />
+            <Box sx={{ marginLeft: 3 }}>
+              <Box sx={{ mb: 2, mt: 2 }}>
                 <Typography variant='subtitle1'>BS Number</Typography>
                 <Typography variant='body2' color='text.secondary'>
                   {task.bsNumber}
@@ -156,12 +166,16 @@ function Row({ task }: { task: Task }) {
                 </Typography>
                 <Typography variant='subtitle1'>Location</Typography>
                 <Typography variant='body2' color='text.secondary'>
-                  координаты
+                  {task.bsLocation.map((item: BsLocation) => (
+                    <Box key={item.coordinates}>
+                      <Typography variant='body2' color='text.secondary'>
+                        {item.name} {item.coordinates}
+                      </Typography>
+                    </Box>
+                  ))}
                 </Typography>
                 <Typography variant='subtitle1'>Cost</Typography>
                 <Typography variant='body2'>{task.totalCost}</Typography>
-                <Typography variant='subtitle1'>Profit</Typography>
-                <Typography variant='body2'>{task.totalCost * 0.2}</Typography>
               </Box>
               <Typography variant='h6' gutterBottom>
                 Work Items
@@ -186,6 +200,21 @@ function Row({ task }: { task: Task }) {
                   ))}
                 </TableBody>
               </Table>
+              <Box
+                display='flex'
+                justifyContent='start'
+                alignItems='center'
+                width='100%'
+                sx={{ margin: 2 }}
+              >
+                <Button
+                  href={`/tasks/${task.taskId.toLowerCase()}`}
+                  variant='contained'
+                  size='small'
+                >
+                  More
+                </Button>
+              </Box>
             </Box>
           </Collapse>
         </TableCell>

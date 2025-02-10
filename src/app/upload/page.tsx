@@ -4,6 +4,9 @@ import React, { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import { useUser } from '@clerk/nextjs';
 import {
+  Accordion,
+  AccordionSummary,
+  AccordionDetails,
   Typography,
   TextField,
   Button,
@@ -17,7 +20,11 @@ import {
   DialogContentText,
   DialogTitle,
   Paper,
+  Checkbox,
+  FormControlLabel,
+  Alert,
 } from '@mui/material';
+import ExpandMoreIcon from '@mui/icons-material/ExpandMore';
 import { useDropzone } from 'react-dropzone';
 import DeleteIcon from '@mui/icons-material/Delete';
 import CloudUploadIcon from '@mui/icons-material/CloudUpload';
@@ -36,8 +43,17 @@ export default function UploadPage() {
   const [task, setTask] = useState('');
   const [files, setFiles] = useState<UploadedFile[]>([]);
   const [fileToDelete, setFileToDelete] = useState<UploadedFile | null>(null);
+  const [isCheckboxChecked, setIsCheckboxChecked] = useState(false);
+  const [isAccordionExpanded, setIsAccordionExpanded] = useState(true);
 
-  // Redirect to login page if the user is not authenticated
+  // Сворачиваем аккордеон при изменении состояния чекбокса
+  useEffect(() => {
+    if (isCheckboxChecked) {
+      setIsAccordionExpanded(false);
+    }
+  }, [isCheckboxChecked]);
+
+  // Перенаправляем на страницу входа, если пользователь не аутентифицирован
   useEffect(() => {
     if (isLoaded && !isSignedIn) {
       router.push('/auth/login');
@@ -73,7 +89,9 @@ export default function UploadPage() {
 
   const handleUploadClick = async () => {
     if (!baseId || !task || files.length === 0) {
-      alert('Please fill all fields and select images to upload.');
+      alert(
+        'Пожалуйста, заполните все поля и выберите изображения для загрузки.'
+      );
       return;
     }
 
@@ -103,190 +121,302 @@ export default function UploadPage() {
 
       xhr.onload = () => {
         if (xhr.status === 200) {
-          // Parse the response and extract the message
+          // Парсим ответ и извлекаем сообщение
           const responseData = JSON.parse(xhr.responseText);
           if (responseData.success) {
-            alert(responseData.message); // <-- Use the appropriate message
+            alert(responseData.message); // <-- Используем соответствующее сообщение
           } else {
-            alert('Upload completed, but no "success" in response.');
+            alert('Загрузка завершена, но в ответе отсутствует "success".');
           }
 
-          // Reset fields and files
+          // Сбрасываем поля и файлы
           setFiles([]);
           setBaseId('');
           setTask('');
         } else {
-          alert('Failed to upload images');
+          alert('Не удалось загрузить изображения');
         }
       };
 
       xhr.onerror = () => {
-        alert('An error occurred while uploading images.');
+        alert('Произошла ошибка при загрузке изображений.');
       };
 
       xhr.send(formData);
     } catch (error) {
-      console.error('Upload failed:', error);
-      alert('Error uploading files.');
+      console.error('Ошибка загрузки:', error);
+      alert('Ошибка при загрузке файлов.');
     }
   };
 
-  // Show loading if data is not yet loaded
+  // Показываем загрузку, если данные еще не загружены
   if (!isLoaded) {
-    return <Typography>Loading...</Typography>;
+    return <Typography>Загрузка...</Typography>;
   }
 
   return (
     <>
-      <Box sx={{ flexGrow: 1, padding: 2 }}>
+      <Box sx={{ flexGrow: 1 }}>
         <Grid container spacing={2}>
           <Grid item xs={12} md={6}>
-            <Paper>
-              <Box sx={{ padding: 2 }}>
-                <Typography variant='h5' gutterBottom>
-                  Placeholder Text
+            <Accordion
+              expanded={isAccordionExpanded}
+              onChange={(event, isExpanded) =>
+                setIsAccordionExpanded(isExpanded)
+              }
+              defaultExpanded
+            >
+              <AccordionSummary
+                expandIcon={<ExpandMoreIcon />}
+                aria-controls='requirements-content'
+                id='requirements-header'
+              >
+                <Typography variant='h6'>
+                  Требования к ФО по монтажу РРЛ
                 </Typography>
+              </AccordionSummary>
+              <AccordionDetails>
                 <Typography variant='body1'>
-                  Lorem ipsum dolor sit amet, consectetur adipiscing elit. Sed
-                  do eiusmod tempor incididunt ut labore et dolore magna aliqua.
-                  Ut enim ad minim veniam, quis nostrud exercitation ullamco
-                  laboris nisi ut aliquip ex ea commodo consequat.
+                  <li>
+                    До начала работ выполнить фотографию общего вида антенной
+                    опоры
+                  </li>
+                  <li>
+                    Фотоотчет по монтажу радиорелейного пролета выполняется
+                    после полного завершения работ.
+                  </li>
+                  <li>Фотоотчет должен выполняться в светлое время суток.</li>
+                  <li>
+                    Фотографии должны иметь размер не менее 1280х720рх и иметь
+                    надлежащее для просмотра на десктоп устройствах качество
+                    изображения.
+                  </li>
                 </Typography>
-              </Box>
-            </Paper>
-          </Grid>
-          <Grid item xs={12} md={6}>
-            <Paper>
-              <Box sx={{ padding: 2 }}>
-                <Typography variant='h5' gutterBottom>
-                  Upload Images to Photo Report
+                <Typography variant='h6' sx={{ mt: 2 }} gutterBottom>
+                  Содержание фотоотчета
                 </Typography>
-
-                <TextField
-                  fullWidth
-                  label='Task'
-                  value={task}
-                  onChange={(e) => setTask(e.target.value)}
-                  margin='normal'
-                />
-                <TextField
-                  fullWidth
-                  label='Base ID'
-                  value={baseId}
-                  onChange={(e) => setBaseId(e.target.value)}
-                  margin='normal'
-                />
-                <Box sx={{ marginBottom: 3 }}>
-                  <Grid container spacing={2}>
-                    {files.map((uploadedFile) => (
-                      <Grid item xs={6} sm={4} md={3} key={uploadedFile.id}>
-                        <Box sx={{ position: 'relative', textAlign: 'center' }}>
-                          <img
-                            src={uploadedFile.preview}
-                            alt={uploadedFile.file.name}
-                            style={{
-                              width: '100%',
-                              height: 'auto',
-                              borderRadius: '8px',
-                            }}
-                          />
-                          <IconButton
-                            onClick={() => confirmRemoveFile(uploadedFile)}
-                            sx={{
-                              position: 'absolute',
-                              top: 8,
-                              right: 8,
-                              background: 'rgba(255, 255, 255, 0.8)',
-                              '&:hover': {
-                                background: 'rgba(255, 255, 255, 1)',
-                              },
-                            }}
-                          >
-                            <DeleteIcon />
-                          </IconButton>
-                          <Typography variant='body2' noWrap>
-                            {uploadedFile.file.name}
-                          </Typography>
-                          <LinearProgress
-                            variant='determinate'
-                            value={uploadedFile.progress}
-                            sx={{ marginTop: 1 }}
-                          />
-                        </Box>
-                      </Grid>
-                    ))}
-                  </Grid>
+                <strong>Фотографии АФУ</strong>
+                <Typography variant='body1'>
+                  <li>
+                    Фотографии общего вида установленной антенны на антенной
+                    опоре (антенна должна быть видна в кадре полностью, включая
+                    крепление к трубостойке)
+                  </li>
+                  <li>Фотографии крепления трубостойки к антенной опоре</li>
+                  <li>
+                    Фото маркировки данных о пролете на антенне (указание номера
+                    основной и ответной части пролета, азимут направления
+                    антенны)
+                  </li>
+                  <li>
+                    Фотография в направлении излучения антенны. На фотографии
+                    должно быть видно перспективу в направлении излучения
+                    радиорелейной антенны (в сторону ответной части)
+                  </li>
+                  <li>Фото серийного номера антенны</li>
+                  <li>Фото серийного номера радиоблока</li>
+                  <li>
+                    Фото подключения кабелей к интерфейсам радиоблока
+                    (обязательно с наличием маркировки кабеля)
+                  </li>
+                  <li>
+                    Фотографии крепления антенны (должны быть выполнены
+                    фотографии всех болтовых соединений крепления антенны, на
+                    фотографиях должно быть четко видно наличие всех элементов
+                    крепления (болты, гайки, контргайки, шайбы плоские, шайбы
+                    пружинные), а также должно быть видно, что соединения
+                    достаточно качественно протянуты после монтажа и юстировки)
+                  </li>
+                  <li>
+                    Фотографии заземления радиоблока (с наличием маркировки
+                    проводника)
+                  </li>
+                  <li>Фото укладки и крепления запаса кабеля на АО</li>
+                  <li>Фото кабельной трассы снизу вверх</li>
+                  <li>
+                    Фотографии общего вида АО с установленными антеннами (не
+                    менее двух фотографий с двух разных сторон)
+                  </li>
+                  <li>Фото кабельного ввода в аппаратную снаружи</li>
+                </Typography>
+                <strong>Фотографии в аппаратной / КШ</strong>
+                <Typography variant='body1'>
+                  <li>Фотографии общего вида 19’’ стойки “в полный рост”</li>
+                  <li>Фотографии IDU укрупненно</li>
+                  <li>
+                    Фотографии подключения кабелей питания и заземления IDU (в
+                    случае монтажа IDU) включая маркировку
+                  </li>
+                  <li>
+                    Фотографии подключения любых проводов к маршрутизаторам или
+                    иному существующему сетевому оборудованию включая маркировку
+                  </li>
+                  <li>Фотографии стойки питания “в полный рост”</li>
+                  <li>Фото шины автоматов крупно (полностью)</li>
+                  <li>
+                    Фото подключения питания монтируемого оборудования на шину
+                    “+” и автоматический выключатель “-” включая маркировку
+                    (номинал автоматов должен читаться на фотографии)
+                  </li>
+                  <li>Фото укладки кабельной трассы внутри аппаратной</li>
+                  <li>Фото кабельного ввода в аппаратную внутри</li>
+                </Typography>
+                <Box sx={{ mt: 3, mb: 3 }}>
+                  <Alert variant='outlined' severity='info'>
+                    Подтвердите соответствие фотоотчета требованиям
+                  </Alert>
                 </Box>
 
-                <Box
-                  {...getRootProps()}
-                  sx={{
-                    border: '2px dashed #ccc',
-                    borderRadius: '8px',
-                    padding: 2,
-                    textAlign: 'center',
-                    marginBottom: 2,
-                    cursor: 'pointer',
-                  }}
-                >
-                  <input {...getInputProps()} />
-                  <Typography variant='body1'>
-                    Drag & drop images here, or click to select
+                <FormControlLabel
+                  control={
+                    <Checkbox
+                      checked={isCheckboxChecked}
+                      onChange={(e) => setIsCheckboxChecked(e.target.checked)}
+                    />
+                  }
+                  label='Все фотографии выполнены в соответствии с требованиями'
+                />
+              </AccordionDetails>
+            </Accordion>
+          </Grid>
+
+          {/* Рендерим блок Upload Photo только если чекбокс отмечен */}
+          {isCheckboxChecked && (
+            <Grid item xs={12} md={6}>
+              <Paper>
+                <Box sx={{ padding: 2 }}>
+                  <Typography variant='h5' gutterBottom>
+                    Загрузить фото
                   </Typography>
-                </Box>
 
-                <Box
-                  sx={{
-                    display: 'flex',
-                    justifyContent: 'center',
-                    alignItems: 'center',
-                    marginTop: 5,
-                  }}
-                >
-                  <Button
-                    variant='contained'
-                    startIcon={<CloudUploadIcon />}
-                    color='primary'
-                    onClick={handleUploadClick}
-                    disabled={!baseId || !task || files.length === 0}
+                  <TextField
+                    fullWidth
+                    label='Задача'
+                    value={task}
+                    onChange={(e) => setTask(e.target.value)}
+                    margin='normal'
+                  />
+                  <TextField
+                    fullWidth
+                    label='ID базы'
+                    value={baseId}
+                    onChange={(e) => setBaseId(e.target.value)}
+                    margin='normal'
+                  />
+                  <Box sx={{ marginBottom: 3 }}>
+                    <Grid container spacing={2}>
+                      {files.map((uploadedFile) => (
+                        <Grid item xs={6} sm={4} md={3} key={uploadedFile.id}>
+                          <Box
+                            sx={{ position: 'relative', textAlign: 'center' }}
+                          >
+                            <img
+                              src={uploadedFile.preview}
+                              alt={uploadedFile.file.name}
+                              style={{
+                                width: '100%',
+                                height: 'auto',
+                                borderRadius: '8px',
+                              }}
+                            />
+                            <IconButton
+                              onClick={() => confirmRemoveFile(uploadedFile)}
+                              sx={{
+                                position: 'absolute',
+                                top: 8,
+                                right: 8,
+                                background: 'rgba(255, 255, 255, 0.8)',
+                                '&:hover': {
+                                  background: 'rgba(255, 255, 255, 1)',
+                                },
+                              }}
+                            >
+                              <DeleteIcon />
+                            </IconButton>
+                            <Typography variant='body2' noWrap>
+                              {uploadedFile.file.name}
+                            </Typography>
+                            <LinearProgress
+                              variant='determinate'
+                              value={uploadedFile.progress}
+                              sx={{ marginTop: 1 }}
+                            />
+                          </Box>
+                        </Grid>
+                      ))}
+                    </Grid>
+                  </Box>
+
+                  <Box
+                    {...getRootProps()}
+                    sx={{
+                      border: '2px dashed #ccc',
+                      borderRadius: '8px',
+                      padding: 2,
+                      textAlign: 'center',
+                      marginBottom: 2,
+                      cursor: 'pointer',
+                    }}
                   >
-                    Upload Photo
-                  </Button>
-                </Box>
+                    <input {...getInputProps()} />
+                    <Typography variant='body1'>
+                      Перетащите изображения сюда или нажмите для выбора
+                    </Typography>
+                  </Box>
 
-                {/* Confirmation dialog for deletion */}
-                <Dialog
-                  open={!!fileToDelete}
-                  onClose={() => setFileToDelete(null)}
-                  aria-labelledby='confirm-delete-title'
-                >
-                  <DialogTitle id='confirm-delete-title'>
-                    Confirm Deletion
-                  </DialogTitle>
-                  <DialogContent>
-                    <DialogContentText>
-                      Are you sure you want to delete this image?
-                    </DialogContentText>
-                  </DialogContent>
-                  <DialogActions>
+                  <Box
+                    sx={{
+                      display: 'flex',
+                      justifyContent: 'center',
+                      alignItems: 'center',
+                      marginTop: 5,
+                    }}
+                  >
                     <Button
-                      onClick={() => setFileToDelete(null)}
+                      variant='contained'
+                      startIcon={<CloudUploadIcon />}
                       color='primary'
+                      onClick={handleUploadClick}
+                      disabled={!baseId || !task || files.length === 0}
                     >
-                      Cancel
+                      Загрузить фото
                     </Button>
-                    <Button
-                      onClick={handleDeleteConfirmed}
-                      color='secondary'
-                      autoFocus
-                    >
-                      Delete
-                    </Button>
-                  </DialogActions>
-                </Dialog>
-              </Box>
-            </Paper>
-          </Grid>
+                  </Box>
+
+                  {/* Диалог подтверждения удаления */}
+                  <Dialog
+                    open={!!fileToDelete}
+                    onClose={() => setFileToDelete(null)}
+                    aria-labelledby='confirm-delete-title'
+                  >
+                    <DialogTitle id='confirm-delete-title'>
+                      Подтвердите удаление
+                    </DialogTitle>
+                    <DialogContent>
+                      <DialogContentText>
+                        Вы уверены, что хотите удалить это изображение?
+                      </DialogContentText>
+                    </DialogContent>
+                    <DialogActions>
+                      <Button
+                        onClick={() => setFileToDelete(null)}
+                        color='primary'
+                      >
+                        Отмена
+                      </Button>
+                      <Button
+                        onClick={handleDeleteConfirmed}
+                        color='secondary'
+                        autoFocus
+                      >
+                        Удалить
+                      </Button>
+                    </DialogActions>
+                  </Dialog>
+                </Box>
+              </Paper>
+            </Grid>
+          )}
         </Grid>
       </Box>
     </>

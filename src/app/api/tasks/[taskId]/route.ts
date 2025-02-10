@@ -1,8 +1,13 @@
+// app/api/tasks/[taskid]/route.ts
+
 import { NextResponse } from 'next/server';
 import dbConnect from '@/utils/mongoose';
 import TaskModel from '@/app/models/TaskModel';
 
-export async function PATCH(request: Request) {
+export async function GET(
+  request: Request,
+  { params }: { params: { taskid: string } }
+) {
   try {
     await dbConnect();
     console.log('Connected to MongoDB');
@@ -15,11 +20,47 @@ export async function PATCH(request: Request) {
   }
 
   try {
-    // Извлекаем taskId из URL
-    const url = new URL(request.url);
-    const taskId = url.pathname.split('/').pop(); // Получаем последний сегмент URL (taskId)
+    const { taskid } = await params;
 
-    if (!taskId) {
+    // Ищем задачу по taskid
+    const task = await TaskModel.findOne({
+      taskId: taskid.toLocaleUpperCase(),
+    });
+
+    if (!task) {
+      return NextResponse.json({ error: 'Task not found' }, { status: 404 });
+    }
+
+    return NextResponse.json({ task });
+  } catch (error: unknown) {
+    console.error('Error fetching task:', error);
+    return NextResponse.json(
+      { error: 'Failed to fetch task' },
+      { status: 500 }
+    );
+  }
+}
+
+export async function PATCH(
+  request: Request,
+  { params }: { params: { taskid: string } }
+) {
+  try {
+    await dbConnect();
+    console.log('Connected to MongoDB');
+  } catch (error: unknown) {
+    console.error('Failed to connect to MongoDB:', error);
+    return NextResponse.json(
+      { error: 'Failed to connect to database' },
+      { status: 500 }
+    );
+  }
+
+  try {
+    // Await the params object to ensure it's resolved
+    const { taskid } = await params;
+
+    if (!taskid) {
       return NextResponse.json(
         { error: 'Task ID is required' },
         { status: 400 }
@@ -31,7 +72,7 @@ export async function PATCH(request: Request) {
 
     // Обновляем задачу в базе данных
     const updatedTask = await TaskModel.findOneAndUpdate(
-      { taskId },
+      { taskId: taskid },
       { status },
       { new: true }
     );

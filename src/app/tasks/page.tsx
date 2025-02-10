@@ -17,7 +17,7 @@ const TasksPage = () => {
   return (
     <div>
       <Box sx={{ display: 'flex', alignItems: 'center', gap: 2, mb: 2 }}>
-        <Typography variant='body2'>SELECT MODE:</Typography>
+        <Typography variant='body2'>Select Mode:</Typography>
         <ToggleButtonGroup
           value={viewMode}
           exclusive
