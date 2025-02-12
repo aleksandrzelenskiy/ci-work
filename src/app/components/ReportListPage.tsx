@@ -32,7 +32,9 @@ import FolderIcon from '@mui/icons-material/Folder';
 import KeyboardArrowDownIcon from '@mui/icons-material/KeyboardArrowDown';
 import KeyboardArrowUpIcon from '@mui/icons-material/KeyboardArrowUp';
 import { BaseStatus, ReportClient, ApiResponse } from '../types/reportTypes';
-import { DatePicker } from '@mui/x-date-pickers/DatePicker';
+import { DateRangePicker } from '@mui/x-date-pickers-pro/DateRangePicker';
+import { SingleInputDateRangeField } from '@mui/x-date-pickers-pro/SingleInputDateRangeField';
+import { DateRange } from '@mui/x-date-pickers-pro/models';
 import { LocalizationProvider } from '@mui/x-date-pickers/LocalizationProvider';
 import { AdapterDateFns } from '@mui/x-date-pickers/AdapterDateFns';
 
@@ -75,15 +77,6 @@ const getTaskStatus = (baseStatuses: BaseStatus[] = []) => {
 
 // Определяем количество колонок для colspan в раскрывающейся строке
 function getColSpanByRole(role: string) {
-  // Считаем столбцы:
-  // 1. Arrow (иконка раскрытия)
-  // 2. Task
-  // 3. (Executor/Initiator/оба) - от 1 до 2 столбцов
-  // 4. Created
-  // 5. Status
-  //
-  // Если role = 'executor' или 'initiator', у нас 1 столбец (либо Executor, либо initiator) => итого 5.
-  // Если role = 'admin', у нас 2 столбца (Executor + Initiator) => итого 6.
   if (role === 'admin') return 6;
   return 5; // executor/initiator
 }
@@ -154,6 +147,7 @@ function Row({ report, role }: { report: ReportClient; role: string }) {
             align='center'
             sx={{
               padding: '8px',
+              textAlign: 'center',
             }}
           >
             <Box sx={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
@@ -168,6 +162,7 @@ function Row({ report, role }: { report: ReportClient; role: string }) {
             align='center'
             sx={{
               padding: '8px',
+              textAlign: 'center',
             }}
           >
             <Box sx={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
@@ -224,6 +219,7 @@ function Row({ report, role }: { report: ReportClient; role: string }) {
           align='center'
           sx={{
             padding: '8px',
+            textAlign: 'center',
           }}
         >
           {getReportDate(report.createdAt)}
@@ -243,7 +239,10 @@ function Row({ report, role }: { report: ReportClient; role: string }) {
               display: 'inline-block',
             }}
           >
-            {getTaskStatus(report.baseStatuses)}
+            {report.baseStatuses
+              .map((bs) => bs.status)
+              .filter((value, index, self) => self.indexOf(value) === index)
+              .join(' | ')}
           </Box>
         </TableCell>
       </TableRow>
@@ -288,6 +287,7 @@ function Row({ report, role }: { report: ReportClient; role: string }) {
                         color: '#787878',
                       }}
                     >
+                      status changed:{' '}
                       {getReportDate(baseStatus.latestStatusChangeDate)}
                     </Typography>
                   </Typography>
@@ -320,10 +320,13 @@ export default function ReportListPage() {
 
   // Фильтры:
   const [executorFilter, setExecutorFilter] = useState('');
-  const [initiatorFilter, setinitiatorFilter] = useState('');
+  const [initiatorFilter, setInitiatorFilter] = useState('');
   const [statusFilter, setStatusFilter] = useState('');
   const [taskSearch, setTaskSearch] = useState('');
-  const [createdAtFilter, setCreatedAtFilter] = useState<Date | null>(null);
+  const [createdDateRange, setCreatedDateRange] = useState<DateRange<Date>>([
+    null,
+    null,
+  ]);
 
   // Popover:
   const [anchorEl, setAnchorEl] = useState<HTMLElement | null>(null);
@@ -331,20 +334,19 @@ export default function ReportListPage() {
 
   // Подсчитываем количество активных фильтров
   const activeFiltersCount = useMemo(() => {
-    // initiatorFilter в массивe
     return [
       executorFilter,
       initiatorFilter,
       statusFilter,
       taskSearch,
-      createdAtFilter,
+      createdDateRange[0] || createdDateRange[1] ? createdDateRange : null,
     ].filter(Boolean).length;
   }, [
     executorFilter,
     initiatorFilter,
     statusFilter,
     taskSearch,
-    createdAtFilter,
+    createdDateRange,
   ]);
 
   // Получаем уникальных авторов
@@ -354,7 +356,7 @@ export default function ReportListPage() {
   }, [reports]);
 
   // Получаем уникальных ревьюеров
-  const uniqueinitiators = useMemo(() => {
+  const uniqueInitiators = useMemo(() => {
     const initiators = reports.map((report) => report.initiatorName);
     return Array.from(new Set(initiators));
   }, [reports]);
@@ -372,7 +374,6 @@ export default function ReportListPage() {
     const fetchReports = async () => {
       try {
         const response = await fetch('/api/reports');
-        // userRole - мы возвращаем с сервера
         const data: ApiResponse & { userRole?: string } = await response.json();
 
         if (!response.ok) {
@@ -441,12 +442,14 @@ export default function ReportListPage() {
       );
     }
 
-    // Filter by creation date
-    if (createdAtFilter) {
-      const selectedDate = new Date(createdAtFilter).setHours(0, 0, 0, 0);
+    // Filter by creation date range
+    if (createdDateRange[0] && createdDateRange[1]) {
       tempReports = tempReports.filter((report) => {
-        const reportDate = new Date(report.createdAt).setHours(0, 0, 0, 0);
-        return reportDate === selectedDate;
+        const reportDate = new Date(report.createdAt);
+        return (
+          reportDate >= createdDateRange[0]! &&
+          reportDate <= createdDateRange[1]!
+        );
       });
     }
 
@@ -463,7 +466,7 @@ export default function ReportListPage() {
     executorFilter,
     initiatorFilter,
     statusFilter,
-    createdAtFilter,
+    createdDateRange,
     taskSearch,
   ]);
 
@@ -503,195 +506,124 @@ export default function ReportListPage() {
   }
 
   return (
-    <Box
-      sx={{
-        width: '100%',
-      }}
-    >
-      {/* Блок "Active filters" */}
-      {activeFiltersCount > 0 && (
-        <Box sx={{ padding: 2, marginBottom: 2 }}>
-          <Typography variant='subtitle1' sx={{ mb: 1 }}>
-            Active filters
-          </Typography>
-          <Box sx={{ display: 'flex', gap: 1, flexWrap: 'wrap', mb: 2 }}>
-            {executorFilter && (
-              <Chip
-                label={`Executor: ${executorFilter}`}
-                onDelete={() => setExecutorFilter('')}
-                color='primary'
-                size='small'
-              />
-            )}
-            {initiatorFilter && (
-              <Chip
-                label={`initiator: ${initiatorFilter}`}
-                onDelete={() => setinitiatorFilter('')}
-                color='primary'
-                size='small'
-              />
-            )}
-            {statusFilter && (
-              <Chip
-                label={`Status: ${statusFilter}`}
-                onDelete={() => setStatusFilter('')}
-                color='primary'
-                size='small'
-              />
-            )}
-            {taskSearch && (
-              <Chip
-                label={`Task: ${taskSearch}`}
-                onDelete={() => setTaskSearch('')}
-                color='primary'
-                size='small'
-              />
-            )}
-            {createdAtFilter && (
-              <Chip
-                label={`Created: ${createdAtFilter.toLocaleDateString()}`}
-                onDelete={() => setCreatedAtFilter(null)}
-                color='primary'
-                size='small'
-              />
-            )}
-          </Box>
-          <Grid container spacing={2} alignItems='center'>
-            <Grid item xs={12} sm={6} md={3}>
-              <Button
-                onClick={() => {
-                  setExecutorFilter('');
-                  setinitiatorFilter('');
-                  setStatusFilter('');
-                  setTaskSearch('');
-                  setCreatedAtFilter(null);
-                }}
-              >
-                Delete All
-              </Button>
+    <LocalizationProvider dateAdapter={AdapterDateFns}>
+      <Box
+        sx={{
+          width: '100%',
+        }}
+      >
+        {/* Блок "Active filters" */}
+        {activeFiltersCount > 0 && (
+          <Box sx={{ padding: 2, marginBottom: 2 }}>
+            <Typography variant='subtitle1' sx={{ mb: 1 }}>
+              Active filters
+            </Typography>
+            <Box sx={{ display: 'flex', gap: 1, flexWrap: 'wrap', mb: 2 }}>
+              {executorFilter && (
+                <Chip
+                  label={`Executor: ${executorFilter}`}
+                  onDelete={() => setExecutorFilter('')}
+                  color='primary'
+                  size='small'
+                />
+              )}
+              {initiatorFilter && (
+                <Chip
+                  label={`Initiator: ${initiatorFilter}`}
+                  onDelete={() => setInitiatorFilter('')}
+                  color='primary'
+                  size='small'
+                />
+              )}
+              {statusFilter && (
+                <Chip
+                  label={`Status: ${statusFilter}`}
+                  onDelete={() => setStatusFilter('')}
+                  color='primary'
+                  size='small'
+                />
+              )}
+              {taskSearch && (
+                <Chip
+                  label={`Task: ${taskSearch}`}
+                  onDelete={() => setTaskSearch('')}
+                  color='primary'
+                  size='small'
+                />
+              )}
+              {createdDateRange[0] && createdDateRange[1] && (
+                <Chip
+                  label={`Created: ${createdDateRange[0].toLocaleDateString()} - ${createdDateRange[1].toLocaleDateString()}`}
+                  onDelete={() => setCreatedDateRange([null, null])}
+                  color='primary'
+                  size='small'
+                />
+              )}
+            </Box>
+            <Grid container spacing={2} alignItems='center'>
+              <Grid item xs={12} sm={6} md={3}>
+                <Button
+                  onClick={() => {
+                    setExecutorFilter('');
+                    setInitiatorFilter('');
+                    setStatusFilter('');
+                    setTaskSearch('');
+                    setCreatedDateRange([null, null]);
+                  }}
+                >
+                  Delete All
+                </Button>
+              </Grid>
             </Grid>
-          </Grid>
-        </Box>
-      )}
+          </Box>
+        )}
 
-      {/* Таблица */}
-      <TableContainer component={Box}>
-        <Table aria-label='collapsible table'>
-          <TableHead>
-            <TableRow>
-              {/* 1) Пустая ячейка (стрелка) */}
-              <TableCell />
+        {/* Таблица */}
+        <TableContainer component={Box}>
+          <Table aria-label='collapsible table'>
+            <TableHead>
+              <TableRow>
+                {/* 1) Пустая ячейка (стрелка) */}
+                <TableCell />
 
-              {/* 2) Task */}
-              <TableCell
-                align='left'
-                sx={{
-                  fontSize: '14px',
-                  fontWeight: 'bold',
-                  textTransform: 'uppercase',
-                  whiteSpace: 'nowrap',
-                  padding: '16px',
-                }}
-              >
-                Report
-                <Tooltip title='Report Find'>
-                  <IconButton
-                    size='small'
-                    onClick={(event) => handleFilterClick(event, 'task')}
-                    color={taskSearch ? 'primary' : 'default'}
-                    aria-label='Report filter'
-                    aria-controls={
-                      openPopover && currentFilter === 'task'
-                        ? 'filter-popover'
-                        : undefined
-                    }
-                    aria-haspopup='true'
-                    sx={{ mr: 1 }}
-                  >
-                    <SearchIcon fontSize='medium' />
-                  </IconButton>
-                </Tooltip>
-              </TableCell>
-
-              {/* Если initiator → столбец executor */}
-              {role === 'initiator' && (
+                {/* 2) Task */}
                 <TableCell
                   align='center'
                   sx={{
-                    fontSize: '14px',
-                    fontWeight: 'bold',
-                    textTransform: 'uppercase',
                     whiteSpace: 'nowrap',
                     padding: '16px',
                   }}
                 >
-                  Executor
-                  <Tooltip title='Executor filter'>
+                  <strong>Report</strong>
+                  <Tooltip title='Report Find'>
                     <IconButton
                       size='small'
-                      onClick={(event) => handleFilterClick(event, 'executor')}
-                      color={executorFilter ? 'primary' : 'default'}
-                      aria-label='Executor filter'
+                      onClick={(event) => handleFilterClick(event, 'task')}
+                      color={taskSearch ? 'primary' : 'default'}
+                      aria-label='Report filter'
                       aria-controls={
-                        openPopover && currentFilter === 'executor'
+                        openPopover && currentFilter === 'task'
                           ? 'filter-popover'
                           : undefined
                       }
                       aria-haspopup='true'
+                      sx={{ mr: 1 }}
                     >
-                      <FilterListIcon fontSize='small' />
+                      <SearchIcon fontSize='medium' />
                     </IconButton>
                   </Tooltip>
                 </TableCell>
-              )}
 
-              {/* Если executor → столбец initiator */}
-              {role === 'executor' && (
-                <TableCell
-                  align='center'
-                  sx={{
-                    fontSize: '14px',
-                    fontWeight: 'bold',
-                    textTransform: 'uppercase',
-                    whiteSpace: 'nowrap',
-                    padding: '16px',
-                  }}
-                >
-                  initiator
-                  {/* Иконка для фильтра initiator */}
-                  <Tooltip title='initiator filter'>
-                    <IconButton
-                      size='small'
-                      onClick={(event) => handleFilterClick(event, 'initiator')}
-                      color={initiatorFilter ? 'primary' : 'default'}
-                      aria-label='initiator filter'
-                      aria-controls={
-                        openPopover && currentFilter === 'initiator'
-                          ? 'filter-popover'
-                          : undefined
-                      }
-                      aria-haspopup='true'
-                    >
-                      <FilterListIcon fontSize='small' />
-                    </IconButton>
-                  </Tooltip>
-                </TableCell>
-              )}
-
-              {/* Если admin → столбцы executor + initiator */}
-              {role === 'admin' && (
-                <>
+                {/* Если initiator → столбец executor */}
+                {role === 'initiator' && (
                   <TableCell
                     align='center'
                     sx={{
-                      fontSize: '14px',
-                      fontWeight: 'bold',
-                      textTransform: 'uppercase',
                       whiteSpace: 'nowrap',
                       padding: '16px',
                     }}
                   >
-                    Executor
+                    <strong>Executor</strong>
                     <Tooltip title='Executor filter'>
                       <IconButton
                         size='small'
@@ -711,17 +643,19 @@ export default function ReportListPage() {
                       </IconButton>
                     </Tooltip>
                   </TableCell>
+                )}
+
+                {/* Если executor → столбец initiator */}
+                {role === 'executor' && (
                   <TableCell
                     align='center'
                     sx={{
-                      fontSize: '14px',
-                      fontWeight: 'bold',
-                      textTransform: 'uppercase',
                       whiteSpace: 'nowrap',
                       padding: '16px',
                     }}
                   >
-                    initiator
+                    <strong>Initiator</strong>
+                    {/* Иконка для фильтра initiator */}
                     <Tooltip title='initiator filter'>
                       <IconButton
                         size='small'
@@ -741,256 +675,304 @@ export default function ReportListPage() {
                       </IconButton>
                     </Tooltip>
                   </TableCell>
-                </>
-              )}
+                )}
 
-              {/* Created */}
-              <TableCell
-                align='center'
-                sx={{
-                  fontSize: '14px',
-                  fontWeight: 'bold',
-                  textTransform: 'uppercase',
-                  whiteSpace: 'nowrap',
-                  padding: '16px',
-                }}
-              >
-                Created
-                <Tooltip title='Filter by creation date'>
-                  <IconButton
-                    size='small'
-                    onClick={(event) => handleFilterClick(event, 'createdAt')}
-                    color={createdAtFilter ? 'primary' : 'default'}
-                    aria-label='Filter by creation date'
-                    aria-controls={
-                      openPopover && currentFilter === 'createdAt'
-                        ? 'filter-popover'
-                        : undefined
-                    }
-                    aria-haspopup='true'
-                  >
-                    <FilterListIcon fontSize='small' />
-                  </IconButton>
-                </Tooltip>
-              </TableCell>
+                {/* Если admin → столбцы executor + initiator */}
+                {role === 'admin' && (
+                  <>
+                    <TableCell
+                      align='center'
+                      sx={{
+                        whiteSpace: 'nowrap',
+                        padding: '16px',
+                      }}
+                    >
+                      <strong>Executor</strong>
+                      <Tooltip title='Executor filter'>
+                        <IconButton
+                          size='small'
+                          onClick={(event) =>
+                            handleFilterClick(event, 'executor')
+                          }
+                          color={executorFilter ? 'primary' : 'default'}
+                          aria-label='Executor filter'
+                          aria-controls={
+                            openPopover && currentFilter === 'executor'
+                              ? 'filter-popover'
+                              : undefined
+                          }
+                          aria-haspopup='true'
+                        >
+                          <FilterListIcon fontSize='small' />
+                        </IconButton>
+                      </Tooltip>
+                    </TableCell>
+                    <TableCell
+                      align='center'
+                      sx={{
+                        whiteSpace: 'nowrap',
+                        padding: '16px',
+                      }}
+                    >
+                      <strong>Initiator</strong>
+                      <Tooltip title='initiator filter'>
+                        <IconButton
+                          size='small'
+                          onClick={(event) =>
+                            handleFilterClick(event, 'initiator')
+                          }
+                          color={initiatorFilter ? 'primary' : 'default'}
+                          aria-label='initiator filter'
+                          aria-controls={
+                            openPopover && currentFilter === 'initiator'
+                              ? 'filter-popover'
+                              : undefined
+                          }
+                          aria-haspopup='true'
+                        >
+                          <FilterListIcon fontSize='small' />
+                        </IconButton>
+                      </Tooltip>
+                    </TableCell>
+                  </>
+                )}
 
-              {/* Status */}
-              <TableCell
-                align='center'
-                sx={{
-                  fontSize: '14px',
-                  fontWeight: 'bold',
-                  textTransform: 'uppercase',
-                  whiteSpace: 'nowrap',
-                  padding: '16px',
-                }}
-              >
-                Status
-                <Tooltip title='Filter by Status'>
-                  <IconButton
-                    size='small'
-                    onClick={(event) => handleFilterClick(event, 'status')}
-                    color={statusFilter ? 'primary' : 'default'}
-                    aria-label='Filter by Status'
-                    aria-controls={
-                      openPopover && currentFilter === 'status'
-                        ? 'filter-popover'
-                        : undefined
-                    }
-                    aria-haspopup='true'
-                  >
-                    <FilterListIcon fontSize='small' />
-                  </IconButton>
-                </Tooltip>
-              </TableCell>
-            </TableRow>
-          </TableHead>
+                {/* Created */}
+                <TableCell
+                  align='center'
+                  sx={{
+                    whiteSpace: 'nowrap',
+                    padding: '16px',
+                  }}
+                >
+                  <strong>Created</strong>
+                  <Tooltip title='Filter by creation date'>
+                    <IconButton
+                      size='small'
+                      onClick={(event) => handleFilterClick(event, 'createdAt')}
+                      color={
+                        createdDateRange[0] || createdDateRange[1]
+                          ? 'primary'
+                          : 'default'
+                      }
+                      aria-label='Filter by creation date'
+                      aria-controls={
+                        openPopover && currentFilter === 'createdAt'
+                          ? 'filter-popover'
+                          : undefined
+                      }
+                      aria-haspopup='true'
+                    >
+                      <FilterListIcon fontSize='small' />
+                    </IconButton>
+                  </Tooltip>
+                </TableCell>
 
-          <TableBody>
-            {filteredReports.length > 0 ? (
-              filteredReports.map((report: ReportClient) => (
-                <Row key={report._id} report={report} role={role} />
-              ))
-            ) : (
-              <TableRow>
-                <TableCell colSpan={getColSpanByRole(role)} align='center'>
-                  There are no reports that meet the specified conditions.
+                {/* Status */}
+                <TableCell
+                  align='center'
+                  sx={{
+                    whiteSpace: 'nowrap',
+                    padding: '16px',
+                  }}
+                >
+                  <strong>Status</strong>
+                  <Tooltip title='Filter by Status'>
+                    <IconButton
+                      size='small'
+                      onClick={(event) => handleFilterClick(event, 'status')}
+                      color={statusFilter ? 'primary' : 'default'}
+                      aria-label='Filter by Status'
+                      aria-controls={
+                        openPopover && currentFilter === 'status'
+                          ? 'filter-popover'
+                          : undefined
+                      }
+                      aria-haspopup='true'
+                    >
+                      <FilterListIcon fontSize='small' />
+                    </IconButton>
+                  </Tooltip>
                 </TableCell>
               </TableRow>
-            )}
-          </TableBody>
-        </Table>
-      </TableContainer>
+            </TableHead>
 
-      {/* Popover для фильтров */}
-      <Popover
-        id={popoverId}
-        open={openPopover}
-        anchorEl={anchorEl}
-        onClose={handleClose}
-        anchorOrigin={{
-          vertical: 'bottom',
-          horizontal: 'left',
-        }}
-      >
-        <Box sx={{ p: 1.5, minWidth: 200, boxShadow: 3, borderRadius: 1 }}>
-          {currentFilter === 'task' && (
-            <TextField
-              label='Search by Tasks'
-              variant='outlined'
-              size='small'
-              value={taskSearch}
-              onChange={(e) => setTaskSearch(e.target.value)}
-              fullWidth
-              autoFocus
-              sx={{
-                '& .MuiInputLabel-root': { fontSize: '0.75rem' },
-                '& .MuiInputBase-input': { fontSize: '0.75rem' },
-              }}
-            />
-          )}
+            <TableBody>
+              {filteredReports.length > 0 ? (
+                filteredReports.map((report: ReportClient) => (
+                  <Row key={report._id} report={report} role={role} />
+                ))
+              ) : (
+                <TableRow>
+                  <TableCell colSpan={getColSpanByRole(role)} align='center'>
+                    There are no reports that meet the specified conditions.
+                  </TableCell>
+                </TableRow>
+              )}
+            </TableBody>
+          </Table>
+        </TableContainer>
 
-          {currentFilter === 'executor' && (
-            <FormControl fullWidth variant='outlined' size='small'>
-              <InputLabel
-                id='executor-filter-label'
-                sx={{ fontSize: '0.75rem' }}
-              >
-                Executor
-              </InputLabel>
-              <Select
-                labelId='executor-filter-label'
-                value={executorFilter}
-                label='Executor'
-                onChange={(e) => setExecutorFilter(e.target.value)}
+        {/* Popover для фильтров */}
+        <Popover
+          id={popoverId}
+          open={openPopover}
+          anchorEl={anchorEl}
+          onClose={handleClose}
+          anchorOrigin={{
+            vertical: 'bottom',
+            horizontal: 'left',
+          }}
+        >
+          <Box sx={{ p: 1.5, minWidth: 200, boxShadow: 3, borderRadius: 1 }}>
+            {currentFilter === 'task' && (
+              <TextField
+                label='Search by Tasks'
+                variant='outlined'
+                size='small'
+                value={taskSearch}
+                onChange={(e) => setTaskSearch(e.target.value)}
+                fullWidth
                 autoFocus
                 sx={{
-                  '& .MuiSelect-select': { fontSize: '0.75rem' },
                   '& .MuiInputLabel-root': { fontSize: '0.75rem' },
-                }}
-              >
-                <MenuItem value=''>
-                  <em>All</em>
-                </MenuItem>
-                {uniqueExecutors.map((executor) => (
-                  <MenuItem key={executor} value={executor}>
-                    {executor}
-                  </MenuItem>
-                ))}
-              </Select>
-            </FormControl>
-          )}
-
-          {currentFilter === 'initiator' && (
-            <FormControl fullWidth variant='outlined' size='small'>
-              <InputLabel
-                id='initiator-filter-label'
-                sx={{ fontSize: '0.75rem' }}
-              >
-                initiator
-              </InputLabel>
-              <Select
-                labelId='initiator-filter-label'
-                value={initiatorFilter}
-                label='initiator'
-                onChange={(e) => setinitiatorFilter(e.target.value)}
-                autoFocus
-                sx={{
-                  '& .MuiSelect-select': { fontSize: '0.75rem' },
-                  '& .MuiInputLabel-root': { fontSize: '0.75rem' },
-                }}
-              >
-                <MenuItem value=''>
-                  <em>All</em>
-                </MenuItem>
-                {uniqueinitiators.map((rev) => (
-                  <MenuItem key={rev} value={rev}>
-                    {rev}
-                  </MenuItem>
-                ))}
-              </Select>
-            </FormControl>
-          )}
-
-          {currentFilter === 'status' && (
-            <FormControl fullWidth variant='outlined' size='small'>
-              <InputLabel id='status-filter-label' sx={{ fontSize: '0.75rem' }}>
-                Status
-              </InputLabel>
-              <Select
-                labelId='status-filter-label'
-                value={statusFilter}
-                label='Status'
-                onChange={(e) => setStatusFilter(e.target.value)}
-                autoFocus
-                sx={{
-                  '& .MuiSelect-select': { fontSize: '0.75rem' },
-                  '& .MuiInputLabel-root': { fontSize: '0.75rem' },
-                }}
-              >
-                <MenuItem value=''>
-                  <em>All</em>
-                </MenuItem>
-                {uniqueStatuses.map((status) => (
-                  <MenuItem key={status} value={status}>
-                    {status}
-                  </MenuItem>
-                ))}
-              </Select>
-            </FormControl>
-          )}
-
-          {currentFilter === 'createdAt' && (
-            <LocalizationProvider dateAdapter={AdapterDateFns}>
-              <DatePicker
-                label='Created'
-                value={createdAtFilter}
-                onChange={(newValue: Date | null) =>
-                  setCreatedAtFilter(newValue)
-                }
-                slots={{ textField: TextField }}
-                slotProps={{
-                  textField: {
-                    size: 'small',
-                    fullWidth: true,
-                    autoFocus: true,
-                    sx: {
-                      '& .MuiInputLabel-root': { fontSize: '0.9rem' },
-                      '& .MuiInputBase-input': { fontSize: '0.9rem' },
-                    },
-                  },
+                  '& .MuiInputBase-input': { fontSize: '0.75rem' },
                 }}
               />
-            </LocalizationProvider>
-          )}
+            )}
 
-          {/* Кнопки "Close" и "Delete" (сброс) */}
-          <Box sx={{ mt: 1, display: 'flex', justifyContent: 'space-between' }}>
-            <Button
-              variant='contained'
-              size='small'
-              onClick={handleClose}
-              sx={{ fontSize: '0.8rem' }}
+            {currentFilter === 'executor' && (
+              <FormControl fullWidth variant='outlined' size='small'>
+                <InputLabel
+                  id='executor-filter-label'
+                  sx={{ fontSize: '0.75rem' }}
+                >
+                  Executor
+                </InputLabel>
+                <Select
+                  labelId='executor-filter-label'
+                  value={executorFilter}
+                  label='Executor'
+                  onChange={(e) => setExecutorFilter(e.target.value)}
+                  autoFocus
+                  sx={{
+                    '& .MuiSelect-select': { fontSize: '0.75rem' },
+                    '& .MuiInputLabel-root': { fontSize: '0.75rem' },
+                  }}
+                >
+                  <MenuItem value=''>
+                    <em>All</em>
+                  </MenuItem>
+                  {uniqueExecutors.map((executor) => (
+                    <MenuItem key={executor} value={executor}>
+                      {executor}
+                    </MenuItem>
+                  ))}
+                </Select>
+              </FormControl>
+            )}
+
+            {currentFilter === 'initiator' && (
+              <FormControl fullWidth variant='outlined' size='small'>
+                <InputLabel
+                  id='initiator-filter-label'
+                  sx={{ fontSize: '0.75rem' }}
+                >
+                  Initiator
+                </InputLabel>
+                <Select
+                  labelId='initiator-filter-label'
+                  value={initiatorFilter}
+                  label='Initiator'
+                  onChange={(e) => setInitiatorFilter(e.target.value)}
+                  autoFocus
+                  sx={{
+                    '& .MuiSelect-select': { fontSize: '0.75rem' },
+                    '& .MuiInputLabel-root': { fontSize: '0.75rem' },
+                  }}
+                >
+                  <MenuItem value=''>
+                    <em>All</em>
+                  </MenuItem>
+                  {uniqueInitiators.map((initiator) => (
+                    <MenuItem key={initiator} value={initiator}>
+                      {initiator}
+                    </MenuItem>
+                  ))}
+                </Select>
+              </FormControl>
+            )}
+
+            {currentFilter === 'status' && (
+              <FormControl fullWidth variant='outlined' size='small'>
+                <InputLabel
+                  id='status-filter-label'
+                  sx={{ fontSize: '0.75rem' }}
+                >
+                  Status
+                </InputLabel>
+                <Select
+                  labelId='status-filter-label'
+                  value={statusFilter}
+                  label='Status'
+                  onChange={(e) => setStatusFilter(e.target.value)}
+                  autoFocus
+                  sx={{
+                    '& .MuiSelect-select': { fontSize: '0.75rem' },
+                    '& .MuiInputLabel-root': { fontSize: '0.75rem' },
+                  }}
+                >
+                  <MenuItem value=''>
+                    <em>All</em>
+                  </MenuItem>
+                  {uniqueStatuses.map((status) => (
+                    <MenuItem key={status} value={status}>
+                      {status}
+                    </MenuItem>
+                  ))}
+                </Select>
+              </FormControl>
+            )}
+
+            {currentFilter === 'createdAt' && (
+              <DateRangePicker
+                value={createdDateRange}
+                onChange={(newValue) => setCreatedDateRange(newValue)}
+                slots={{ field: SingleInputDateRangeField }}
+              />
+            )}
+
+            {/* Кнопки "Close" и "Delete" (сброс) */}
+            <Box
+              sx={{ mt: 1, display: 'flex', justifyContent: 'space-between' }}
             >
-              Close
-            </Button>
-            <Button
-              variant='text'
-              size='small'
-              onClick={() => {
-                if (currentFilter === 'task') setTaskSearch('');
-                if (currentFilter === 'executor') setExecutorFilter('');
-                if (currentFilter === 'initiator') setinitiatorFilter('');
-                if (currentFilter === 'status') setStatusFilter('');
-                if (currentFilter === 'createdAt') setCreatedAtFilter(null);
-              }}
-              sx={{ fontSize: '0.8rem' }}
-            >
-              Delete
-            </Button>
+              <Button
+                variant='contained'
+                size='small'
+                onClick={handleClose}
+                sx={{ fontSize: '0.8rem' }}
+              >
+                Close
+              </Button>
+              <Button
+                variant='text'
+                size='small'
+                onClick={() => {
+                  if (currentFilter === 'task') setTaskSearch('');
+                  if (currentFilter === 'executor') setExecutorFilter('');
+                  if (currentFilter === 'initiator') setInitiatorFilter('');
+                  if (currentFilter === 'status') setStatusFilter('');
+                  if (currentFilter === 'createdAt')
+                    setCreatedDateRange([null, null]);
+                }}
+                sx={{ fontSize: '0.8rem' }}
+              >
+                Delete
+              </Button>
+            </Box>
           </Box>
-        </Box>
-      </Popover>
-    </Box>
+        </Popover>
+      </Box>
+    </LocalizationProvider>
   );
 }

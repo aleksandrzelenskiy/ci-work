@@ -267,7 +267,7 @@ export default function TaskDetailPage() {
 
         <Grid item xs={12}>
           <Paper>
-            <Box sx={{ mb: 2 }}>
+            <Box>
               <Button
                 onClick={toggleWorkItems}
                 endIcon={

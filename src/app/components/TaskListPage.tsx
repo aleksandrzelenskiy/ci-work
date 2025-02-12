@@ -27,6 +27,9 @@ import {
   Link,
   Chip,
 } from '@mui/material';
+import { DateRangePicker } from '@mui/x-date-pickers-pro/DateRangePicker';
+import { SingleInputDateRangeField } from '@mui/x-date-pickers-pro/SingleInputDateRangeField';
+import { DateRange } from '@mui/x-date-pickers-pro/models';
 import {
   KeyboardDoubleArrowUp as KeyboardDoubleArrowUpIcon,
   KeyboardArrowUp as KeyboardArrowUpIcon,
@@ -40,7 +43,6 @@ import KeyboardArrowDownIcon from '@mui/icons-material/KeyboardArrowDown';
 import { LocalizationProvider } from '@mui/x-date-pickers/LocalizationProvider';
 import { AdapterDateFns } from '@mui/x-date-pickers/AdapterDateFns';
 import { BsLocation, Task, WorkItem } from '../types/taskTypes';
-import { DatePicker } from '@mui/x-date-pickers';
 
 const getStatusColor = (status: string) => {
   switch (status) {
@@ -157,25 +159,43 @@ function Row({ task }: { task: Task }) {
             <Box sx={{ marginLeft: 3 }}>
               <Box sx={{ mb: 2, mt: 2 }}>
                 <Typography variant='subtitle1'>BS Number</Typography>
-                <Typography variant='body2' color='text.secondary'>
+                <Typography
+                  variant='body2'
+                  color='text.secondary'
+                  component='div'
+                >
                   {task.bsNumber}
                 </Typography>
                 <Typography variant='subtitle1'>Address</Typography>
-                <Typography variant='body2' color='text.secondary'>
+                <Typography
+                  variant='body2'
+                  color='text.secondary'
+                  component='div'
+                >
                   {task.bsAddress}
                 </Typography>
                 <Typography variant='subtitle1'>Location</Typography>
-                <Typography variant='body2' color='text.secondary'>
+                <Typography
+                  variant='body2'
+                  color='text.secondary'
+                  component='div'
+                >
                   {task.bsLocation.map((item: BsLocation) => (
                     <Box key={item.coordinates}>
-                      <Typography variant='body2' color='text.secondary'>
+                      <Typography
+                        variant='body2'
+                        color='text.secondary'
+                        component='div'
+                      >
                         {item.name} {item.coordinates}
                       </Typography>
                     </Box>
                   ))}
                 </Typography>
                 <Typography variant='subtitle1'>Cost</Typography>
-                <Typography variant='body2'>{task.totalCost}</Typography>
+                <Typography variant='body2' component='div'>
+                  {task.totalCost}
+                </Typography>
               </Box>
               <Typography variant='h6' gutterBottom>
                 Work Items
@@ -235,18 +255,16 @@ export default function TaskListPage() {
   const [executorFilter, setExecutorFilter] = useState('');
   const [statusFilter, setStatusFilter] = useState('');
   const [priorityFilter, setPriorityFilter] = useState('');
-  const [createdAtFilter, setCreatedAtFilter] = useState<Date | null>(null);
-  const [dueDateFilter, setDueDateFilter] = useState<Date | null>(null);
+  const [createdDateRange, setCreatedDateRange] = useState<DateRange<Date>>([
+    null,
+    null,
+  ]);
+  const [dueDateRange, setDueDateRange] = useState<DateRange<Date>>([
+    null,
+    null,
+  ]);
   const [bsSearch, setBsSearch] = useState('');
   //
-  const [createdDateRange, setCreatedDateRange] = useState<{
-    start: Date | null;
-    end: Date | null;
-  }>({ start: null, end: null });
-  const [dueDateRange, setDueDateRange] = useState<{
-    start: Date | null;
-    end: Date | null;
-  }>({ start: null, end: null });
 
   // Popover
   const [anchorEl, setAnchorEl] = useState<HTMLElement | null>(null);
@@ -260,8 +278,8 @@ export default function TaskListPage() {
         executorFilter,
         statusFilter,
         priorityFilter,
-        createdAtFilter,
-        dueDateFilter,
+        createdDateRange[0] || createdDateRange[1] ? createdDateRange : null,
+        dueDateRange[0] || dueDateRange[1] ? dueDateRange : null,
         bsSearch,
       ].filter(Boolean).length,
     [
@@ -270,8 +288,8 @@ export default function TaskListPage() {
       executorFilter,
       statusFilter,
       priorityFilter,
-      createdAtFilter,
-      dueDateFilter,
+      createdDateRange,
+      dueDateRange,
       bsSearch,
     ]
   );
@@ -333,17 +351,19 @@ export default function TaskListPage() {
       filtered = filtered.filter((t) => t.status === statusFilter);
     if (priorityFilter)
       filtered = filtered.filter((t) => t.priority === priorityFilter);
-    if (createdAtFilter) {
-      const date = new Date(createdAtFilter).setHours(0, 0, 0, 0);
-      filtered = filtered.filter(
-        (t) => new Date(t.createdAt).setHours(0, 0, 0, 0) === date
-      );
+    if (createdDateRange[0] && createdDateRange[1]) {
+      filtered = filtered.filter((t) => {
+        const taskDate = new Date(t.createdAt);
+        return (
+          taskDate >= createdDateRange[0]! && taskDate <= createdDateRange[1]!
+        );
+      });
     }
-    if (dueDateFilter) {
-      const date = new Date(dueDateFilter).setHours(0, 0, 0, 0);
-      filtered = filtered.filter(
-        (t) => new Date(t.dueDate).setHours(0, 0, 0, 0) === date
-      );
+    if (dueDateRange[0] && dueDateRange[1]) {
+      filtered = filtered.filter((t) => {
+        const taskDate = new Date(t.dueDate);
+        return taskDate >= dueDateRange[0]! && taskDate <= dueDateRange[1]!;
+      });
     }
     if (bsSearch)
       filtered = filtered.filter((t) =>
@@ -353,13 +373,13 @@ export default function TaskListPage() {
     setFilteredTasks(filtered);
   }, [
     tasks,
+    createdDateRange,
+    dueDateRange,
     authorFilter,
     initiatorFilter,
     executorFilter,
     statusFilter,
     priorityFilter,
-    createdAtFilter,
-    dueDateFilter,
     bsSearch,
   ]);
 
@@ -377,7 +397,18 @@ export default function TaskListPage() {
   };
 
   if (loading)
-    return <CircularProgress sx={{ display: 'block', margin: '20px auto' }} />;
+    return (
+      <Box
+        sx={{
+          display: 'flex',
+          justifyContent: 'center',
+          marginTop: '20px',
+          padding: 5,
+        }}
+      >
+        <CircularProgress />
+      </Box>
+    );
   if (error)
     return (
       <Typography color='error' align='center' sx={{ mt: 2 }}>
@@ -390,7 +421,9 @@ export default function TaskListPage() {
       <Box sx={{ width: '100%', margin: '0 auto' }}>
         {activeFiltersCount > 0 && (
           <Box sx={{ p: 2, mb: 2 }}>
-            <Typography variant='subtitle1'>Active filters</Typography>
+            <Typography variant='subtitle1'>
+              Active filters {activeFiltersCount}
+            </Typography>
             <Box sx={{ display: 'flex', gap: 1, flexWrap: 'wrap', my: 1 }}>
               {[
                 {
@@ -419,16 +452,6 @@ export default function TaskListPage() {
                   reset: () => setPriorityFilter(''),
                 },
                 {
-                  label: 'Created',
-                  value: createdAtFilter,
-                  reset: () => setCreatedAtFilter(null),
-                },
-                {
-                  label: 'Due Date',
-                  value: dueDateFilter,
-                  reset: () => setDueDateFilter(null),
-                },
-                {
                   label: 'BS Number',
                   value: bsSearch,
                   reset: () => setBsSearch(''),
@@ -439,8 +462,8 @@ export default function TaskListPage() {
                     <Chip
                       key={label}
                       label={`${label}: ${
-                        value instanceof Date
-                          ? value.toLocaleDateString()
+                        typeof value === 'string' && !isNaN(Date.parse(value))
+                          ? new Date(value).toLocaleDateString()
                           : value
                       }`}
                       onDelete={reset}
@@ -448,6 +471,24 @@ export default function TaskListPage() {
                       size='small'
                     />
                   )
+              )}
+              {createdDateRange[0] && createdDateRange[1] && (
+                <Chip
+                  key='created-range'
+                  label={`Created: ${createdDateRange[0].toLocaleDateString()} - ${createdDateRange[1].toLocaleDateString()}`}
+                  onDelete={() => setCreatedDateRange([null, null])}
+                  color='primary'
+                  size='small'
+                />
+              )}
+              {dueDateRange[0] && dueDateRange[1] && (
+                <Chip
+                  key='due-range'
+                  label={`Due Date: ${dueDateRange[0].toLocaleDateString()} - ${dueDateRange[1].toLocaleDateString()}`}
+                  onDelete={() => setDueDateRange([null, null])}
+                  color='primary'
+                  size='small'
+                />
               )}
             </Box>
             <Button
@@ -457,8 +498,8 @@ export default function TaskListPage() {
                 setExecutorFilter('');
                 setStatusFilter('');
                 setPriorityFilter('');
-                setCreatedAtFilter(null);
-                setDueDateFilter(null);
+                setCreatedDateRange([null, null]);
+                setDueDateRange([null, null]);
                 setBsSearch('');
               }}
             >
@@ -474,135 +515,142 @@ export default function TaskListPage() {
                 <TableCell />
                 <TableCell
                   sx={{
-                    fontSize: '14px',
-                    fontWeight: 'bold',
-                    textTransform: 'uppercase',
                     whiteSpace: 'nowrap',
                     padding: '16px',
                   }}
                 >
-                  Task
+                  <strong>Task</strong>
                   <Tooltip title='Search BS Number'>
-                    <IconButton onClick={(e) => handleFilterClick(e, 'bs')}>
+                    <IconButton
+                      onClick={(e) => handleFilterClick(e, 'bs')}
+                      color={bsSearch ? 'primary' : 'default'}
+                    >
                       <SearchIcon />
                     </IconButton>
                   </Tooltip>
                 </TableCell>
+
                 <TableCell
                   sx={{
-                    fontSize: '14px',
-                    fontWeight: 'bold',
-                    textTransform: 'uppercase',
                     whiteSpace: 'nowrap',
                     padding: '16px',
                   }}
                 >
-                  Author
+                  <strong>Author</strong>
                   <Tooltip title='Filter by Author'>
-                    <IconButton onClick={(e) => handleFilterClick(e, 'author')}>
+                    <IconButton
+                      onClick={(e) => handleFilterClick(e, 'author')}
+                      color={authorFilter ? 'primary' : 'default'}
+                    >
                       <FilterListIcon />
                     </IconButton>
                   </Tooltip>
                 </TableCell>
+
                 <TableCell
                   sx={{
-                    fontSize: '14px',
-                    fontWeight: 'bold',
-                    textTransform: 'uppercase',
                     whiteSpace: 'nowrap',
                     padding: '16px',
                   }}
                 >
-                  Initiator
+                  <strong>Initiator</strong>
                   <Tooltip title='Filter by Initiator'>
                     <IconButton
                       onClick={(e) => handleFilterClick(e, 'initiator')}
+                      color={initiatorFilter ? 'primary' : 'default'}
                     >
                       <FilterListIcon />
                     </IconButton>
                   </Tooltip>
                 </TableCell>
+
                 <TableCell
                   sx={{
-                    fontSize: '14px',
-                    fontWeight: 'bold',
-                    textTransform: 'uppercase',
                     whiteSpace: 'nowrap',
                     padding: '16px',
                   }}
                 >
-                  Executor
+                  <strong>Executor</strong>
                   <Tooltip title='Filter by Executor'>
                     <IconButton
                       onClick={(e) => handleFilterClick(e, 'executor')}
+                      color={executorFilter ? 'primary' : 'default'}
                     >
                       <FilterListIcon />
                     </IconButton>
                   </Tooltip>
                 </TableCell>
+
                 <TableCell
                   sx={{
-                    fontSize: '14px',
-                    fontWeight: 'bold',
-                    textTransform: 'uppercase',
                     whiteSpace: 'nowrap',
                     padding: '16px',
                   }}
                 >
-                  Created
+                  <strong>Created</strong>
                   <Tooltip title='Filter by Creation Date'>
                     <IconButton
                       onClick={(e) => handleFilterClick(e, 'created')}
+                      color={
+                        createdDateRange[0] || createdDateRange[1]
+                          ? 'primary'
+                          : 'default'
+                      }
                     >
                       <FilterListIcon />
                     </IconButton>
                   </Tooltip>
                 </TableCell>
+
                 <TableCell
                   sx={{
-                    fontSize: '14px',
-                    fontWeight: 'bold',
-                    textTransform: 'uppercase',
                     whiteSpace: 'nowrap',
                     padding: '16px',
                   }}
                 >
-                  Due Date
+                  <strong>Due Date</strong>
                   <Tooltip title='Filter by Due Date'>
-                    <IconButton onClick={(e) => handleFilterClick(e, 'due')}>
+                    <IconButton
+                      onClick={(e) => handleFilterClick(e, 'due')}
+                      color={
+                        dueDateRange[0] || dueDateRange[1]
+                          ? 'primary'
+                          : 'default'
+                      }
+                    >
                       <FilterListIcon />
                     </IconButton>
                   </Tooltip>
                 </TableCell>
+
                 <TableCell
                   sx={{
-                    fontSize: '14px',
-                    fontWeight: 'bold',
-                    textTransform: 'uppercase',
                     whiteSpace: 'nowrap',
                     padding: '16px',
                   }}
                 >
-                  Status
+                  <strong>Status</strong>
                   <Tooltip title='Filter by Status'>
-                    <IconButton onClick={(e) => handleFilterClick(e, 'status')}>
+                    <IconButton
+                      onClick={(e) => handleFilterClick(e, 'status')}
+                      color={statusFilter ? 'primary' : 'default'}
+                    >
                       <FilterListIcon />
                     </IconButton>
                   </Tooltip>
                 </TableCell>
+
                 <TableCell
                   sx={{
-                    fontSize: '14px',
-                    fontWeight: 'bold',
-                    textTransform: 'uppercase',
                     whiteSpace: 'nowrap',
                     padding: '16px',
                   }}
                 >
-                  Priority
+                  <strong>Priority</strong>
                   <Tooltip title='Filter by Priority'>
                     <IconButton
                       onClick={(e) => handleFilterClick(e, 'priority')}
+                      color={priorityFilter ? 'primary' : 'default'}
                     >
                       <FilterListIcon />
                     </IconButton>
@@ -694,48 +742,19 @@ export default function TaskListPage() {
             )}
 
             {currentFilter === 'created' && (
-              <Box sx={{ display: 'flex', gap: 2, mb: 2 }}>
-                <DatePicker
-                  label='Начало'
-                  value={createdDateRange.start}
-                  onChange={(newValue) =>
-                    setCreatedDateRange((prev) => ({
-                      ...prev,
-                      start: newValue,
-                    }))
-                  }
-                  slotProps={{ textField: { size: 'small' } }}
-                />
-                <DatePicker
-                  label='Конец'
-                  value={createdDateRange.end}
-                  onChange={(newValue) =>
-                    setCreatedDateRange((prev) => ({ ...prev, end: newValue }))
-                  }
-                  slotProps={{ textField: { size: 'small' } }}
-                />
-              </Box>
+              <DateRangePicker
+                value={createdDateRange}
+                onChange={(newValue) => setCreatedDateRange(newValue)}
+                slots={{ field: SingleInputDateRangeField }}
+              />
             )}
 
             {currentFilter === 'due' && (
-              <Box sx={{ display: 'flex', gap: 2, mb: 2 }}>
-                <DatePicker
-                  label='Начало'
-                  value={dueDateRange.start}
-                  onChange={(newValue) =>
-                    setDueDateRange((prev) => ({ ...prev, start: newValue }))
-                  }
-                  slotProps={{ textField: { size: 'small' } }}
-                />
-                <DatePicker
-                  label='Конец'
-                  value={dueDateRange.end}
-                  onChange={(newValue) =>
-                    setDueDateRange((prev) => ({ ...prev, end: newValue }))
-                  }
-                  slotProps={{ textField: { size: 'small' } }}
-                />
-              </Box>
+              <DateRangePicker
+                value={dueDateRange}
+                onChange={(newValue) => setDueDateRange(newValue)}
+                slots={{ field: SingleInputDateRangeField }}
+              />
             )}
 
             {currentFilter === 'status' && (

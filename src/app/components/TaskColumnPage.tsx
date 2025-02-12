@@ -155,7 +155,7 @@ function DroppableColumn({
     <Box
       ref={ref}
       sx={{
-        width: 300,
+        minWidth: 200,
         minHeight: '60vh',
         bgcolor: isDraggingOver ? 'action.hover' : 'background.paper',
         p: 2,

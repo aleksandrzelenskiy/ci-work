@@ -166,7 +166,7 @@ const DashboardPage: React.FC = async () => {
   }
 
   return (
-    <Box className='md:p-8' sx={{ minHeight: '100vh' }}>
+    <Box sx={{ minHeight: '100vh' }}>
       {/* Приветствие */}
       <Box className='mb-6'>
         <Typography variant='h5' component='h1' align='center'>
