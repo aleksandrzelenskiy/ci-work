@@ -4,15 +4,26 @@ import { NextResponse } from 'next/server';
 import dbConnect from '@/utils/mongoose';
 import TaskModel from '@/app/models/TaskModel';
 
+// Подключение к базе данных
+async function connectToDatabase() {
+  try {
+    await dbConnect();
+    console.log('Connected to MongoDB');
+  } catch (error) {
+    console.error('Failed to connect to MongoDB:', error);
+    throw new Error('Failed to connect to database');
+  }
+}
+
+// GET-запрос для получения задачи по ID
 export async function GET(
   request: Request,
   { params }: { params: { taskid: string } }
 ) {
   try {
-    await dbConnect();
-    console.log('Connected to MongoDB');
-  } catch (error: unknown) {
-    console.error('Failed to connect to MongoDB:', error);
+    await connectToDatabase();
+  } catch (error) {
+    console.error('Connection error:', error);
     return NextResponse.json(
       { error: 'Failed to connect to database' },
       { status: 500 }
@@ -20,20 +31,17 @@ export async function GET(
   }
 
   try {
-    const { taskid } = await params;
-
-    // Ищем задачу по taskid
-    const task = await TaskModel.findOne({
-      taskId: taskid.toLocaleUpperCase(),
-    });
+    const { taskid } = params;
+    const taskIdUpperCase = taskid.toUpperCase();
+    const task = await TaskModel.findOne({ taskId: taskIdUpperCase });
 
     if (!task) {
       return NextResponse.json({ error: 'Task not found' }, { status: 404 });
     }
 
     return NextResponse.json({ task });
-  } catch (error: unknown) {
-    console.error('Error fetching task:', error);
+  } catch (error) {
+    console.error('Fetch error:', error);
     return NextResponse.json(
       { error: 'Failed to fetch task' },
       { status: 500 }
@@ -41,15 +49,15 @@ export async function GET(
   }
 }
 
+// PATCH-запрос для обновления статуса задачи
 export async function PATCH(
   request: Request,
   { params }: { params: { taskid: string } }
 ) {
   try {
-    await dbConnect();
-    console.log('Connected to MongoDB');
-  } catch (error: unknown) {
-    console.error('Failed to connect to MongoDB:', error);
+    await connectToDatabase();
+  } catch (error) {
+    console.error('Connection error:', error);
     return NextResponse.json(
       { error: 'Failed to connect to database' },
       { status: 500 }
@@ -57,22 +65,11 @@ export async function PATCH(
   }
 
   try {
-    // Await the params object to ensure it's resolved
-    const { taskid } = await params;
-
-    if (!taskid) {
-      return NextResponse.json(
-        { error: 'Task ID is required' },
-        { status: 400 }
-      );
-    }
-
-    // Извлекаем статус из тела запроса
+    const { taskid } = params;
+    const taskIdUpperCase = taskid.toUpperCase();
     const { status } = await request.json();
-
-    // Обновляем задачу в базе данных
     const updatedTask = await TaskModel.findOneAndUpdate(
-      { taskId: taskid },
+      { taskId: taskIdUpperCase },
       { status },
       { new: true }
     );
@@ -82,8 +79,8 @@ export async function PATCH(
     }
 
     return NextResponse.json({ task: updatedTask });
-  } catch (error: unknown) {
-    console.error('Error updating task:', error);
+  } catch (error) {
+    console.error('Update error:', error);
     return NextResponse.json(
       { error: 'Failed to update task' },
       { status: 500 }

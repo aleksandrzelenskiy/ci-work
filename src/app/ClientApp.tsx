@@ -128,6 +128,16 @@ export default function ClientApp({ children }: { children: React.ReactNode }) {
           <ListItemText primary='Task Manager' />
         </ListItemButton>
         <ListItemButton
+          onClick={() => handleNavigation('/reports')}
+          sx={{ paddingLeft: 5 }}
+        >
+          <ListItemIcon sx={{ minWidth: 30 }}>
+            <PermMediaIcon sx={{ fontSize: 20 }} />
+          </ListItemIcon>
+          <ListItemText primary='Reports List' />
+        </ListItemButton>
+        <ListItemButton
+          disabled
           onClick={() => handleNavigation('/map')}
           sx={{ paddingLeft: 5 }}
         >
@@ -145,15 +155,7 @@ export default function ClientApp({ children }: { children: React.ReactNode }) {
           </ListItemIcon>
           <ListItemText primary='Upload Report' />
         </ListItemButton>
-        <ListItemButton
-          onClick={() => handleNavigation('/reports')}
-          sx={{ paddingLeft: 5 }}
-        >
-          <ListItemIcon sx={{ minWidth: 30 }}>
-            <PermMediaIcon sx={{ fontSize: 20 }} />
-          </ListItemIcon>
-          <ListItemText primary='Reports List' />
-        </ListItemButton>
+
         <ListItemButton
           onClick={() => handleNavigation('/orders')}
           sx={{ paddingLeft: 5 }}

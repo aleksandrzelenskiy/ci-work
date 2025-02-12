@@ -9,7 +9,6 @@ import {
   Chip,
   Button,
   Grid,
-  Paper,
   Dialog,
   AppBar,
   Toolbar,
@@ -22,17 +21,25 @@ import {
   TableCell,
   TableBody,
   Link,
-  Collapse,
+  // Collapse,
+  Accordion,
+  AccordionSummary,
+  AccordionDetails,
 } from '@mui/material';
 import CloseIcon from '@mui/icons-material/Close';
 import ArrowBackIcon from '@mui/icons-material/ArrowBack';
-
-import { useParams } from 'next/navigation';
-import { Task, WorkItem, BsLocation } from '@/app/types/taskTypes';
-import { YMaps, Map, Placemark } from 'react-yandex-maps';
-import { TransitionProps } from '@mui/material/transitions';
 import ExpandMoreIcon from '@mui/icons-material/ExpandMore';
 import ExpandLessIcon from '@mui/icons-material/ExpandLess';
+
+import { useParams } from 'next/navigation';
+import {
+  Task,
+  WorkItem,
+  BsLocation,
+  CurrentStatus,
+} from '@/app/types/taskTypes';
+import { YMaps, Map, Placemark } from 'react-yandex-maps';
+import { TransitionProps } from '@mui/material/transitions';
 
 const getStatusColor = (status: string) => {
   switch (status) {
@@ -80,6 +87,32 @@ export default function TaskDetailPage() {
     null
   );
   const [workItemsExpanded, setWorkItemsExpanded] = useState(false);
+  const [loadingStatus, setLoadingStatus] = useState(false);
+
+  const updateStatus = async (newStatus: CurrentStatus) => {
+    try {
+      setLoadingStatus(true);
+      const response = await fetch(`/api/tasks/${taskid}`, {
+        method: 'PATCH',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ status: newStatus }),
+      });
+
+      if (!response.ok) {
+        throw new Error('Failed to update status');
+      }
+
+      const { task: updatedTask } = await response.json();
+      setTask(updatedTask);
+    } catch (error) {
+      console.error('Error updating status:', error);
+      setError('Failed to update task status');
+    } finally {
+      setLoadingStatus(false);
+    }
+  };
 
   const handleClose = () => {
     setOpen(false);
@@ -125,7 +158,6 @@ export default function TaskDetailPage() {
         <Typography color='error' gutterBottom>
           Error: {error}
         </Typography>
-        {/* Link to the reports list page */}
         <Box mb={2}>
           <Button
             component={Link}
@@ -145,7 +177,6 @@ export default function TaskDetailPage() {
     return (
       <Box sx={{ p: 3, textAlign: 'center' }}>
         <Typography gutterBottom>Task not found</Typography>
-        {/* Link to the reports list page */}
         <Box mb={2}>
           <Button
             component={Link}
@@ -163,7 +194,6 @@ export default function TaskDetailPage() {
 
   return (
     <Box sx={{ maxWidth: 1200, margin: '0 auto' }}>
-      {/* Link to the reports list page */}
       <Box mb={2}>
         <Button
           component={Link}
@@ -188,97 +218,106 @@ export default function TaskDetailPage() {
           <Chip label={task.status} color={getStatusColor(task.status)} />
         </Typography>
       </Box>
-
+      <Chip label={task.taskId} size='small' color='primary' sx={{ mb: 3 }} />
       <Grid container spacing={3}>
         <Grid item xs={12} md={6} gap={5}>
           <Box sx={{ mb: 3 }}>
-            <Paper sx={{ p: 2 }}>
-              <Typography variant='h6' gutterBottom>
-                Basic Information
-              </Typography>
-              <Typography>
-                <strong>BS:</strong> {task.bsNumber}
-              </Typography>
-              <Typography>
-                <strong>Adress:</strong> {task.bsAddress}
-              </Typography>
-              <Typography>
-                <strong>Total Cost:</strong> {task.totalCost} RUB
-              </Typography>
-              <Typography>
-                <strong>Priority:</strong> {task.priority}
-              </Typography>
-              <Typography>
-                <strong>Created:</strong>{' '}
-                {new Date(task.createdAt).toLocaleDateString()}
-              </Typography>
-              <Typography>
-                <strong>Due Date:</strong>{' '}
-                {new Date(task.dueDate).toLocaleDateString()}
-              </Typography>
-            </Paper>
+            <Accordion defaultExpanded>
+              <AccordionSummary expandIcon={<ExpandMoreIcon />}>
+                <Typography variant='h6'>Basic Information</Typography>
+              </AccordionSummary>
+              <AccordionDetails>
+                <Typography>
+                  <strong>BS:</strong> {task.bsNumber}
+                </Typography>
+                <Typography>
+                  <strong>Adress:</strong> {task.bsAddress}
+                </Typography>
+                <Typography>
+                  <strong>Total Cost:</strong> {task.totalCost} RUB
+                </Typography>
+                <Typography>
+                  <strong>Priority:</strong> {task.priority}
+                </Typography>
+                <Typography>
+                  <strong>Created:</strong>{' '}
+                  {new Date(task.createdAt).toLocaleDateString()}
+                </Typography>
+                <Typography>
+                  <strong>Due Date:</strong>{' '}
+                  {new Date(task.dueDate).toLocaleDateString()}
+                </Typography>
+              </AccordionDetails>
+            </Accordion>
           </Box>
           <Box sx={{ mb: 3 }}>
-            <Paper sx={{ p: 2 }}>
-              <Typography variant='h6' gutterBottom>
-                Locations
-              </Typography>
-              {task.bsLocation.map((location: BsLocation) => (
-                <Box key={uuidv4()} sx={{ mb: 1 }}>
-                  <Typography>
-                    <strong>{location.name}:</strong>
-                  </Typography>
-                  <Link
-                    href={`https://www.google.com/maps?q=${location.coordinates}`}
-                    target='_blank'
-                    rel='noopener'
-                  >
-                    {location.coordinates}
-                  </Link>
-                </Box>
-              ))}
-            </Paper>
+            <Accordion>
+              <AccordionSummary expandIcon={<ExpandMoreIcon />}>
+                <Typography variant='h6'>Locations</Typography>
+              </AccordionSummary>
+              <AccordionDetails>
+                {task.bsLocation.map((location: BsLocation) => (
+                  <Box key={uuidv4()} sx={{ mb: 1 }}>
+                    <Typography>
+                      <strong>{location.name}:</strong>
+                    </Typography>
+                    <Link
+                      href={`https://www.google.com/maps?q=${location.coordinates}`}
+                      target='_blank'
+                      rel='noopener'
+                    >
+                      {location.coordinates}
+                    </Link>
+                  </Box>
+                ))}
+              </AccordionDetails>
+            </Accordion>
           </Box>
         </Grid>
 
         <Grid item xs={12} md={6}>
           <Box sx={{ mb: 3 }}>
-            <Paper sx={{ p: 2 }}>
-              <Typography variant='h6' gutterBottom>
-                Description
-              </Typography>
-              <Typography>{task.taskDescription}</Typography>
-            </Paper>
+            <Accordion>
+              <AccordionSummary expandIcon={<ExpandMoreIcon />}>
+                <Typography variant='h6'>Description</Typography>
+              </AccordionSummary>
+              <AccordionDetails>
+                <Typography>{task.taskDescription}</Typography>
+              </AccordionDetails>
+            </Accordion>
           </Box>
           <Box sx={{ mb: 3 }}>
-            <Paper sx={{ p: 2 }}>
-              <Typography variant='h6' gutterBottom>
-                Participants
-              </Typography>
-              <Typography>
-                <strong>Author:</strong> {parseUserInfo(task.authorName).name}
-              </Typography>
-              <Typography>
-                <strong>Email:</strong> {parseUserInfo(task.authorEmail).name}
-              </Typography>
+            <Accordion>
+              <AccordionSummary expandIcon={<ExpandMoreIcon />}>
+                <Typography variant='h6'>Participants</Typography>
+              </AccordionSummary>
+              <AccordionDetails>
+                <Typography>
+                  <strong>Author:</strong> {parseUserInfo(task.authorName).name}
+                </Typography>
+                <Typography>
+                  <strong>Email:</strong> {parseUserInfo(task.authorEmail).name}
+                </Typography>
 
-              <Typography sx={{ mt: 2 }}>
-                <strong>Initiator:</strong>{' '}
-                {parseUserInfo(task.initiatorName).name}
-              </Typography>
-              <Typography>
-                <strong>Email:</strong>{' '}
-                {parseUserInfo(task.initiatorEmail).name}
-              </Typography>
+                <Typography sx={{ mt: 2 }}>
+                  <strong>Initiator:</strong>{' '}
+                  {parseUserInfo(task.initiatorName).name}
+                </Typography>
+                <Typography>
+                  <strong>Email:</strong>{' '}
+                  {parseUserInfo(task.initiatorEmail).name}
+                </Typography>
 
-              <Typography sx={{ mt: 2 }}>
-                <strong>Executor:</strong>{' '}
-                {parseUserInfo(task.executorName).name}
-              </Typography>
-              <Typography>
-                <strong>Email:</strong> {parseUserInfo(task.executorEmail).name}
-              </Typography>
-            </Paper>
+                <Typography sx={{ mt: 2 }}>
+                  <strong>Executor:</strong>{' '}
+                  {parseUserInfo(task.executorName).name}
+                </Typography>
+                <Typography>
+                  <strong>Email:</strong>{' '}
+                  {parseUserInfo(task.executorEmail).name}
+                </Typography>
+              </AccordionDetails>
+            </Accordion>
           </Box>
 
           <Box sx={{ mb: 3 }}>
@@ -290,19 +329,16 @@ export default function TaskDetailPage() {
         </Grid>
 
         <Grid item xs={12}>
-          <Paper>
-            <Box>
-              <Button
-                onClick={toggleWorkItems}
-                size='large'
-                endIcon={
-                  workItemsExpanded ? <ExpandLessIcon /> : <ExpandMoreIcon />
-                }
-              >
-                Work Items
-              </Button>
-            </Box>
-            <Collapse in={workItemsExpanded}>
+          <Accordion>
+            <AccordionSummary
+              expandIcon={
+                workItemsExpanded ? <ExpandLessIcon /> : <ExpandMoreIcon />
+              }
+              onClick={toggleWorkItems}
+            >
+              <Typography variant='h6'>Work Items</Typography>
+            </AccordionSummary>
+            <AccordionDetails>
               <TableContainer>
                 <Table size='small'>
                   <TableHead>
@@ -325,14 +361,11 @@ export default function TaskDetailPage() {
                   </TableBody>
                 </Table>
               </TableContainer>
-            </Collapse>
-          </Paper>
+            </AccordionDetails>
+          </Accordion>
         </Grid>
 
         <Grid item xs={12}>
-          <Box sx={{ mb: 3 }}>
-            <Typography>Reserved</Typography>
-          </Box>
           <Box sx={{ mb: 3 }}>
             <Typography variant='h6' gutterBottom>
               Attachments
@@ -357,6 +390,35 @@ export default function TaskDetailPage() {
                 No any attachments available
               </Typography>
             )}
+          </Box>
+          <Box sx={{ mb: 3 }}>
+            <Grid item xs={12}>
+              <Box
+                sx={{
+                  mb: 3,
+                  display: 'flex',
+                  justifyContent: 'center',
+                  gap: 2,
+                }}
+              >
+                <Button
+                  variant='contained'
+                  color='success'
+                  onClick={async () => await updateStatus('at work')}
+                  disabled={loadingStatus}
+                >
+                  {loadingStatus ? <CircularProgress size={24} /> : 'Accept'}
+                </Button>
+                <Button
+                  variant='contained'
+                  color='error'
+                  onClick={async () => await updateStatus('to do')}
+                  disabled={loadingStatus}
+                >
+                  {loadingStatus ? <CircularProgress size={24} /> : 'Reject'}
+                </Button>
+              </Box>
+            </Grid>
           </Box>
         </Grid>
       </Grid>
