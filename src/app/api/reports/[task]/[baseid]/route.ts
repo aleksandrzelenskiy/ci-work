@@ -64,7 +64,7 @@ export async function GET(
     return NextResponse.json({
       files: report.files,
       createdAt: report.createdAt,
-      userName: report.userName,
+      executorName: report.executorName,
       reviewerName: report.reviewerName,
       status: report.status,
       issues: report.issues || [],

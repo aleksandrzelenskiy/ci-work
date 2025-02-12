@@ -25,7 +25,9 @@ import {
   Collapse,
 } from '@mui/material';
 import CloseIcon from '@mui/icons-material/Close';
-import { useParams, useRouter } from 'next/navigation';
+import ArrowBackIcon from '@mui/icons-material/ArrowBack';
+
+import { useParams } from 'next/navigation';
 import { Task, WorkItem, BsLocation } from '@/app/types/taskTypes';
 import { YMaps, Map, Placemark } from 'react-yandex-maps';
 import { TransitionProps } from '@mui/material/transitions';
@@ -70,7 +72,6 @@ const Transition = React.forwardRef(function Transition(
 
 export default function TaskDetailPage() {
   const { taskid } = useParams();
-  const router = useRouter();
   const [task, setTask] = useState<Task | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -124,9 +125,18 @@ export default function TaskDetailPage() {
         <Typography color='error' gutterBottom>
           Error: {error}
         </Typography>
-        <Button variant='contained' onClick={() => router.push('/tasks')}>
-          All Tasks
-        </Button>
+        {/* Link to the reports list page */}
+        <Box mb={2}>
+          <Button
+            component={Link}
+            href='/tasks'
+            variant='text'
+            startIcon={<ArrowBackIcon />}
+            sx={{ textTransform: 'uppercase' }}
+          >
+            To Tasks List
+          </Button>
+        </Box>
       </Box>
     );
   }
@@ -135,15 +145,36 @@ export default function TaskDetailPage() {
     return (
       <Box sx={{ p: 3, textAlign: 'center' }}>
         <Typography gutterBottom>Task not found</Typography>
-        <Button variant='contained' onClick={() => router.push('/tasks')}>
-          All Tasks
-        </Button>
+        {/* Link to the reports list page */}
+        <Box mb={2}>
+          <Button
+            component={Link}
+            href='/tasks'
+            variant='text'
+            startIcon={<ArrowBackIcon />}
+            sx={{ textTransform: 'uppercase' }}
+          >
+            To Tasks List
+          </Button>
+        </Box>
       </Box>
     );
   }
 
   return (
     <Box sx={{ maxWidth: 1200, margin: '0 auto' }}>
+      {/* Link to the reports list page */}
+      <Box mb={2}>
+        <Button
+          component={Link}
+          href='/tasks'
+          variant='text'
+          startIcon={<ArrowBackIcon />}
+          sx={{ textTransform: 'uppercase' }}
+        >
+          To Tasks List
+        </Button>
+      </Box>
       <Box
         sx={{
           mb: 3,
@@ -157,13 +188,6 @@ export default function TaskDetailPage() {
           <Chip label={task.status} color={getStatusColor(task.status)} />
         </Typography>
       </Box>
-      <Button
-        variant='outlined'
-        sx={{ mb: 3 }}
-        onClick={() => router.push('/tasks')}
-      >
-        All Tasks
-      </Button>
 
       <Grid container spacing={3}>
         <Grid item xs={12} md={6} gap={5}>
@@ -270,6 +294,7 @@ export default function TaskDetailPage() {
             <Box>
               <Button
                 onClick={toggleWorkItems}
+                size='large'
                 endIcon={
                   workItemsExpanded ? <ExpandLessIcon /> : <ExpandMoreIcon />
                 }

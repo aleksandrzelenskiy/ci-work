@@ -103,9 +103,9 @@ export default function PhotoReportPage() {
   // State for events
   const [events, setEvents] = useState<IEvent[]>([]);
 
-  // States for createdAt and userName
+  // States for createdAt and executorName
   const [createdAt, setCreatedAt] = useState<string>('N/A');
-  const [userName, setUserName] = useState<string>('Unknown');
+  const [executorName, setExecutorName] = useState<string>('Unknown');
 
   // New state to track if all issues are fixed
   const [issuesFixed, setIssuesFixed] = useState(false);
@@ -186,10 +186,10 @@ export default function PhotoReportPage() {
       );
 
       setCreatedAt(new Date(data.createdAt).toLocaleDateString() || 'N/A');
-      setUserName(data.userName || 'Unknown');
+      setExecutorName(data.executorName || 'Unknown');
       setEvents(data.events || []);
       setIssuesFixed((data.fixedFiles || []).length > 0);
-      setStatus(data.status || 'Pending');
+      setStatus(data.issues?.length > 0 ? data.status : 'Pending'); // Если замечаний нет, статус должен быть Pending
     } catch (err: unknown) {
       console.error('Error fetching report:', err);
       setError(
@@ -233,11 +233,6 @@ export default function PhotoReportPage() {
       return;
     }
 
-    const updated = [...newIssues];
-    updated.splice(confirmDeleteIndex, 1);
-    setNewIssues(updated);
-    setConfirmDeleteIndex(null);
-
     try {
       const response = await fetch(`/api/reports/${task}/${baseid}`, {
         method: 'PATCH',
@@ -250,15 +245,47 @@ export default function PhotoReportPage() {
       if (!response.ok) {
         throw new Error('Failed to delete issue.');
       }
+
+      // Обновляем локальное состояние issues
+      const updatedIssues = issues.filter(
+        (_, idx) => idx !== confirmDeleteIndex
+      );
+      setIssues(updatedIssues);
+
+      // Обновляем локальное состояние newIssues
+      const updatedNewIssues = newIssues.filter(
+        (_, idx) => idx !== confirmDeleteIndex
+      );
+      setNewIssues(updatedNewIssues);
+
+      // Если замечаний больше нет, обновляем статус на Pending
+      if (updatedIssues.length === 0) {
+        const updateStatusResponse = await fetch(
+          `/api/reports/${task}/${baseid}`,
+          {
+            method: 'PATCH',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+              status: 'Pending',
+            }),
+          }
+        );
+
+        if (!updateStatusResponse.ok) {
+          throw new Error('Failed to update status.');
+        }
+
+        setStatus('Pending');
+        showAlert(
+          'All issues have been removed. Status updated to Pending.',
+          'info'
+        );
+      }
+
+      setConfirmDeleteIndex(null);
     } catch (error) {
       console.error('Error deleting issue:', error);
       showAlert('Failed to delete issue. Please try again.', 'error');
-      // rollback
-      setNewIssues((prev) => {
-        const restored = [...prev];
-        restored.splice(confirmDeleteIndex, 0, issueToDelete);
-        return restored;
-      });
     }
   };
   const handleIssuesClick = () => {
@@ -296,7 +323,7 @@ export default function PhotoReportPage() {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           issues: filteredNew,
-          status: 'Issues',
+          status: filteredNew.length > 0 ? 'Issues' : 'Pending', // Обновляем статус в зависимости от наличия замечаний
         }),
       });
 
@@ -304,14 +331,14 @@ export default function PhotoReportPage() {
         throw new Error('Failed to update issues.');
       }
 
-      setStatus('Issues');
+      setStatus(filteredNew.length > 0 ? 'Issues' : 'Pending'); // Обновляем локальный статус
 
       const newEvent: IEvent = {
         action:
           addedIssues.length > 0
             ? ACTIONS.ISSUES_CREATED
             : ACTIONS.ISSUES_UPDATED,
-        author: 'Ivan Petrov', // or currentUser
+        author: '', // или currentUser
         date: new Date().toISOString(),
       };
       setEvents((prev) => [...prev, newEvent]);
@@ -320,6 +347,13 @@ export default function PhotoReportPage() {
       setShowIssuesFields(false);
       setNewIssues(['']);
       setIssuesFixed(false);
+
+      if (filteredNew.length === 0) {
+        showAlert(
+          'All issues have been removed. Status updated to Pending.',
+          'info'
+        );
+      }
     } catch (error) {
       console.error('Error updating issues:', error);
       showAlert('Failed to update issues. Please try again.', 'error');
@@ -333,6 +367,10 @@ export default function PhotoReportPage() {
     const allFixed = updated.every((iss) => iss.checked);
     setIsFixedReady(allFixed);
     setIssuesFixed(allFixed);
+
+    if (allFixed) {
+      setStatus('Fixed');
+    }
   };
 
   // ======================
@@ -658,7 +696,7 @@ export default function PhotoReportPage() {
         {decodeURIComponent(task)} | Base ID: {decodeURIComponent(baseid)}
       </Typography>
       <Typography variant='body2' gutterBottom>
-        Photo report created by {userName} on {createdAt}
+        Photo report created by {executorName} on {createdAt}
       </Typography>
       <Typography variant='body2' gutterBottom>
         {getStatusMessage()}

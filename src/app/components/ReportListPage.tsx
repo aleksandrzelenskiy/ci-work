@@ -1,6 +1,7 @@
 'use client';
 
 import React, { useState, useEffect, useMemo } from 'react';
+import { v4 as uuidv4 } from 'uuid';
 import {
   Box,
   Collapse,
@@ -183,13 +184,8 @@ function Row({ report, role }: { report: ReportClient; role: string }) {
               }}
             >
               <Box sx={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-                <Avatar
-                  alt={report.userName}
-                  src={report.userAvatar}
-                  sx={{ width: 32, height: 32 }}
-                />
                 <Typography sx={{ fontSize: '0.9rem' }}>
-                  {report.userName}
+                  {report.executorName}
                 </Typography>
               </Box>
             </TableCell>
@@ -351,7 +347,8 @@ export default function ReportListPage() {
 
   // Получаем уникальных авторов
   const uniqueExecutors = useMemo(() => {
-    const executors = reports.map((report) => report.userName);
+    const executors = reports.map((report) => report.executorName);
+    console.log('Executors:', executors);
     return Array.from(new Set(executors));
   }, [reports]);
 
@@ -383,7 +380,7 @@ export default function ReportListPage() {
         if (!Array.isArray(data.reports)) {
           throw new Error('Invalid data format');
         }
-
+        console.log('Reports:', data.reports);
         // Устанавливаем роль (executor, initiator, admin и т.д.)
         if (data.userRole) {
           setRole(data.userRole);
@@ -424,7 +421,7 @@ export default function ReportListPage() {
     // Filter by executor
     if (executorFilter) {
       tempReports = tempReports.filter(
-        (report) => report.userName === executorFilter
+        (report) => report.executorName === executorFilter
       );
     }
 
@@ -864,7 +861,7 @@ export default function ReportListPage() {
                     <em>All</em>
                   </MenuItem>
                   {uniqueExecutors.map((executor) => (
-                    <MenuItem key={executor} value={executor}>
+                    <MenuItem key={uuidv4()} value={executor}>
                       {executor}
                     </MenuItem>
                   ))}
