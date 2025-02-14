@@ -10,6 +10,9 @@ import {
   Button,
   Grid,
   Dialog,
+  DialogTitle,
+  DialogContent,
+  DialogActions,
   AppBar,
   Toolbar,
   IconButton,
@@ -21,10 +24,11 @@ import {
   TableCell,
   TableBody,
   Link,
-  // Collapse,
   Accordion,
   AccordionSummary,
   AccordionDetails,
+  Snackbar,
+  Alert,
 } from '@mui/material';
 import CloseIcon from '@mui/icons-material/Close';
 import ArrowBackIcon from '@mui/icons-material/ArrowBack';
@@ -40,6 +44,7 @@ import {
 } from '@/app/types/taskTypes';
 import { YMaps, Map, Placemark } from 'react-yandex-maps';
 import { TransitionProps } from '@mui/material/transitions';
+import { GetCurrentUserFromMongoDB } from '@/server-actions/users';
 
 const getStatusColor = (status: string) => {
   switch (status) {
@@ -88,6 +93,27 @@ export default function TaskDetailPage() {
   );
   const [workItemsExpanded, setWorkItemsExpanded] = useState(false);
   const [loadingStatus, setLoadingStatus] = useState(false);
+  const [userRole, setUserRole] = useState<string | null>(null);
+  const [confirmDialogOpen, setConfirmDialogOpen] = useState(false);
+  const [confirmAction, setConfirmAction] = useState<
+    'accept' | 'reject' | null
+  >(null);
+  const [snackbarOpen, setSnackbarOpen] = useState(false);
+  const [snackbarMessage, setSnackbarMessage] = useState('');
+  const [snackbarSeverity, setSnackbarSeverity] = useState<'success' | 'error'>(
+    'success'
+  );
+
+  useEffect(() => {
+    const fetchUserRole = async () => {
+      const user = await GetCurrentUserFromMongoDB();
+      if (user.success) {
+        setUserRole(user.data.role);
+      }
+    };
+
+    fetchUserRole();
+  }, []);
 
   const updateStatus = async (newStatus: CurrentStatus) => {
     try {
@@ -106,12 +132,39 @@ export default function TaskDetailPage() {
 
       const { task: updatedTask } = await response.json();
       setTask(updatedTask);
+      setSnackbarMessage(
+        newStatus === 'at work'
+          ? 'Task accepted successfully!'
+          : 'Task rejected successfully!'
+      );
+      setSnackbarSeverity('success');
+      setSnackbarOpen(true);
     } catch (error) {
       console.error('Error updating status:', error);
-      setError('Failed to update task status');
+      setSnackbarMessage('Failed to update task status');
+      setSnackbarSeverity('error');
+      setSnackbarOpen(true);
     } finally {
       setLoadingStatus(false);
+      setConfirmDialogOpen(false);
     }
+  };
+
+  const handleConfirmAction = () => {
+    if (confirmAction === 'accept') {
+      updateStatus('at work');
+    } else if (confirmAction === 'reject') {
+      updateStatus('to do');
+    }
+  };
+
+  const handleCloseConfirmDialog = () => {
+    setConfirmDialogOpen(false);
+    setConfirmAction(null);
+  };
+
+  const handleCloseSnackbar = () => {
+    setSnackbarOpen(false);
   };
 
   const handleClose = () => {
@@ -366,60 +419,74 @@ export default function TaskDetailPage() {
         </Grid>
 
         <Grid item xs={12}>
-          <Box sx={{ mb: 3 }}>
-            <Typography variant='h6' gutterBottom>
-              Attachments
-            </Typography>
-            {task.orderUrl && (
-              <Link
-                component='a'
-                href={
-                  Array.isArray(task.orderUrl)
-                    ? task.orderUrl[0]
-                    : task.orderUrl
-                }
-                download
-                target='_blank'
-                sx={{ textDecoration: 'none', color: 'primary.main' }}
-              >
-                Download Order File
-              </Link>
-            )}
-            {task.attachments?.length === 0 && (
-              <Typography variant='body2'>
-                No any attachments available
-              </Typography>
-            )}
-          </Box>
-          <Box sx={{ mb: 3 }}>
-            <Grid item xs={12}>
-              <Box
-                sx={{
-                  mb: 3,
-                  display: 'flex',
-                  justifyContent: 'center',
-                  gap: 2,
-                }}
-              >
-                <Button
-                  variant='contained'
-                  color='success'
-                  onClick={async () => await updateStatus('at work')}
-                  disabled={loadingStatus}
+          {userRole !== 'executor' && task.status === 'assigned' && (
+            <Box sx={{ mb: 3 }}>
+              <Grid item xs={12}>
+                <Box
+                  sx={{
+                    mb: 3,
+                    display: 'flex',
+                    justifyContent: 'center',
+                    gap: 2,
+                  }}
                 >
-                  {loadingStatus ? <CircularProgress size={24} /> : 'Accept'}
-                </Button>
-                <Button
-                  variant='contained'
-                  color='error'
-                  onClick={async () => await updateStatus('to do')}
-                  disabled={loadingStatus}
+                  <Button
+                    variant='contained'
+                    color='success'
+                    onClick={() => {
+                      setConfirmAction('accept');
+                      setConfirmDialogOpen(true);
+                    }}
+                    disabled={loadingStatus}
+                  >
+                    {loadingStatus ? <CircularProgress size={24} /> : 'Accept'}
+                  </Button>
+                  <Button
+                    variant='contained'
+                    color='error'
+                    onClick={() => {
+                      setConfirmAction('reject');
+                      setConfirmDialogOpen(true);
+                    }}
+                    disabled={loadingStatus}
+                  >
+                    {loadingStatus ? <CircularProgress size={24} /> : 'Reject'}
+                  </Button>
+                </Box>
+              </Grid>
+            </Box>
+          )}
+          {userRole === 'executor' && (
+            <Box sx={{ mb: 3 }}>
+              <Grid item xs={12}>
+                <Box
+                  sx={{
+                    mb: 3,
+                    display: 'flex',
+                    justifyContent: 'center',
+                    gap: 2,
+                  }}
                 >
-                  {loadingStatus ? <CircularProgress size={24} /> : 'Reject'}
-                </Button>
-              </Box>
-            </Grid>
-          </Box>
+                  <Button
+                    variant='contained'
+                    color='success'
+                    onClick={async () => await updateStatus('at work')}
+                    disabled={loadingStatus}
+                  >
+                    {loadingStatus ? <CircularProgress size={24} /> : 'Accept'}
+                  </Button>
+                  <Button
+                    variant='contained'
+                    color='error'
+                    onClick={async () => await updateStatus('to do')}
+                    disabled={loadingStatus}
+                  >
+                    {loadingStatus ? <CircularProgress size={24} /> : 'Reject'}
+                  </Button>
+                </Box>
+              </Grid>
+            </Box>
+          )}
         </Grid>
       </Grid>
 
@@ -459,6 +526,56 @@ export default function TaskDetailPage() {
           </YMaps>
         </Box>
       </Dialog>
+
+      <Dialog
+        open={confirmDialogOpen}
+        onClose={handleCloseConfirmDialog}
+        aria-labelledby='confirm-dialog-title'
+        aria-describedby='confirm-dialog-description'
+      >
+        <DialogTitle id='confirm-dialog-title'>
+          {confirmAction === 'accept'
+            ? `Are you sure you want to accept the task ${task.taskName} | ${task.bsNumber}?`
+            : `Are you sure you want to reject the task ${task.taskName} | ${task.bsNumber}?`}
+        </DialogTitle>
+        <DialogContent>
+          {confirmAction === 'accept' && (
+            <Typography>
+              The due date is {new Date(task.dueDate).toLocaleDateString()}.
+            </Typography>
+          )}
+        </DialogContent>
+        <DialogActions>
+          <Button
+            onClick={handleCloseConfirmDialog}
+            color='primary'
+            variant='outlined'
+          >
+            Cancel
+          </Button>
+          <Button
+            onClick={handleConfirmAction}
+            color={confirmAction === 'accept' ? 'success' : 'error'}
+            variant='contained'
+          >
+            {confirmAction === 'accept' ? 'Accept' : 'Reject'}
+          </Button>
+        </DialogActions>
+      </Dialog>
+
+      <Snackbar
+        open={snackbarOpen}
+        autoHideDuration={6000}
+        onClose={handleCloseSnackbar}
+      >
+        <Alert
+          onClose={handleCloseSnackbar}
+          severity={snackbarSeverity}
+          sx={{ width: '100%' }}
+        >
+          {snackbarMessage}
+        </Alert>
+      </Snackbar>
     </Box>
   );
 }
