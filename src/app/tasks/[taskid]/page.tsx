@@ -250,7 +250,7 @@ export default function TaskDetailPage() {
               </AccordionDetails>
             </Accordion>
           </Box>
-          <Box sx={{ mb: 3 }}>
+          <Box sx={{ mb: 0 }}>
             <Accordion>
               <AccordionSummary expandIcon={<ExpandMoreIcon />}>
                 <Typography variant='h6'>Locations</Typography>

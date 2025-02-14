@@ -26,6 +26,11 @@ import {
   Tooltip,
   Link,
   Chip,
+  Checkbox,
+  List,
+  ListItem,
+  ListItemIcon,
+  ListItemText,
 } from '@mui/material';
 import { DateRangePicker } from '@mui/x-date-pickers-pro/DateRangePicker';
 import { SingleInputDateRangeField } from '@mui/x-date-pickers-pro/SingleInputDateRangeField';
@@ -36,6 +41,7 @@ import {
   DragHandle as DragHandleIcon,
   Remove as RemoveIcon,
 } from '@mui/icons-material';
+import ViewColumnIcon from '@mui/icons-material/ViewColumn';
 import FilterListIcon from '@mui/icons-material/FilterList';
 import SearchIcon from '@mui/icons-material/Search';
 import KeyboardArrowDownIcon from '@mui/icons-material/KeyboardArrowDown';
@@ -43,6 +49,7 @@ import KeyboardArrowDownIcon from '@mui/icons-material/KeyboardArrowDown';
 import { LocalizationProvider } from '@mui/x-date-pickers/LocalizationProvider';
 import { AdapterDateFns } from '@mui/x-date-pickers/AdapterDateFns';
 import { BsLocation, Task, WorkItem } from '../types/taskTypes';
+import { GetCurrentUserFromMongoDB } from '@/server-actions/users';
 
 const getStatusColor = (status: string) => {
   switch (status) {
@@ -76,7 +83,15 @@ const getPriorityIcon = (priority: string) => {
   }
 };
 
-function Row({ task }: { task: Task }) {
+function Row({
+  task,
+  columnVisibility,
+  role,
+}: {
+  task: Task;
+  columnVisibility: Record<string, boolean>;
+  role: string;
+}) {
   const [open, setOpen] = useState(false);
 
   const parseUserInfo = (userString?: string) => {
@@ -100,51 +115,74 @@ function Row({ task }: { task: Task }) {
           </IconButton>
         </TableCell>
 
-        <TableCell>
-          <Box sx={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-            <Link
-              href={`/tasks/${task.taskId.toLowerCase()}`}
-              sx={{ cursor: 'pointer' }}
-            >
-              {task.taskName} | {task.bsNumber}
-            </Link>
-          </Box>
-        </TableCell>
+        {columnVisibility.task && (
+          <TableCell>
+            <Box sx={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+              <Link
+                href={`/tasks/${task.taskId.toLowerCase()}`}
+                sx={{ cursor: 'pointer' }}
+              >
+                {task.taskName} | {task.bsNumber}
+              </Link>
+            </Box>
+          </TableCell>
+        )}
 
-        <TableCell align='center'>
-          <Box>
-            <Typography variant='subtitle2'>
-              {parseUserInfo(task.authorName).name}
-            </Typography>
-          </Box>
-        </TableCell>
-        <TableCell align='center'>
-          <Box>
-            <Typography variant='subtitle2'>
-              {parseUserInfo(task.initiatorName).name}
-            </Typography>
-          </Box>
-        </TableCell>
-        <TableCell align='center'>
-          <Box>
-            <Typography variant='subtitle2'>
-              {parseUserInfo(task.executorName).name}
-            </Typography>
-          </Box>
-        </TableCell>
-        <TableCell align='center'>
-          {new Date(task.createdAt).toLocaleDateString()}
-        </TableCell>
-        <TableCell align='center'>
-          {new Date(task.dueDate).toLocaleDateString()}
-        </TableCell>
-        <TableCell align='center'>
-          <Chip label={task.status} color={getStatusColor(task.status)} />
-        </TableCell>
-        <TableCell align='center'>
-          {getPriorityIcon(task.priority)}
-          {task.priority}
-        </TableCell>
+        {columnVisibility.author && (
+          <TableCell align='center'>
+            <Box>
+              <Typography variant='subtitle2'>
+                {parseUserInfo(task.authorName).name}
+              </Typography>
+            </Box>
+          </TableCell>
+        )}
+
+        {columnVisibility.initiator && (
+          <TableCell align='center'>
+            <Box>
+              <Typography variant='subtitle2'>
+                {parseUserInfo(task.initiatorName).name}
+              </Typography>
+            </Box>
+          </TableCell>
+        )}
+
+        {/* Скрываем столбец Executor для роли executor */}
+        {role !== 'executor' && columnVisibility.executor && (
+          <TableCell align='center'>
+            <Box>
+              <Typography variant='subtitle2'>
+                {parseUserInfo(task.executorName).name}
+              </Typography>
+            </Box>
+          </TableCell>
+        )}
+
+        {columnVisibility.created && (
+          <TableCell align='center'>
+            {new Date(task.createdAt).toLocaleDateString()}
+          </TableCell>
+        )}
+
+        {columnVisibility.due && (
+          <TableCell align='center'>
+            {new Date(task.dueDate).toLocaleDateString()}
+          </TableCell>
+        )}
+
+        {columnVisibility.status && (
+          <TableCell align='center'>
+            <Chip label={task.status} color={getStatusColor(task.status)} />
+          </TableCell>
+        )}
+
+        {columnVisibility.priority && (
+          <TableCell align='center'>
+            {getPriorityIcon(task.priority)}
+            {task.priority}
+          </TableCell>
+        )}
       </TableRow>
 
       <TableRow>
@@ -248,6 +286,7 @@ export default function TaskListPage() {
   const [filteredTasks, setFilteredTasks] = useState<Task[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [role, setRole] = useState<string>('');
 
   // Filters
   const [authorFilter, setAuthorFilter] = useState('');
@@ -264,7 +303,20 @@ export default function TaskListPage() {
     null,
   ]);
   const [bsSearch, setBsSearch] = useState('');
-  //
+
+  // Column visibility
+  const [columnVisibility, setColumnVisibility] = useState<
+    Record<string, boolean>
+  >({
+    task: true,
+    author: true,
+    initiator: true,
+    executor: true,
+    created: true,
+    due: true,
+    status: true,
+    priority: true,
+  });
 
   // Popover
   const [anchorEl, setAnchorEl] = useState<HTMLElement | null>(null);
@@ -335,7 +387,23 @@ export default function TaskListPage() {
       }
     };
 
+    const fetchUserRole = async () => {
+      try {
+        const userResponse = await GetCurrentUserFromMongoDB();
+        if (userResponse.success && userResponse.data) {
+          const userRole = userResponse.data.role;
+          console.log('User role:', userRole);
+          setRole(userRole); // Устанавливаем роль в состояние
+        } else {
+          console.error('Failed to fetch user role:', userResponse.message);
+        }
+      } catch (error) {
+        console.error('Error fetching user role:', error);
+      }
+    };
+
     fetchTasks();
+    fetchUserRole();
   }, []);
 
   useEffect(() => {
@@ -395,6 +463,14 @@ export default function TaskListPage() {
     setAnchorEl(null);
     setCurrentFilter('');
   };
+
+  const handleColumnVisibilityChange =
+    (column: string) => (event: React.ChangeEvent<HTMLInputElement>) => {
+      setColumnVisibility((prev) => ({
+        ...prev,
+        [column]: event.target.checked,
+      }));
+    };
 
   if (loading)
     return (
@@ -512,156 +588,193 @@ export default function TaskListPage() {
           <Table>
             <TableHead>
               <TableRow>
-                <TableCell />
                 <TableCell
                   sx={{
                     whiteSpace: 'nowrap',
                     padding: '16px',
                   }}
                 >
-                  <strong>Task</strong>
-                  <Tooltip title='Search BS Number'>
+                  <Tooltip title='Manage columns'>
                     <IconButton
-                      onClick={(e) => handleFilterClick(e, 'bs')}
-                      color={bsSearch ? 'primary' : 'default'}
+                      onClick={(e) => handleFilterClick(e, 'columns')}
                     >
-                      <SearchIcon />
+                      <ViewColumnIcon />
                     </IconButton>
                   </Tooltip>
                 </TableCell>
 
-                <TableCell
-                  sx={{
-                    whiteSpace: 'nowrap',
-                    padding: '16px',
-                  }}
-                >
-                  <strong>Author</strong>
-                  <Tooltip title='Filter by Author'>
-                    <IconButton
-                      onClick={(e) => handleFilterClick(e, 'author')}
-                      color={authorFilter ? 'primary' : 'default'}
-                    >
-                      <FilterListIcon />
-                    </IconButton>
-                  </Tooltip>
-                </TableCell>
+                {columnVisibility.task && (
+                  <TableCell
+                    sx={{
+                      whiteSpace: 'nowrap',
+                      padding: '16px',
+                    }}
+                  >
+                    <strong>Task</strong>
+                    <Tooltip title='Search BS Number'>
+                      <IconButton
+                        onClick={(e) => handleFilterClick(e, 'bs')}
+                        color={bsSearch ? 'primary' : 'default'}
+                      >
+                        <SearchIcon />
+                      </IconButton>
+                    </Tooltip>
+                  </TableCell>
+                )}
 
-                <TableCell
-                  sx={{
-                    whiteSpace: 'nowrap',
-                    padding: '16px',
-                  }}
-                >
-                  <strong>Initiator</strong>
-                  <Tooltip title='Filter by Initiator'>
-                    <IconButton
-                      onClick={(e) => handleFilterClick(e, 'initiator')}
-                      color={initiatorFilter ? 'primary' : 'default'}
-                    >
-                      <FilterListIcon />
-                    </IconButton>
-                  </Tooltip>
-                </TableCell>
+                {/* Скрываем столбец Author для роли author */}
+                {role !== 'author' && columnVisibility.author && (
+                  <TableCell
+                    sx={{
+                      whiteSpace: 'nowrap',
+                      padding: '16px',
+                    }}
+                  >
+                    <strong>Author</strong>
+                    <Tooltip title='Filter by Author'>
+                      <IconButton
+                        onClick={(e) => handleFilterClick(e, 'author')}
+                        color={authorFilter ? 'primary' : 'default'}
+                      >
+                        <FilterListIcon />
+                      </IconButton>
+                    </Tooltip>
+                  </TableCell>
+                )}
 
-                <TableCell
-                  sx={{
-                    whiteSpace: 'nowrap',
-                    padding: '16px',
-                  }}
-                >
-                  <strong>Executor</strong>
-                  <Tooltip title='Filter by Executor'>
-                    <IconButton
-                      onClick={(e) => handleFilterClick(e, 'executor')}
-                      color={executorFilter ? 'primary' : 'default'}
-                    >
-                      <FilterListIcon />
-                    </IconButton>
-                  </Tooltip>
-                </TableCell>
+                {columnVisibility.initiator && (
+                  <TableCell
+                    sx={{
+                      whiteSpace: 'nowrap',
+                      padding: '16px',
+                    }}
+                  >
+                    <strong>Initiator</strong>
+                    <Tooltip title='Filter by Initiator'>
+                      <IconButton
+                        onClick={(e) => handleFilterClick(e, 'initiator')}
+                        color={initiatorFilter ? 'primary' : 'default'}
+                      >
+                        <FilterListIcon />
+                      </IconButton>
+                    </Tooltip>
+                  </TableCell>
+                )}
 
-                <TableCell
-                  sx={{
-                    whiteSpace: 'nowrap',
-                    padding: '16px',
-                  }}
-                >
-                  <strong>Created</strong>
-                  <Tooltip title='Filter by Creation Date'>
-                    <IconButton
-                      onClick={(e) => handleFilterClick(e, 'created')}
-                      color={
-                        createdDateRange[0] || createdDateRange[1]
-                          ? 'primary'
-                          : 'default'
-                      }
-                    >
-                      <FilterListIcon />
-                    </IconButton>
-                  </Tooltip>
-                </TableCell>
+                {/* Скрываем столбец Executor для роли executor */}
+                {role !== 'executor' && columnVisibility.executor && (
+                  <TableCell
+                    sx={{
+                      whiteSpace: 'nowrap',
+                      padding: '16px',
+                    }}
+                  >
+                    <strong>Executor</strong>
+                    <Tooltip title='Filter by Executor'>
+                      <IconButton
+                        onClick={(e) => handleFilterClick(e, 'executor')}
+                        color={executorFilter ? 'primary' : 'default'}
+                      >
+                        <FilterListIcon />
+                      </IconButton>
+                    </Tooltip>
+                  </TableCell>
+                )}
 
-                <TableCell
-                  sx={{
-                    whiteSpace: 'nowrap',
-                    padding: '16px',
-                  }}
-                >
-                  <strong>Due Date</strong>
-                  <Tooltip title='Filter by Due Date'>
-                    <IconButton
-                      onClick={(e) => handleFilterClick(e, 'due')}
-                      color={
-                        dueDateRange[0] || dueDateRange[1]
-                          ? 'primary'
-                          : 'default'
-                      }
-                    >
-                      <FilterListIcon />
-                    </IconButton>
-                  </Tooltip>
-                </TableCell>
+                {columnVisibility.created && (
+                  <TableCell
+                    sx={{
+                      whiteSpace: 'nowrap',
+                      padding: '16px',
+                    }}
+                  >
+                    <strong>Created</strong>
+                    <Tooltip title='Filter by Creation Date'>
+                      <IconButton
+                        onClick={(e) => handleFilterClick(e, 'created')}
+                        color={
+                          createdDateRange[0] || createdDateRange[1]
+                            ? 'primary'
+                            : 'default'
+                        }
+                      >
+                        <FilterListIcon />
+                      </IconButton>
+                    </Tooltip>
+                  </TableCell>
+                )}
 
-                <TableCell
-                  sx={{
-                    whiteSpace: 'nowrap',
-                    padding: '16px',
-                  }}
-                >
-                  <strong>Status</strong>
-                  <Tooltip title='Filter by Status'>
-                    <IconButton
-                      onClick={(e) => handleFilterClick(e, 'status')}
-                      color={statusFilter ? 'primary' : 'default'}
-                    >
-                      <FilterListIcon />
-                    </IconButton>
-                  </Tooltip>
-                </TableCell>
+                {columnVisibility.due && (
+                  <TableCell
+                    sx={{
+                      whiteSpace: 'nowrap',
+                      padding: '16px',
+                    }}
+                  >
+                    <strong>Due Date</strong>
+                    <Tooltip title='Filter by Due Date'>
+                      <IconButton
+                        onClick={(e) => handleFilterClick(e, 'due')}
+                        color={
+                          dueDateRange[0] || dueDateRange[1]
+                            ? 'primary'
+                            : 'default'
+                        }
+                      >
+                        <FilterListIcon />
+                      </IconButton>
+                    </Tooltip>
+                  </TableCell>
+                )}
 
-                <TableCell
-                  sx={{
-                    whiteSpace: 'nowrap',
-                    padding: '16px',
-                  }}
-                >
-                  <strong>Priority</strong>
-                  <Tooltip title='Filter by Priority'>
-                    <IconButton
-                      onClick={(e) => handleFilterClick(e, 'priority')}
-                      color={priorityFilter ? 'primary' : 'default'}
-                    >
-                      <FilterListIcon />
-                    </IconButton>
-                  </Tooltip>
-                </TableCell>
+                {columnVisibility.status && (
+                  <TableCell
+                    sx={{
+                      whiteSpace: 'nowrap',
+                      padding: '16px',
+                    }}
+                  >
+                    <strong>Status</strong>
+                    <Tooltip title='Filter by Status'>
+                      <IconButton
+                        onClick={(e) => handleFilterClick(e, 'status')}
+                        color={statusFilter ? 'primary' : 'default'}
+                      >
+                        <FilterListIcon />
+                      </IconButton>
+                    </Tooltip>
+                  </TableCell>
+                )}
+
+                {columnVisibility.priority && (
+                  <TableCell
+                    sx={{
+                      whiteSpace: 'nowrap',
+                      padding: '16px',
+                    }}
+                  >
+                    <strong>Priority</strong>
+                    <Tooltip title='Filter by Priority'>
+                      <IconButton
+                        onClick={(e) => handleFilterClick(e, 'priority')}
+                        color={priorityFilter ? 'primary' : 'default'}
+                      >
+                        <FilterListIcon />
+                      </IconButton>
+                    </Tooltip>
+                  </TableCell>
+                )}
               </TableRow>
             </TableHead>
 
             <TableBody>
               {filteredTasks.map((task) => (
-                <Row key={task.taskId} task={task} />
+                <Row
+                  key={task.taskId}
+                  task={task}
+                  columnVisibility={columnVisibility}
+                  role={role}
+                />
               ))}
             </TableBody>
           </Table>
@@ -795,37 +908,68 @@ export default function TaskListPage() {
               </FormControl>
             )}
 
+            {currentFilter === 'columns' && (
+              <>
+                <List>
+                  {Object.keys(columnVisibility).map((column) => (
+                    <ListItem key={column} dense component='button'>
+                      <ListItemIcon>
+                        <Checkbox
+                          edge='start'
+                          checked={columnVisibility[column]}
+                          onChange={handleColumnVisibilityChange(column)}
+                          tabIndex={-1}
+                          disableRipple
+                        />
+                      </ListItemIcon>
+                      <ListItemText
+                        primary={
+                          column.charAt(0).toUpperCase() + column.slice(1)
+                        }
+                      />
+                    </ListItem>
+                  ))}
+                </List>
+                <Box
+                  sx={{
+                    mt: 2,
+                    display: 'flex',
+                    justifyContent: 'space-between',
+                  }}
+                >
+                  <Button
+                    onClick={() => {
+                      setColumnVisibility((prev) => {
+                        const newVisibility = { ...prev };
+                        Object.keys(newVisibility).forEach((key) => {
+                          newVisibility[key] = true;
+                        });
+                        return newVisibility;
+                      });
+                    }}
+                  >
+                    All
+                  </Button>
+                  <Button
+                    onClick={() => {
+                      setColumnVisibility((prev) => {
+                        const newVisibility = { ...prev };
+                        Object.keys(newVisibility).forEach((key) => {
+                          newVisibility[key] = false;
+                        });
+                        return newVisibility;
+                      });
+                    }}
+                  >
+                    Clear
+                  </Button>
+                </Box>
+              </>
+            )}
+
             <Box
               sx={{ mt: 2, display: 'flex', justifyContent: 'space-between' }}
-            >
-              <Button onClick={handleClose}>Close</Button>
-              <Button
-                onClick={() => {
-                  switch (currentFilter) {
-                    case 'bs':
-                      setBsSearch('');
-                      break;
-                    case 'author':
-                      setAuthorFilter('');
-                      break;
-                    case 'initiator':
-                      setInitiatorFilter('');
-                      break;
-                    case 'executor':
-                      setExecutorFilter('');
-                      break;
-                    case 'status':
-                      setStatusFilter('');
-                      break;
-                    case 'priority':
-                      setPriorityFilter('');
-                      break;
-                  }
-                }}
-              >
-                Clear
-              </Button>
-            </Box>
+            ></Box>
           </Box>
         </Popover>
       </Box>

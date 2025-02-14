@@ -343,7 +343,7 @@ const DashboardPage: React.FC = async () => {
             id='panel2-header'
           >
             <Typography variant='h5' align='center'>
-              Your Tasks
+              Last Tasks
             </Typography>
           </AccordionSummary>
           <AccordionDetails>
@@ -371,7 +371,7 @@ const DashboardPage: React.FC = async () => {
             id='panel2-header'
           >
             <Typography variant='h5' align='center'>
-              Your Reports
+              Last Reports
             </Typography>
           </AccordionSummary>
           <AccordionDetails>
