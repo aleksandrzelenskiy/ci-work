@@ -53,6 +53,15 @@ const TaskSchema = new Schema<Task & Document>({
   ],
   createdAt: { type: Date, default: Date.now },
   orderUrl: { type: String, required: true },
+  events: [
+    {
+      action: { type: String, required: true }, // Тип действия (например, "STATUS_CHANGED", "TASK_UPDATED")
+      author: { type: String, required: true }, // Имя автора изменения
+      authorId: { type: String, required: true }, // ID автора изменения
+      date: { type: Date, default: Date.now }, // Дата изменения
+      details: { type: Schema.Types.Mixed }, // Детали изменения (например, старый и новый статус)
+    },
+  ],
 });
 
 export default models.Task || model<Task & Document>('Task', TaskSchema);

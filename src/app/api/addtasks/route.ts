@@ -65,7 +65,7 @@ export async function POST(request: Request) {
       taskId: formData.get('taskId') as string,
       taskName: formData.get('taskName') as string,
       bsNumber,
-      bsLocation, // Добавляем массив с координатами
+      bsLocation,
       bsAddress: formData.get('bsAddress') as string,
       totalCost: parseFloat(formData.get('totalCost') as string),
       priority: formData.get('priority') as PriorityLevel,
@@ -149,12 +149,28 @@ export async function POST(request: Request) {
       })
     );
 
+    // Определяем статус задачи
+    const taskStatus = taskData.executorId ? 'assigned' : 'to do';
+
     // Создаем задачу
     const newTask = new Task({
       ...taskData,
+      status: taskStatus,
       orderUrl: `/uploads/taskattach/${taskFolderName}/order/${excelFileName}`,
       attachments: attachmentsUrls,
       createdAt: new Date(),
+      events: [
+        {
+          action: 'TASK_CREATED',
+          author: taskData.authorName,
+          authorId: taskData.authorId,
+          date: new Date(),
+          details: {
+            comment: 'The task was created successfully',
+            initialStatus: taskStatus,
+          },
+        },
+      ],
     });
 
     await newTask.save();
@@ -163,7 +179,7 @@ export async function POST(request: Request) {
   } catch (error) {
     console.error('Error creating task:', error);
     return NextResponse.json(
-      { error: 'Ошибка при создании задачи' },
+      { error: 'Error when creating a task' },
       { status: 500 }
     );
   }

@@ -21,6 +21,19 @@ export interface WorkItem {
   id?: string;
 }
 
+export interface TaskEvent {
+  _id?: string;
+  action: string;
+  author: string;
+  authorId: string;
+  date: Date;
+  details?: {
+    oldStatus?: CurrentStatus;
+    newStatus?: CurrentStatus;
+    comment?: string;
+  };
+}
+
 export interface Task {
   _id?: string;
   taskId: string;
@@ -50,6 +63,7 @@ export interface Task {
     name: string;
     coordinates: string;
   };
+  events?: TaskEvent[];
 }
 
 export interface CreateTaskPayload extends Omit<Task, '_id' | 'createdAt'> {

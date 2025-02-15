@@ -3,6 +3,8 @@
 import { NextResponse } from 'next/server';
 import dbConnect from '@/utils/mongoose';
 import TaskModel from '@/app/models/TaskModel';
+import { currentUser } from '@clerk/nextjs/server';
+import type { TaskEvent } from '@/app/types/taskTypes';
 
 // Подключение к базе данных
 async function connectToDatabase() {
@@ -15,74 +17,88 @@ async function connectToDatabase() {
   }
 }
 
-// GET-запрос для получения задачи по ID
+// GET-запрос для получения задачи по ID (без изменений)
 export async function GET(
   request: Request,
   { params }: { params: { taskid: string } }
 ) {
   try {
     await connectToDatabase();
-  } catch (error) {
-    console.error('Connection error:', error);
-    return NextResponse.json(
-      { error: 'Failed to connect to database' },
-      { status: 500 }
-    );
-  }
-
-  try {
     const { taskid } = params;
     const taskIdUpperCase = taskid.toUpperCase();
     const task = await TaskModel.findOne({ taskId: taskIdUpperCase });
 
-    if (!task) {
-      return NextResponse.json({ error: 'Task not found' }, { status: 404 });
-    }
-
-    return NextResponse.json({ task });
+    return task
+      ? NextResponse.json({ task })
+      : NextResponse.json({ error: 'Task not found' }, { status: 404 });
   } catch (error) {
-    console.error('Fetch error:', error);
+    console.error('Error:', error);
     return NextResponse.json(
-      { error: 'Failed to fetch task' },
+      { error: 'Internal Server Error' },
       { status: 500 }
     );
   }
 }
 
-// PATCH-запрос для обновления статуса задачи
+// PATCH-запрос с добавлением логики событий
 export async function PATCH(
   request: Request,
   { params }: { params: { taskid: string } }
 ) {
   try {
+    // Подключение к БД
     await connectToDatabase();
-  } catch (error) {
-    console.error('Connection error:', error);
-    return NextResponse.json(
-      { error: 'Failed to connect to database' },
-      { status: 500 }
-    );
-  }
 
-  try {
+    // Получение и валидация данных
     const { taskid } = params;
     const taskIdUpperCase = taskid.toUpperCase();
     const { status } = await request.json();
-    const updatedTask = await TaskModel.findOneAndUpdate(
-      { taskId: taskIdUpperCase },
-      { status },
-      { new: true }
-    );
 
-    if (!updatedTask) {
+    // Получение текущего пользователя
+    const user = await currentUser();
+    if (!user) {
+      return NextResponse.json(
+        { error: 'Authentication required' },
+        { status: 401 }
+      );
+    }
+
+    // Поиск задачи
+    const task = await TaskModel.findOne({ taskId: taskIdUpperCase });
+    if (!task) {
       return NextResponse.json({ error: 'Task not found' }, { status: 404 });
     }
 
+    // Сохранение старого статуса
+    const oldStatus = task.status;
+
+    // Создание события только если статус изменен
+    if (status && status !== oldStatus) {
+      const event: TaskEvent = {
+        action: 'STATUS_CHANGED',
+        author: `${user.firstName} ${user.lastName}`.trim() || 'Unknown',
+        authorId: user.id,
+        date: new Date(),
+        details: {
+          oldStatus,
+          newStatus: status,
+        },
+      };
+
+      // Добавление события в массив
+      if (!task.events) task.events = [];
+      task.events.push(event);
+    }
+
+    // Обновление статуса и сохранение
+    task.status = status;
+    const updatedTask = await task.save();
+
     return NextResponse.json({ task: updatedTask });
   } catch (error) {
-    console.error('Update error:', error);
+    console.error('Error:', error);
     return NextResponse.json(
-      { error: 'Failed to update task' },
+      { error: 'Internal Server Error' },
       { status: 500 }
     );
   }

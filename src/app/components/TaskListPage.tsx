@@ -48,7 +48,7 @@ import KeyboardArrowDownIcon from '@mui/icons-material/KeyboardArrowDown';
 
 import { LocalizationProvider } from '@mui/x-date-pickers/LocalizationProvider';
 import { AdapterDateFns } from '@mui/x-date-pickers/AdapterDateFns';
-import { BsLocation, Task, WorkItem } from '../types/taskTypes';
+import { Task, WorkItem } from '../types/taskTypes';
 import { GetCurrentUserFromMongoDB } from '@/server-actions/users';
 
 const getStatusColor = (status: string) => {
@@ -212,8 +212,8 @@ function Row({
                 >
                   {task.bsAddress}
                 </Typography>
-                <Typography variant='subtitle1'>Location</Typography>
-                <Typography
+                {/* <Typography variant='subtitle1'>Location</Typography> */}
+                {/* <Typography
                   variant='body2'
                   color='text.secondary'
                   component='div'
@@ -229,11 +229,15 @@ function Row({
                       </Typography>
                     </Box>
                   ))}
-                </Typography>
-                <Typography variant='subtitle1'>Cost</Typography>
-                <Typography variant='body2' component='div'>
-                  {task.totalCost}
-                </Typography>
+                </Typography> */}
+                {role !== 'executor' && (
+                  <>
+                    <Typography variant='subtitle1'>Cost</Typography>
+                    <Typography variant='body2' component='div'>
+                      {task.totalCost}
+                    </Typography>
+                  </>
+                )}
               </Box>
               <Typography variant='h6' gutterBottom>
                 Work Items
@@ -592,6 +596,7 @@ export default function TaskListPage() {
                   sx={{
                     whiteSpace: 'nowrap',
                     padding: '16px',
+                    textAlign: 'center',
                   }}
                 >
                   <Tooltip title='Manage columns'>
@@ -608,6 +613,7 @@ export default function TaskListPage() {
                     sx={{
                       whiteSpace: 'nowrap',
                       padding: '16px',
+                      textAlign: 'center',
                     }}
                   >
                     <strong>Task</strong>
@@ -628,6 +634,7 @@ export default function TaskListPage() {
                     sx={{
                       whiteSpace: 'nowrap',
                       padding: '16px',
+                      textAlign: 'center',
                     }}
                   >
                     <strong>Author</strong>
@@ -647,6 +654,7 @@ export default function TaskListPage() {
                     sx={{
                       whiteSpace: 'nowrap',
                       padding: '16px',
+                      textAlign: 'center',
                     }}
                   >
                     <strong>Initiator</strong>
@@ -667,6 +675,7 @@ export default function TaskListPage() {
                     sx={{
                       whiteSpace: 'nowrap',
                       padding: '16px',
+                      textAlign: 'center',
                     }}
                   >
                     <strong>Executor</strong>
@@ -686,6 +695,7 @@ export default function TaskListPage() {
                     sx={{
                       whiteSpace: 'nowrap',
                       padding: '16px',
+                      textAlign: 'center',
                     }}
                   >
                     <strong>Created</strong>
@@ -709,6 +719,7 @@ export default function TaskListPage() {
                     sx={{
                       whiteSpace: 'nowrap',
                       padding: '16px',
+                      textAlign: 'center',
                     }}
                   >
                     <strong>Due Date</strong>
@@ -732,6 +743,7 @@ export default function TaskListPage() {
                     sx={{
                       whiteSpace: 'nowrap',
                       padding: '16px',
+                      textAlign: 'center',
                     }}
                   >
                     <strong>Status</strong>
@@ -751,6 +763,7 @@ export default function TaskListPage() {
                     sx={{
                       whiteSpace: 'nowrap',
                       padding: '16px',
+                      textAlign: 'center',
                     }}
                   >
                     <strong>Priority</strong>

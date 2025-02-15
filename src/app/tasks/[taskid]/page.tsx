@@ -1,3 +1,5 @@
+// app/tasks/[taskid]/page.tsx
+
 'use client';
 
 import React, { useState, useEffect } from 'react';
@@ -8,7 +10,6 @@ import {
   CircularProgress,
   Chip,
   Button,
-  Grid,
   Dialog,
   DialogTitle,
   DialogContent,
@@ -29,9 +30,18 @@ import {
   AccordionDetails,
   Snackbar,
   Alert,
+  Grid,
 } from '@mui/material';
+import Timeline from '@mui/lab/Timeline';
+import TimelineItem from '@mui/lab/TimelineItem';
+import TimelineSeparator from '@mui/lab/TimelineSeparator';
+import TimelineConnector from '@mui/lab/TimelineConnector';
+import TimelineContent from '@mui/lab/TimelineContent';
+import TimelineDot from '@mui/lab/TimelineDot';
+import TimelineOppositeContent from '@mui/lab/TimelineOppositeContent';
 import CloseIcon from '@mui/icons-material/Close';
 import ArrowBackIcon from '@mui/icons-material/ArrowBack';
+import CheckIcon from '@mui/icons-material/Check';
 import ExpandMoreIcon from '@mui/icons-material/ExpandMore';
 import ExpandLessIcon from '@mui/icons-material/ExpandLess';
 
@@ -41,6 +51,7 @@ import {
   WorkItem,
   BsLocation,
   CurrentStatus,
+  TaskEvent,
 } from '@/app/types/taskTypes';
 import { YMaps, Map, Placemark } from 'react-yandex-maps';
 import { TransitionProps } from '@mui/material/transitions';
@@ -96,7 +107,7 @@ export default function TaskDetailPage() {
   const [userRole, setUserRole] = useState<string | null>(null);
   const [confirmDialogOpen, setConfirmDialogOpen] = useState(false);
   const [confirmAction, setConfirmAction] = useState<
-    'accept' | 'reject' | null
+    'accept' | 'reject' | 'done' | 'refuse' | null
   >(null);
   const [snackbarOpen, setSnackbarOpen] = useState(false);
   const [snackbarMessage, setSnackbarMessage] = useState('');
@@ -118,12 +129,29 @@ export default function TaskDetailPage() {
   const updateStatus = async (newStatus: CurrentStatus) => {
     try {
       setLoadingStatus(true);
+
+      const user = await GetCurrentUserFromMongoDB();
+
+      if (!user.success) {
+        throw new Error('Failed to fetch user data');
+      }
+
+      const event = {
+        action: 'STATUS_CHANGED',
+        author: user.data.name,
+        authorId: user.data._id,
+        details: {
+          oldStatus: task?.status,
+          newStatus: newStatus,
+        },
+      };
+
       const response = await fetch(`/api/tasks/${taskid}`, {
         method: 'PATCH',
         headers: {
           'Content-Type': 'application/json',
         },
-        body: JSON.stringify({ status: newStatus }),
+        body: JSON.stringify({ status: newStatus, event }),
       });
 
       if (!response.ok) {
@@ -135,7 +163,13 @@ export default function TaskDetailPage() {
       setSnackbarMessage(
         newStatus === 'at work'
           ? 'Task accepted successfully!'
-          : 'Task rejected successfully!'
+          : newStatus === 'done'
+          ? 'Task marked as done successfully!'
+          : newStatus === 'to do'
+          ? confirmAction === 'reject'
+            ? 'Task rejected successfully!'
+            : 'Task refused successfully!'
+          : ''
       );
       setSnackbarSeverity('success');
       setSnackbarOpen(true);
@@ -153,8 +187,10 @@ export default function TaskDetailPage() {
   const handleConfirmAction = () => {
     if (confirmAction === 'accept') {
       updateStatus('at work');
-    } else if (confirmAction === 'reject') {
+    } else if (confirmAction === 'reject' || confirmAction === 'refuse') {
       updateStatus('to do');
+    } else if (confirmAction === 'done') {
+      updateStatus('done');
     }
   };
 
@@ -245,6 +281,10 @@ export default function TaskDetailPage() {
     );
   }
 
+  const isExecutor = userRole === 'executor';
+  const isTaskAssigned = task.status === 'assigned';
+  const isTaskAtWork = task.status === 'at work';
+
   return (
     <Box sx={{ maxWidth: 1200, margin: '0 auto' }}>
       <Box mb={2}>
@@ -271,9 +311,21 @@ export default function TaskDetailPage() {
           <Chip label={task.status} color={getStatusColor(task.status)} />
         </Typography>
       </Box>
-      <Chip label={task.taskId} size='small' color='primary' sx={{ mb: 3 }} />
+      <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, mb: 3 }}>
+        <Chip label={task.taskId} size='small' color='primary' />
+        <Typography variant='body2' component='span'>
+          Created by{' '}
+          {task.events?.find((event) => event.action === 'TASK_CREATED')
+            ?.author || task.authorName}{' '}
+          on{' '}
+          {new Date(
+            task.events?.find((event) => event.action === 'TASK_CREATED')
+              ?.date || task.createdAt
+          ).toLocaleDateString()}
+        </Typography>
+      </Box>
       <Grid container spacing={3}>
-        <Grid item xs={12} md={6} gap={5}>
+        <Grid item xs={12} md={6}>
           <Box sx={{ mb: 3 }}>
             <Accordion defaultExpanded>
               <AccordionSummary expandIcon={<ExpandMoreIcon />}>
@@ -284,10 +336,15 @@ export default function TaskDetailPage() {
                   <strong>BS:</strong> {task.bsNumber}
                 </Typography>
                 <Typography>
-                  <strong>Adress:</strong> {task.bsAddress}
+                  <strong>Address:</strong> {task.bsAddress}
                 </Typography>
                 <Typography>
-                  <strong>Total Cost:</strong> {task.totalCost} RUB
+                  <strong>
+                    {userRole === 'executor' ? 'Cost:' : 'Total Cost:'}
+                  </strong>{' '}
+                  {userRole === 'executor'
+                    ? `${(task.totalCost * 0.7).toFixed(2)} RUB`
+                    : `${task.totalCost} RUB`}
                 </Typography>
                 <Typography>
                   <strong>Priority:</strong> {task.priority}
@@ -374,10 +431,14 @@ export default function TaskDetailPage() {
           </Box>
 
           <Box sx={{ mb: 3 }}>
-            <Typography variant='h6' gutterBottom>
-              Photo report
-            </Typography>
-            <Link>Photo reports Link</Link>
+            {task.status === 'done' && (
+              <>
+                <Typography variant='h6' gutterBottom>
+                  Photo report
+                </Typography>
+                <Link>Photo reports Link</Link>
+              </>
+            )}
           </Box>
         </Grid>
 
@@ -419,74 +480,140 @@ export default function TaskDetailPage() {
         </Grid>
 
         <Grid item xs={12}>
-          {userRole !== 'executor' && task.status === 'assigned' && (
+          {isExecutor && isTaskAssigned && (
             <Box sx={{ mb: 3 }}>
-              <Grid item xs={12}>
-                <Box
-                  sx={{
-                    mb: 3,
-                    display: 'flex',
-                    justifyContent: 'center',
-                    gap: 2,
+              <Box
+                sx={{
+                  display: 'flex',
+                  justifyContent: 'center',
+                  gap: 2,
+                }}
+              >
+                <Button
+                  variant='contained'
+                  color='success'
+                  onClick={() => {
+                    setConfirmAction('accept');
+                    setConfirmDialogOpen(true);
                   }}
+                  disabled={loadingStatus}
                 >
-                  <Button
-                    variant='contained'
-                    color='success'
-                    onClick={() => {
-                      setConfirmAction('accept');
-                      setConfirmDialogOpen(true);
-                    }}
-                    disabled={loadingStatus}
-                  >
-                    {loadingStatus ? <CircularProgress size={24} /> : 'Accept'}
-                  </Button>
-                  <Button
-                    variant='contained'
-                    color='error'
-                    onClick={() => {
-                      setConfirmAction('reject');
-                      setConfirmDialogOpen(true);
-                    }}
-                    disabled={loadingStatus}
-                  >
-                    {loadingStatus ? <CircularProgress size={24} /> : 'Reject'}
-                  </Button>
-                </Box>
-              </Grid>
+                  {loadingStatus ? <CircularProgress size={24} /> : 'Accept'}
+                </Button>
+                <Button
+                  variant='contained'
+                  color='error'
+                  onClick={() => {
+                    setConfirmAction('reject');
+                    setConfirmDialogOpen(true);
+                  }}
+                  disabled={loadingStatus}
+                >
+                  {loadingStatus ? <CircularProgress size={24} /> : 'Reject'}
+                </Button>
+              </Box>
             </Box>
           )}
-          {userRole === 'executor' && (
+
+          {isExecutor && isTaskAtWork && (
             <Box sx={{ mb: 3 }}>
-              <Grid item xs={12}>
-                <Box
-                  sx={{
-                    mb: 3,
-                    display: 'flex',
-                    justifyContent: 'center',
-                    gap: 2,
+              <Box
+                sx={{
+                  display: 'flex',
+                  justifyContent: 'center',
+                  gap: 2,
+                }}
+              >
+                <Button
+                  variant='contained'
+                  color='primary'
+                  onClick={() => {
+                    setConfirmAction('done');
+                    setConfirmDialogOpen(true);
                   }}
+                  disabled={loadingStatus}
                 >
-                  <Button
-                    variant='contained'
-                    color='success'
-                    onClick={async () => await updateStatus('at work')}
-                    disabled={loadingStatus}
-                  >
-                    {loadingStatus ? <CircularProgress size={24} /> : 'Accept'}
-                  </Button>
-                  <Button
-                    variant='contained'
-                    color='error'
-                    onClick={async () => await updateStatus('to do')}
-                    disabled={loadingStatus}
-                  >
-                    {loadingStatus ? <CircularProgress size={24} /> : 'Reject'}
-                  </Button>
-                </Box>
-              </Grid>
+                  {loadingStatus ? <CircularProgress size={24} /> : 'Done'}
+                </Button>
+                <Button
+                  variant='contained'
+                  color='error'
+                  onClick={() => {
+                    setConfirmAction('refuse');
+                    setConfirmDialogOpen(true);
+                  }}
+                  disabled={loadingStatus}
+                >
+                  {loadingStatus ? <CircularProgress size={24} /> : 'Refuse'}
+                </Button>
+              </Box>
             </Box>
           )}
+        </Grid>
+
+        <Grid item xs={12}>
+          <Accordion>
+            <AccordionSummary expandIcon={<ExpandMoreIcon />}>
+              <Typography variant='h6'>Task Timeline</Typography>
+            </AccordionSummary>
+            <AccordionDetails>
+              <Timeline>
+                {task.events?.map((event: TaskEvent) => (
+                  <TimelineItem key={event._id}>
+                    <TimelineOppositeContent sx={{ py: '12px', px: 2 }}>
+                      <Typography variant='body2' color='textSecondary'>
+                        {new Date(event.date).toLocaleDateString()}
+                        <br />
+                        {new Date(event.date).toLocaleTimeString()}
+                      </Typography>
+                    </TimelineOppositeContent>
+                    <TimelineSeparator>
+                      <TimelineDot
+                        color={
+                          event.action === 'TASK_CREATED'
+                            ? 'secondary'
+                            : event.action === 'STATUS_CHANGED'
+                            ? 'primary'
+                            : 'grey'
+                        }
+                      >
+                        {event.action === 'TASK_CREATED' && (
+                          <CheckIcon fontSize='small' />
+                        )}
+                        {event.action === 'STATUS_CHANGED' && (
+                          <ExpandMoreIcon fontSize='small' />
+                        )}
+                      </TimelineDot>
+                      <TimelineConnector />
+                    </TimelineSeparator>
+                    <TimelineContent sx={{ py: '12px', px: 2 }}>
+                      <Typography variant='body1' component='div'>
+                        {event.action.replace('_', ' ')}
+                      </Typography>
+                      <Typography variant='body2' component='div'>
+                        Author: {parseUserInfo(event.author).name}
+                      </Typography>
+                      {event.details && (
+                        <Typography variant='caption' color='textSecondary'>
+                          {event.details.oldStatus &&
+                            `From: ${event.details.oldStatus}`}
+                          {event.details.newStatus &&
+                            ` → To: ${event.details.newStatus}`}
+                          {event.details.comment &&
+                            ` (${event.details.comment})`}
+                        </Typography>
+                      )}
+                    </TimelineContent>
+                  </TimelineItem>
+                ))}
+              </Timeline>
+              {!task.events?.length && (
+                <Typography variant='body2' color='textSecondary' sx={{ p: 2 }}>
+                  No events recorded for this task
+                </Typography>
+              )}
+            </AccordionDetails>
+          </Accordion>
         </Grid>
       </Grid>
 
@@ -534,12 +661,17 @@ export default function TaskDetailPage() {
         aria-describedby='confirm-dialog-description'
       >
         <DialogTitle id='confirm-dialog-title'>
-          {confirmAction === 'accept'
-            ? `Are you sure you want to accept the task ${task.taskName} | ${task.bsNumber}?`
-            : `Are you sure you want to reject the task ${task.taskName} | ${task.bsNumber}?`}
+          {confirmAction === 'accept' &&
+            `Are you sure you want to accept the task ${task.taskName} | ${task.bsNumber}?`}
+          {confirmAction === 'reject' &&
+            `Are you sure you want to reject the task ${task.taskName} | ${task.bsNumber}?`}
+          {confirmAction === 'done' &&
+            `Are you sure you want to mark the task ${task.taskName} | ${task.bsNumber} as done?`}
+          {confirmAction === 'refuse' &&
+            `Are you sure you want to refuse the task ${task.taskName} | ${task.bsNumber}?`}
         </DialogTitle>
         <DialogContent>
-          {confirmAction === 'accept' && (
+          {(confirmAction === 'accept' || confirmAction === 'done') && (
             <Typography>
               The due date is {new Date(task.dueDate).toLocaleDateString()}.
             </Typography>
@@ -555,10 +687,17 @@ export default function TaskDetailPage() {
           </Button>
           <Button
             onClick={handleConfirmAction}
-            color={confirmAction === 'accept' ? 'success' : 'error'}
+            color={
+              confirmAction === 'accept' || confirmAction === 'done'
+                ? 'primary'
+                : 'error'
+            }
             variant='contained'
           >
-            {confirmAction === 'accept' ? 'Accept' : 'Reject'}
+            {confirmAction === 'accept' && 'Accept'}
+            {confirmAction === 'reject' && 'Reject'}
+            {confirmAction === 'done' && 'Mark Done'}
+            {confirmAction === 'refuse' && 'Refuse'}
           </Button>
         </DialogActions>
       </Dialog>

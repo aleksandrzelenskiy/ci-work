@@ -1,4 +1,4 @@
-// app/api/reports/[task]/[baseid]/route.ts
+// app/api/reports/[task]/[taskid]/route.ts
 
 import { NextResponse } from 'next/server';
 import ReportModel from '@/app/models/ReportModel';
@@ -83,7 +83,6 @@ export async function GET(
 
 /**
  * PATCH обработчик для обновления информации о конкретном отчёте.
- * Исходный функционал остаётся неизменным.
  */
 export async function PATCH(
   request: Request,
