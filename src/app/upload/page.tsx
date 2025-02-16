@@ -1,7 +1,9 @@
+// app/upload/page.tsx
+
 'use client';
 
 import React, { useState, useEffect } from 'react';
-import { useRouter } from 'next/navigation';
+import { useRouter, useSearchParams } from 'next/navigation';
 import { useUser } from '@clerk/nextjs';
 import {
   Accordion,
@@ -37,10 +39,28 @@ interface UploadedFile {
 }
 
 export default function UploadPage() {
+  const searchParams = useSearchParams();
+  // Получаем параметры из URL
+  const taskId = searchParams.get('taskId');
+  const taskNameParam = searchParams.get('taskName');
+  const bsNumberParam = searchParams.get('bsNumber');
+  const executorName = searchParams.get('executorName');
+  const executorId = searchParams.get('executorId');
+  const initiatorName = searchParams.get('initiatorName');
+  const initiatorId = searchParams.get('initiatorId');
+
+  console.log(`taskId: ${taskId}`);
+  console.log(`executor: ${executorName} ${executorId}`);
+  console.log(`initiator: ${initiatorName} ${initiatorId}`);
+
   const { isLoaded, isSignedIn } = useUser();
   const router = useRouter();
-  const [baseId, setBaseId] = useState('');
-  const [task, setTask] = useState('');
+  const [baseId, setBaseId] = useState(decodeURIComponent(bsNumberParam || ''));
+  const [task, setTask] = useState(
+    `${decodeURIComponent(taskNameParam || '')} | ${decodeURIComponent(
+      bsNumberParam || ''
+    )}`
+  );
   const [files, setFiles] = useState<UploadedFile[]>([]);
   const [fileToDelete, setFileToDelete] = useState<UploadedFile | null>(null);
   const [isCheckboxChecked, setIsCheckboxChecked] = useState(false);
@@ -98,6 +118,7 @@ export default function UploadPage() {
     const formData = new FormData();
     formData.append('baseId', baseId);
     formData.append('task', task);
+    formData.append('taskId', taskId || 'unknown');
 
     files.forEach((file) => {
       formData.append('image[]', file.file);
@@ -171,96 +192,9 @@ export default function UploadPage() {
                 aria-controls='requirements-content'
                 id='requirements-header'
               >
-                <Typography variant='h6'>
-                  Требования к ФО по монтажу РРЛ
-                </Typography>
+                <Typography variant='h6'>Требования к ФО</Typography>
               </AccordionSummary>
               <AccordionDetails>
-                <Typography variant='body1'>
-                  <li>
-                    До начала работ выполнить фотографию общего вида антенной
-                    опоры
-                  </li>
-                  <li>
-                    Фотоотчет по монтажу радиорелейного пролета выполняется
-                    после полного завершения работ.
-                  </li>
-                  <li>Фотоотчет должен выполняться в светлое время суток.</li>
-                  <li>
-                    Фотографии должны иметь размер не менее 1280х720рх и иметь
-                    надлежащее для просмотра на десктоп устройствах качество
-                    изображения.
-                  </li>
-                </Typography>
-                <Typography variant='h6' sx={{ mt: 2 }} gutterBottom>
-                  Содержание фотоотчета
-                </Typography>
-                <strong>Фотографии АФУ</strong>
-                <Typography variant='body1'>
-                  <li>
-                    Фотографии общего вида установленной антенны на антенной
-                    опоре (антенна должна быть видна в кадре полностью, включая
-                    крепление к трубостойке)
-                  </li>
-                  <li>Фотографии крепления трубостойки к антенной опоре</li>
-                  <li>
-                    Фото маркировки данных о пролете на антенне (указание номера
-                    основной и ответной части пролета, азимут направления
-                    антенны)
-                  </li>
-                  <li>
-                    Фотография в направлении излучения антенны. На фотографии
-                    должно быть видно перспективу в направлении излучения
-                    радиорелейной антенны (в сторону ответной части)
-                  </li>
-                  <li>Фото серийного номера антенны</li>
-                  <li>Фото серийного номера радиоблока</li>
-                  <li>
-                    Фото подключения кабелей к интерфейсам радиоблока
-                    (обязательно с наличием маркировки кабеля)
-                  </li>
-                  <li>
-                    Фотографии крепления антенны (должны быть выполнены
-                    фотографии всех болтовых соединений крепления антенны, на
-                    фотографиях должно быть четко видно наличие всех элементов
-                    крепления (болты, гайки, контргайки, шайбы плоские, шайбы
-                    пружинные), а также должно быть видно, что соединения
-                    достаточно качественно протянуты после монтажа и юстировки)
-                  </li>
-                  <li>
-                    Фотографии заземления радиоблока (с наличием маркировки
-                    проводника)
-                  </li>
-                  <li>Фото укладки и крепления запаса кабеля на АО</li>
-                  <li>Фото кабельной трассы снизу вверх</li>
-                  <li>
-                    Фотографии общего вида АО с установленными антеннами (не
-                    менее двух фотографий с двух разных сторон)
-                  </li>
-                  <li>Фото кабельного ввода в аппаратную снаружи</li>
-                </Typography>
-                <strong>Фотографии в аппаратной / КШ</strong>
-                <Typography variant='body1'>
-                  <li>Фотографии общего вида 19’’ стойки “в полный рост”</li>
-                  <li>Фотографии IDU укрупненно</li>
-                  <li>
-                    Фотографии подключения кабелей питания и заземления IDU (в
-                    случае монтажа IDU) включая маркировку
-                  </li>
-                  <li>
-                    Фотографии подключения любых проводов к маршрутизаторам или
-                    иному существующему сетевому оборудованию включая маркировку
-                  </li>
-                  <li>Фотографии стойки питания “в полный рост”</li>
-                  <li>Фото шины автоматов крупно (полностью)</li>
-                  <li>
-                    Фото подключения питания монтируемого оборудования на шину
-                    “+” и автоматический выключатель “-” включая маркировку
-                    (номинал автоматов должен читаться на фотографии)
-                  </li>
-                  <li>Фото укладки кабельной трассы внутри аппаратной</li>
-                  <li>Фото кабельного ввода в аппаратную внутри</li>
-                </Typography>
                 <Box sx={{ mt: 3, mb: 3 }}>
                   <Alert variant='outlined' severity='info'>
                     Подтвердите соответствие фотоотчета требованиям
@@ -291,16 +225,20 @@ export default function UploadPage() {
 
                   <TextField
                     fullWidth
-                    label='Задача'
+                    label='Task'
                     value={task}
-                    onChange={(e) => setTask(e.target.value)}
+                    InputProps={{
+                      readOnly: true,
+                    }}
                     margin='normal'
                   />
                   <TextField
                     fullWidth
-                    label='ID базы'
+                    label='BS Number'
                     value={baseId}
-                    onChange={(e) => setBaseId(e.target.value)}
+                    InputProps={{
+                      readOnly: true,
+                    }}
                     margin='normal'
                   />
                   <Box sx={{ marginBottom: 3 }}>

@@ -44,7 +44,7 @@ import ArrowBackIcon from '@mui/icons-material/ArrowBack';
 import CheckIcon from '@mui/icons-material/Check';
 import ExpandMoreIcon from '@mui/icons-material/ExpandMore';
 import ExpandLessIcon from '@mui/icons-material/ExpandLess';
-
+import CloudUploadIcon from '@mui/icons-material/CloudUpload';
 import { useParams } from 'next/navigation';
 import {
   Task,
@@ -431,12 +431,31 @@ export default function TaskDetailPage() {
           </Box>
 
           <Box sx={{ mb: 3 }}>
-            {task.status === 'done' && (
+            {userRole === 'executor' && task.status === 'done' && (
               <>
                 <Typography variant='h6' gutterBottom>
                   Photo report
                 </Typography>
-                <Link>Photo reports Link</Link>
+                <Button
+                  variant='outlined'
+                  startIcon={<CloudUploadIcon />}
+                  component={Link}
+                  href={`/upload?taskId=${
+                    task.taskId
+                  }&taskName=${encodeURIComponent(
+                    task.taskName
+                  )}&bsNumber=${encodeURIComponent(
+                    task.bsNumber
+                  )}&executorName=${encodeURIComponent(
+                    task.executorName
+                  )}&executorId=${
+                    task.executorId
+                  }&initiatorName=${encodeURIComponent(
+                    task.initiatorName
+                  )}&initiatorId=${task.initiatorId}`}
+                >
+                  Upload reports
+                </Button>
               </>
             )}
           </Box>
@@ -554,7 +573,7 @@ export default function TaskDetailPage() {
         <Grid item xs={12}>
           <Accordion>
             <AccordionSummary expandIcon={<ExpandMoreIcon />}>
-              <Typography variant='h6'>Task Timeline</Typography>
+              <Typography variant='h6'>Task History</Typography>
             </AccordionSummary>
             <AccordionDetails>
               <Timeline>

@@ -15,7 +15,7 @@ const TasksPage = () => {
   const [viewMode, setViewMode] = useState('table');
 
   return (
-    <div>
+    <Box>
       <Box sx={{ display: 'flex', alignItems: 'center', gap: 2, mb: 2 }}>
         <Typography variant='body2'>Select Mode:</Typography>
         <ToggleButtonGroup
@@ -33,10 +33,16 @@ const TasksPage = () => {
         </ToggleButtonGroup>
       </Box>
 
-      <Paper>
+      <Paper
+        sx={{
+          width: '100%',
+          boxSizing: 'border-box',
+          minWidth: { xs: '100%', sm: 600 },
+        }}
+      >
         {viewMode === 'table' ? <TaskListPage /> : <TaskColumnPage />}
       </Paper>
-    </div>
+    </Box>
   );
 };
 

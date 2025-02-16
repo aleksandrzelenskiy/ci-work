@@ -10,6 +10,7 @@ export interface IEvent {
 
 export interface IReport {
   _id: string;
+  reportId: string;
   task: string;
   baseId: string;
   files: string[];

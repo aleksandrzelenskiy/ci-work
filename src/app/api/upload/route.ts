@@ -1,5 +1,3 @@
-// app/api/upload/route.ts
-
 import { NextResponse } from 'next/server';
 import * as fs from 'fs';
 import * as path from 'path';
@@ -38,7 +36,7 @@ function formatDateToDDMMYYYY(exifDateStr: string): string {
 }
 
 export async function POST(request: Request) {
-  // Check authentication
+  // Проверка аутентификации
   const user = await currentUser();
   if (!user) {
     console.error('Authentication error: User is not authenticated');
@@ -50,12 +48,14 @@ export async function POST(request: Request) {
 
   const name = `${user.firstName || 'Unknown'} ${user.lastName || ''}`.trim();
 
-  // Extract FormData
+  // Извлечение FormData
   const formData = await request.formData();
 
-  // Decode task/baseId
+  // Декодирование task/baseId
   const rawBaseId = formData.get('baseId') as string | null;
   const rawTask = formData.get('task') as string | null;
+  const taskId = formData.get('taskId') as string | null; // Извлекаем taskId из FormData
+
   if (!rawBaseId || !rawTask) {
     console.error('Validation error: Base ID or Task is missing');
     return NextResponse.json(
@@ -67,14 +67,20 @@ export async function POST(request: Request) {
   const baseId = decodeURIComponent(rawBaseId);
   const task = decodeURIComponent(rawTask);
 
-  // Files
+  // Получение initiatorId и initiatorName из FormData (или использование значений по умолчанию)
+  const initiatorId =
+    (formData.get('initiatorId') as string | null) || 'unknown';
+  const initiatorName =
+    (formData.get('initiatorName') as string | null) || 'unknown';
+
+  // Файлы
   const files = formData.getAll('image[]') as File[];
   if (files.length === 0) {
     console.error('Validation error: No files uploaded');
     return NextResponse.json({ error: 'No files uploaded' }, { status: 400 });
   }
 
-  // Prepare directories
+  // Подготовка директорий
   const uploadsDir = path.join(
     process.cwd(),
     'public',
@@ -100,7 +106,7 @@ export async function POST(request: Request) {
     let date = 'Unknown Date';
     let coordinates = 'Unknown Location';
 
-    // Try to read EXIF
+    // Попытка чтения EXIF
     try {
       const tags = ExifReader.load(buffer);
       if (tags.DateTimeOriginal?.description) {
@@ -133,7 +139,7 @@ export async function POST(request: Request) {
       console.warn('Error reading Exif data:', error);
     }
 
-    // Generate output file name
+    // Генерация имени выходного файла
     const outputFilename = `${baseId}-${String(fileCounter).padStart(
       3,
       '0'
@@ -141,7 +147,7 @@ export async function POST(request: Request) {
     const outputPath = path.join(taskDir, outputFilename);
 
     try {
-      // Resize and stamp
+      // Изменение размера и наложение водяного знака
       await sharp(buffer)
         .resize(1920, 1920, {
           fit: sharp.fit.inside,
@@ -177,7 +183,7 @@ export async function POST(request: Request) {
     }
   }
 
-  // Connect to the database
+  // Подключение к базе данных
   try {
     console.log('Connecting to database...');
     await dbConnect();
@@ -190,23 +196,24 @@ export async function POST(request: Request) {
     );
   }
 
-  // Save to the database
+  // Сохранение в базу данных
   try {
-    // Create a new report
+    // Создание нового отчета
     const report = new Report({
+      reportId: taskId || 'unknown', // Используем taskId из FormData
       task,
       baseId,
       executorId: user.id,
       executorName: name,
-      initiatorId: 'id',
-      initiatorName: 'initiator',
+      initiatorId,
+      initiatorName,
       userAvatar: user.imageUrl || '',
       createdAt: new Date(),
       status: 'Pending',
       files: fileUrls,
     });
 
-    // <-- Add an event to the change history:
+    // Добавление события в историю изменений
     report.events.push({
       action: 'REPORT_CREATED',
       author: name,

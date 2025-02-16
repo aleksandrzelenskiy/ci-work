@@ -33,7 +33,7 @@ import TaskIcon from '@mui/icons-material/Task';
 import PlaceIcon from '@mui/icons-material/Place';
 import CloudUploadIcon from '@mui/icons-material/CloudUpload';
 import PermMediaIcon from '@mui/icons-material/PermMedia';
-import AddPhotoAlternateIcon from '@mui/icons-material/AddPhotoAlternate';
+// import AddPhotoAlternateIcon from '@mui/icons-material/AddPhotoAlternate';
 import Badge from '@mui/material/Badge';
 import MailIcon from '@mui/icons-material/Mail';
 import { useRouter } from 'next/navigation';
@@ -146,7 +146,7 @@ export default function ClientApp({ children }: { children: React.ReactNode }) {
           </ListItemIcon>
           <ListItemText primary='Locations' />
         </ListItemButton>
-        <ListItemButton
+        {/* <ListItemButton
           onClick={() => handleNavigation('/upload')}
           sx={{ paddingLeft: 5 }}
         >
@@ -154,7 +154,7 @@ export default function ClientApp({ children }: { children: React.ReactNode }) {
             <AddPhotoAlternateIcon sx={{ fontSize: 20 }} />
           </ListItemIcon>
           <ListItemText primary='Upload Report' />
-        </ListItemButton>
+        </ListItemButton> */}
 
         <ListItemButton
           onClick={() => handleNavigation('/orders')}
@@ -267,7 +267,7 @@ export default function ClientApp({ children }: { children: React.ReactNode }) {
                   flexGrow: 1,
                   bgcolor: 'background.default',
                   color: 'text.primary',
-                  p: 3,
+                  p: 2,
                   display: 'flex',
                   flexDirection: 'column',
                   overflow: 'auto',
