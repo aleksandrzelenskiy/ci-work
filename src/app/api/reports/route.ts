@@ -1,4 +1,5 @@
 // app/api/reports/route.ts
+
 import { NextResponse } from 'next/server';
 import dbConnect from '@/utils/mongoose';
 import Report from '@/app/models/ReportModel';
@@ -7,7 +8,6 @@ import { currentUser } from '@clerk/nextjs/server';
 import type { PipelineStage } from 'mongoose';
 
 export async function GET() {
-  // 1. Подключаемся к базе
   try {
     await dbConnect();
     console.log('Connected to MongoDB');
@@ -19,7 +19,6 @@ export async function GET() {
     );
   }
 
-  // 2. Получаем текущего user из Clerk
   const clerkUser = await currentUser();
   if (!clerkUser) {
     return NextResponse.json(
@@ -28,7 +27,6 @@ export async function GET() {
     );
   }
 
-  // 3. Находим в MongoDB запись пользователя, чтобы узнать его роль
   const existingUser = await UserModel.findOne({ clerkUserId: clerkUser.id });
   if (!existingUser) {
     return NextResponse.json(
@@ -37,12 +35,10 @@ export async function GET() {
     );
   }
 
-  const userRole = existingUser.role; // "executor", "initiator", "admin" и т.д.
+  const userRole = existingUser.role;
 
-  // 4. Формируем pipeline для агрегации
   const pipeline: PipelineStage[] = [];
 
-  // Если executor — смотреть только свои отчёты, если initiator — те, в которых он initiator
   if (userRole === 'executor') {
     pipeline.push({ $match: { executorId: clerkUser.id } });
   }
@@ -50,39 +46,36 @@ export async function GET() {
     pipeline.push({ $match: { initiatorId: clerkUser.id } });
   }
 
-  // Существующий pipeline:
   pipeline.push(
     { $unwind: '$events' },
     {
       $group: {
-        _id: { task: '$task', baseId: '$baseId' },
+        _id: '$_id',
+        reportId: { $first: '$reportId' },
         status: { $last: '$status' },
         latestStatusChangeDate: { $max: '$events.date' },
         executorId: { $first: '$executorId' },
         executorName: { $first: '$executorName' },
         executorAvatar: { $first: '$executorAvatar' },
-
-        // ДОБАВИЛИ initiatorName, чтобы вернуть его в итоговый объект
         initiatorName: { $first: '$initiatorName' },
-
         createdAt: { $first: '$createdAt' },
+        task: { $first: '$task' },
+        baseId: { $first: '$baseId' },
       },
     },
     {
       $group: {
-        _id: '$_id.task',
-        task: { $first: '$_id.task' },
+        _id: '$reportId',
+        reportId: { $first: '$reportId' },
+        task: { $first: '$task' },
         executorId: { $first: '$executorId' },
         executorName: { $first: '$executorName' },
         executorAvatar: { $first: '$executorAvatar' },
-
-        // Поднимаем initiatorName на уровень задачи
         initiatorName: { $first: '$initiatorName' },
-
         createdAt: { $first: '$createdAt' },
         baseStatuses: {
           $push: {
-            baseId: '$_id.baseId',
+            baseId: '$baseId',
             status: '$status',
             latestStatusChangeDate: '$latestStatusChangeDate',
           },
@@ -92,7 +85,6 @@ export async function GET() {
     { $sort: { createdAt: -1 } }
   );
 
-  // 5. Выполняем агрегацию
   let rawReports;
   try {
     rawReports = await Report.aggregate(pipeline);
@@ -104,11 +96,9 @@ export async function GET() {
     );
   }
 
-  console.log('Aggregated Reports:', rawReports);
-
-  // 6. Маппинг результата
   const reports = rawReports.map((report) => ({
     _id: report._id,
+    reportId: report.reportId,
     task: report.task,
     executorId: report.executorId,
     executorName: report.executorName,
@@ -128,7 +118,5 @@ export async function GET() {
     ),
   }));
 
-  // В ответе, помимо reports, возвращаем userRole,
-  // чтобы клиентский компонент знал, какую роль отображать
   return NextResponse.json({ reports, userRole });
 }

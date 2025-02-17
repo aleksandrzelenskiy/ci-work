@@ -35,7 +35,7 @@ export interface ReportClient {
   initiatorName: string | undefined;
   executorName: string | undefined;
   reviewerName: string | undefined;
-  _id: string;
+  reportId: string;
   task: string;
   userId: string;
   userName: string;

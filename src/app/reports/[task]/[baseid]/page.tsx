@@ -82,6 +82,7 @@ export default function PhotoReportPage() {
   const [role, setRole] = useState<string>(''); // "author", "initiator", etc.
 
   // Basic states
+  const [reportId, setReportId] = useState<string>('');
   const [photos, setPhotos] = useState<string[]>([]);
   const [fixedPhotos, setFixedPhotos] = useState<string[]>([]);
   const [issues, setIssues] = useState<{ text: string; checked: boolean }[]>(
@@ -114,7 +115,7 @@ export default function PhotoReportPage() {
   const [openAgreeDialog, setOpenAgreeDialog] = useState(false);
 
   // Current status
-  const [status, setStatus] = useState<string>('Pending');
+  const [status, setStatus] = useState<string>('');
 
   // Notification (Snackbar)
   const [alertState, setAlertState] = useState<{
@@ -189,7 +190,8 @@ export default function PhotoReportPage() {
       setExecutorName(data.executorName || 'Unknown');
       setEvents(data.events || []);
       setIssuesFixed((data.fixedFiles || []).length > 0);
-      setStatus(data.issues?.length > 0 ? data.status : 'Pending'); // Если замечаний нет, статус должен быть Pending
+      setStatus(data.status || 'Pending');
+      setReportId(data.reportId || '');
     } catch (err: unknown) {
       console.error('Error fetching report:', err);
       setError(
@@ -582,7 +584,7 @@ export default function PhotoReportPage() {
       case 'Issues':
         return 'error';
       case 'Fixed':
-        return 'warning';
+        return 'info';
       case 'Agreed':
         return 'success';
       default:
@@ -688,12 +690,13 @@ export default function PhotoReportPage() {
 
       {/* Main title */}
       <Typography variant='h5' gutterBottom sx={{ textTransform: 'none' }}>
+        <Chip label={reportId} sx={{ mb: 1, mr: 1 }} />
+        {decodeURIComponent(task)} | BS Number: {decodeURIComponent(baseid)}
         <Chip
           label={status}
           color={getStatusColor(status)}
-          sx={{ mb: 1, mr: 1 }}
+          sx={{ mb: 1, ml: 1 }}
         />
-        {decodeURIComponent(task)} | Base ID: {decodeURIComponent(baseid)}
       </Typography>
       <Typography variant='body2' gutterBottom>
         Photo report created by {executorName} on {createdAt}

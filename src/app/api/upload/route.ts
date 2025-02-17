@@ -200,7 +200,7 @@ export async function POST(request: Request) {
   try {
     // Создание нового отчета
     const report = new Report({
-      reportId: taskId || 'unknown', // Используем taskId из FormData
+      reportId: taskId || 'unknown',
       task,
       baseId,
       executorId: user.id,

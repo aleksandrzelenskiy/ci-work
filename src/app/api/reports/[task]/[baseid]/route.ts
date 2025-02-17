@@ -62,6 +62,7 @@ export async function GET(
 
     // Возвращаем необходимые данные, включая роль пользователя
     return NextResponse.json({
+      reportId: report.reportId,
       files: report.files,
       createdAt: report.createdAt,
       executorName: report.executorName,
@@ -200,6 +201,10 @@ export async function PATCH(
     // Удаление конкретного issue по индексу
     if (typeof deleteIssueIndex === 'number') {
       console.log(`Удаляем issue по индексу: ${deleteIssueIndex}`);
+      // Автоматически обновляем статус если issues удалены
+      if (report.issues.length === 0) {
+        report.status = 'Pending';
+      }
       if (
         deleteIssueIndex >= 0 &&
         Array.isArray(report.issues) &&

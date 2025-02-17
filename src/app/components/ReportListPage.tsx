@@ -1,3 +1,5 @@
+// app/components/ReportListPage.tsx
+
 'use client';
 
 import React, { useState, useEffect, useMemo } from 'react';
@@ -78,7 +80,7 @@ const getTaskStatus = (baseStatuses: BaseStatus[] = []) => {
 
 // Определяем количество колонок для colspan в раскрывающейся строке
 function getColSpanByRole(role: string) {
-  if (role === 'admin') return 6;
+  if (role === 'admin') return 7;
   return 5; // executor/initiator
 }
 
@@ -98,6 +100,10 @@ function Row({ report, role }: { report: ReportClient; role: string }) {
       : 'The date is unavailable';
   };
 
+  {
+    // console.log(report.baseStatuses);
+  }
+
   return (
     <>
       <TableRow sx={{ '& > *': { borderBottom: 'unset' } }}>
@@ -114,6 +120,24 @@ function Row({ report, role }: { report: ReportClient; role: string }) {
           >
             {open ? <KeyboardArrowUpIcon /> : <KeyboardArrowDownIcon />}
           </IconButton>
+        </TableCell>
+
+        <TableCell
+          align='center'
+          sx={{
+            padding: '8px',
+            textAlign: 'center',
+          }}
+        >
+          <Link
+            href='#'
+            onClick={handleLinkClick}
+            underline='always'
+            color='primary'
+            sx={{ cursor: 'pointer' }}
+          >
+            <Typography variant='body2'>{report.reportId}</Typography>
+          </Link>
         </TableCell>
 
         {/* Task */}
@@ -345,10 +369,10 @@ export default function ReportListPage() {
     createdDateRange,
   ]);
 
-  // Получаем уникальных авторов
+  // Получаем уникальных авторовc
   const uniqueExecutors = useMemo(() => {
     const executors = reports.map((report) => report.executorName);
-    console.log('Executors:', executors);
+    // console.log('Executors:', executors);
     return Array.from(new Set(executors));
   }, [reports]);
 
@@ -380,7 +404,7 @@ export default function ReportListPage() {
         if (!Array.isArray(data.reports)) {
           throw new Error('Invalid data format');
         }
-        console.log('Reports:', data.reports);
+        // console.log('Reports:', data.reports);
         // Устанавливаем роль (executor, initiator, admin и т.д.)
         if (data.userRole) {
           setRole(data.userRole);
@@ -583,7 +607,18 @@ export default function ReportListPage() {
                 {/* 1) Пустая ячейка (стрелка) */}
                 <TableCell />
 
-                {/* 2) Task */}
+                {/* 2) ID */}
+                <TableCell
+                  align='center'
+                  sx={{
+                    whiteSpace: 'nowrap',
+                    padding: '16px',
+                  }}
+                >
+                  <strong>ID</strong>
+                </TableCell>
+
+                {/* 3) Task */}
                 <TableCell
                   align='center'
                   sx={{
@@ -797,7 +832,7 @@ export default function ReportListPage() {
             <TableBody>
               {filteredReports.length > 0 ? (
                 filteredReports.map((report: ReportClient) => (
-                  <Row key={report._id} report={report} role={role} />
+                  <Row key={report.reportId} report={report} role={role} />
                 ))
               ) : (
                 <TableRow>
