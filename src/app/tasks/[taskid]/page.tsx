@@ -31,6 +31,7 @@ import {
   Snackbar,
   Alert,
   Grid,
+  Paper,
 } from '@mui/material';
 import Timeline from '@mui/lab/Timeline';
 import TimelineItem from '@mui/lab/TimelineItem';
@@ -39,12 +40,20 @@ import TimelineConnector from '@mui/lab/TimelineConnector';
 import TimelineContent from '@mui/lab/TimelineContent';
 import TimelineDot from '@mui/lab/TimelineDot';
 import TimelineOppositeContent from '@mui/lab/TimelineOppositeContent';
+import InfoIcon from '@mui/icons-material/Info';
+import LocationOnIcon from '@mui/icons-material/LocationOn';
+import DescriptionIcon from '@mui/icons-material/Description';
+import GroupIcon from '@mui/icons-material/Group';
+import PhotoLibraryIcon from '@mui/icons-material/PhotoLibrary';
+import TableRowsIcon from '@mui/icons-material/TableRows';
+import HistoryIcon from '@mui/icons-material/History';
 import CloseIcon from '@mui/icons-material/Close';
 import ArrowBackIcon from '@mui/icons-material/ArrowBack';
 import CheckIcon from '@mui/icons-material/Check';
 import ExpandMoreIcon from '@mui/icons-material/ExpandMore';
 import ExpandLessIcon from '@mui/icons-material/ExpandLess';
 import CloudUploadIcon from '@mui/icons-material/CloudUpload';
+import CloudDownloadIcon from '@mui/icons-material/CloudDownload';
 import { useParams } from 'next/navigation';
 import {
   Task,
@@ -52,13 +61,22 @@ import {
   BsLocation,
   CurrentStatus,
   TaskEvent,
+  PhotoReport,
 } from '@/app/types/taskTypes';
 import { YMaps, Map, Placemark } from 'react-yandex-maps';
 import { TransitionProps } from '@mui/material/transitions';
 import { GetCurrentUserFromMongoDB } from '@/server-actions/users';
 
 const getStatusColor = (status: string) => {
-  switch (status) {
+  switch (status.toLowerCase()) {
+    case 'pending':
+      return 'warning';
+    case 'issues':
+      return 'error';
+    case 'fixed':
+      return 'info';
+    case 'agreed':
+      return 'success';
     case 'to do':
       return 'default';
     case 'assigned':
@@ -67,8 +85,6 @@ const getStatusColor = (status: string) => {
       return 'secondary';
     case 'done':
       return 'primary';
-    case 'agreed':
-      return 'success';
     default:
       return 'default';
   }
@@ -208,6 +224,31 @@ export default function TaskDetailPage() {
     setSelectedLocation(null);
   };
 
+  const handleDownloadReport = async (report: PhotoReport) => {
+    try {
+      const response = await fetch(
+        `/api/reports/${encodeURIComponent(report.task)}/${
+          report.baseId
+        }/download`
+      );
+      if (!response.ok) throw new Error('Failed to download');
+
+      const blob = await response.blob();
+      const url = window.URL.createObjectURL(blob);
+      const link = document.createElement('a');
+      link.href = url;
+      link.setAttribute('download', `report_${report.baseId}.zip`);
+      document.body.appendChild(link);
+      link.click();
+      link.parentNode?.removeChild(link);
+    } catch (error) {
+      console.error('Download error:', error);
+      setSnackbarMessage('Ошибка при скачивании отчета');
+      setSnackbarSeverity('error');
+      setSnackbarOpen(true);
+    }
+  };
+
   const toggleWorkItems = () => {
     setWorkItemsExpanded(!workItemsExpanded);
   };
@@ -329,7 +370,9 @@ export default function TaskDetailPage() {
           <Box sx={{ mb: 3 }}>
             <Accordion defaultExpanded>
               <AccordionSummary expandIcon={<ExpandMoreIcon />}>
-                <Typography variant='h6'>Basic Information</Typography>
+                <Typography variant='h6'>
+                  <InfoIcon /> Basic Information
+                </Typography>
               </AccordionSummary>
               <AccordionDetails>
                 <Typography>
@@ -363,7 +406,9 @@ export default function TaskDetailPage() {
           <Box sx={{ mb: 0 }}>
             <Accordion>
               <AccordionSummary expandIcon={<ExpandMoreIcon />}>
-                <Typography variant='h6'>Locations</Typography>
+                <Typography variant='h6'>
+                  <LocationOnIcon /> Locations
+                </Typography>
               </AccordionSummary>
               <AccordionDetails>
                 {task.bsLocation.map((location: BsLocation) => (
@@ -389,7 +434,9 @@ export default function TaskDetailPage() {
           <Box sx={{ mb: 3 }}>
             <Accordion>
               <AccordionSummary expandIcon={<ExpandMoreIcon />}>
-                <Typography variant='h6'>Description</Typography>
+                <Typography variant='h6'>
+                  <DescriptionIcon /> Description
+                </Typography>
               </AccordionSummary>
               <AccordionDetails>
                 <Typography>{task.taskDescription}</Typography>
@@ -399,7 +446,9 @@ export default function TaskDetailPage() {
           <Box sx={{ mb: 3 }}>
             <Accordion>
               <AccordionSummary expandIcon={<ExpandMoreIcon />}>
-                <Typography variant='h6'>Participants</Typography>
+                <Typography variant='h6'>
+                  <GroupIcon /> Participants
+                </Typography>
               </AccordionSummary>
               <AccordionDetails>
                 <Typography>
@@ -431,33 +480,108 @@ export default function TaskDetailPage() {
           </Box>
 
           <Box sx={{ mb: 3 }}>
-            {userRole === 'executor' && task.status === 'done' && (
-              <>
-                <Typography variant='h6' gutterBottom>
-                  Photo report
-                </Typography>
-                <Button
-                  variant='outlined'
-                  startIcon={<CloudUploadIcon />}
-                  component={Link}
-                  href={`/upload?taskId=${
-                    task.taskId
-                  }&taskName=${encodeURIComponent(
-                    task.taskName
-                  )}&bsNumber=${encodeURIComponent(
-                    task.bsNumber
-                  )}&executorName=${encodeURIComponent(
-                    task.executorName
-                  )}&executorId=${
-                    task.executorId
-                  }&initiatorName=${encodeURIComponent(
-                    task.initiatorName
-                  )}&initiatorId=${task.initiatorId}`}
-                >
-                  Upload reports
-                </Button>
-              </>
-            )}
+            {task.status === 'done' &&
+              task.photoReports &&
+              task.photoReports.length > 0 && (
+                <Grid item xs={12}>
+                  <Accordion defaultExpanded>
+                    <AccordionSummary expandIcon={<ExpandMoreIcon />}>
+                      <Typography variant='h6'>
+                        <PhotoLibraryIcon /> Task Reports
+                      </Typography>
+                    </AccordionSummary>
+                    <AccordionDetails>
+                      <Grid container spacing={2}>
+                        {task.photoReports.map((report) => (
+                          <Grid item xs={12} sm={6} key={report._id}>
+                            <Link
+                              href={`/reports/${encodeURIComponent(
+                                report.task
+                              )}/${report.baseId}`}
+                              underline='none'
+                            >
+                              <Paper elevation={1} sx={{ p: 2 }}>
+                                <Box
+                                  display='flex'
+                                  justifyContent='space-between'
+                                  mb={1}
+                                >
+                                  <Typography variant='subtitle1'>
+                                    BS: {report.baseId}
+                                  </Typography>
+                                  <Chip
+                                    label={report.status}
+                                    color={getStatusColor(report.status)}
+                                    size='small'
+                                  />
+                                </Box>
+
+                                <Typography
+                                  variant='body2'
+                                  color='text.secondary'
+                                  mb={2}
+                                >
+                                  Created at:{' '}
+                                  {new Date(
+                                    report.createdAt
+                                  ).toLocaleDateString()}
+                                </Typography>
+
+                                <Box display='flex'>
+                                  {report.status === 'Agreed' && (
+                                    <Button
+                                      variant='contained'
+                                      size='small'
+                                      startIcon={<CloudDownloadIcon />}
+                                      onClick={() =>
+                                        handleDownloadReport(report)
+                                      }
+                                    >
+                                      Download
+                                    </Button>
+                                  )}
+                                </Box>
+                              </Paper>
+                            </Link>
+                          </Grid>
+                        ))}
+                      </Grid>
+                    </AccordionDetails>
+                  </Accordion>
+                </Grid>
+              )}
+          </Box>
+
+          <Box sx={{ mb: 3 }}>
+            {userRole === 'executor' &&
+              task.status === 'done' &&
+              !task.photoReports && (
+                <>
+                  <Typography variant='h6' gutterBottom>
+                    Upload Report
+                  </Typography>
+                  <Button
+                    variant='outlined'
+                    startIcon={<CloudUploadIcon />}
+                    component={Link}
+                    href={`/upload?taskId=${
+                      task.taskId
+                    }&taskName=${encodeURIComponent(
+                      task.taskName
+                    )}&bsNumber=${encodeURIComponent(
+                      task.bsNumber
+                    )}&executorName=${encodeURIComponent(
+                      task.executorName
+                    )}&executorId=${
+                      task.executorId
+                    }&initiatorName=${encodeURIComponent(
+                      task.initiatorName
+                    )}&initiatorId=${task.initiatorId}`}
+                  >
+                    Upload reports
+                  </Button>
+                </>
+              )}
           </Box>
         </Grid>
 
@@ -469,7 +593,9 @@ export default function TaskDetailPage() {
               }
               onClick={toggleWorkItems}
             >
-              <Typography variant='h6'>Work Items</Typography>
+              <Typography variant='h6'>
+                <TableRowsIcon /> Work Items
+              </Typography>
             </AccordionSummary>
             <AccordionDetails>
               <TableContainer>
@@ -573,7 +699,9 @@ export default function TaskDetailPage() {
         <Grid item xs={12}>
           <Accordion>
             <AccordionSummary expandIcon={<ExpandMoreIcon />}>
-              <Typography variant='h6'>Task History</Typography>
+              <Typography variant='h6'>
+                <HistoryIcon /> Task History
+              </Typography>
             </AccordionSummary>
             <AccordionDetails>
               <Timeline>

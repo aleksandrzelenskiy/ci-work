@@ -1,5 +1,3 @@
-// app/types/taskTypes.ts
-
 export type PriorityLevel = 'urgent' | 'high' | 'medium' | 'low';
 export type CurrentStatus =
   | 'to do'
@@ -13,6 +11,7 @@ export interface BsLocation {
   name: string;
   coordinates: string;
 }
+
 export interface WorkItem {
   workType: string;
   quantity: number;
@@ -32,6 +31,17 @@ export interface TaskEvent {
     newStatus?: CurrentStatus;
     comment?: string;
   };
+}
+
+export interface PhotoReport {
+  _id: string;
+  reportId: string;
+  baseId: string;
+  status: string;
+  createdAt: Date;
+  task: string;
+  files: string[];
+  fixedFiles: string[];
 }
 
 export interface Task {
@@ -64,6 +74,7 @@ export interface Task {
     coordinates: string;
   };
   events?: TaskEvent[];
+  photoReports?: PhotoReport[];
 }
 
 export interface CreateTaskPayload extends Omit<Task, '_id' | 'createdAt'> {

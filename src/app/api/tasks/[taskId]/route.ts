@@ -3,6 +3,7 @@
 import { NextResponse } from 'next/server';
 import dbConnect from '@/utils/mongoose';
 import TaskModel from '@/app/models/TaskModel';
+import Report from '@/app/models/ReportModel';
 import { currentUser } from '@clerk/nextjs/server';
 import type { TaskEvent } from '@/app/types/taskTypes';
 
@@ -17,7 +18,7 @@ async function connectToDatabase() {
   }
 }
 
-// GET-запрос для получения задачи по ID (без изменений)
+// GET-запрос для получения задачи по ID
 export async function GET(
   request: Request,
   { params }: { params: { taskid: string } }
@@ -26,11 +27,18 @@ export async function GET(
     await connectToDatabase();
     const { taskid } = params;
     const taskIdUpperCase = taskid.toUpperCase();
-    const task = await TaskModel.findOne({ taskId: taskIdUpperCase });
 
-    return task
-      ? NextResponse.json({ task })
-      : NextResponse.json({ error: 'Task not found' }, { status: 404 });
+    const task = await TaskModel.findOne({ taskId: taskIdUpperCase });
+    if (!task)
+      return NextResponse.json({ error: 'Task not found' }, { status: 404 });
+
+    const photoReports = await Report.find({
+      reportId: { $regex: `^TASK-${taskIdUpperCase}` },
+    });
+
+    return NextResponse.json({
+      task: { ...task.toObject(), photoReports: photoReports || [] },
+    });
   } catch (error) {
     console.error('Error:', error);
     return NextResponse.json(
