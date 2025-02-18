@@ -10,6 +10,7 @@ import {
   CardContent,
   CircularProgress,
   Chip,
+  Link,
 } from '@mui/material';
 import {
   draggable,
@@ -23,8 +24,7 @@ import {
   DragHandle as DragHandleIcon,
   Remove as RemoveIcon,
 } from '@mui/icons-material';
-// import LocationOnIcon from '@mui/icons-material/LocationOn';
-// import Link from 'next/link';
+import { GetCurrentUserFromMongoDB } from '@/server-actions/users';
 
 const statusOrder: CurrentStatus[] = [
   'to do',
@@ -53,18 +53,21 @@ const getStatusColor = (status: string) => {
 
 type CurrentStatus = 'to do' | 'assigned' | 'at work' | 'done' | 'agreed';
 
-function DraggableTask({ task }: { task: Task }) {
+function DraggableTask({ task, role }: { task: Task; role: string }) {
   const ref = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
     const element = ref.current;
     if (!element) return;
 
+    // Отключаем DnD для не-админов
+    if (role !== 'admin') return;
+
     return draggable({
       element,
       getInitialData: () => ({ id: task.taskId, status: task.status }),
     });
-  }, [task.taskId, task.status]);
+  }, [task.taskId, task.status, role]);
 
   const getPriorityIcon = (priority: string) => {
     switch (priority) {
@@ -82,58 +85,66 @@ function DraggableTask({ task }: { task: Task }) {
   };
 
   return (
-    <Card
-      ref={ref}
-      sx={{
-        mb: 2,
-        cursor: 'grab',
-        '&:active': { cursor: 'grabbing' },
-        boxShadow: 2,
-      }}
+    <Link
+      href={`/tasks/${task.taskId.toLowerCase()}`}
+      sx={{ cursor: 'pointer' }}
+      underline='none'
     >
-      <Box sx={{ marginTop: '5px', marginLeft: '5px' }}>
-        <Typography variant='caption' color='text.secondary'>
-          {new Date(task.createdAt).toLocaleDateString()}
-        </Typography>
-      </Box>
-      <CardContent>
-        <Typography variant='subtitle1' gutterBottom>
-          {task.taskName}
-        </Typography>
-        <Box sx={{ display: 'flex', justifyContent: 'space-between', mb: 1 }}>
-          <Typography variant='caption'>BS: {task.bsNumber}</Typography>
-        </Box>
-        <Typography variant='body2' color='text.primary'>
-          Due: {new Date(task.dueDate).toLocaleDateString()}
-        </Typography>
-      </CardContent>
-      <Box
+      <Card
+        ref={ref}
         sx={{
-          margin: '10px',
-          display: 'flex',
-          justifyContent: 'space-between',
-          alignItems: 'center',
+          mb: 2,
+          cursor: role === 'admin' ? 'grab' : 'default',
+          '&:active': { cursor: role === 'admin' ? 'grabbing' : 'default' },
+          boxShadow: 2,
         }}
       >
-        <Chip
-          label={task.status}
-          size='small'
-          color={getStatusColor(task.status)}
-        />
-        <Typography variant='caption'>
-          {getPriorityIcon(task.priority)}
-        </Typography>
-      </Box>
-    </Card>
+        <Box sx={{ marginTop: '5px', marginLeft: '5px' }}>
+          <Typography variant='caption' color='text.secondary'>
+            {new Date(task.createdAt).toLocaleDateString()}
+          </Typography>
+        </Box>
+        <CardContent>
+          <Typography variant='subtitle1' gutterBottom>
+            {task.taskName}
+          </Typography>
+          <Box sx={{ display: 'flex', justifyContent: 'space-between', mb: 1 }}>
+            <Typography variant='caption'>BS: {task.bsNumber}</Typography>
+          </Box>
+          <Typography variant='body2' color='text.primary'>
+            Due: {new Date(task.dueDate).toLocaleDateString()}
+          </Typography>
+        </CardContent>
+        <Box
+          sx={{
+            margin: '10px',
+            display: 'flex',
+            justifyContent: 'space-between',
+            alignItems: 'center',
+          }}
+        >
+          <Chip
+            label={task.status}
+            size='small'
+            color={getStatusColor(task.status)}
+          />
+          <Typography variant='caption'>
+            {getPriorityIcon(task.priority)}
+          </Typography>
+        </Box>
+      </Card>
+    </Link>
   );
 }
 
 function DroppableColumn({
   status,
   tasks,
+  role,
 }: {
   status: CurrentStatus;
   tasks: Task[];
+  role: string;
 }) {
   const ref = useRef<HTMLDivElement>(null);
   const [isDraggingOver, setIsDraggingOver] = useState(false);
@@ -142,6 +153,9 @@ function DroppableColumn({
     const element = ref.current;
     if (!element) return;
 
+    // Отключаем DnD для не-админов
+    if (role !== 'admin') return;
+
     return dropTargetForElements({
       element,
       getData: () => ({ status }),
@@ -149,7 +163,7 @@ function DroppableColumn({
       onDragLeave: () => setIsDraggingOver(false),
       onDrop: () => setIsDraggingOver(false),
     });
-  }, [status]);
+  }, [status, role]);
 
   return (
     <Box
@@ -169,7 +183,7 @@ function DroppableColumn({
         {status} ({tasks.length})
       </Typography>
       {tasks.map((task) => (
-        <DraggableTask key={task.taskId} task={task} />
+        <DraggableTask key={task.taskId} task={task} role={role} />
       ))}
     </Box>
   );
@@ -179,6 +193,7 @@ export default function TaskColumnPage() {
   const [tasks, setTasks] = useState<Task[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [role, setRole] = useState<string>('');
 
   useEffect(() => {
     const fetchTasks = async () => {
@@ -197,12 +212,27 @@ export default function TaskColumnPage() {
       }
     };
 
+    const fetchUserRole = async () => {
+      try {
+        const userResponse = await GetCurrentUserFromMongoDB();
+        if (userResponse.success && userResponse.data) {
+          setRole(userResponse.data.role);
+        }
+      } catch (error) {
+        console.error('Error fetching user role:', error);
+      }
+    };
+
     fetchTasks();
+    fetchUserRole();
   }, []);
 
   useEffect(() => {
     return monitorForElements({
       onDrop: ({ source, location }) => {
+        // Проверяем роль пользователя
+        if (role !== 'admin') return;
+
         const destination = location.current.dropTargets[0];
         if (!destination) return;
 
@@ -222,7 +252,7 @@ export default function TaskColumnPage() {
         }).catch((error) => console.error('Update failed:', error));
       },
     });
-  }, []);
+  }, [role]);
 
   if (loading)
     return <CircularProgress sx={{ display: 'block', mx: 'auto', mt: 4 }} />;
@@ -248,6 +278,7 @@ export default function TaskColumnPage() {
           key={status}
           status={status}
           tasks={tasks.filter((task) => task.status === status)}
+          role={role}
         />
       ))}
     </Box>
