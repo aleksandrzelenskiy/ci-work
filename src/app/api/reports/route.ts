@@ -57,6 +57,7 @@ export async function GET() {
         executorId: { $first: '$executorId' },
         executorName: { $first: '$executorName' },
         executorAvatar: { $first: '$executorAvatar' },
+        initiatorId: { $first: '$initiatorId' },
         initiatorName: { $first: '$initiatorName' },
         createdAt: { $first: '$createdAt' },
         task: { $first: '$task' },
@@ -71,6 +72,7 @@ export async function GET() {
         executorId: { $first: '$executorId' },
         executorName: { $first: '$executorName' },
         executorAvatar: { $first: '$executorAvatar' },
+        initiatorId: { $first: '$initiatorId' },
         initiatorName: { $first: '$initiatorName' },
         createdAt: { $first: '$createdAt' },
         baseStatuses: {
@@ -103,6 +105,7 @@ export async function GET() {
     executorId: report.executorId,
     executorName: report.executorName,
     executorAvatar: report.executorAvatar || '',
+    initiatorId: report.initiatorId || 'Unknown',
     initiatorName: report.initiatorName || 'Unknown',
     createdAt: report.createdAt,
     baseStatuses: report.baseStatuses.map(

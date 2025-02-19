@@ -16,7 +16,6 @@ import {
   TableRow,
   Typography,
   CircularProgress,
-  Avatar,
   Select,
   MenuItem,
   TextField,
@@ -220,12 +219,6 @@ function Row({ report, role }: { report: ReportClient; role: string }) {
               }}
             >
               <Box sx={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-                <Avatar
-                  alt={report.initiatorName}
-                  sx={{ width: 32, height: 32 }}
-                >
-                  R
-                </Avatar>
                 <Typography sx={{ fontSize: '0.9rem' }}>
                   {report.initiatorName}
                 </Typography>

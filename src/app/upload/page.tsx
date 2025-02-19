@@ -313,7 +313,7 @@ export default function UploadPage() {
                 {baseStations.map((bs) => (
                   <Box key={bs.id} sx={{ mb: 4 }}>
                     <Typography variant='h6' gutterBottom>
-                      Base Station: {bs.number}
+                      BS: {bs.number}
                     </Typography>
                     <Box sx={{ marginBottom: 3 }}>
                       <Grid container spacing={2}>

@@ -1,13 +1,16 @@
+// app/api/upload/route.ts
+
 import { NextResponse } from 'next/server';
 import * as fs from 'fs';
 import * as path from 'path';
 import sharp from 'sharp';
 import ExifReader from 'exifreader';
 import Report from '@/app/models/ReportModel';
+import User from '@/app/models/UserModel';
 import { currentUser } from '@clerk/nextjs/server';
 import dbConnect from '@/utils/mongoose';
 
-// Function to convert coordinates to D° M' S" + N/S/E/W format
+// Функция для преобразования координат в формат D° M' S" + N/S/E/W
 function toDMS(
   degrees: number,
   minutes: number,
@@ -26,10 +29,8 @@ function toDMS(
   return `${absDeg}° ${minutes}' ${seconds.toFixed(2)}" ${direction}`;
 }
 
-// Format EXIF date to DD.MM.YYYY
+// Форматирование даты из EXIF в DD.MM.YYYY
 function formatDateToDDMMYYYY(exifDateStr: string): string {
-  // EXIF: "YYYY:MM:DD HH:MM:SS"
-  // Expected: "DD.MM.YYYY"
   const [datePart] = exifDateStr.split(' ');
   const [yyyy, mm, dd] = datePart.split(':');
   return `${dd}.${mm}.${yyyy}`;
@@ -54,7 +55,7 @@ export async function POST(request: Request) {
   // Декодирование task/baseId
   const rawBaseId = formData.get('baseId') as string | null;
   const rawTask = formData.get('task') as string | null;
-  const taskId = formData.get('taskId') as string | null; // Извлекаем taskId из FormData
+  const taskId = formData.get('taskId') as string | null;
 
   if (!rawBaseId || !rawTask) {
     console.error('Validation error: Base ID or Task is missing');
@@ -67,11 +68,26 @@ export async function POST(request: Request) {
   const baseId = decodeURIComponent(rawBaseId);
   const task = decodeURIComponent(rawTask);
 
-  // Получение initiatorId и initiatorName из FormData (или использование значений по умолчанию)
-  const initiatorId =
-    (formData.get('initiatorId') as string | null) || 'unknown';
-  const initiatorName =
-    (formData.get('initiatorName') as string | null) || 'unknown';
+  // Получение initiatorId из FormData
+  const initiatorIdFromForm = formData.get('initiatorId') as string | null;
+  let initiatorId = 'unknown';
+  let initiatorName = 'unknown';
+
+  if (initiatorIdFromForm) {
+    try {
+      // Подключаемся к базе данных
+      await dbConnect();
+      // Ищем пользователя по _id
+      const initiatorUser = await User.findById(initiatorIdFromForm);
+      if (initiatorUser) {
+        // Используем clerkUserId и имя из базы данных
+        initiatorId = initiatorUser.clerkUserId;
+        initiatorName = initiatorUser.name;
+      }
+    } catch (error) {
+      console.error('Error fetching initiator user:', error);
+    }
+  }
 
   // Файлы
   const files = formData.getAll('image[]') as File[];
@@ -106,7 +122,7 @@ export async function POST(request: Request) {
     let date = 'Unknown Date';
     let coordinates = 'Unknown Location';
 
-    // Попытка чтения EXIF
+    // Чтение EXIF
     try {
       const tags = ExifReader.load(buffer);
       if (tags.DateTimeOriginal?.description) {
@@ -183,37 +199,22 @@ export async function POST(request: Request) {
     }
   }
 
-  // Подключение к базе данных
-  try {
-    console.log('Connecting to database...');
-    await dbConnect();
-    console.log('Database connection successful.');
-  } catch (dbError) {
-    console.error('Database connection failed:', dbError);
-    return NextResponse.json(
-      { error: 'Database connection failed' },
-      { status: 500 }
-    );
-  }
-
   // Сохранение в базу данных
   try {
-    // Создание нового отчета
     const report = new Report({
       reportId: taskId || 'unknown',
       task,
       baseId,
       executorId: user.id,
       executorName: name,
-      initiatorId,
-      initiatorName,
+      initiatorId, // Теперь это clerkUserId
+      initiatorName, // Имя из базы данных
       userAvatar: user.imageUrl || '',
       createdAt: new Date(),
       status: 'Pending',
       files: fileUrls,
     });
 
-    // Добавление события в историю изменений
     report.events.push({
       action: 'REPORT_CREATED',
       author: name,

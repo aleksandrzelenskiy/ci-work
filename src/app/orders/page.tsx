@@ -65,7 +65,7 @@ interface User {
 
 const generateTaskId = (): string => {
   const randomPart = Math.random().toString(36).substr(2, 5).toUpperCase();
-  return `TASK-${randomPart}`;
+  return `${randomPart}`;
 };
 
 const OrderUploadPage: React.FC = () => {

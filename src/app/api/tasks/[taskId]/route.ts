@@ -33,7 +33,7 @@ export async function GET(
       return NextResponse.json({ error: 'Task not found' }, { status: 404 });
 
     const photoReports = await Report.find({
-      reportId: { $regex: `^TASK-${taskIdUpperCase}` },
+      reportId: { $regex: `^${taskIdUpperCase}` },
     });
 
     return NextResponse.json({

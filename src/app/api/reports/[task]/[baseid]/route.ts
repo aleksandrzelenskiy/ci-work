@@ -1,4 +1,4 @@
-// app/api/reports/[task]/[taskid]/route.ts
+// app/api/reports/[task]/[baseid]/route.ts
 
 import { NextResponse } from 'next/server';
 import ReportModel from '@/app/models/ReportModel';

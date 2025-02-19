@@ -353,7 +353,7 @@ export default function TaskDetailPage() {
         </Typography>
       </Box>
       <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, mb: 3 }}>
-        <Chip label={task.taskId} size='small' color='primary' />
+        <Chip label={task.taskId} color='default' />
         <Typography variant='body2' component='span'>
           Created by{' '}
           {task.events?.find((event) => event.action === 'TASK_CREATED')
@@ -553,35 +553,33 @@ export default function TaskDetailPage() {
           </Box>
 
           <Box sx={{ mb: 3 }}>
-            {userRole === 'executor' &&
-              task.status === 'done' &&
-              !task.photoReports && (
-                <>
-                  <Typography variant='h6' gutterBottom>
-                    Upload Report
-                  </Typography>
-                  <Button
-                    variant='outlined'
-                    startIcon={<CloudUploadIcon />}
-                    component={Link}
-                    href={`/upload?taskId=${
-                      task.taskId
-                    }&taskName=${encodeURIComponent(
-                      task.taskName
-                    )}&bsNumber=${encodeURIComponent(
-                      task.bsNumber
-                    )}&executorName=${encodeURIComponent(
-                      task.executorName
-                    )}&executorId=${
-                      task.executorId
-                    }&initiatorName=${encodeURIComponent(
-                      task.initiatorName
-                    )}&initiatorId=${task.initiatorId}`}
-                  >
-                    Upload reports
-                  </Button>
-                </>
-              )}
+            {userRole === 'executor' && task.status === 'done' && (
+              <>
+                <Typography variant='h6' gutterBottom>
+                  Upload Report
+                </Typography>
+                <Button
+                  variant='outlined'
+                  startIcon={<CloudUploadIcon />}
+                  component={Link}
+                  href={`/upload?taskId=${
+                    task.taskId
+                  }&taskName=${encodeURIComponent(
+                    task.taskName
+                  )}&bsNumber=${encodeURIComponent(
+                    task.bsNumber
+                  )}&executorName=${encodeURIComponent(
+                    task.executorName
+                  )}&executorId=${
+                    task.executorId
+                  }&initiatorName=${encodeURIComponent(
+                    task.initiatorName
+                  )}&initiatorId=${task.initiatorId}`}
+                >
+                  Upload reports
+                </Button>
+              </>
+            )}
           </Box>
         </Grid>
 
