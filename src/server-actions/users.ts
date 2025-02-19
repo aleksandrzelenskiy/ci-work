@@ -33,7 +33,7 @@ export const GetCurrentUserFromMongoDB = async () => {
       email: clerkUser?.emailAddresses[0]?.emailAddress,
       clerkUserId: clerkUser?.id,
       profilePic: clerkUser?.imageUrl,
-      role: 'author',
+      role: 'executor',
     });
 
     await newUser.save();

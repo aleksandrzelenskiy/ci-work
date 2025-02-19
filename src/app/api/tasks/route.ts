@@ -2,6 +2,7 @@
 import { NextResponse } from 'next/server';
 import dbConnect from '@/utils/mongoose';
 import TaskModel from '@/app/models/TaskModel';
+import { GetCurrentUserFromMongoDB } from '@/server-actions/users';
 
 export async function GET() {
   try {
@@ -16,7 +17,34 @@ export async function GET() {
   }
 
   try {
+    const userResponse = await GetCurrentUserFromMongoDB();
+
+    if (!userResponse.success || !userResponse.data) {
+      return NextResponse.json(
+        { error: 'Failed to fetch user data' },
+        { status: 500 }
+      );
+    }
+
+    const user = userResponse.data;
+    const clerkUserId = user.clerkUserId;
+    const role = user.role;
+
+    let filter = {};
+
+    // В зависимости от роли пользователя добавляем соответствующий фильтр
+    if (role === 'executor') {
+      filter = { executorId: clerkUserId };
+    } else if (role === 'initiator') {
+      filter = { initiatorId: clerkUserId };
+    } else if (role === 'author') {
+      filter = { authorId: clerkUserId };
+    }
+
     const tasks = await TaskModel.aggregate([
+      {
+        $match: filter, // Применяем фильтр
+      },
       {
         $addFields: {
           bsNumbers: {
@@ -46,7 +74,7 @@ export async function GET() {
     ]);
 
     return NextResponse.json({ tasks });
-  } catch (error: unknown) {
+  } catch (error) {
     console.error('Error fetching tasks:', error);
     return NextResponse.json(
       { error: 'Failed to fetch tasks' },

@@ -27,6 +27,7 @@ import {
   Alert,
   Snackbar,
   CircularProgress,
+  Link,
 } from '@mui/material';
 import ExpandMoreIcon from '@mui/icons-material/ExpandMore';
 import CheckCircleIcon from '@mui/icons-material/CheckCircle';
@@ -48,6 +49,7 @@ interface BaseStation {
   files: UploadedFile[];
   uploadProgress: number;
   isUploading: boolean;
+  isUploaded?: boolean;
   uploadedCount?: number;
 }
 
@@ -114,6 +116,7 @@ export default function UploadPage() {
         files: [],
         uploadProgress: 0,
         isUploading: false,
+        isUploaded: false,
       }));
       setBaseStations(stations);
     }
@@ -141,7 +144,9 @@ export default function UploadPage() {
 
     setBaseStations((prev) =>
       prev.map((bs) =>
-        bs.id === bsId ? { ...bs, files: [...bs.files, ...newFiles] } : bs
+        bs.id === bsId
+          ? { ...bs, files: [...bs.files, ...newFiles], isUploaded: false }
+          : bs
       )
     );
   };
@@ -234,21 +239,13 @@ export default function UploadPage() {
                       files: [],
                       isUploading: false,
                       uploadProgress: 100,
+                      isUploaded: true,
                       uploadedCount: prevBs.files.length,
                     }
                   : prevBs
               )
             );
             setSuccessMessage(`Files for ${bs.number} uploaded successfully!`);
-            setTimeout(() => {
-              setBaseStations((prev) =>
-                prev.map((prevBs) =>
-                  prevBs.id === bsId
-                    ? { ...prevBs, uploadProgress: 0, uploadedCount: undefined }
-                    : prevBs
-                )
-              );
-            }, 3000);
             resolve(xhr.response);
           } else {
             reject(new Error('Upload failed'));
@@ -359,19 +356,21 @@ export default function UploadPage() {
                       <Typography variant='h6' gutterBottom>
                         Base Station: {bs.number}
                       </Typography>
-                      {bs.uploadedCount && (
+                      {bs.isUploaded && (
                         <CheckCircleIcon color='success' fontSize='small' />
                       )}
                     </Box>
 
-                    {bs.uploadedCount && (
-                      <Typography
-                        variant='body2'
-                        color='text.secondary'
-                        gutterBottom
-                      >
-                        Uploaded files: {bs.uploadedCount}
-                      </Typography>
+                    {bs.isUploaded && (
+                      <Box sx={{ mb: 2 }}>
+                        <Typography
+                          variant='body2'
+                          color='text.secondary'
+                          gutterBottom
+                        >
+                          Uploaded files: {bs.uploadedCount}
+                        </Typography>
+                      </Box>
                     )}
 
                     <Box sx={{ marginBottom: 3 }}>
@@ -481,6 +480,13 @@ export default function UploadPage() {
                     </Button>
                   </DialogActions>
                 </Dialog>
+                <Box sx={{ mt: 4, mb: 1, textAlign: 'center' }}>
+                  <Link href={`/tasks/${taskId?.toLowerCase()}`}>
+                    <Button variant='contained' color='primary'>
+                      Back to Task
+                    </Button>
+                  </Link>
+                </Box>
               </Box>
             </Paper>
           </Grid>
