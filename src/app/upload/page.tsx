@@ -25,8 +25,11 @@ import {
   Checkbox,
   FormControlLabel,
   Alert,
+  Snackbar,
+  CircularProgress,
 } from '@mui/material';
 import ExpandMoreIcon from '@mui/icons-material/ExpandMore';
+import CheckCircleIcon from '@mui/icons-material/CheckCircle';
 import { useDropzone } from 'react-dropzone';
 import DeleteIcon from '@mui/icons-material/Delete';
 import CloudUploadIcon from '@mui/icons-material/CloudUpload';
@@ -43,6 +46,9 @@ interface BaseStation {
   id: string;
   number: string;
   files: UploadedFile[];
+  uploadProgress: number;
+  isUploading: boolean;
+  uploadedCount?: number;
 }
 
 const DropzoneArea = ({
@@ -92,6 +98,8 @@ export default function UploadPage() {
     bsId: string;
     file: UploadedFile;
   } | null>(null);
+  const [successMessage, setSuccessMessage] = useState<string | null>(null);
+  const [errorMessage, setErrorMessage] = useState<string | null>(null);
 
   useEffect(() => {
     if (taskNameParam && bsNumberParam) {
@@ -104,6 +112,8 @@ export default function UploadPage() {
         id: `bs-${index}-${Date.now()}`,
         number: num.trim(),
         files: [],
+        uploadProgress: 0,
+        isUploading: false,
       }));
       setBaseStations(stations);
     }
@@ -171,7 +181,6 @@ export default function UploadPage() {
       formData.append('initiatorId', initiatorId || 'unknown');
       formData.append('initiatorName', initiatorName || 'unknown');
 
-      // Добавляем файлы в FormData
       bs.files.forEach((file) => {
         formData.append('image[]', file.file);
       });
@@ -182,6 +191,8 @@ export default function UploadPage() {
             ? {
                 ...prevBs,
                 files: prevBs.files.map((f) => ({ ...f, uploading: true })),
+                isUploading: true,
+                uploadProgress: 0,
               }
             : prevBs
         )
@@ -192,19 +203,22 @@ export default function UploadPage() {
 
       xhr.upload.onprogress = (event) => {
         if (event.lengthComputable) {
-          const progress = (event.loaded / event.total) * 100;
+          const totalProgress = (event.loaded / event.total) * 100;
           setBaseStations((prev) =>
-            prev.map((prevBs) =>
-              prevBs.id === bsId
-                ? {
-                    ...prevBs,
-                    files: prevBs.files.map((f) => ({
-                      ...f,
-                      progress: Math.min(progress, 99),
-                    })),
-                  }
-                : prevBs
-            )
+            prev.map((prevBs) => {
+              if (prevBs.id === bsId) {
+                const files = prevBs.files.map((f) => ({
+                  ...f,
+                  progress: Math.min(totalProgress, 99),
+                }));
+                return {
+                  ...prevBs,
+                  files,
+                  uploadProgress: totalProgress,
+                };
+              }
+              return prevBs;
+            })
           );
         }
       };
@@ -217,33 +231,38 @@ export default function UploadPage() {
                 prevBs.id === bsId
                   ? {
                       ...prevBs,
-                      files: prevBs.files.map((f) => ({
-                        ...f,
-                        progress: 100,
-                        uploading: false,
-                      })),
+                      files: [],
+                      isUploading: false,
+                      uploadProgress: 100,
+                      uploadedCount: prevBs.files.length,
                     }
                   : prevBs
               )
             );
+            setSuccessMessage(`Files for ${bs.number} uploaded successfully!`);
             setTimeout(() => {
               setBaseStations((prev) =>
                 prev.map((prevBs) =>
-                  prevBs.id === bsId ? { ...prevBs, files: [] } : prevBs
+                  prevBs.id === bsId
+                    ? { ...prevBs, uploadProgress: 0, uploadedCount: undefined }
+                    : prevBs
                 )
               );
-            }, 2000);
+            }, 3000);
             resolve(xhr.response);
           } else {
             reject(new Error('Upload failed'));
           }
         };
-        xhr.onerror = () => reject(new Error('Upload error'));
+        xhr.onerror = () => {
+          reject(new Error('Upload error'));
+          setErrorMessage(`Error uploading files for ${bs.number}`);
+        };
         xhr.send(formData);
       });
     } catch (error) {
       console.error('Upload error:', error);
-      alert(`Error uploading files for ${bs.number}`);
+      setErrorMessage(`Error uploading files for ${bs.number}`);
       setBaseStations((prev) =>
         prev.map((prevBs) =>
           prevBs.id === bsId
@@ -253,6 +272,8 @@ export default function UploadPage() {
                   ...f,
                   uploading: false,
                 })),
+                isUploading: false,
+                uploadProgress: 0,
               }
             : prevBs
         )
@@ -266,6 +287,28 @@ export default function UploadPage() {
 
   return (
     <Box sx={{ flexGrow: 1 }}>
+      <Snackbar
+        open={!!successMessage}
+        autoHideDuration={4000}
+        onClose={() => setSuccessMessage(null)}
+        anchorOrigin={{ vertical: 'top', horizontal: 'center' }}
+      >
+        <Alert severity='success' sx={{ width: '100%' }}>
+          {successMessage}
+        </Alert>
+      </Snackbar>
+
+      <Snackbar
+        open={!!errorMessage}
+        autoHideDuration={4000}
+        onClose={() => setErrorMessage(null)}
+        anchorOrigin={{ vertical: 'top', horizontal: 'center' }}
+      >
+        <Alert severity='error' sx={{ width: '100%' }}>
+          {errorMessage}
+        </Alert>
+      </Snackbar>
+
       <Grid container spacing={2}>
         <Grid item xs={12} md={6}>
           <Accordion
@@ -312,9 +355,25 @@ export default function UploadPage() {
 
                 {baseStations.map((bs) => (
                   <Box key={bs.id} sx={{ mb: 4 }}>
-                    <Typography variant='h6' gutterBottom>
-                      BS: {bs.number}
-                    </Typography>
+                    <Box display='flex' alignItems='center' gap={1}>
+                      <Typography variant='h6' gutterBottom>
+                        Base Station: {bs.number}
+                      </Typography>
+                      {bs.uploadedCount && (
+                        <CheckCircleIcon color='success' fontSize='small' />
+                      )}
+                    </Box>
+
+                    {bs.uploadedCount && (
+                      <Typography
+                        variant='body2'
+                        color='text.secondary'
+                        gutterBottom
+                      >
+                        Uploaded files: {bs.uploadedCount}
+                      </Typography>
+                    )}
+
                     <Box sx={{ marginBottom: 3 }}>
                       <Grid container spacing={2}>
                         {bs.files.map((file) => (
@@ -371,12 +430,29 @@ export default function UploadPage() {
                     <Box sx={{ display: 'flex', justifyContent: 'center' }}>
                       <Button
                         variant='contained'
-                        startIcon={<CloudUploadIcon />}
+                        startIcon={
+                          bs.isUploading ? (
+                            <CircularProgress
+                              size={20}
+                              color='inherit'
+                              variant={
+                                bs.uploadProgress > 0
+                                  ? 'determinate'
+                                  : 'indeterminate'
+                              }
+                              value={bs.uploadProgress}
+                            />
+                          ) : (
+                            <CloudUploadIcon />
+                          )
+                        }
                         onClick={() => handleUpload(bs.id)}
-                        disabled={bs.files.length === 0}
+                        disabled={bs.files.length === 0 || bs.isUploading}
                         sx={{ mt: 2 }}
                       >
-                        Upload {bs.number}
+                        {bs.isUploading
+                          ? `Uploading... ${Math.round(bs.uploadProgress)}%`
+                          : `Upload ${bs.number}`}
                       </Button>
                     </Box>
                   </Box>
