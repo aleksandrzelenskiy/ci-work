@@ -68,6 +68,8 @@ export async function POST(request: Request) {
   const baseId = decodeURIComponent(rawBaseId);
   const task = decodeURIComponent(rawTask);
 
+  // app/api/upload/route.ts (исправленная часть)
+
   // Получение initiatorId из FormData
   const initiatorIdFromForm = formData.get('initiatorId') as string | null;
   let initiatorId = 'unknown';
@@ -75,20 +77,28 @@ export async function POST(request: Request) {
 
   if (initiatorIdFromForm) {
     try {
-      // Подключаемся к базе данных
       await dbConnect();
-      // Ищем пользователя по _id
-      const initiatorUser = await User.findById(initiatorIdFromForm);
+      // Ищем пользователя по clerkUserId
+      const initiatorUser = await User.findOne({
+        clerkUserId: initiatorIdFromForm,
+      });
+
       if (initiatorUser) {
-        // Используем clerkUserId и имя из базы данных
         initiatorId = initiatorUser.clerkUserId;
         initiatorName = initiatorUser.name;
+      } else {
+        console.warn('Initiator user not found in database');
       }
     } catch (error) {
       console.error('Error fetching initiator user:', error);
     }
   }
 
+  // Используем значения из URL если не нашли в базе
+  if (initiatorId === 'unknown') {
+    initiatorId = (formData.get('initiatorId') as string) || 'unknown';
+    initiatorName = (formData.get('initiatorName') as string) || 'unknown';
+  }
   // Файлы
   const files = formData.getAll('image[]') as File[];
   if (files.length === 0) {
@@ -207,8 +217,8 @@ export async function POST(request: Request) {
       baseId,
       executorId: user.id,
       executorName: name,
-      initiatorId, // Теперь это clerkUserId
-      initiatorName, // Имя из базы данных
+      initiatorId,
+      initiatorName,
       userAvatar: user.imageUrl || '',
       createdAt: new Date(),
       status: 'Pending',
