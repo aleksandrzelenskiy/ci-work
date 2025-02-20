@@ -115,7 +115,7 @@ const TaskForm: React.FC<TaskFormProps> = ({
     } else {
       resetForm();
     }
-  }, [task, open]); // Добавлено open в зависимости
+  }, [task, open]);
 
   const resetForm = () => {
     setFormData({
@@ -372,7 +372,7 @@ const TaskForm: React.FC<TaskFormProps> = ({
                 {existingAttachments.map((attachment, index) => (
                   <Chip
                     key={`existing-${index}`}
-                    label={attachment.split('/').pop()} // Отображаем только имя файла
+                    label={attachment.split('/').pop()}
                     onDelete={() => {
                       setExistingAttachments((prev) =>
                         prev.filter((_, i) => i !== index)

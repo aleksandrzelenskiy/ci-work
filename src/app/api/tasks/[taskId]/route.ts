@@ -1,3 +1,5 @@
+// app/api/task/[taskid]/route.ts
+
 import { NextResponse } from 'next/server';
 import dbConnect from '@/utils/mongoose';
 import TaskModel from '@/app/models/TaskModel';
@@ -9,6 +11,23 @@ import { writeFile } from 'fs/promises';
 import { join } from 'path';
 import { v4 as uuidv4 } from 'uuid';
 import fs from 'fs/promises';
+
+interface UpdateData {
+  status?: string;
+  taskName?: string;
+  bsNumber?: string;
+  taskDescription?: string;
+  initiatorId?: string;
+  executorId?: string;
+  dueDate?: string;
+  priority?: PriorityLevel;
+  event?: {
+    details?: {
+      comment?: string;
+    };
+  };
+  existingAttachments?: string[];
+}
 
 // Подключение к базе данных
 async function connectToDatabase() {
@@ -61,7 +80,7 @@ export async function PATCH(
     const { taskid } = params;
     const taskId = taskid.toUpperCase();
 
-    // Authentication check
+    // Проверка аутентификации
     const user = await currentUser();
     if (!user) {
       return NextResponse.json(
@@ -70,70 +89,57 @@ export async function PATCH(
       );
     }
 
-    // Find task
+    // Поиск задачи
     const task = await TaskModel.findOne({ taskId });
     if (!task) {
       return NextResponse.json({ error: 'Task not found' }, { status: 404 });
     }
 
-    // Parse form data
-    const formData = await request.formData();
+    // Определяем тип запроса (JSON или FormData)
+    const contentType = request.headers.get('content-type');
+    let updateData: UpdateData = {};
+    const attachments: File[] = [];
 
-    // Update basic fields
-    const updateFields = {
-      taskName: formData.get('taskName'),
-      bsNumber: formData.get('bsNumber'),
-      taskDescription: formData.get('taskDescription'),
-      initiatorId: formData.get('initiatorId'),
-      executorId: formData.get('executorId'),
-      dueDate: formData.get('dueDate'),
-      priority: formData.get('priority'),
-      status: formData.get('status'),
-    };
+    if (contentType?.includes('application/json')) {
+      // Обработка JSON-запроса
+      updateData = await request.json();
+    } else if (contentType?.includes('multipart/form-data')) {
+      // Обработка FormData
+      const formData = await request.formData();
+      const entries = Array.from(formData.entries());
 
-    if (updateFields.taskName) task.taskName = updateFields.taskName as string;
-    if (updateFields.bsNumber) task.bsNumber = updateFields.bsNumber as string;
-    if (updateFields.taskDescription) {
-      task.taskDescription = updateFields.taskDescription as string;
-    }
-
-    // Update initiator information
-    if (updateFields.initiatorId) {
-      task.initiatorId = updateFields.initiatorId as string;
-      const initiator = await UserModel.findOne({
-        clerkUserId: updateFields.initiatorId,
-      });
-      if (initiator) {
-        task.initiatorName = initiator.name;
-        task.initiatorEmail = initiator.email;
+      // Разделяем вложения и остальные данные
+      const otherData: Record<string, FormDataEntryValue> = {};
+      for (const [key, value] of entries) {
+        if (key.startsWith('attachments_') && value instanceof File) {
+          attachments.push(value);
+        } else {
+          otherData[key] = value;
+        }
       }
-    }
 
-    // Update executor information
-    if (updateFields.executorId) {
-      task.executorId = updateFields.executorId as string;
-      const executor = await UserModel.findOne({
-        clerkUserId: updateFields.executorId,
-      });
-      if (executor) {
-        task.executorName = executor.name;
-        task.executorEmail = executor.email;
+      // Преобразуем в объект UpdateData
+      updateData = Object.fromEntries(
+        Object.entries(otherData).map(([key, value]) => [key, value.toString()])
+      ) as unknown as UpdateData;
+
+      // Парсим existingAttachments если есть
+      if (otherData.existingAttachments) {
+        updateData.existingAttachments = JSON.parse(
+          otherData.existingAttachments.toString()
+        );
       }
+    } else {
+      return NextResponse.json(
+        { error: 'Unsupported content type' },
+        { status: 400 }
+      );
     }
 
-    // Update date and priority
-    if (updateFields.dueDate) {
-      const dueDate = new Date(updateFields.dueDate as string);
-      if (!isNaN(dueDate.getTime())) task.dueDate = dueDate;
-    }
-    if (updateFields.priority) {
-      task.priority = updateFields.priority as PriorityLevel;
-    }
-
-    // Handle status changes
-    if (updateFields.status && updateFields.status !== task.status) {
+    // Обновление статуса
+    if (updateData.status) {
       const oldStatus = task.status;
-      task.status = updateFields.status as string;
+      task.status = updateData.status;
 
       const statusEvent: TaskEvent = {
         action: 'STATUS_CHANGED',
@@ -143,6 +149,7 @@ export async function PATCH(
         details: {
           oldStatus,
           newStatus: task.status,
+          comment: updateData.event?.details?.comment,
         },
       };
 
@@ -150,33 +157,61 @@ export async function PATCH(
       task.events.push(statusEvent);
     }
 
-    // Handle attachments
-    const existingAttachments = formData.getAll(
-      'existingAttachments'
-    ) as string[];
-    task.attachments = task.attachments.filter((attachment: string) =>
-      existingAttachments.includes(attachment)
-    );
+    // Обновление полей задачи
+    if (updateData.taskName) task.taskName = updateData.taskName;
+    if (updateData.bsNumber) task.bsNumber = updateData.bsNumber;
+    if (updateData.taskDescription)
+      task.taskDescription = updateData.taskDescription;
+    if (updateData.initiatorId) {
+      task.initiatorId = updateData.initiatorId;
+      const initiator = await UserModel.findOne({
+        clerkUserId: updateData.initiatorId,
+      });
+      if (initiator) {
+        task.initiatorName = initiator.name;
+        task.initiatorEmail = initiator.email;
+      }
+    }
+    if (updateData.executorId) {
+      task.executorId = updateData.executorId;
+      const executor = await UserModel.findOne({
+        clerkUserId: updateData.executorId,
+      });
+      if (executor) {
+        task.executorName = executor.name;
+        task.executorEmail = executor.email;
+      }
+    }
+    if (updateData.dueDate) {
+      const dueDate = new Date(updateData.dueDate);
+      if (!isNaN(dueDate.getTime())) task.dueDate = dueDate;
+    }
+    if (updateData.priority) {
+      task.priority = updateData.priority as PriorityLevel;
+    }
 
-    // Process new attachments
-    const uploadDir = join(process.cwd(), 'public', 'uploads');
-    await fs.mkdir(uploadDir, { recursive: true });
+    // Обработка вложений
+    if (contentType?.includes('multipart/form-data')) {
+      const existingAttachments = updateData.existingAttachments || [];
+      task.attachments = task.attachments.filter((attachment: string) =>
+        existingAttachments.includes(attachment)
+      );
 
-    const newAttachments: string[] = [];
-    for (const [key, value] of formData.entries()) {
-      if (key.startsWith('attachments_') && value instanceof File) {
-        const file = value;
+      const uploadDir = join(process.cwd(), 'public', 'uploads');
+      await fs.mkdir(uploadDir, { recursive: true });
+
+      const newAttachments: string[] = [];
+      for (const file of attachments) {
         const buffer = Buffer.from(await file.arrayBuffer());
         const filename = `${uuidv4()}-${file.name}`;
         const filePath = join(uploadDir, filename);
-
         await writeFile(filePath, buffer);
         newAttachments.push(`/uploads/${filename}`);
       }
+      task.attachments.push(...newAttachments);
     }
-    task.attachments.push(...newAttachments);
 
-    // Save updated task
+    // Сохранение задачи
     const updatedTask = await task.save();
 
     return NextResponse.json({ task: updatedTask });
