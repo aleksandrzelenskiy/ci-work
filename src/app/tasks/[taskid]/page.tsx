@@ -54,6 +54,7 @@ import ExpandMoreIcon from '@mui/icons-material/ExpandMore';
 import ExpandLessIcon from '@mui/icons-material/ExpandLess';
 import CloudUploadIcon from '@mui/icons-material/CloudUpload';
 import CloudDownloadIcon from '@mui/icons-material/CloudDownload';
+import EditIcon from '@mui/icons-material/Edit';
 import { useParams } from 'next/navigation';
 import {
   Task,
@@ -66,6 +67,7 @@ import {
 import { YMaps, Map, Placemark } from 'react-yandex-maps';
 import { TransitionProps } from '@mui/material/transitions';
 import { GetCurrentUserFromMongoDB } from '@/server-actions/users';
+import TaskForm from '@/app/components/TaskForm';
 
 const getStatusColor = (status: string) => {
   switch (status.toLowerCase()) {
@@ -130,6 +132,7 @@ export default function TaskDetailPage() {
   const [snackbarSeverity, setSnackbarSeverity] = useState<'success' | 'error'>(
     'success'
   );
+  const [isEditFormOpen, setIsEditFormOpen] = useState(false);
 
   useEffect(() => {
     const fetchUserRole = async () => {
@@ -354,6 +357,16 @@ export default function TaskDetailPage() {
       </Box>
       <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, mb: 3 }}>
         <Chip label={task.taskId} color='default' />
+        {userRole !== 'executor' && (
+          <Button
+            size='small'
+            variant='outlined'
+            startIcon={<EditIcon />}
+            onClick={() => setIsEditFormOpen(true)}
+          >
+            Edit
+          </Button>
+        )}
         <Typography variant='body2' component='span'>
           Created by{' '}
           {task.events?.find((event) => event.action === 'TASK_CREATED')
@@ -860,6 +873,36 @@ export default function TaskDetailPage() {
           {snackbarMessage}
         </Alert>
       </Snackbar>
+      <TaskForm
+        open={isEditFormOpen}
+        task={task}
+        onClose={() => setIsEditFormOpen(false)}
+        onSubmit={async (formData) => {
+          try {
+            const response = await fetch(`/api/tasks/${taskid}`, {
+              method: 'PATCH',
+              body: formData,
+            });
+
+            if (!response.ok) {
+              throw new Error('Failed to update task');
+            }
+
+            const { task: updatedTask } = await response.json();
+            setTask(updatedTask);
+            setSnackbarMessage('Task updated successfully!');
+            setSnackbarSeverity('success');
+            setSnackbarOpen(true);
+          } catch (error) {
+            console.error('Error updating task:', error);
+            setSnackbarMessage('Failed to update task');
+            setSnackbarSeverity('error');
+            setSnackbarOpen(true);
+          } finally {
+            setIsEditFormOpen(false);
+          }
+        }}
+      />
     </Box>
   );
 }

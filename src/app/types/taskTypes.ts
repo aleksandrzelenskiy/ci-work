@@ -1,3 +1,5 @@
+//  app/types/taskTypes.ts
+
 export type PriorityLevel = 'urgent' | 'high' | 'medium' | 'low';
 export type CurrentStatus =
   | 'to do'
