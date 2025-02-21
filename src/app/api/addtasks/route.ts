@@ -1,12 +1,12 @@
 /// app/api/addTasks/route.ts
 
 import { NextResponse } from 'next/server';
-import Task from '@/app/models/TaskModel';
-import ObjectModel from '@/app/models/ObjectModel';
-import dbConnect from '@/utils/mongoose';
+import Task from 'src/app/models/TaskModel';
+import ObjectModel from 'src/app/models/ObjectModel';
+import dbConnect from 'src/utils/mongoose';
 import { writeFileSync, mkdirSync, existsSync } from 'fs';
 import path from 'path';
-import { PriorityLevel, WorkItem } from '@/app/types/taskTypes';
+import { PriorityLevel, WorkItem } from 'src/app/types/taskTypes';
 import { v4 as uuidv4 } from 'uuid';
 
 // Функция для нормализации номера базовой станции
