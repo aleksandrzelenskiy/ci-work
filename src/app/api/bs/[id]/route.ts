@@ -1,7 +1,7 @@
 // app/api/bs/[id]/route.ts
 import { NextRequest, NextResponse } from 'next/server';
-import BaseStation from 'src/app/models/BaseStation';
-import dbConnect from 'src/utils/mongoose';
+import BaseStation from '@/app/models/BaseStation';
+import dbConnect from '@/utils/mongoose';
 
 export async function PUT(req: NextRequest) {
   await dbConnect();

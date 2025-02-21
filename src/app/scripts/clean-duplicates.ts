@@ -1,4 +1,4 @@
-import dbConnect from 'src/utils/mongoose';
+import dbConnect from '@/utils/mongoose';
 import BaseStation, { IBaseStation } from '../models/BaseStation';
 import mongoose from 'mongoose';
 

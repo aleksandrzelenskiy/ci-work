@@ -49,7 +49,7 @@ import KeyboardArrowDownIcon from '@mui/icons-material/KeyboardArrowDown';
 import { LocalizationProvider } from '@mui/x-date-pickers/LocalizationProvider';
 import { AdapterDateFns } from '@mui/x-date-pickers/AdapterDateFns';
 import { Task, WorkItem } from '../types/taskTypes';
-import { GetCurrentUserFromMongoDB } from '@/server-actions/users';
+import { GetCurrentUserFromMongoDB } from 'src/server-actions/users';
 
 const getStatusColor = (status: string) => {
   switch (status) {

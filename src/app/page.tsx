@@ -1,5 +1,5 @@
 import React from 'react';
-import ReportModel from '@/app/models/ReportModel';
+import ReportModel from './models/ReportModel';
 import ReportListPage from './components/ReportListPage';
 import TaskListPage from './components/TaskListPage';
 import Accordion from '@mui/material/Accordion';
@@ -7,7 +7,7 @@ import AccordionSummary from '@mui/material/AccordionSummary';
 import AccordionDetails from '@mui/material/AccordionDetails';
 import ExpandMoreIcon from '@mui/icons-material/ExpandMore';
 import { Box, Button, Typography } from '@mui/material';
-import { GetCurrentUserFromMongoDB } from '@/server-actions/users';
+import { GetCurrentUserFromMongoDB } from 'src/server-actions/users';
 import TrendingUpIcon from '@mui/icons-material/TrendingUp';
 import TrendingDownIcon from '@mui/icons-material/TrendingDown';
 import TaskOutlinedIcon from '@mui/icons-material/TaskOutlined';
