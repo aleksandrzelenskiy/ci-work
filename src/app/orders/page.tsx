@@ -58,6 +58,7 @@ interface ParsedValues {
 
 interface User {
   _id: string;
+  clerkUserId: string;
   name: string;
   email: string;
   role: string;
@@ -368,6 +369,11 @@ const OrderUploadPage: React.FC = () => {
         return;
       }
 
+      if (!formData.initiatorId || !formData.executorId) {
+        showNotification('Please select an initiator and executor', 'error');
+        return;
+      }
+
       const formDataToSend = new FormData();
       const taskId = generateTaskId();
 
@@ -390,12 +396,18 @@ const OrderUploadPage: React.FC = () => {
       );
 
       // Данные исполнителя
-      formDataToSend.append('executorId', formData.executorId || '');
+      const executorUser = users.find(
+        (user) => user.clerkUserId === formData.executorId
+      );
+      formDataToSend.append('executorId', executorUser?.clerkUserId || '');
       formDataToSend.append('executorName', formData.executorName || '');
       formDataToSend.append('executorEmail', formData.executorEmail || '');
 
       // Данные инициатора
-      formDataToSend.append('initiatorId', formData.initiatorId || '');
+      const initiatorUser = users.find(
+        (user) => user.clerkUserId === formData.initiatorId
+      );
+      formDataToSend.append('initiatorId', initiatorUser?.clerkUserId || '');
       formDataToSend.append('initiatorName', formData.initiatorName || '');
       formDataToSend.append('initiatorEmail', formData.initiatorEmail || '');
 
@@ -733,13 +745,14 @@ const OrderUploadPage: React.FC = () => {
                     }
                     getOptionLabel={(user) => `${user.name} (${user.email})`}
                     value={
-                      users.find((user) => user._id === formData.executorId) ||
-                      null
+                      users.find(
+                        (user) => user.clerkUserId === formData.executorId
+                      ) || null
                     }
                     onChange={(_, newValue) => {
                       setFormData({
                         ...formData,
-                        executorId: newValue?._id || '',
+                        executorId: newValue?.clerkUserId || '',
                         executorName: newValue?.name || '',
                         executorEmail: newValue?.email || '',
                       });
@@ -771,13 +784,14 @@ const OrderUploadPage: React.FC = () => {
                     }
                     getOptionLabel={(user) => `${user.name} (${user.email})`}
                     value={
-                      users.find((user) => user._id === formData.initiatorId) ||
-                      null
+                      users.find(
+                        (user) => user.clerkUserId === formData.initiatorId
+                      ) || null
                     }
                     onChange={(_, newValue) => {
                       setFormData({
                         ...formData,
-                        initiatorId: newValue?._id || '',
+                        initiatorId: newValue?.clerkUserId || '',
                         initiatorName: newValue?.name || '',
                         initiatorEmail: newValue?.email || '',
                       });

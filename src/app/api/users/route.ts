@@ -6,7 +6,7 @@ import UserModel from '@/app/models/UserModel';
 export async function GET() {
   try {
     await dbConnect();
-    const users = await UserModel.find({}, 'name email role');
+    const users = await UserModel.find({}, 'clerkUserId name email role');
     return NextResponse.json(users);
   } catch (error) {
     console.error('Ошибка при получении пользователей:', error);

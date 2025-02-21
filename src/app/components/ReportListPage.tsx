@@ -608,7 +608,7 @@ export default function ReportListPage() {
                     padding: '16px',
                   }}
                 >
-                  <strong>ID</strong>
+                  <strong>Task</strong>
                 </TableCell>
 
                 {/* 3) Task */}

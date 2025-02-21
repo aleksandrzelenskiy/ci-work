@@ -1,4 +1,4 @@
-// app/api/addTasks/route.ts
+/// app/api/addTasks/route.ts
 
 import { NextResponse } from 'next/server';
 import Task from '@/app/models/TaskModel';
@@ -8,7 +8,6 @@ import { writeFileSync, mkdirSync, existsSync } from 'fs';
 import path from 'path';
 import { PriorityLevel, WorkItem } from '@/app/types/taskTypes';
 import { v4 as uuidv4 } from 'uuid';
-import User from '@/app/models/UserModel';
 
 // Функция для нормализации номера базовой станции
 function normalizeBsNumber(bsNumber: string): string {
@@ -47,6 +46,7 @@ export async function POST(request: Request) {
     // Получение координат для каждой базовой станции
     const bsLocation = await Promise.all(
       bsNames.map(async (name) => {
+        // Ищем объект в коллекции objects-t2-ir
         const object = await ObjectModel.findOne({ name });
         if (!object) {
           throw new Error(
@@ -59,17 +59,6 @@ export async function POST(request: Request) {
         };
       })
     );
-
-    // Поиск пользователей по их ID
-    const initiatorIdFromForm = formData.get('initiatorId') as string;
-    const executorIdFromForm = formData.get('executorId') as string;
-
-    const initiatorUser = await User.findOne({ _id: initiatorIdFromForm });
-    const executorUser = await User.findOne({ _id: executorIdFromForm });
-
-    if (!initiatorUser || !executorUser) {
-      throw new Error('Initiator or Executor not found');
-    }
 
     // Основные данные задачи
     const taskData = {
@@ -85,12 +74,12 @@ export async function POST(request: Request) {
       authorId: formData.get('authorId') as string,
       authorName: formData.get('authorName') as string,
       authorEmail: formData.get('authorEmail') as string,
-      initiatorId: initiatorUser.clerkUserId,
-      initiatorName: initiatorUser.name,
-      initiatorEmail: initiatorUser.email,
-      executorId: executorUser.clerkUserId,
-      executorName: executorUser.name,
-      executorEmail: executorUser.email,
+      initiatorId: formData.get('initiatorId') as string,
+      initiatorName: formData.get('initiatorName') as string,
+      initiatorEmail: formData.get('initiatorEmail') as string,
+      executorId: formData.get('executorId') as string,
+      executorName: formData.get('executorName') as string,
+      executorEmail: formData.get('executorEmail') as string,
       workItems: JSON.parse(formData.get('workItems') as string).map(
         (item: Omit<WorkItem, 'id'>) => ({
           ...item,
@@ -113,7 +102,7 @@ export async function POST(request: Request) {
       .replace(/^_|_$/g, '');
 
     const cleanBsNumber = taskData.bsNumber
-      .replace(/[^a-z0-9-]/gi, '_')
+      .replace(/[^a-z0-9-]/gi, '_') // Разрешаем дефис в имени директории
       .toLowerCase()
       .replace(/_+/g, '_')
       .replace(/^_|_$/g, '');
