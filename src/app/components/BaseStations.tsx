@@ -3,10 +3,17 @@
 import { useEffect, useState } from 'react';
 import Autocomplete from '@mui/material/Autocomplete';
 import TextField from '@mui/material/TextField';
+import Dialog from '@mui/material/Dialog';
+import DialogActions from '@mui/material/DialogActions';
+import DialogContent from '@mui/material/DialogContent';
+import DialogContentText from '@mui/material/DialogContentText';
+import DialogTitle from '@mui/material/DialogTitle';
 import Box from '@mui/material/Box';
 import Button from '@mui/material/Button';
 import Typography from '@mui/material/Typography';
 import Alert from '@mui/material/Alert';
+import EditIcon from '@mui/icons-material/Edit';
+import DeleteIcon from '@mui/icons-material/Delete';
 
 export interface BaseStation {
   _id: string;
@@ -24,6 +31,8 @@ export default function BaseStations() {
   const [error, setError] = useState('');
   const [success, setSuccess] = useState('');
   const [isEditing, setIsEditing] = useState(false);
+  const [openSaveDialog, setOpenSaveDialog] = useState(false);
+  const [openDeleteDialog, setOpenDeleteDialog] = useState(false);
 
   useEffect(() => {
     const fetchStations = async () => {
@@ -49,6 +58,22 @@ export default function BaseStations() {
     }
     return () => clearTimeout(timer);
   }, [error, success]);
+
+  const handleOpenSaveDialog = () => {
+    setOpenSaveDialog(true);
+  };
+
+  const handleCloseSaveDialog = () => {
+    setOpenSaveDialog(false);
+  };
+
+  const handleOpenDeleteDialog = () => {
+    setOpenDeleteDialog(true);
+  };
+
+  const handleCloseDeleteDialog = () => {
+    setOpenDeleteDialog(false);
+  };
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -112,6 +137,7 @@ export default function BaseStations() {
       setSelectedStation(updatedStation);
       setIsEditing(false);
       setSuccess(`Base station ${updatedStation.name} updated successfully`);
+      setOpenSaveDialog(false); // Закрываем диалог
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Update error');
     }
@@ -138,6 +164,7 @@ export default function BaseStations() {
       setSelectedStation(null);
       setIsEditing(false);
       setSuccess(`Base station ${selectedStation.name} deleted successfully`);
+      setOpenDeleteDialog(false); // Закрываем диалог
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Delete error');
     }
@@ -168,7 +195,12 @@ export default function BaseStations() {
           <Typography variant='body1'>
             Coordinates: {selectedStation.coordinates}
           </Typography>
-          <Button variant='outlined' onClick={startEditing} sx={{ mt: 2 }}>
+          <Button
+            startIcon={<EditIcon />}
+            variant='outlined'
+            onClick={startEditing}
+            sx={{ mt: 2 }}
+          >
             Edit
           </Button>
         </Box>
@@ -197,14 +229,68 @@ export default function BaseStations() {
             }
             sx={{ mb: 2 }}
           />
-          <Button variant='contained' onClick={handleUpdate} sx={{ mr: 2 }}>
+          <Button
+            variant='contained'
+            onClick={handleOpenSaveDialog}
+            sx={{ mr: 2 }}
+          >
             Save
           </Button>
-          <Button variant='outlined' color='error' onClick={handleDelete}>
+          <Button
+            startIcon={<DeleteIcon />}
+            variant='outlined'
+            color='error'
+            onClick={handleOpenDeleteDialog}
+          >
             Delete
           </Button>
         </Box>
       )}
+      <Dialog
+        open={openSaveDialog}
+        onClose={handleCloseSaveDialog}
+        aria-labelledby='alert-dialog-title'
+        aria-describedby='alert-dialog-description'
+      >
+        <DialogTitle id='alert-dialog-title'>{'Confirm Save'}</DialogTitle>
+        <DialogContent>
+          <DialogContentText id='alert-dialog-description'>
+            Are you sure you want to save changes to this base station?
+          </DialogContentText>
+        </DialogContent>
+        <DialogActions>
+          <Button onClick={handleCloseSaveDialog} color='primary'>
+            Cancel
+          </Button>
+          <Button onClick={handleUpdate} color='primary' autoFocus>
+            Save
+          </Button>
+        </DialogActions>
+      </Dialog>
+
+      <Dialog
+        open={openDeleteDialog}
+        onClose={handleCloseDeleteDialog}
+        aria-labelledby='alert-dialog-title'
+        aria-describedby='alert-dialog-description'
+      >
+        <DialogTitle id='alert-dialog-title'>{'Confirm Delete'}</DialogTitle>
+        <DialogContent>
+          <DialogContentText id='alert-dialog-description'>
+            Are you sure you want to delete this base station? This action
+            cannot be undone.
+          </DialogContentText>
+        </DialogContent>
+        <DialogActions>
+          <Button onClick={handleCloseDeleteDialog} color='primary'>
+            Cancel
+          </Button>
+          <Button onClick={handleDelete} color='error' autoFocus>
+            Delete
+          </Button>
+        </DialogActions>
+      </Dialog>
+
       {error && (
         <Alert variant='filled' severity='error' sx={{ mb: 2 }}>
           {error}
