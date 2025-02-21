@@ -11,7 +11,7 @@ import { v4 as uuidv4 } from 'uuid';
 
 // Функция для нормализации номера базовой станции
 function normalizeBsNumber(bsNumber: string): string {
-  // Удаляем все символы, кроме букв и цифр
+  // Удаляем все символы, кроме букв, цифр и дефиса
   const cleanedBsNumber = bsNumber.replace(/[^a-zA-Z0-9-]/g, '');
 
   // Разделяем номер на части по дефису (если есть)

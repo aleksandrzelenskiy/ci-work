@@ -195,8 +195,6 @@ function Row({
               sx={{ mt: 1, marginLeft: 2 }}
             />
 
-            <Button>Edit</Button>
-
             <Box sx={{ marginLeft: 3 }}>
               <Box sx={{ mb: 2, mt: 2 }}>
                 <Typography variant='subtitle1'>BS Number</Typography>

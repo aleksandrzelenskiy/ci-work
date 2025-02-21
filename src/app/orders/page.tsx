@@ -3,6 +3,8 @@
 'use client';
 
 import React, { useCallback, useEffect, useState } from 'react';
+// import jsPDF from 'jspdf';
+// import 'jspdf-autotable';
 import {
   Box,
   Typography,
@@ -587,6 +589,7 @@ const OrderUploadPage: React.FC = () => {
               {values.total !== null && (
                 <Typography variant='body1' gutterBottom>
                   <strong>Total:</strong> {values.total.toFixed(2)}
+                  {/* {(parseFloat(values.total.toFixed(2)) * 0.7).toFixed(2)} */}
                 </Typography>
               )}
             </Box>
@@ -661,7 +664,6 @@ const OrderUploadPage: React.FC = () => {
                   }
                   fullWidth
                   required
-                  disabled
                 />
 
                 <TextField
