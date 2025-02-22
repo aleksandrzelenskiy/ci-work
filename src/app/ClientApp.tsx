@@ -33,6 +33,7 @@ import TaskIcon from '@mui/icons-material/Task';
 import PlaceIcon from '@mui/icons-material/Place';
 import CloudUploadIcon from '@mui/icons-material/CloudUpload';
 import PermMediaIcon from '@mui/icons-material/PermMedia';
+import StorageIcon from '@mui/icons-material/Storage';
 // import AddPhotoAlternateIcon from '@mui/icons-material/AddPhotoAlternate';
 import Badge from '@mui/material/Badge';
 import MailIcon from '@mui/icons-material/Mail';
@@ -102,11 +103,11 @@ export default function ClientApp({ children }: { children: React.ReactNode }) {
   const DrawerList = (
     <Box sx={{ width: 250 }} role='presentation'>
       <Box sx={{ display: 'flex', justifyContent: 'center', p: 2, mb: 2 }}>
-        <img
+        {/* <img
           src='/ci-logo.png'
           alt='CI Logo'
           style={{ width: '70%', maxWidth: '200px' }}
-        />
+        /> */}
       </Box>
       <List>
         <ListItemButton
@@ -146,6 +147,17 @@ export default function ClientApp({ children }: { children: React.ReactNode }) {
           </ListItemIcon>
           <ListItemText primary='Locations' />
         </ListItemButton>
+
+        <ListItemButton
+          onClick={() => handleNavigation('/bs')}
+          sx={{ paddingLeft: 5 }}
+        >
+          <ListItemIcon sx={{ minWidth: 30 }}>
+            <StorageIcon sx={{ fontSize: 20 }} />
+          </ListItemIcon>
+          <ListItemText primary='BS Catalog' />
+        </ListItemButton>
+
         {/* <ListItemButton
           onClick={() => handleNavigation('/upload')}
           sx={{ paddingLeft: 5 }}
