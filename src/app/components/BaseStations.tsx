@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useState, useCallback } from 'react';
+import { useEffect, useState } from 'react';
 import Autocomplete from '@mui/material/Autocomplete';
 import TextField from '@mui/material/TextField';
 import Dialog from '@mui/material/Dialog';
@@ -20,125 +20,12 @@ import {
   Placemark,
   FullscreenControl,
 } from '@pbe/react-yandex-maps';
-import { useYMaps } from '@pbe/react-yandex-maps';
 
 export interface BaseStation {
   _id: string;
   name: string;
   coordinates: string;
 }
-interface YMap {
-  geoObjects: {
-    add: (object: unknown) => void;
-    remove: (object: unknown) => void;
-  };
-  setCenter: (coordinates: number[]) => void;
-}
-
-interface YEvent {
-  get: (property: string) => any;
-}
-
-interface YPlacemark {
-  events: {
-    add: (event: string, callback: (e: YEvent) => void) => void;
-  };
-  geometry: {
-    getCoordinates: () => number[];
-  };
-}
-
-const EditableMap = ({
-  coordinates,
-  onChange,
-}: {
-  coordinates: string;
-  onChange: (coords: string) => void;
-}) => {
-  const ymaps = useYMaps(['Map', 'Placemark', 'geoObject.addon.drag']);
-  const [mapInstance, setMapInstance] = useState<YMap | null>(null);
-  const [placemark, setPlacemark] = useState<YPlacemark | null>(null);
-
-  const handleMapInstance = useCallback(
-    (instance: any) => {
-      if (instance && !mapInstance) {
-        setMapInstance(instance);
-      }
-    },
-    [mapInstance]
-  );
-
-  const updatePlacemark = useCallback(
-    (coords: number[]) => {
-      if (!ymaps || !mapInstance) return;
-
-      if (placemark) {
-        mapInstance.geoObjects.remove(placemark);
-      }
-
-      const newPlacemark = new ymaps.Placemark(
-        coords,
-        {},
-        {
-          draggable: true,
-          preset: 'islands#blueStretchyIcon',
-        }
-      ) as unknown as YPlacemark;
-
-      newPlacemark.events.add('dragend', (e: YEvent) => {
-        const target = e.get('target');
-        if (target?.geometry) {
-          const draggedCoords = target.geometry.getCoordinates();
-          onChange(
-            `${draggedCoords[0].toFixed(6)} ${draggedCoords[1].toFixed(6)}`
-          );
-        }
-      });
-
-      mapInstance.geoObjects.add(newPlacemark);
-      setPlacemark(newPlacemark);
-      mapInstance.setCenter(coords);
-    },
-    [ymaps, mapInstance, placemark, onChange]
-  );
-
-  useEffect(() => {
-    const coordsArray = coordinates.split(' ').map(Number);
-    if (
-      coordsArray.length === 2 &&
-      ymaps &&
-      mapInstance &&
-      (!placemark ||
-        !arraysEqual(coordsArray, placemark.geometry.getCoordinates()))
-    ) {
-      updatePlacemark(coordsArray);
-    }
-  }, [coordinates, ymaps, mapInstance, placemark, updatePlacemark]);
-
-  // Вспомогательная функция для сравнения массивов
-  function arraysEqual(a: number[], b: number[]) {
-    if (a.length !== b.length) return false;
-    for (let i = 0; i < a.length; i++) {
-      if (a[i] !== b[i]) return false;
-    }
-    return true;
-  }
-
-  return (
-    <Map
-      instanceRef={handleMapInstance}
-      state={{
-        center: coordinates.split(' ').map(Number),
-        zoom: 14,
-        type: 'yandex#satellite',
-      }}
-      width='100%'
-      height='100%'
-    >
-      <FullscreenControl />
-    </Map>
-  );
-};
 
 export default function BaseStations() {
   const [baseStations, setBaseStations] = useState<BaseStation[]>([]);
@@ -389,35 +276,6 @@ export default function BaseStations() {
             }}
             sx={{ mb: 2 }}
           />
-
-          {/* Интерактивная карта для редактирования */}
-          <Box
-            sx={{
-              height: 300,
-              width: '100%',
-              mb: 2,
-              borderRadius: 1,
-              overflow: 'hidden',
-              boxShadow: 1,
-            }}
-          >
-            <YMaps
-              query={{
-                apikey: '1c3860d8-3994-4e6e-841b-31ad57f69c78',
-                load: 'geoObject.addon.drag',
-              }}
-            >
-              <EditableMap
-                coordinates={editStation.coordinates}
-                onChange={(newCoords) =>
-                  setEditStation({
-                    ...editStation,
-                    coordinates: newCoords,
-                  })
-                }
-              />
-            </YMaps>
-          </Box>
 
           <Button
             variant='contained'
