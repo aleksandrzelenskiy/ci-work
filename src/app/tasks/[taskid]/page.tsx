@@ -55,6 +55,12 @@ import ExpandLessIcon from '@mui/icons-material/ExpandLess';
 import CloudUploadIcon from '@mui/icons-material/CloudUpload';
 import CloudDownloadIcon from '@mui/icons-material/CloudDownload';
 import EditIcon from '@mui/icons-material/Edit';
+import {
+  YMaps,
+  Map,
+  Placemark,
+  FullscreenControl,
+} from '@pbe/react-yandex-maps';
 import { useParams } from 'next/navigation';
 import {
   Task,
@@ -64,7 +70,6 @@ import {
   TaskEvent,
   PhotoReport,
 } from '@/app/types/taskTypes';
-import { YMaps, Map, Placemark } from 'react-yandex-maps';
 import { TransitionProps } from '@mui/material/transitions';
 import { GetCurrentUserFromMongoDB } from '@/server-actions/users';
 import TaskForm from '@/app/components/TaskForm';
@@ -133,6 +138,19 @@ export default function TaskDetailPage() {
     'success'
   );
   const [isEditFormOpen, setIsEditFormOpen] = useState(false);
+  const [visibleMaps, setVisibleMaps] = useState<Set<string>>(new Set());
+
+  const toggleMapVisibility = (coordinates: string) => {
+    setVisibleMaps((prev) => {
+      const newSet = new Set(prev);
+      if (newSet.has(coordinates)) {
+        newSet.delete(coordinates);
+      } else {
+        newSet.add(coordinates);
+      }
+      return newSet;
+    });
+  };
 
   useEffect(() => {
     const fetchUserRole = async () => {
@@ -428,17 +446,64 @@ export default function TaskDetailPage() {
               </AccordionSummary>
               <AccordionDetails>
                 {task.bsLocation.map((location: BsLocation) => (
-                  <Box key={uuidv4()} sx={{ mb: 1 }}>
+                  <Box key={uuidv4()} sx={{ mb: 3 }}>
                     <Typography>
-                      <strong>{location.name}:</strong>
+                      <strong>{location.name}</strong>
                     </Typography>
                     <Link
-                      href={`https://www.google.com/maps?q=${location.coordinates}`}
-                      target='_blank'
-                      rel='noopener'
+                      href='#'
+                      onClick={(e) => {
+                        e.preventDefault();
+                        toggleMapVisibility(location.coordinates);
+                      }}
+                      sx={{ cursor: 'pointer', textDecoration: 'none' }}
                     >
                       {location.coordinates}
                     </Link>
+                    {visibleMaps.has(location.coordinates) && (
+                      <Box
+                        sx={{
+                          height: 300,
+                          width: '100%',
+                          mt: 2,
+                          borderRadius: 1,
+                          overflow: 'hidden',
+                          boxShadow: 3,
+                        }}
+                      >
+                        <YMaps
+                          query={{
+                            apikey: '1c3860d8-3994-4e6e-841b-31ad57f69c78',
+                          }}
+                        >
+                          <Map
+                            state={{
+                              center: location.coordinates
+                                .split(' ')
+                                .map(Number),
+                              zoom: 14,
+                              type: 'yandex#satellite',
+                            }}
+                            width='100%'
+                            height='100%'
+                          >
+                            <Placemark
+                              geometry={location.coordinates
+                                .split(' ')
+                                .map(Number)}
+                              options={{
+                                preset: 'islands#blueStretchyIcon',
+                                iconColor: '#ff0000',
+                              }}
+                              properties={{
+                                balloonContent: location.name,
+                              }}
+                            />
+                            <FullscreenControl />
+                          </Map>
+                        </YMaps>
+                      </Box>
+                    )}
                   </Box>
                 ))}
               </AccordionDetails>
@@ -568,36 +633,31 @@ export default function TaskDetailPage() {
               )}
           </Box>
 
-          <Box sx={{ mb: 3 }}>
-            {userRole === 'executor' &&
-              task.status === 'done' &&
-              !task.photoReports && (
-                <>
-                  <Typography variant='h6' gutterBottom>
-                    Upload Report
-                  </Typography>
-                  <Button
-                    variant='outlined'
-                    startIcon={<CloudUploadIcon />}
-                    component={Link}
-                    href={`/upload?taskId=${
-                      task.taskId
-                    }&taskName=${encodeURIComponent(
-                      task.taskName
-                    )}&bsNumber=${encodeURIComponent(
-                      task.bsNumber
-                    )}&executorName=${encodeURIComponent(
-                      task.executorName
-                    )}&executorId=${
-                      task.executorId
-                    }&initiatorName=${encodeURIComponent(
-                      task.initiatorName
-                    )}&initiatorId=${task.initiatorId}`}
-                  >
-                    Upload reports
-                  </Button>
-                </>
-              )}
+          <Box sx={{ textAlign: 'center' }}>
+            {userRole === 'executor' && task.status === 'done' && (
+              <Box>
+                <Button
+                  variant='outlined'
+                  startIcon={<CloudUploadIcon />}
+                  component={Link}
+                  href={`/upload?taskId=${
+                    task.taskId
+                  }&taskName=${encodeURIComponent(
+                    task.taskName
+                  )}&bsNumber=${encodeURIComponent(
+                    task.bsNumber
+                  )}&executorName=${encodeURIComponent(
+                    task.executorName
+                  )}&executorId=${
+                    task.executorId
+                  }&initiatorName=${encodeURIComponent(
+                    task.initiatorName
+                  )}&initiatorId=${task.initiatorId}`}
+                >
+                  Upload reports
+                </Button>
+              </Box>
+            )}
           </Box>
         </Grid>
 
