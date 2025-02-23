@@ -42,8 +42,17 @@ const TaskSchema = new Schema<Task & Document>({
   },
   status: {
     type: String,
-    enum: ['to do', 'assigned', 'at work', 'done', 'agreed'] as CurrentStatus[],
-    default: 'to do',
+    enum: [
+      'To do',
+      'Assigned',
+      'At work',
+      'Done',
+      'Pending',
+      'Issues',
+      'Fixed',
+      'Agreed',
+    ] as CurrentStatus[],
+    default: 'To do',
   },
   attachments: [
     {

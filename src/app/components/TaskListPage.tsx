@@ -50,23 +50,7 @@ import { LocalizationProvider } from '@mui/x-date-pickers/LocalizationProvider';
 import { AdapterDateFns } from '@mui/x-date-pickers/AdapterDateFns';
 import { Task, WorkItem } from '../types/taskTypes';
 import { GetCurrentUserFromMongoDB } from 'src/server-actions/users';
-
-const getStatusColor = (status: string) => {
-  switch (status) {
-    case 'to do':
-      return 'default';
-    case 'assigned':
-      return 'info';
-    case 'at work':
-      return 'secondary';
-    case 'done':
-      return 'primary';
-    case 'agreed':
-      return 'success';
-    default:
-      return 'default';
-  }
-};
+import { getStatusColor } from '@/utils/statusColors';
 
 const getPriorityIcon = (priority: string) => {
   switch (priority) {
@@ -173,7 +157,13 @@ function Row({
 
         {columnVisibility.status && (
           <TableCell align='center'>
-            <Chip label={task.status} color={getStatusColor(task.status)} />
+            <Chip
+              label={task.status}
+              sx={{
+                backgroundColor: getStatusColor(task.status),
+                color: '#fff',
+              }}
+            />
           </TableCell>
         )}
 

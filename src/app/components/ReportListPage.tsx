@@ -39,22 +39,7 @@ import { SingleInputDateRangeField } from '@mui/x-date-pickers-pro/SingleInputDa
 import { DateRange } from '@mui/x-date-pickers-pro/models';
 import { LocalizationProvider } from '@mui/x-date-pickers/LocalizationProvider';
 import { AdapterDateFns } from '@mui/x-date-pickers/AdapterDateFns';
-
-// Получение стилей для статуса (цвет фона/текста)
-const getStatusStyles = (status: string) => {
-  switch (status) {
-    case 'Agreed':
-      return { backgroundColor: '#d4edda', color: '#155724' };
-    case 'Pending':
-      return { backgroundColor: '#fff3cd', color: '#856404' };
-    case 'Issues':
-      return { backgroundColor: '#f8d7da', color: '#721c24' };
-    case 'Fixed':
-      return { backgroundColor: '#fff3cd', color: '#856404' };
-    default:
-      return { backgroundColor: '#f1f1f1', color: '#6c757d' };
-  }
-};
+import { getStatusColor } from '@/utils/statusColors';
 
 // Цвет иконки папки в зависимости от статуса
 const getFolderColor = (status: string) => {
@@ -98,10 +83,6 @@ function Row({ report, role }: { report: ReportClient; role: string }) {
       ? date.toLocaleDateString()
       : 'The date is unavailable';
   };
-
-  {
-    // console.log(report.baseStatuses);
-  }
 
   return (
     <>
@@ -247,9 +228,12 @@ function Row({ report, role }: { report: ReportClient; role: string }) {
         >
           <Box
             sx={{
-              ...getStatusStyles(getTaskStatus(report.baseStatuses)),
+              backgroundColor: getStatusColor(
+                getTaskStatus(report.baseStatuses)
+              ),
               padding: '4px 8px',
               display: 'inline-block',
+              color: '#fff', // Белый текст для лучшей читаемости
             }}
           >
             {report.baseStatuses
@@ -306,10 +290,11 @@ function Row({ report, role }: { report: ReportClient; role: string }) {
                   </Typography>
                   <Box
                     sx={{
-                      ...getStatusStyles(baseStatus.status),
+                      backgroundColor: getStatusColor(baseStatus.status),
                       padding: '4px 8px',
                       display: 'inline-block',
                       marginLeft: 'auto',
+                      color: '#fff', // Белый текст для лучшей читаемости
                     }}
                   >
                     {baseStatus.status}

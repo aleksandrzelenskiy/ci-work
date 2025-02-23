@@ -43,6 +43,7 @@ import { useDropzone, Accept } from 'react-dropzone';
 import { PhotoProvider, PhotoView } from 'react-photo-view';
 import 'react-photo-view/dist/react-photo-view.css';
 import Link from 'next/link';
+import { getStatusColor } from '@/utils/statusColors';
 
 // Interfaces
 interface UploadedFile {
@@ -574,24 +575,6 @@ export default function PhotoReportPage() {
     }
   };
 
-  // ======================
-  // Helpers for status
-  // ======================
-  const getStatusColor = (s: string) => {
-    switch (s) {
-      case 'Pending':
-        return 'warning';
-      case 'Issues':
-        return 'error';
-      case 'Fixed':
-        return 'info';
-      case 'Agreed':
-        return 'success';
-      default:
-        return 'default';
-    }
-  };
-
   const getStatusMessage = () => {
     switch (status) {
       case 'Pending':
@@ -690,12 +673,21 @@ export default function PhotoReportPage() {
 
       {/* Main title */}
       <Typography variant='h5' gutterBottom sx={{ textTransform: 'none' }}>
-        <Chip label={reportId} sx={{ mb: 1, mr: 1 }} />
+        <Link
+          href={`/tasks/${reportId.toLowerCase()}`}
+          style={{ textDecoration: 'none' }}
+        >
+          <Chip label={reportId} sx={{ mb: 1, mr: 1 }} />
+        </Link>
         {decodeURIComponent(task)} | BS Number: {decodeURIComponent(baseid)}
         <Chip
           label={status}
-          color={getStatusColor(status)}
-          sx={{ mb: 1, ml: 1 }}
+          sx={{
+            backgroundColor: getStatusColor(status),
+            color: '#fff',
+            mb: 1,
+            ml: 1,
+          }}
         />
       </Typography>
       <Typography variant='body2' gutterBottom>

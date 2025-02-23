@@ -7,6 +7,7 @@ import sharp from 'sharp';
 import ExifReader from 'exifreader';
 import Report from '@/app/models/ReportModel';
 import User from '@/app/models/UserModel';
+import TaskModel from '@/app/models/TaskModel';
 import { currentUser } from '@clerk/nextjs/server';
 import dbConnect from '@/utils/mongoose';
 
@@ -237,6 +238,26 @@ export async function POST(request: Request) {
 
     await report.save();
     console.log('Report saved to database successfully.');
+
+    // Обновляем статус связанной задачи (переименовываем переменную)
+    const relatedTask = await TaskModel.findOne({ taskId: report.reportId });
+    if (relatedTask) {
+      const oldStatus = relatedTask.status;
+      relatedTask.status = 'Pending';
+      relatedTask.events.push({
+        action: 'STATUS_CHANGED',
+        author: name,
+        authorId: user.id,
+        date: new Date(),
+        details: {
+          oldStatus,
+          newStatus: 'Pending',
+          comment: 'Статус изменен после загрузки фотоотчета',
+        },
+      });
+      await relatedTask.save();
+      console.log('Статус задачи обновлен на Pending');
+    }
 
     return NextResponse.json({
       success: true,

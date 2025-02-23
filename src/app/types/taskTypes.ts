@@ -2,11 +2,14 @@
 
 export type PriorityLevel = 'urgent' | 'high' | 'medium' | 'low';
 export type CurrentStatus =
-  | 'to do'
-  | 'assigned'
-  | 'at work'
-  | 'done'
-  | 'agreed';
+  | 'To do'
+  | 'Assigned'
+  | 'At work'
+  | 'Done'
+  | 'Pending'
+  | 'Issues'
+  | 'Fixed'
+  | 'Agreed';
 
 export interface BsLocation {
   id: string;

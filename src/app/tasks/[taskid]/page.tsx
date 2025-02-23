@@ -73,29 +73,7 @@ import {
 import { TransitionProps } from '@mui/material/transitions';
 import { GetCurrentUserFromMongoDB } from '@/server-actions/users';
 import TaskForm from '@/app/components/TaskForm';
-
-const getStatusColor = (status: string) => {
-  switch (status.toLowerCase()) {
-    case 'pending':
-      return 'warning';
-    case 'issues':
-      return 'error';
-    case 'fixed':
-      return 'info';
-    case 'agreed':
-      return 'success';
-    case 'to do':
-      return 'default';
-    case 'assigned':
-      return 'info';
-    case 'at work':
-      return 'secondary';
-    case 'done':
-      return 'primary';
-    default:
-      return 'default';
-  }
-};
+import { getStatusColor } from '@/utils/statusColors';
 
 const parseUserInfo = (userString?: string) => {
   if (!userString) return { name: 'N/A', email: 'N/A' };
@@ -201,11 +179,11 @@ export default function TaskDetailPage() {
       const { task: updatedTask } = await response.json();
       setTask(updatedTask);
       setSnackbarMessage(
-        newStatus === 'at work'
+        newStatus === 'At work'
           ? 'Task accepted successfully!'
-          : newStatus === 'done'
+          : newStatus === 'Done'
           ? 'Task marked as done successfully!'
-          : newStatus === 'to do'
+          : newStatus === 'To do'
           ? confirmAction === 'reject'
             ? 'Task rejected successfully!'
             : 'Task refused successfully!'
@@ -226,11 +204,11 @@ export default function TaskDetailPage() {
 
   const handleConfirmAction = () => {
     if (confirmAction === 'accept') {
-      updateStatus('at work');
+      updateStatus('At work');
     } else if (confirmAction === 'reject' || confirmAction === 'refuse') {
-      updateStatus('to do');
+      updateStatus('To do');
     } else if (confirmAction === 'done') {
-      updateStatus('done');
+      updateStatus('Done');
     }
   };
 
@@ -347,8 +325,8 @@ export default function TaskDetailPage() {
   }
 
   const isExecutor = userRole === 'executor';
-  const isTaskAssigned = task.status === 'assigned';
-  const isTaskAtWork = task.status === 'at work';
+  const isTaskAssigned = task.status === 'Assigned';
+  const isTaskAtWork = task.status === 'At work';
 
   return (
     <Box sx={{ maxWidth: 1200, margin: '0 auto' }}>
@@ -373,7 +351,13 @@ export default function TaskDetailPage() {
       >
         <Typography variant='h5' component='h1'>
           {task.taskName} | {task.bsNumber} &nbsp;
-          <Chip label={task.status} color={getStatusColor(task.status)} />
+          <Chip
+            label={task.status}
+            sx={{
+              backgroundColor: getStatusColor(task.status),
+              color: '#fff',
+            }}
+          />
         </Typography>
       </Box>
       <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, mb: 3 }}>
@@ -561,7 +545,11 @@ export default function TaskDetailPage() {
           </Box>
 
           <Box sx={{ mb: 3 }}>
-            {task.status === 'done' &&
+            {(task.status === 'Done' ||
+              task.status === 'Pending' ||
+              task.status === 'Issues' ||
+              task.status === 'Fixed' ||
+              task.status === 'Agreed') &&
               task.photoReports &&
               task.photoReports.length > 0 && (
                 <Grid item xs={12}>
@@ -592,8 +580,13 @@ export default function TaskDetailPage() {
                                   </Typography>
                                   <Chip
                                     label={report.status}
-                                    color={getStatusColor(report.status)}
                                     size='small'
+                                    sx={{
+                                      backgroundColor: getStatusColor(
+                                        report.status
+                                      ),
+                                      color: '#fff',
+                                    }}
                                   />
                                 </Box>
 
@@ -634,30 +627,35 @@ export default function TaskDetailPage() {
           </Box>
 
           <Box sx={{ textAlign: 'center' }}>
-            {userRole === 'executor' && task.status === 'done' && (
-              <Box>
-                <Button
-                  variant='outlined'
-                  startIcon={<CloudUploadIcon />}
-                  component={Link}
-                  href={`/upload?taskId=${
-                    task.taskId
-                  }&taskName=${encodeURIComponent(
-                    task.taskName
-                  )}&bsNumber=${encodeURIComponent(
-                    task.bsNumber
-                  )}&executorName=${encodeURIComponent(
-                    task.executorName
-                  )}&executorId=${
-                    task.executorId
-                  }&initiatorName=${encodeURIComponent(
-                    task.initiatorName
-                  )}&initiatorId=${task.initiatorId}`}
-                >
-                  Upload reports
-                </Button>
-              </Box>
-            )}
+            {userRole === 'executor' &&
+              (task.status === 'Done' ||
+                task.status === 'Pending' ||
+                task.status === 'Issues' ||
+                task.status === 'Fixed' ||
+                task.status === 'Agreed') && (
+                <Box>
+                  <Button
+                    variant='outlined'
+                    startIcon={<CloudUploadIcon />}
+                    component={Link}
+                    href={`/upload?taskId=${
+                      task.taskId
+                    }&taskName=${encodeURIComponent(
+                      task.taskName
+                    )}&bsNumber=${encodeURIComponent(
+                      task.bsNumber
+                    )}&executorName=${encodeURIComponent(
+                      task.executorName
+                    )}&executorId=${
+                      task.executorId
+                    }&initiatorName=${encodeURIComponent(
+                      task.initiatorName
+                    )}&initiatorId=${task.initiatorId}`}
+                  >
+                    Upload reports
+                  </Button>
+                </Box>
+              )}
           </Box>
         </Grid>
 

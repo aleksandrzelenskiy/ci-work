@@ -24,34 +24,29 @@ import {
   DragHandle as DragHandleIcon,
   Remove as RemoveIcon,
 } from '@mui/icons-material';
+import { getStatusColor } from '@/utils/statusColors';
 import { GetCurrentUserFromMongoDB } from '@/server-actions/users';
 
 const statusOrder: CurrentStatus[] = [
-  'to do',
-  'assigned',
-  'at work',
-  'done',
-  'agreed',
+  'To do',
+  'Assigned',
+  'At work',
+  'Done',
+  'Pending',
+  'Issues',
+  'Fixed',
+  'Agreed',
 ];
 
-const getStatusColor = (status: string) => {
-  switch (status) {
-    case 'to do':
-      return 'default';
-    case 'assigned':
-      return 'primary';
-    case 'at work':
-      return 'secondary';
-    case 'done':
-      return 'info';
-    case 'agreed':
-      return 'success';
-    default:
-      return 'default';
-  }
-};
-
-type CurrentStatus = 'to do' | 'assigned' | 'at work' | 'done' | 'agreed';
+type CurrentStatus =
+  | 'To do'
+  | 'Assigned'
+  | 'At work'
+  | 'Done'
+  | 'Pending'
+  | 'Issues'
+  | 'Fixed'
+  | 'Agreed';
 
 function DraggableTask({ task, role }: { task: Task; role: string }) {
   const ref = useRef<HTMLDivElement>(null);
@@ -126,7 +121,10 @@ function DraggableTask({ task, role }: { task: Task; role: string }) {
           <Chip
             label={task.status}
             size='small'
-            color={getStatusColor(task.status)}
+            sx={{
+              backgroundColor: getStatusColor(task.status),
+              color: '#fff',
+            }}
           />
           <Typography variant='caption'>
             {getPriorityIcon(task.priority)}

@@ -5,6 +5,7 @@ import ReportModel from '@/app/models/ReportModel';
 import dbConnect from '@/utils/mongoose';
 import { currentUser } from '@clerk/nextjs/server';
 import UserModel from '@/app/models/UserModel';
+import TaskModel from '@/app/models/TaskModel';
 
 /**
  * GET обработчик для получения информации о конкретном отчёте.
@@ -239,6 +240,26 @@ export async function PATCH(
     // Сохраняем изменения в базе
     await report.save();
     console.log('Отчёт успешно обновлён.');
+
+    // Синхронизируем статус с задачей (переименовываем переменную)
+    const relatedTask = await TaskModel.findOne({ taskId: report.reportId });
+    if (relatedTask && relatedTask.status !== report.status) {
+      const oldStatus = relatedTask.status;
+      relatedTask.status = report.status;
+      relatedTask.events.push({
+        action: 'STATUS_CHANGED',
+        author: name,
+        authorId: user.id,
+        date: new Date(),
+        details: {
+          oldStatus,
+          newStatus: report.status,
+          comment: 'Статус синхронизирован с фотоотчетом',
+        },
+      });
+      await relatedTask.save();
+      console.log(`Статус задачи обновлен с ${oldStatus} на ${report.status}`);
+    }
 
     return NextResponse.json({ message: 'Отчёт успешно обновлён' });
   } catch (error) {
