@@ -46,23 +46,30 @@ interface User {
 interface TaskFormProps {
   open: boolean;
   task?: Task | null;
+  initialData?: Partial<Task>;
+  attachmentFiles?: File[];
   onClose: () => void;
   onSubmit: (taskData: FormData) => Promise<void>;
 }
 
+const generateTaskId = (): string => {
+  const randomPart = Math.random().toString(36).substr(2, 5).toUpperCase();
+  return `${randomPart}`;
+};
+
 const TaskForm: React.FC<TaskFormProps> = ({
   open,
   task,
+  initialData,
+  attachmentFiles = [],
   onClose,
   onSubmit,
 }) => {
   const { isLoaded, user } = useUser();
   const [users, setUsers] = useState<User[]>([]);
-  console.log(users);
   const [loadingUsers, setLoadingUsers] = useState(false);
-  console.log(loadingUsers);
   const [formData, setFormData] = useState<Partial<Task>>({
-    taskId: '',
+    taskId: generateTaskId(),
     taskName: '',
     taskDescription: '',
     priority: 'medium',
@@ -81,7 +88,7 @@ const TaskForm: React.FC<TaskFormProps> = ({
     executorEmail: '',
     attachments: [],
   });
-  const [attachmentFiles, setAttachmentFiles] = useState<File[]>([]);
+  const [newAttachmentFiles, setNewAttachmentFiles] = useState<File[]>([]);
   const [existingAttachments, setExistingAttachments] = useState<string[]>([]);
   const [notification, setNotification] = useState<{
     open: boolean;
@@ -116,19 +123,37 @@ const TaskForm: React.FC<TaskFormProps> = ({
 
   useEffect(() => {
     if (task) {
+      // Edit mode
       setFormData({
         ...task,
         dueDate: new Date(task.dueDate),
       });
       setExistingAttachments(task.attachments || []);
+    } else if (initialData) {
+      // Create mode with initial data
+      setFormData({
+        ...initialData,
+        taskId: initialData.taskId || generateTaskId(),
+        dueDate: initialData.dueDate || new Date(),
+      });
     } else {
+      // New task
       resetForm();
     }
-  }, [task, open]);
+    setNewAttachmentFiles(attachmentFiles);
+  }, [open, task, initialData]);
+
+  useEffect(() => {
+    if (task) {
+      setExistingAttachments(
+        Array.isArray(task.attachments) ? task.attachments : []
+      );
+    }
+  }, [task]);
 
   const resetForm = () => {
     setFormData({
-      taskId: '',
+      taskId: generateTaskId(),
       taskName: '',
       taskDescription: '',
       priority: 'medium',
@@ -148,7 +173,7 @@ const TaskForm: React.FC<TaskFormProps> = ({
       attachments: [],
     });
     setExistingAttachments([]);
-    setAttachmentFiles([]);
+    setNewAttachmentFiles([]);
   };
 
   const getDisplayName = () => {
@@ -170,7 +195,7 @@ const TaskForm: React.FC<TaskFormProps> = ({
     getInputProps: getAttachmentInputProps,
   } = useDropzone({
     onDrop: (acceptedFiles) =>
-      setAttachmentFiles((prev) => [...prev, ...acceptedFiles]),
+      setNewAttachmentFiles((prev) => [...prev, ...acceptedFiles]),
     multiple: true,
   });
 
@@ -187,20 +212,19 @@ const TaskForm: React.FC<TaskFormProps> = ({
       Object.entries(formData).forEach(([key, value]) => {
         if (value instanceof Date) {
           formDataToSend.append(key, value.toISOString());
-        } else if (value && typeof value === 'object') {
-          formDataToSend.append(key, JSON.stringify(value));
-        } else if (value !== undefined && value !== null) {
+        } else if (value !== null && value !== undefined) {
           formDataToSend.append(key, value.toString());
         }
       });
 
       // Append existing attachments
-      existingAttachments.forEach((attachment) => {
-        formDataToSend.append('existingAttachments', attachment);
-      });
+      formDataToSend.append(
+        'existingAttachments',
+        JSON.stringify(existingAttachments)
+      );
 
       // Append new attachment files
-      attachmentFiles.forEach((file, index) => {
+      newAttachmentFiles.forEach((file, index) => {
         formDataToSend.append(`attachments_${index}`, file);
       });
 
@@ -238,8 +262,7 @@ const TaskForm: React.FC<TaskFormProps> = ({
       <Dialog open={open} onClose={handleClose} fullWidth maxWidth='md'>
         <DialogTitle>
           {task ? 'Edit Task' : 'Create New Task'}
-          {task && <Chip label={task.taskId} sx={{ ml: 2 }} />}{' '}
-          {/* Добавлен Chip с taskId */}
+          {task && <Chip label={task.taskId} sx={{ ml: 2 }} />}
         </DialogTitle>
         <DialogContent>
           <Box sx={{ mt: 2, display: 'flex', flexDirection: 'column', gap: 2 }}>
@@ -470,12 +493,12 @@ const TaskForm: React.FC<TaskFormProps> = ({
                     variant='outlined'
                   />
                 ))}
-                {attachmentFiles.map((file, index) => (
+                {newAttachmentFiles.map((file, index) => (
                   <Chip
                     key={`new-${index}`}
                     label={`${file.name} (${(file.size / 1024).toFixed(1)} KB)`}
                     onDelete={() => {
-                      setAttachmentFiles((prev) =>
+                      setNewAttachmentFiles((prev) =>
                         prev.filter((_, i) => i !== index)
                       );
                     }}

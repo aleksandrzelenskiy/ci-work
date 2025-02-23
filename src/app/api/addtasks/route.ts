@@ -9,25 +9,14 @@ import path from 'path';
 import { PriorityLevel, WorkItem } from 'src/app/types/taskTypes';
 import { v4 as uuidv4 } from 'uuid';
 
-// Функция для нормализации номера базовой станции
 function normalizeBsNumber(bsNumber: string): string {
-  // Удаляем все символы, кроме букв, цифр и дефиса
   const cleanedBsNumber = bsNumber.replace(/[^a-zA-Z0-9-]/g, '');
-
-  // Разделяем номер на части по дефису (если есть)
   const parts = cleanedBsNumber.split('-');
-
-  // Нормализуем каждую часть
   const normalizedParts = parts.map((part) => {
-    // Извлекаем код региона (первые 2 символа)
     const regionCode = part.substring(0, 2).toUpperCase();
-    // Извлекаем номер базовой станции (оставшиеся символы)
-    const bsDigits = part.substring(2).replace(/^0+/, ''); // Удаляем ведущие нули
-    // Возвращаем нормализованную часть
+    const bsDigits = part.substring(2).replace(/^0+/, '');
     return `${regionCode}${bsDigits}`;
   });
-
-  // Соединяем части обратно через дефис
   return normalizedParts.join('-');
 }
 
@@ -37,16 +26,12 @@ export async function POST(request: Request) {
   try {
     const formData = await request.formData();
 
-    // Нормализация номера базовой станции
+    // Обработка основных полей
     const bsNumber = normalizeBsNumber(formData.get('bsNumber') as string);
-
-    // Разделение номера на отдельные части (если есть диапазон)
     const bsNames = bsNumber.split('-');
 
-    // Получение координат для каждой базовой станции
     const bsLocation = await Promise.all(
       bsNames.map(async (name) => {
-        // Ищем объект в коллекции objects-t2-ir
         const object = await ObjectModel.findOne({ name });
         if (!object) {
           throw new Error(
@@ -60,7 +45,6 @@ export async function POST(request: Request) {
       })
     );
 
-    // Основные данные задачи
     const taskData = {
       taskId: formData.get('taskId') as string,
       taskName: formData.get('taskName') as string,
@@ -90,11 +74,17 @@ export async function POST(request: Request) {
 
     // Обработка файлов
     const excelFile = formData.get('excelFile') as File;
-    const attachments = Array.from(formData.entries())
-      .filter(([key]) => key.startsWith('attachments_'))
-      .map(([, file]) => file as File);
 
-    // Нормализация имени директории
+    // Сбор вложений через последовательный перебор
+    const attachments: File[] = [];
+    let index = 0;
+    while (formData.has(`attachments_${index}`)) {
+      const file = formData.get(`attachments_${index}`) as File;
+      attachments.push(file);
+      index++;
+    }
+
+    // Создание директорий
     const cleanTaskName = taskData.taskName
       .replace(/[^a-z0-9а-яё]/gi, '_')
       .toLowerCase()
@@ -102,15 +92,14 @@ export async function POST(request: Request) {
       .replace(/^_|_$/g, '');
 
     const cleanBsNumber = taskData.bsNumber
-      .replace(/[^a-z0-9-]/gi, '_') // Разрешаем дефис в имени директории
+      .replace(/[^a-z0-9-]/gi, '_')
       .toLowerCase()
       .replace(/_+/g, '_')
       .replace(/^_|_$/g, '');
 
-    // Создание директории
     const taskFolderName = `${cleanTaskName}_${cleanBsNumber}`;
 
-    // Сохраняем Excel файл
+    // Сохранение Excel файла
     const orderDir = path.join(
       process.cwd(),
       'public',
@@ -127,7 +116,7 @@ export async function POST(request: Request) {
       Buffer.from(await excelFile.arrayBuffer())
     );
 
-    // Сохраняем вложения
+    // Сохранение вложений
     const attachmentsDir = path.join(
       process.cwd(),
       'public',
@@ -149,10 +138,8 @@ export async function POST(request: Request) {
       })
     );
 
-    // Определяем статус задачи
+    // Создание задачи
     const taskStatus = taskData.executorId ? 'Assigned' : 'To do';
-
-    // Создаем задачу
     const newTask = new Task({
       ...taskData,
       status: taskStatus,

@@ -123,11 +123,24 @@ export async function PATCH(
         Object.entries(otherData).map(([key, value]) => [key, value.toString()])
       ) as unknown as UpdateData;
 
+      if (
+        updateData.existingAttachments &&
+        !Array.isArray(updateData.existingAttachments)
+      ) {
+        console.error('Invalid existingAttachments format');
+        updateData.existingAttachments = [];
+      }
+
       // Парсим existingAttachments если есть
       if (otherData.existingAttachments) {
-        updateData.existingAttachments = JSON.parse(
-          otherData.existingAttachments.toString()
-        );
+        try {
+          updateData.existingAttachments = JSON.parse(
+            otherData.existingAttachments.toString()
+          );
+        } catch (error) {
+          console.error('Error parsing existingAttachments:', error);
+          updateData.existingAttachments = [];
+        }
       }
     } else {
       return NextResponse.json(
@@ -172,6 +185,48 @@ export async function PATCH(
         task.initiatorEmail = initiator.email;
       }
     }
+
+    // Обработка изменения исполнителя и статуса
+    if (updateData.executorId !== undefined) {
+      const previousExecutorId = task.executorId;
+      const previousStatus = task.status;
+
+      task.executorId = updateData.executorId;
+      const executor = await UserModel.findOne({
+        clerkUserId: updateData.executorId,
+      });
+
+      if (executor) {
+        task.executorName = executor.name;
+        task.executorEmail = executor.email;
+      } else {
+        task.executorName = '';
+        task.executorEmail = '';
+      }
+
+      // Обновляем статус только если изменился executorId
+      if (previousExecutorId !== updateData.executorId) {
+        const newStatus = updateData.executorId ? 'Assigned' : 'To do';
+        task.status = newStatus;
+
+        // Добавляем событие в историю
+        const statusEvent: TaskEvent = {
+          action: 'STATUS_CHANGED',
+          author: `${user.firstName} ${user.lastName}`.trim() || 'Unknown',
+          authorId: user.id,
+          date: new Date(),
+          details: {
+            oldStatus: previousStatus,
+            newStatus: newStatus,
+            comment: 'Status changed due to executor update',
+          },
+        };
+
+        task.events = task.events || [];
+        task.events.push(statusEvent);
+      }
+    }
+
     if (updateData.executorId) {
       task.executorId = updateData.executorId;
       const executor = await UserModel.findOne({
