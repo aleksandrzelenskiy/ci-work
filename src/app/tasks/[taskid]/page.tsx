@@ -55,11 +55,12 @@ import ExpandLessIcon from '@mui/icons-material/ExpandLess';
 import CloudUploadIcon from '@mui/icons-material/CloudUpload';
 import CloudDownloadIcon from '@mui/icons-material/CloudDownload';
 import EditIcon from '@mui/icons-material/Edit';
+import AttachFileIcon from '@mui/icons-material/AttachFile';
 import {
   YMaps,
   Map,
   Placemark,
-  FullscreenControl,
+  // FullscreenControl,
 } from '@pbe/react-yandex-maps';
 import { useParams } from 'next/navigation';
 import {
@@ -116,19 +117,19 @@ export default function TaskDetailPage() {
     'success'
   );
   const [isEditFormOpen, setIsEditFormOpen] = useState(false);
-  const [visibleMaps, setVisibleMaps] = useState<Set<string>>(new Set());
+  // const [visibleMaps, setVisibleMaps] = useState<Set<string>>(new Set());
 
-  const toggleMapVisibility = (coordinates: string) => {
-    setVisibleMaps((prev) => {
-      const newSet = new Set(prev);
-      if (newSet.has(coordinates)) {
-        newSet.delete(coordinates);
-      } else {
-        newSet.add(coordinates);
-      }
-      return newSet;
-    });
-  };
+  // const toggleMapVisibility = (coordinates: string) => {
+  //   setVisibleMaps((prev) => {
+  //     const newSet = new Set(prev);
+  //     if (newSet.has(coordinates)) {
+  //       newSet.delete(coordinates);
+  //     } else {
+  //       newSet.add(coordinates);
+  //     }
+  //     return newSet;
+  //   });
+  // };
 
   useEffect(() => {
     const fetchUserRole = async () => {
@@ -421,7 +422,7 @@ export default function TaskDetailPage() {
               </AccordionDetails>
             </Accordion>
           </Box>
-          <Box sx={{ mb: 0 }}>
+          <Box>
             <Accordion>
               <AccordionSummary expandIcon={<ExpandMoreIcon />}>
                 <Typography variant='h6'>
@@ -430,11 +431,18 @@ export default function TaskDetailPage() {
               </AccordionSummary>
               <AccordionDetails>
                 {task.bsLocation.map((location: BsLocation) => (
-                  <Box key={uuidv4()} sx={{ mb: 3 }}>
+                  <Box key={uuidv4()} sx={{ mb: 1 }}>
                     <Typography>
                       <strong>{location.name}</strong>
                     </Typography>
                     <Link
+                      href={`https://www.google.com/maps?q=${location.coordinates}`}
+                      target='_blank'
+                      rel='noopener'
+                    >
+                      {location.coordinates}
+                    </Link>
+                    {/* <Link
                       href='#'
                       onClick={(e) => {
                         e.preventDefault();
@@ -443,8 +451,8 @@ export default function TaskDetailPage() {
                       sx={{ cursor: 'pointer', textDecoration: 'none' }}
                     >
                       {location.coordinates}
-                    </Link>
-                    {visibleMaps.has(location.coordinates) && (
+                    </Link> */}
+                    {/* {visibleMaps.has(location.coordinates) && (
                       <Box
                         sx={{
                           height: 300,
@@ -487,7 +495,7 @@ export default function TaskDetailPage() {
                           </Map>
                         </YMaps>
                       </Box>
-                    )}
+                    )} */}
                   </Box>
                 ))}
               </AccordionDetails>
@@ -508,6 +516,80 @@ export default function TaskDetailPage() {
               </AccordionDetails>
             </Accordion>
           </Box>
+
+          {/* Attachments Section */}
+          <Box sx={{ mb: 3 }}>
+            <Accordion>
+              <AccordionSummary expandIcon={<ExpandMoreIcon />}>
+                <Typography variant='h6'>
+                  <AttachFileIcon /> Attachments
+                  <Chip
+                    label={
+                      (userRole !== 'executor' && task.orderUrl ? 1 : 0) +
+                      (task.attachments?.length || 0)
+                    }
+                    color={
+                      (task.attachments?.length || 0) +
+                        (userRole !== 'executor' && task.orderUrl ? 1 : 0) ===
+                      0
+                        ? 'default'
+                        : 'primary'
+                    }
+                    size='small'
+                    sx={{ ml: 1 }}
+                  />
+                </Typography>
+              </AccordionSummary>
+              <AccordionDetails>
+                {/* Order File */}
+                {userRole !== 'executor' && task.orderUrl && (
+                  <Box sx={{ mb: 2 }}>
+                    <Typography variant='body1'>
+                      Order: {task.orderUrl.split('/').pop()}
+                    </Typography>
+                    <Button
+                      component='a'
+                      href={task.orderUrl}
+                      download
+                      startIcon={<CloudDownloadIcon />}
+                      sx={{ mt: 1 }}
+                    >
+                      Download Order
+                    </Button>
+                  </Box>
+                )}
+
+                {/* Attachments List */}
+                {task.attachments?.map((fileUrl, index) => {
+                  const fileName =
+                    fileUrl.split('/').pop() || `attachment_${index + 1}`;
+                  return (
+                    <Box key={`attachment-${index}`} sx={{ mb: 2 }}>
+                      <Typography variant='body1'>{fileName}</Typography>
+                      <Button
+                        component='a'
+                        href={fileUrl}
+                        download={fileName}
+                        startIcon={<CloudDownloadIcon />}
+                        sx={{ mt: 1 }}
+                      >
+                        Download
+                      </Button>
+                    </Box>
+                  );
+                })}
+
+                {/* Empty State */}
+                {((userRole === 'executor' && task.attachments?.length === 0) ||
+                  (!task.orderUrl && task.attachments?.length === 0)) && (
+                  <Typography variant='body2' color='textSecondary'>
+                    No attachments found
+                  </Typography>
+                )}
+              </AccordionDetails>
+            </Accordion>
+          </Box>
+
           <Box sx={{ mb: 3 }}>
             <Accordion>
               <AccordionSummary expandIcon={<ExpandMoreIcon />}>
@@ -544,14 +626,14 @@ export default function TaskDetailPage() {
             </Accordion>
           </Box>
 
-          <Box sx={{ mb: 3 }}>
-            {(task.status === 'Done' ||
-              task.status === 'Pending' ||
-              task.status === 'Issues' ||
-              task.status === 'Fixed' ||
-              task.status === 'Agreed') &&
-              task.photoReports &&
-              task.photoReports.length > 0 && (
+          {(task.status === 'Done' ||
+            task.status === 'Pending' ||
+            task.status === 'Issues' ||
+            task.status === 'Fixed' ||
+            task.status === 'Agreed') &&
+            task.photoReports &&
+            task.photoReports.length > 0 && (
+              <Box sx={{ mb: 3 }}>
                 <Grid item xs={12}>
                   <Accordion defaultExpanded>
                     <AccordionSummary expandIcon={<ExpandMoreIcon />}>
@@ -623,8 +705,8 @@ export default function TaskDetailPage() {
                     </AccordionDetails>
                   </Accordion>
                 </Grid>
-              )}
-          </Box>
+              </Box>
+            )}
 
           <Box sx={{ textAlign: 'center' }}>
             {userRole === 'executor' &&

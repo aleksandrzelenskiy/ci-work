@@ -73,7 +73,7 @@ export interface Task {
   status: CurrentStatus;
   createdAt: Date;
   attachments?: string[];
-  orderUrl?: string[];
+  orderUrl?: string;
   objectDetails: {
     name: string;
     coordinates: string;

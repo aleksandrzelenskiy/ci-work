@@ -150,7 +150,7 @@ export async function POST(request: Request) {
     );
 
     // Определяем статус задачи
-    const taskStatus = taskData.executorId ? 'assigned' : 'to do';
+    const taskStatus = taskData.executorId ? 'Assigned' : 'To do';
 
     // Создаем задачу
     const newTask = new Task({
