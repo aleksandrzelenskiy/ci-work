@@ -1,18 +1,26 @@
 'use client';
 
 import { useState } from 'react';
+import { useRouter } from 'next/navigation';
 import {
   Box,
   Paper,
   ToggleButtonGroup,
   ToggleButton,
   Typography,
+  Fab,
 } from '@mui/material';
+import AddIcon from '@mui/icons-material/Add';
 import TaskListPage from '../components/TaskListPage';
 import TaskColumnPage from '../components/TaskColumnPage';
 
 const TasksPage = () => {
   const [viewMode, setViewMode] = useState('table');
+  const router = useRouter();
+
+  const handleAddClick = () => {
+    router.push('/orders');
+  };
 
   return (
     <Box>
@@ -42,6 +50,19 @@ const TasksPage = () => {
       >
         {viewMode === 'table' ? <TaskListPage /> : <TaskColumnPage />}
       </Paper>
+
+      <Fab
+        color='primary'
+        aria-label='add'
+        sx={{
+          position: 'fixed',
+          bottom: 16,
+          right: 16,
+        }}
+        onClick={handleAddClick}
+      >
+        <AddIcon />
+      </Fab>
     </Box>
   );
 };

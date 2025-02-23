@@ -21,6 +21,7 @@ import {
   IconButton,
   Collapse,
   Alert,
+  Autocomplete,
 } from '@mui/material';
 import { DatePicker, LocalizationProvider } from '@mui/x-date-pickers';
 import { AdapterDateFns } from '@mui/x-date-pickers/AdapterDateFns';
@@ -87,6 +88,14 @@ const TaskForm: React.FC<TaskFormProps> = ({
     message: string;
     severity: 'error' | 'success' | 'info' | 'warning';
   }>({ open: false, message: '', severity: 'info' });
+
+  const filterUsers = (options: User[], inputValue: string) => {
+    return options.filter(
+      (option) =>
+        option.name.toLowerCase().includes(inputValue.toLowerCase()) ||
+        option.email.toLowerCase().includes(inputValue.toLowerCase())
+    );
+  };
 
   useEffect(() => {
     const fetchUsers = async () => {
@@ -347,6 +356,85 @@ const TaskForm: React.FC<TaskFormProps> = ({
                 },
               }}
             />
+
+            <FormControl fullWidth sx={{ mt: 2 }}>
+              <Autocomplete
+                options={users}
+                filterOptions={(options, { inputValue }) =>
+                  filterUsers(options, inputValue)
+                }
+                getOptionLabel={(user) => `${user.name} (${user.email})`}
+                value={
+                  users.find(
+                    (user) => user.clerkUserId === formData.executorId
+                  ) || null
+                }
+                onChange={(_, newValue) => {
+                  setFormData({
+                    ...formData,
+                    executorId: newValue?.clerkUserId || '',
+                    executorName: newValue?.name || '',
+                    executorEmail: newValue?.email || '',
+                  });
+                }}
+                isOptionEqualToValue={(option, value) =>
+                  option.clerkUserId === value.clerkUserId
+                }
+                renderInput={(params) => (
+                  <TextField
+                    {...params}
+                    label='Executor'
+                    InputProps={{
+                      ...params.InputProps,
+                      type: 'search',
+                    }}
+                  />
+                )}
+                loading={loadingUsers}
+                loadingText='Loading users...'
+                noOptionsText='No users found'
+              />
+            </FormControl>
+
+            <FormControl fullWidth sx={{ mt: 2 }}>
+              <Autocomplete
+                options={users}
+                filterOptions={(options, { inputValue }) =>
+                  filterUsers(options, inputValue)
+                }
+                getOptionLabel={(user) => `${user.name} (${user.email})`}
+                value={
+                  users.find(
+                    (user) => user.clerkUserId === formData.initiatorId
+                  ) || null
+                }
+                onChange={(_, newValue) => {
+                  setFormData({
+                    ...formData,
+                    initiatorId: newValue?.clerkUserId || '',
+                    initiatorName: newValue?.name || '',
+                    initiatorEmail: newValue?.email || '',
+                  });
+                }}
+                isOptionEqualToValue={(option, value) =>
+                  option.clerkUserId === value.clerkUserId
+                }
+                renderInput={(params) => (
+                  <TextField
+                    {...params}
+                    label='Task Initiator'
+                    InputProps={{
+                      ...params.InputProps,
+                      type: 'search',
+                    }}
+                    required
+                  />
+                )}
+                loading={loadingUsers}
+                loadingText='Loading users...'
+                noOptionsText='No users found'
+              />
+            </FormControl>
 
             <TextField
               label='Task Description'

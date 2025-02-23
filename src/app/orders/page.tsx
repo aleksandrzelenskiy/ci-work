@@ -371,11 +371,6 @@ const OrderUploadPage: React.FC = () => {
         return;
       }
 
-      if (!formData.initiatorId || !formData.executorId) {
-        showNotification('Please select an initiator and executor', 'error');
-        return;
-      }
-
       const formDataToSend = new FormData();
       const taskId = generateTaskId();
 
@@ -397,13 +392,15 @@ const OrderUploadPage: React.FC = () => {
         user.primaryEmailAddress.emailAddress
       );
 
-      // Данные исполнителя
-      const executorUser = users.find(
-        (user) => user.clerkUserId === formData.executorId
-      );
-      formDataToSend.append('executorId', executorUser?.clerkUserId || '');
-      formDataToSend.append('executorName', formData.executorName || '');
-      formDataToSend.append('executorEmail', formData.executorEmail || '');
+      // Данные исполнителя (если выбран)
+      if (formData.executorId) {
+        const executorUser = users.find(
+          (user) => user.clerkUserId === formData.executorId
+        );
+        formDataToSend.append('executorId', executorUser?.clerkUserId || '');
+        formDataToSend.append('executorName', formData.executorName || '');
+        formDataToSend.append('executorEmail', formData.executorEmail || '');
+      }
 
       // Данные инициатора
       const initiatorUser = users.find(

@@ -356,7 +356,7 @@ export default function TaskDetailPage() {
             label={task.status}
             sx={{
               backgroundColor: getStatusColor(task.status),
-              color: '#fff',
+              color: task.status === 'To do' ? '#444' : '#fff',
             }}
           />
         </Typography>

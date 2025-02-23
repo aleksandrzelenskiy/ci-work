@@ -24,6 +24,7 @@ import {
   DragHandle as DragHandleIcon,
   Remove as RemoveIcon,
 } from '@mui/icons-material';
+import Tooltip from '@mui/material/Tooltip';
 import { getStatusColor } from '@/utils/statusColors';
 import { GetCurrentUserFromMongoDB } from '@/server-actions/users';
 
@@ -120,15 +121,15 @@ function DraggableTask({ task, role }: { task: Task; role: string }) {
         >
           <Chip
             label={task.status}
-            size='small'
             sx={{
               backgroundColor: getStatusColor(task.status),
-              color: '#fff',
+              color: task.status === 'To do' ? '#444' : '#fff',
             }}
+            size='small'
           />
-          <Typography variant='caption'>
-            {getPriorityIcon(task.priority)}
-          </Typography>
+          <Tooltip title={task.priority}>
+            <Typography>{getPriorityIcon(task.priority)}</Typography>
+          </Tooltip>
         </Box>
       </Card>
     </Link>
