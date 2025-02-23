@@ -3,6 +3,7 @@
 'use client';
 
 import React, { useCallback, useEffect, useState } from 'react';
+import { useRouter } from 'next/navigation';
 // import jsPDF from 'jspdf';
 // import 'jspdf-autotable';
 import {
@@ -72,6 +73,7 @@ const generateTaskId = (): string => {
 };
 
 const OrderUploadPage: React.FC = () => {
+  const router = useRouter();
   const { isLoaded, user } = useUser();
   const [users, setUsers] = useState<User[]>([]);
   const [loadingUsers, setLoadingUsers] = useState(false);
@@ -438,6 +440,7 @@ const OrderUploadPage: React.FC = () => {
       setAttachmentFiles([]);
       handleClear();
       showNotification('Task created successfully!', 'success');
+      router.push('/tasks');
     } catch (err) {
       console.error('Error saving task:', err);
       showNotification(

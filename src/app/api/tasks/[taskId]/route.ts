@@ -77,7 +77,9 @@ export async function PATCH(
 ) {
   try {
     await connectToDatabase();
-    const { taskid } = params;
+
+    // Ожидаем параметры маршрута
+    const { taskid } = await params;
     const taskId = taskid.toUpperCase();
 
     // Проверка аутентификации
