@@ -161,7 +161,7 @@ function Row({
               label={task.status}
               sx={{
                 backgroundColor: getStatusColor(task.status),
-                color: task.status === 'To do' ? '#444' : '#fff',
+                color: '#fff',
               }}
             />
           </TableCell>

@@ -3,7 +3,7 @@
 export const getStatusColor = (status: string): string => {
   switch (status) {
     case 'To do':
-      return 'default';
+      return '#9a9a9a';
     case 'Assigned':
       return '#3498db'; // Синий
     case 'At work':

@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import {
   Box,
@@ -16,7 +16,22 @@ import TaskColumnPage from '../components/TaskColumnPage';
 
 const TasksPage = () => {
   const [viewMode, setViewMode] = useState('table');
+  const [userRole, setUserRole] = useState<string | null>(null);
   const router = useRouter();
+
+  useEffect(() => {
+    const fetchUserRole = async () => {
+      try {
+        const response = await fetch('/api/current-user');
+        const data = await response.json();
+        setUserRole(data.role);
+      } catch (error) {
+        console.error('Error fetching user role:', error);
+      }
+    };
+
+    fetchUserRole();
+  }, []);
 
   const handleAddClick = () => {
     router.push('/orders');
@@ -51,18 +66,20 @@ const TasksPage = () => {
         {viewMode === 'table' ? <TaskListPage /> : <TaskColumnPage />}
       </Paper>
 
-      <Fab
-        color='primary'
-        aria-label='add'
-        sx={{
-          position: 'fixed',
-          bottom: 16,
-          right: 16,
-        }}
-        onClick={handleAddClick}
-      >
-        <AddIcon />
-      </Fab>
+      {userRole !== 'executor' && (
+        <Fab
+          color='primary'
+          aria-label='add'
+          sx={{
+            position: 'fixed',
+            bottom: 16,
+            right: 16,
+          }}
+          onClick={handleAddClick}
+        >
+          <AddIcon />
+        </Fab>
+      )}
     </Box>
   );
 };

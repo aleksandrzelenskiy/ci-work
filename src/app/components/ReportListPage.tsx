@@ -110,8 +110,8 @@ function Row({ report, role }: { report: ReportClient; role: string }) {
           }}
         >
           <Link
-            href='#'
-            onClick={handleLinkClick}
+            href={`tasks/${report.reportId.toLowerCase()}`}
+            // onClick={handleLinkClick}
             underline='always'
             color='primary'
             sx={{ cursor: 'pointer' }}
