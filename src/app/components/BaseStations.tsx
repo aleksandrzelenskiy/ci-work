@@ -1,3 +1,5 @@
+// app/components/BaseStation.tsx
+
 'use client';
 
 import { useEffect, useState } from 'react';

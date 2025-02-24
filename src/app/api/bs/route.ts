@@ -1,3 +1,5 @@
+// app/api/bs/route.ts
+
 import { NextRequest, NextResponse } from 'next/server';
 import BaseStation from '@/app/models/BaseStation';
 import dbConnect from '@/utils/mongoose';

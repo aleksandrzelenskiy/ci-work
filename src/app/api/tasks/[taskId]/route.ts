@@ -11,6 +11,7 @@ import { writeFile } from 'fs/promises';
 import { join } from 'path';
 import { v4 as uuidv4 } from 'uuid';
 import fs from 'fs/promises';
+import { sendEmail } from '@/utils/mailer';
 
 interface UpdateData {
   status?: string;
@@ -151,7 +152,13 @@ export async function PATCH(
       );
     }
 
-    // Обновление статуса
+    // Переменные для отслеживания изменения статуса
+    let statusChanged = false;
+    let oldStatusForEmail = '';
+    let newStatusForEmail = '';
+    let commentForEmail = '';
+
+    // 1. Обработка прямого изменения статуса
     if (updateData.status) {
       const oldStatus = task.status;
       task.status = updateData.status;
@@ -170,6 +177,12 @@ export async function PATCH(
 
       task.events = task.events || [];
       task.events.push(statusEvent);
+
+      // Сохраняем данные для письма
+      statusChanged = true;
+      oldStatusForEmail = oldStatus;
+      newStatusForEmail = task.status;
+      commentForEmail = statusEvent.details?.comment || '';
     }
 
     // Обновление полей задачи
@@ -188,30 +201,17 @@ export async function PATCH(
       }
     }
 
-    // Обработка изменения исполнителя и статуса
+    // 2. Обработка изменения исполнителя
     if (updateData.executorId !== undefined) {
       const previousExecutorId = task.executorId;
       const previousStatus = task.status;
 
-      task.executorId = updateData.executorId;
-      const executor = await UserModel.findOne({
-        clerkUserId: updateData.executorId,
-      });
+      // ... существующий код ...
 
-      if (executor) {
-        task.executorName = executor.name;
-        task.executorEmail = executor.email;
-      } else {
-        task.executorName = '';
-        task.executorEmail = '';
-      }
-
-      // Обновляем статус только если изменился executorId
       if (previousExecutorId !== updateData.executorId) {
         const newStatus = updateData.executorId ? 'Assigned' : 'To do';
         task.status = newStatus;
 
-        // Добавляем событие в историю
         const statusEvent: TaskEvent = {
           action: 'STATUS_CHANGED',
           author: `${user.firstName} ${user.lastName}`.trim() || 'Unknown',
@@ -226,6 +226,12 @@ export async function PATCH(
 
         task.events = task.events || [];
         task.events.push(statusEvent);
+
+        // Сохраняем данные для письма
+        statusChanged = true;
+        oldStatusForEmail = previousStatus;
+        newStatusForEmail = newStatus;
+        commentForEmail = statusEvent.details?.comment || '';
       }
     }
 
@@ -270,6 +276,59 @@ export async function PATCH(
 
     // Сохранение задачи
     const updatedTask = await task.save();
+
+    // 3. Отправка письма при изменении статуса
+    if (statusChanged) {
+      try {
+        // Собираем получателей
+        const recipients = [
+          updatedTask.authorEmail,
+          updatedTask.initiatorEmail,
+          updatedTask.executorEmail,
+        ]
+          .filter((email) => email && email !== '')
+          .filter((value, index, self) => self.indexOf(value) === index);
+
+        if (recipients.length > 0) {
+          const subject = `Статус задачи ${updatedTask.taskId} изменен`;
+          const frontendUrl =
+            process.env.FRONTEND_URL || 'http://localhost:3000';
+          const taskLink = `${frontendUrl}/tasks/${updatedTask.taskId}`;
+
+          // Формируем текст письма
+          const text = `Статус задачи "${updatedTask.taskName}" (${
+            updatedTask.taskId
+          }) 
+Изменен с: ${oldStatusForEmail}
+На: ${newStatusForEmail}
+Автор изменения: ${user.firstName} ${user.lastName}
+Комментарий: ${commentForEmail || 'нет'}
+Ссылка: ${taskLink}`;
+
+          // HTML-версия письма
+          const html = `
+        <p>Статус задачи <strong>"${updatedTask.taskName}"</strong> (${
+            updatedTask.taskId
+          })</p>
+        <p>Изменен с: <strong>${oldStatusForEmail}</strong></p>
+        <p>На: <strong>${newStatusForEmail}</strong></p>
+        <p>Автор изменения: ${user.firstName} ${user.lastName}</p>
+        ${commentForEmail ? `<p>Комментарий: ${commentForEmail}</p>` : ''}
+        <p><a href="${taskLink}">Перейти к задаче</a></p>
+      `;
+
+          // Отправляем письмо
+          await sendEmail({
+            to: recipients.join(', '),
+            subject,
+            text,
+            html,
+          });
+        }
+      } catch (error) {
+        console.error('Ошибка отправки уведомления:', error);
+      }
+    }
 
     return NextResponse.json({ task: updatedTask });
   } catch (error) {

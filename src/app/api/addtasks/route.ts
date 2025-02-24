@@ -10,13 +10,21 @@ import { PriorityLevel, WorkItem } from 'src/app/types/taskTypes';
 import { v4 as uuidv4 } from 'uuid';
 
 function normalizeBsNumber(bsNumber: string): string {
-  const cleanedBsNumber = bsNumber.replace(/[^a-zA-Z0-9-]/g, '');
+  // Удаляем информацию о высоте антенной опоры и другие лишние символы
+  const cleanedBsNumber = bsNumber
+    .replace(/\(.*?\)/g, '')
+    .replace(/[^a-zA-Z0-9-]/g, '');
+
   const parts = cleanedBsNumber.split('-');
   const normalizedParts = parts.map((part) => {
-    const regionCode = part.substring(0, 2).toUpperCase();
-    const bsDigits = part.substring(2).replace(/^0+/, '');
-    return `${regionCode}${bsDigits}`;
+    const regionCode = part.substring(0, 2).toUpperCase(); // Получаем код региона (первые два символа)
+    const bsDigits = part.substring(2).replace(/^0+/, ''); // Удаляем ведущие нули
+
+    // Добавляем ведущие нули, чтобы общее количество цифр было 4
+    const paddedBsDigits = bsDigits.padStart(4, '0');
+    return `${regionCode}${paddedBsDigits}`;
   });
+
   return normalizedParts.join('-');
 }
 
@@ -32,7 +40,9 @@ export async function POST(request: Request) {
 
     const bsLocation = await Promise.all(
       bsNames.map(async (name) => {
-        const object = await ObjectModel.findOne({ name });
+        const object = await ObjectModel.findOne({
+          name: new RegExp(`^${name}`),
+        });
         if (!object) {
           throw new Error(
             `Базовая станция ${name} не найдена в коллекции objects-t2-ir`

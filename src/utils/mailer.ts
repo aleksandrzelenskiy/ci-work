@@ -1,4 +1,4 @@
-// utils/mailer.ts
+// src/utils/mailer.ts
 import nodemailer, { TransportOptions } from 'nodemailer';
 
 export interface SendEmailOptions {
