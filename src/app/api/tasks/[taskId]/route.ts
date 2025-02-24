@@ -158,7 +158,7 @@ export async function PATCH(
     let newStatusForEmail = '';
     let commentForEmail = '';
 
-    // 1. Обработка прямого изменения статуса
+    // Обработка прямого изменения статуса
     if (updateData.status) {
       const oldStatus = task.status;
       task.status = updateData.status;
@@ -201,13 +201,25 @@ export async function PATCH(
       }
     }
 
-    // 2. Обработка изменения исполнителя
+    // Обработка изменения исполнителя
     if (updateData.executorId !== undefined) {
       const previousExecutorId = task.executorId;
       const previousStatus = task.status;
 
-      // ... существующий код ...
+      task.executorId = updateData.executorId;
+      const executor = await UserModel.findOne({
+        clerkUserId: updateData.executorId,
+      });
 
+      if (executor) {
+        task.executorName = executor.name;
+        task.executorEmail = executor.email;
+      } else {
+        task.executorName = '';
+        task.executorEmail = '';
+      }
+
+      // Обновляем статус только если изменился executorId
       if (previousExecutorId !== updateData.executorId) {
         const newStatus = updateData.executorId ? 'Assigned' : 'To do';
         task.status = newStatus;
@@ -277,10 +289,13 @@ export async function PATCH(
     // Сохранение задачи
     const updatedTask = await task.save();
 
-    // 3. Отправка письма при изменении статуса
+    // Отправка письма при изменении статуса
     if (statusChanged) {
       try {
-        // Собираем получателей
+        const frontendUrl = process.env.FRONTEND_URL || 'http://localhost:3000';
+        const taskLink = `${frontendUrl}/tasks/${updatedTask.taskId}`;
+
+        // Собираем уникальные email адреса
         const recipients = [
           updatedTask.authorEmail,
           updatedTask.initiatorEmail,
@@ -289,44 +304,61 @@ export async function PATCH(
           .filter((email) => email && email !== '')
           .filter((value, index, self) => self.indexOf(value) === index);
 
-        if (recipients.length > 0) {
-          const subject = `Статус задачи ${updatedTask.taskId} изменен`;
-          const frontendUrl =
-            process.env.FRONTEND_URL || 'http://localhost:3000';
-          const taskLink = `${frontendUrl}/tasks/${updatedTask.taskId}`;
+        for (const email of recipients) {
+          // Определяем роль получателя
+          let role = 'Другой участник';
+          if (email === updatedTask.authorEmail) role = 'Автор';
+          else if (email === updatedTask.initiatorEmail) role = 'Инициатор';
+          else if (email === updatedTask.executorEmail) role = 'Исполнитель';
 
-          // Формируем текст письма
-          const text = `Статус задачи "${updatedTask.taskName}" (${
-            updatedTask.taskId
-          }) 
-Изменен с: ${oldStatusForEmail}
-На: ${newStatusForEmail}
-Автор изменения: ${user.firstName} ${user.lastName}
-Комментарий: ${commentForEmail || 'нет'}
-Ссылка: ${taskLink}`;
+          // Формируем текст в зависимости от роли
+          let roleText = '';
+          switch (role) {
+            case 'Автор':
+              roleText = `Вы создали задачу "${updatedTask.taskName}".`;
+              break;
+            case 'Инициатор':
+              roleText = `Вы инициировали задачу "${updatedTask.taskName}".`;
+              break;
+            case 'Исполнитель':
+              roleText = `Задача "${updatedTask.taskName}" назначена на вас.`;
+              break;
+            default:
+              roleText = `Вы упомянуты в задаче "${updatedTask.taskName}".`;
+          }
 
-          // HTML-версия письма
-          const html = `
-        <p>Статус задачи <strong>"${updatedTask.taskName}"</strong> (${
+          // Формируем основное содержание письма
+          const mainContent = `
+    Статус изменен с: ${oldStatusForEmail}
+    На: ${newStatusForEmail}
+    Автор изменения: ${user.firstName} ${user.lastName}
+    Комментарий: ${commentForEmail || 'нет'}
+    Ссылка: ${taskLink}`;
+
+          // Собираем полное сообщение
+          const fullText = `${roleText}\n\n${mainContent}`;
+          const fullHtml = `
+            <p>${roleText}</p>
+            <p>Статус задачи <strong>"${updatedTask.taskName}"</strong> (${
             updatedTask.taskId
           })</p>
-        <p>Изменен с: <strong>${oldStatusForEmail}</strong></p>
-        <p>На: <strong>${newStatusForEmail}</strong></p>
-        <p>Автор изменения: ${user.firstName} ${user.lastName}</p>
-        ${commentForEmail ? `<p>Комментарий: ${commentForEmail}</p>` : ''}
-        <p><a href="${taskLink}">Перейти к задаче</a></p>
-      `;
+            <p>Изменен с: <strong>${oldStatusForEmail}</strong></p>
+            <p>На: <strong>${newStatusForEmail}</strong></p>
+            <p>Автор изменения: ${user.firstName} ${user.lastName}</p>
+            ${commentForEmail ? `<p>Комментарий: ${commentForEmail}</p>` : ''}
+            <p><a href="${taskLink}">Перейти к задаче</a></p>
+          `;
 
-          // Отправляем письмо
+          // Отправляем персональное письмо
           await sendEmail({
-            to: recipients.join(', '),
-            subject,
-            text,
-            html,
+            to: email,
+            subject: `Статус задачи ${updatedTask.taskId} изменен`,
+            text: fullText,
+            html: fullHtml,
           });
         }
       } catch (error) {
-        console.error('Ошибка отправки уведомления:', error);
+        console.error('Ошибка отправки уведомлений:', error);
       }
     }
 
