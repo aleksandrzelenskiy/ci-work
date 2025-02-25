@@ -38,6 +38,7 @@ import { DateRangePicker } from '@mui/x-date-pickers-pro/DateRangePicker';
 import { SingleInputDateRangeField } from '@mui/x-date-pickers-pro/SingleInputDateRangeField';
 import { DateRange } from '@mui/x-date-pickers-pro/models';
 import { LocalizationProvider } from '@mui/x-date-pickers/LocalizationProvider';
+import Pagination from '@mui/material/Pagination';
 import { AdapterDateFns } from '@mui/x-date-pickers/AdapterDateFns';
 import { getStatusColor } from '@/utils/statusColors';
 
@@ -316,6 +317,10 @@ export default function ReportListPage() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
+  // Пагинация
+  const [currentPage, setCurrentPage] = useState(1);
+  const itemsPerPage = 10;
+
   // Фильтры:
   const [executorFilter, setExecutorFilter] = useState('');
   const [initiatorFilter, setInitiatorFilter] = useState('');
@@ -329,6 +334,16 @@ export default function ReportListPage() {
   // Popover:
   const [anchorEl, setAnchorEl] = useState<HTMLElement | null>(null);
   const [currentFilter, setCurrentFilter] = useState<string>('');
+
+  // Расчет данных для пагинации
+  const paginatedReports = useMemo(() => {
+    const startIndex = (currentPage - 1) * itemsPerPage;
+    return filteredReports.slice(startIndex, startIndex + itemsPerPage);
+  }, [currentPage, filteredReports]);
+
+  const totalPages = useMemo(() => {
+    return Math.ceil(filteredReports.length / itemsPerPage);
+  }, [filteredReports]);
 
   // Подсчитываем количество активных фильтров
   const activeFiltersCount = useMemo(() => {
@@ -460,6 +475,7 @@ export default function ReportListPage() {
     }
 
     setFilteredReports(tempReports);
+    setCurrentPage(1);
   }, [
     reports,
     executorFilter,
@@ -808,8 +824,8 @@ export default function ReportListPage() {
             </TableHead>
 
             <TableBody>
-              {filteredReports.length > 0 ? (
-                filteredReports.map((report: ReportClient) => (
+              {paginatedReports.length > 0 ? (
+                paginatedReports.map((report: ReportClient) => (
                   <Row key={report.reportId} report={report} role={role} />
                 ))
               ) : (
@@ -822,6 +838,18 @@ export default function ReportListPage() {
             </TableBody>
           </Table>
         </TableContainer>
+
+        {/* Пагинация */}
+        <Box sx={{ display: 'flex', justifyContent: 'center', p: 2 }}>
+          <Pagination
+            count={totalPages}
+            page={currentPage}
+            onChange={(event, page) => setCurrentPage(page)}
+            color='primary'
+            showFirstButton
+            showLastButton
+          />
+        </Box>
 
         {/* Popover для фильтров */}
         <Popover
