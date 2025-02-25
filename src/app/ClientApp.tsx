@@ -49,6 +49,21 @@ export const useThemeContext = () => useContext(ThemeContext);
 
 export default function ClientApp({ children }: { children: React.ReactNode }) {
   const [mode, setMode] = useState<'light' | 'dark'>('light');
+  const [userRole, setUserRole] = useState<string | null>(null);
+
+  useEffect(() => {
+    const fetchUserRole = async () => {
+      try {
+        const response = await fetch('/api/current-user');
+        const data = await response.json();
+        setUserRole(data.role);
+      } catch (error) {
+        console.error('Error fetching user role:', error);
+      }
+    };
+
+    fetchUserRole();
+  }, []);
 
   // Инициализация темы из localStorage
   useEffect(() => {
@@ -168,15 +183,17 @@ export default function ClientApp({ children }: { children: React.ReactNode }) {
           <ListItemText primary='Upload Report' />
         </ListItemButton> */}
 
-        <ListItemButton
-          onClick={() => handleNavigation('/orders')}
-          sx={{ paddingLeft: 5 }}
-        >
-          <ListItemIcon sx={{ minWidth: 30 }}>
-            <CloudUploadIcon sx={{ fontSize: 20 }} />
-          </ListItemIcon>
-          <ListItemText primary='Upload Order' />
-        </ListItemButton>
+        {userRole !== 'executor' && (
+          <ListItemButton
+            onClick={() => handleNavigation('/orders')}
+            sx={{ paddingLeft: 5 }}
+          >
+            <ListItemIcon sx={{ minWidth: 30 }}>
+              <CloudUploadIcon sx={{ fontSize: 20 }} />
+            </ListItemIcon>
+            <ListItemText primary='Upload Order' />
+          </ListItemButton>
+        )}
       </List>
     </Box>
   );
@@ -250,7 +267,7 @@ export default function ClientApp({ children }: { children: React.ReactNode }) {
                       marginRight: '20px',
                     }}
                   >
-                    <Badge badgeContent={4} color='primary'>
+                    <Badge badgeContent={0} color='primary'>
                       <MailIcon />
                     </Badge>
                   </Box>

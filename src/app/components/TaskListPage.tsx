@@ -35,6 +35,7 @@ import {
 import { DateRangePicker } from '@mui/x-date-pickers-pro/DateRangePicker';
 import { SingleInputDateRangeField } from '@mui/x-date-pickers-pro/SingleInputDateRangeField';
 import { DateRange } from '@mui/x-date-pickers-pro/models';
+import Pagination from '@mui/material/Pagination';
 import {
   KeyboardDoubleArrowUp as KeyboardDoubleArrowUpIcon,
   KeyboardArrowUp as KeyboardArrowUpIcon,
@@ -316,6 +317,18 @@ export default function TaskListPage() {
   // Popover
   const [anchorEl, setAnchorEl] = useState<HTMLElement | null>(null);
   const [currentFilter, setCurrentFilter] = useState<string>('');
+  const [currentPage, setCurrentPage] = useState(1);
+  const itemsPerPage = 10;
+
+  // Расчет данных для пагинации
+  const paginatedTasks = useMemo(() => {
+    const startIndex = (currentPage - 1) * itemsPerPage;
+    return filteredTasks.slice(startIndex, startIndex + itemsPerPage);
+  }, [currentPage, filteredTasks]);
+
+  const totalPages = useMemo(() => {
+    return Math.ceil(filteredTasks.length / itemsPerPage);
+  }, [filteredTasks]);
 
   const activeFiltersCount = useMemo(
     () =>
@@ -434,6 +447,7 @@ export default function TaskListPage() {
       );
 
     setFilteredTasks(filtered);
+    setCurrentPage(1);
   }, [
     tasks,
     createdDateRange,
@@ -772,7 +786,7 @@ export default function TaskListPage() {
             </TableHead>
 
             <TableBody>
-              {filteredTasks.map((task) => (
+              {paginatedTasks.map((task) => (
                 <Row
                   key={task.taskId}
                   task={task}
@@ -783,6 +797,18 @@ export default function TaskListPage() {
             </TableBody>
           </Table>
         </TableContainer>
+
+        {/* Пагинация */}
+        <Box sx={{ display: 'flex', justifyContent: 'center', p: 2 }}>
+          <Pagination
+            count={totalPages}
+            page={currentPage}
+            onChange={(event, page) => setCurrentPage(page)}
+            color='primary'
+            showFirstButton
+            showLastButton
+          />
+        </Box>
 
         <Popover
           open={Boolean(anchorEl)}

@@ -14,14 +14,10 @@ import {
 import { useRouter } from 'next/navigation';
 import { useUser, useClerk } from '@clerk/nextjs';
 import ManageAccountsSharpIcon from '@mui/icons-material/ManageAccountsSharp';
-import MailOutlineSharpIcon from '@mui/icons-material/MailOutlineSharp';
-import ChecklistRtlSharpIcon from '@mui/icons-material/ChecklistRtlSharp';
 import LogoutIcon from '@mui/icons-material/Logout';
 
 const menu = [
   { name: 'Settings', path: '/settings', icon: <ManageAccountsSharpIcon /> },
-  { name: 'Messages', path: '/messages', icon: <MailOutlineSharpIcon /> },
-  { name: 'Reports', path: '/reports', icon: <ChecklistRtlSharpIcon /> },
   { name: 'Logout', action: 'logout', icon: <LogoutIcon /> },
 ];
 
