@@ -1,8 +1,11 @@
-// app/api/tasks/route.ts
 import { NextResponse } from 'next/server';
 import dbConnect from '@/utils/mongoose';
 import TaskModel from '@/app/models/TaskModel';
 import { GetCurrentUserFromMongoDB } from '@/server-actions/users';
+
+interface Location {
+  coordinates: [number, number];
+}
 
 export async function GET() {
   try {
@@ -73,7 +76,12 @@ export async function GET() {
       },
     ]);
 
-    return NextResponse.json({ tasks });
+    // Фильтруем задачи, чтобы оставить только те, у которых есть координаты
+    const filteredTasks = tasks.filter((task) =>
+      task.bsLocation.some((location: Location) => location.coordinates)
+    );
+
+    return NextResponse.json({ tasks: filteredTasks });
   } catch (error) {
     console.error('Error fetching tasks:', error);
     return NextResponse.json(

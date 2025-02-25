@@ -34,7 +34,6 @@ import PlaceIcon from '@mui/icons-material/Place';
 import CloudUploadIcon from '@mui/icons-material/CloudUpload';
 import PermMediaIcon from '@mui/icons-material/PermMedia';
 import StorageIcon from '@mui/icons-material/Storage';
-// import AddPhotoAlternateIcon from '@mui/icons-material/AddPhotoAlternate';
 import Badge from '@mui/material/Badge';
 import MailIcon from '@mui/icons-material/Mail';
 import { useRouter } from 'next/navigation';
@@ -153,14 +152,13 @@ export default function ClientApp({ children }: { children: React.ReactNode }) {
           <ListItemText primary='Reports List' />
         </ListItemButton>
         <ListItemButton
-          disabled
           onClick={() => handleNavigation('/map')}
           sx={{ paddingLeft: 5 }}
         >
           <ListItemIcon sx={{ minWidth: 30 }}>
             <PlaceIcon sx={{ fontSize: 20 }} />
           </ListItemIcon>
-          <ListItemText primary='Locations' />
+          <ListItemText primary='Task Locations' />
         </ListItemButton>
 
         <ListItemButton

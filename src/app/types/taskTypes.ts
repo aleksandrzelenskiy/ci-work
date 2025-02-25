@@ -12,7 +12,7 @@ export type CurrentStatus =
   | 'Agreed';
 
 export interface BsLocation {
-  id: string;
+  id?: string;
   name: string;
   coordinates: string;
 }
