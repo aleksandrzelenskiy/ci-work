@@ -1,17 +1,13 @@
 import React from 'react';
 import ReportModel from './models/ReportModel';
-import ReportListPage from './components/ReportListPage';
-import TaskListPage from './components/TaskListPage';
 import Accordion from '@mui/material/Accordion';
 import AccordionSummary from '@mui/material/AccordionSummary';
 import AccordionDetails from '@mui/material/AccordionDetails';
 import ExpandMoreIcon from '@mui/icons-material/ExpandMore';
-import { Box, Button, Typography } from '@mui/material';
+import { Box, Typography } from '@mui/material';
 import { GetCurrentUserFromMongoDB } from 'src/server-actions/users';
 import TrendingUpIcon from '@mui/icons-material/TrendingUp';
 import TrendingDownIcon from '@mui/icons-material/TrendingDown';
-import TaskOutlinedIcon from '@mui/icons-material/TaskOutlined';
-import PermMediaOutlinedIcon from '@mui/icons-material/PermMediaOutlined';
 
 const DashboardPage: React.FC = async () => {
   const response = await GetCurrentUserFromMongoDB();
@@ -328,65 +324,6 @@ const DashboardPage: React.FC = async () => {
                   })()}
                 </Box>
               </Box>
-            </Box>
-          </AccordionDetails>
-        </Accordion>
-      </Box>
-
-      {/* Блок Your Tasks */}
-
-      <Box className='mb-4' sx={{ width: '100%' }}>
-        <Accordion>
-          <AccordionSummary
-            expandIcon={<ExpandMoreIcon />}
-            aria-controls='panel2-content'
-            id='panel2-header'
-          >
-            <Typography variant='h5' align='center'>
-              Last Tasks
-            </Typography>
-          </AccordionSummary>
-          <AccordionDetails>
-            <Box sx={{ width: '100%' }}>
-              <TaskListPage />
-            </Box>
-            <Box sx={{ marginTop: '30px', textAlign: 'center' }}>
-              <Button
-                variant='contained'
-                startIcon={<TaskOutlinedIcon />}
-                size='small'
-                href='/tasks'
-              >
-                Open Tasks
-              </Button>
-            </Box>
-          </AccordionDetails>
-        </Accordion>
-      </Box>
-      <Box className='mb-4' sx={{ width: '100%' }}>
-        <Accordion>
-          <AccordionSummary
-            expandIcon={<ExpandMoreIcon />}
-            aria-controls='panel2-content'
-            id='panel2-header'
-          >
-            <Typography variant='h5' align='center'>
-              Last Reports
-            </Typography>
-          </AccordionSummary>
-          <AccordionDetails>
-            <Box sx={{ width: '100%' }}>
-              <ReportListPage />
-            </Box>
-            <Box sx={{ marginTop: '30px', textAlign: 'center' }}>
-              <Button
-                variant='contained'
-                startIcon={<PermMediaOutlinedIcon />}
-                size='small'
-                href='/reports'
-              >
-                Reports List
-              </Button>
             </Box>
           </AccordionDetails>
         </Accordion>
