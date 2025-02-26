@@ -69,8 +69,6 @@ export async function POST(request: Request) {
   const baseId = decodeURIComponent(rawBaseId);
   const task = decodeURIComponent(rawTask);
 
-  // app/api/upload/route.ts (исправленная часть)
-
   // Получение initiatorId из FormData
   const initiatorIdFromForm = formData.get('initiatorId') as string | null;
   let initiatorId = 'unknown';

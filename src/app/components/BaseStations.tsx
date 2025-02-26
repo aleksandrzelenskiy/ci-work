@@ -219,7 +219,9 @@ export default function BaseStations() {
               boxShadow: 1,
             }}
           >
-            <YMaps query={{ apikey: '1c3860d8-3994-4e6e-841b-31ad57f69c78' }}>
+            <YMaps
+              query={{ apikey: process.env.NEXT_PUBLIC_YANDEX_MAPS_APIKEY }}
+            >
               <Map
                 state={{
                   center: selectedStation.coordinates.split(' ').map(Number),

@@ -1,7 +1,13 @@
 'use client';
 
 import React, { useEffect, useState, useMemo } from 'react';
-import { YMaps, Map, Placemark, Clusterer } from '@pbe/react-yandex-maps';
+import {
+  YMaps,
+  Map,
+  Placemark,
+  Clusterer,
+  FullscreenControl,
+} from '@pbe/react-yandex-maps';
 import { Box, CircularProgress, Typography, TextField } from '@mui/material';
 import { Task, BsLocation } from '@/app/types/taskTypes';
 import { v4 as uuidv4 } from 'uuid';
@@ -165,6 +171,7 @@ const TaskMap = () => {
               );
             })}
           </Clusterer>
+          <FullscreenControl />
         </Map>
       </YMaps>
 

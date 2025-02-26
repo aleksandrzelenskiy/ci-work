@@ -181,7 +181,7 @@ export default function ClientApp({ children }: { children: React.ReactNode }) {
           <ListItemText primary='Upload Report' />
         </ListItemButton> */}
 
-        {userRole !== 'executor' && (
+        {userRole === 'admin' && (
           <ListItemButton
             onClick={() => handleNavigation('/orders')}
             sx={{ paddingLeft: 5 }}
