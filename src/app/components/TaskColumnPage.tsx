@@ -2,7 +2,7 @@
 
 'use client';
 
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect, useRef, useMemo } from 'react';
 import {
   Box,
   Typography,
@@ -11,6 +11,7 @@ import {
   CircularProgress,
   Chip,
   Link,
+  TextField,
 } from '@mui/material';
 import {
   draggable,
@@ -195,6 +196,7 @@ export default function TaskColumnPage() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [role, setRole] = useState<string>('');
+  const [searchQuery, setSearchQuery] = useState('');
 
   useEffect(() => {
     const fetchTasks = async () => {
@@ -255,6 +257,17 @@ export default function TaskColumnPage() {
     });
   }, [role]);
 
+  const filteredTasks = useMemo(() => {
+    if (!searchQuery) return tasks;
+
+    const query = searchQuery.toLowerCase();
+    return tasks.filter(
+      (task) =>
+        task.bsNumber.toLowerCase().includes(query) ||
+        task.taskName.toLowerCase().includes(query)
+    );
+  }, [tasks, searchQuery]);
+
   if (loading)
     return <CircularProgress sx={{ display: 'block', mx: 'auto', mt: 4 }} />;
   if (error)
@@ -265,23 +278,38 @@ export default function TaskColumnPage() {
     );
 
   return (
-    <Box
-      sx={{
-        display: 'flex',
-        gap: 3,
-        p: 3,
-        overflowX: 'auto',
-        minHeight: 'calc(100vh - 64px)',
-      }}
-    >
-      {statusOrder.map((status) => (
-        <DroppableColumn
-          key={status}
-          status={status}
-          tasks={tasks.filter((task) => task.status === status)}
-          role={role}
+    <Box>
+      {/* Добавляем поле поиска */}
+      <Box sx={{ p: 2 }}>
+        <TextField
+          label='Search by BS number or task name'
+          variant='outlined'
+          fullWidth
+          size='small'
+          value={searchQuery}
+          onChange={(e) => setSearchQuery(e.target.value)}
+          sx={{ mb: 0 }}
         />
-      ))}
+      </Box>
+
+      <Box
+        sx={{
+          display: 'flex',
+          gap: 3,
+          p: 3,
+          overflowX: 'auto',
+          minHeight: 'calc(100vh - 64px)',
+        }}
+      >
+        {statusOrder.map((status) => (
+          <DroppableColumn
+            key={status}
+            status={status}
+            tasks={filteredTasks.filter((task) => task.status === status)}
+            role={role}
+          />
+        ))}
+      </Box>
     </Box>
   );
 }
