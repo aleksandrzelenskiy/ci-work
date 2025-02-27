@@ -7,6 +7,7 @@ import {
   Placemark,
   Clusterer,
   FullscreenControl,
+  TypeSelector,
 } from '@pbe/react-yandex-maps';
 import { Box, CircularProgress, Typography, TextField } from '@mui/material';
 import { Task, BsLocation } from '@/app/types/taskTypes';
@@ -125,7 +126,7 @@ const TaskMap = () => {
         <Map
           defaultState={{
             center: [54.51086463889672, 102.94017700007622],
-            zoom: 5,
+            zoom: 6,
           }}
           width='100%'
           height='100%'
@@ -171,6 +172,7 @@ const TaskMap = () => {
               );
             })}
           </Clusterer>
+          <TypeSelector options={{ float: 'right' }} />
           <FullscreenControl />
         </Map>
       </YMaps>
