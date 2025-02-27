@@ -161,28 +161,31 @@ export async function PATCH(
     // Обработка прямого изменения статуса
     if (updateData.status) {
       const oldStatus = task.status;
-      task.status = updateData.status;
+      // Проверка на изменение статуса
+      if (oldStatus !== updateData.status) {
+        task.status = updateData.status;
 
-      const statusEvent: TaskEvent = {
-        action: 'STATUS_CHANGED',
-        author: `${user.firstName} ${user.lastName}`.trim() || 'Unknown',
-        authorId: user.id,
-        date: new Date(),
-        details: {
-          oldStatus,
-          newStatus: task.status,
-          comment: updateData.event?.details?.comment,
-        },
-      };
+        const statusEvent: TaskEvent = {
+          action: 'STATUS_CHANGED',
+          author: `${user.firstName} ${user.lastName}`.trim() || 'Unknown',
+          authorId: user.id,
+          date: new Date(),
+          details: {
+            oldStatus,
+            newStatus: task.status,
+            comment: updateData.event?.details?.comment,
+          },
+        };
 
-      task.events = task.events || [];
-      task.events.push(statusEvent);
+        task.events = task.events || [];
+        task.events.push(statusEvent);
 
-      // Сохраняем данные для письма
-      statusChanged = true;
-      oldStatusForEmail = oldStatus;
-      newStatusForEmail = task.status;
-      commentForEmail = statusEvent.details?.comment || '';
+        // Обновляем данные для письма только при изменении
+        statusChanged = true;
+        oldStatusForEmail = oldStatus;
+        newStatusForEmail = task.status;
+        commentForEmail = statusEvent.details?.comment || '';
+      }
     }
 
     // Обновление полей задачи
@@ -222,28 +225,34 @@ export async function PATCH(
       // Обновляем статус только если изменился executorId
       if (previousExecutorId !== updateData.executorId) {
         const newStatus = updateData.executorId ? 'Assigned' : 'To do';
-        task.status = newStatus;
 
-        const statusEvent: TaskEvent = {
-          action: 'STATUS_CHANGED',
-          author: `${user.firstName} ${user.lastName}`.trim() || 'Unknown',
-          authorId: user.id,
-          date: new Date(),
-          details: {
-            oldStatus: previousStatus,
-            newStatus: newStatus,
-            comment: 'Status changed due to executor update',
-          },
-        };
+        // Добавляем проверку на фактическое изменение статуса
+        if (previousStatus !== newStatus) {
+          task.status = newStatus;
 
-        task.events = task.events || [];
-        task.events.push(statusEvent);
+          const statusEvent: TaskEvent = {
+            action: 'STATUS_CHANGED',
+            author: `${user.firstName} ${user.lastName}`.trim() || 'Unknown',
+            authorId: user.id,
+            date: new Date(),
+            details: {
+              oldStatus: previousStatus,
+              newStatus: newStatus,
+              comment: executor
+                ? `The executor is assigned: ${executor.name}`
+                : 'The executor is deleted',
+            },
+          };
 
-        // Сохраняем данные для письма
-        statusChanged = true;
-        oldStatusForEmail = previousStatus;
-        newStatusForEmail = newStatus;
-        commentForEmail = statusEvent.details?.comment || '';
+          task.events = task.events || [];
+          task.events.push(statusEvent);
+
+          // Обновляем данные для письма только при реальном изменении статуса
+          statusChanged = true;
+          oldStatusForEmail = previousStatus;
+          newStatusForEmail = newStatus;
+          commentForEmail = statusEvent.details?.comment || '';
+        }
       }
     }
 
