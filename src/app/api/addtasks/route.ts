@@ -150,24 +150,43 @@ export async function POST(request: Request) {
 
     // Создание задачи
     const taskStatus = taskData.executorId ? 'Assigned' : 'To do';
+
+    // Базовое событие создания задачи
+    const events = [
+      {
+        action: 'TASK_CREATED',
+        author: taskData.authorName,
+        authorId: taskData.authorId,
+        date: new Date(),
+        details: {
+          comment: 'The task was created successfully',
+          initialStatus: taskStatus,
+        },
+      },
+    ];
+
+    // Добавляем событие назначения при наличии исполнителя
+    if (taskData.executorId) {
+      events.push({
+        action: 'TASK_ASSIGNED',
+        author: taskData.authorName,
+        authorId: taskData.authorId,
+        date: new Date(),
+        details: {
+          comment: `The task is assigned to the executor: ${taskData.executorName}`,
+          initialStatus: '',
+        },
+      });
+    }
+
+    // Создаем задачу с обновленными событиями
     const newTask = new Task({
       ...taskData,
       status: taskStatus,
       orderUrl: `/uploads/taskattach/${taskFolderName}/order/${excelFileName}`,
       attachments: attachmentsUrls,
       createdAt: new Date(),
-      events: [
-        {
-          action: 'TASK_CREATED',
-          author: taskData.authorName,
-          authorId: taskData.authorId,
-          date: new Date(),
-          details: {
-            comment: 'The task was created successfully',
-            initialStatus: taskStatus,
-          },
-        },
-      ],
+      events: events, // Используем модифицированный массив событий
     });
 
     await newTask.save();
