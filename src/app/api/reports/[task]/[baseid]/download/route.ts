@@ -11,13 +11,6 @@ import { IReport } from '@/app/types/reportTypes';
 
 export const runtime = 'nodejs';
 
-// interface Params {
-//   params: {
-//     task: string;
-//     baseid: string;
-//   };
-// }
-
 export async function GET(
   request: NextRequest,
   { params }: { params: { task: string; baseid: string } }
@@ -29,11 +22,9 @@ export async function GET(
       `Download request received for task: "${task}", baseid: "${baseid}"`
     );
 
-    // Подключаемся к базе данных
     await dbConnect();
     console.log('Connected to MongoDB');
 
-    // Ищем отчет по task и baseid
     const report = await Report.findOne({
       task,
       baseId: baseid,
@@ -45,7 +36,6 @@ export async function GET(
 
     console.log(`Found report: ${report._id}`);
 
-    // Собираем все файлы для добавления в ZIP
     const allFiles = [...report.files, ...report.fixedFiles];
     console.log(`Files to include in ZIP: ${allFiles.join(', ')}`);
 
@@ -57,24 +47,20 @@ export async function GET(
       );
     }
 
-    // Создаем архиватор
     const archive = archiver('zip', {
-      zlib: { level: 9 }, // Максимальный уровень сжатия
+      zlib: { level: 9 },
     });
 
-    // Обработчик ошибок архивации
     archive.on('error', (err) => {
       console.error('Archiving error:', err);
       throw err;
     });
 
-    // Создаем заголовки ответа
     const headers = new Headers({
       'Content-Type': 'application/zip',
       'Content-Disposition': `attachment; filename="report-${baseid}.zip"`,
     });
 
-    // Создаем поток для чтения
     const webStream = new ReadableStream({
       start(controller) {
         archive.on('data', (chunk) => {
@@ -87,7 +73,6 @@ export async function GET(
           controller.error(err);
         });
 
-        // Добавляем файлы в архив
         for (const filePath of allFiles) {
           const absolutePath = path.join(process.cwd(), 'public', filePath);
           console.log(`Adding file to archive: ${absolutePath}`);
@@ -100,14 +85,12 @@ export async function GET(
           }
         }
 
-        // Завершаем добавление файлов в архив
         archive.finalize();
       },
     });
 
     console.log('Starting to stream ZIP archive');
 
-    // Возвращаем поток как ответ
     return new NextResponse(webStream, { headers });
   } catch (error) {
     console.error('Error:', error);
