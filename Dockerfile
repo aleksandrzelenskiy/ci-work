@@ -10,6 +10,7 @@ RUN apt-get update && apt-get install -y \
     && rm -rf /var/lib/apt/lists/*
 
 COPY package*.json ./
+RUN rm -rf node_modules
 RUN npm cache clean --force && npm install --legacy-peer-deps
 COPY . .
 RUN npm run build
