@@ -1,4 +1,4 @@
-// app/tasks/[taskid]/page.tsx
+// app/tasks/[taskId]/page.tsx
 
 'use client';
 
@@ -106,7 +106,7 @@ const Transition = React.forwardRef(function Transition(
 });
 
 export default function TaskDetailPage() {
-  const { taskid } = useParams();
+  const { taskId } = useParams();
   const [task, setTask] = useState<Task | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -172,7 +172,7 @@ export default function TaskDetailPage() {
         },
       };
 
-      const response = await fetch(`/api/tasks/${taskid}`, {
+      const response = await fetch(`/api/tasks/${taskId}`, {
         method: 'PATCH',
         headers: {
           'Content-Type': 'application/json',
@@ -382,7 +382,7 @@ export default function TaskDetailPage() {
   useEffect(() => {
     const fetchTask = async () => {
       try {
-        const response = await fetch(`/api/tasks/${taskid}`);
+        const response = await fetch(`/api/tasks/${taskId}`);
         const data = await response.json();
 
         if (!response.ok) {
@@ -402,7 +402,7 @@ export default function TaskDetailPage() {
     };
 
     fetchTask();
-  }, [taskid]);
+  }, [taskId]);
 
   if (loading) {
     return <CircularProgress sx={{ display: 'block', margin: '20px auto' }} />;
@@ -1158,7 +1158,7 @@ export default function TaskDetailPage() {
         onClose={() => setIsEditFormOpen(false)}
         onSubmit={async (formData) => {
           try {
-            const response = await fetch(`/api/tasks/${taskid}`, {
+            const response = await fetch(`/api/tasks/${taskId}`, {
               method: 'PATCH',
               body: formData,
             });

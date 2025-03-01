@@ -52,7 +52,7 @@ interface TaskFormProps {
   onSubmit: (taskData: FormData) => Promise<void>;
 }
 
-const generateTaskId = (): string => {
+const generatetaskId = (): string => {
   const randomPart = Math.random().toString(36).substr(2, 5).toUpperCase();
   return `${randomPart}`;
 };
@@ -69,7 +69,7 @@ const TaskForm: React.FC<TaskFormProps> = ({
   const [users, setUsers] = useState<User[]>([]);
   const [loadingUsers, setLoadingUsers] = useState(false);
   const [formData, setFormData] = useState<Partial<Task>>({
-    taskId: generateTaskId(),
+    taskId: generatetaskId(),
     taskName: '',
     taskDescription: '',
     priority: 'medium',
@@ -133,7 +133,7 @@ const TaskForm: React.FC<TaskFormProps> = ({
       // Create mode with initial data
       setFormData({
         ...initialData,
-        taskId: initialData.taskId || generateTaskId(),
+        taskId: initialData.taskId || generatetaskId(),
         dueDate: initialData.dueDate || new Date(),
       });
     } else {
@@ -153,7 +153,7 @@ const TaskForm: React.FC<TaskFormProps> = ({
 
   const resetForm = () => {
     setFormData({
-      taskId: generateTaskId(),
+      taskId: generatetaskId(),
       taskName: '',
       taskDescription: '',
       priority: 'medium',

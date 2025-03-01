@@ -1,4 +1,4 @@
-// app/api/task/[taskid]/route.ts
+// app/api/task/[taskId]/route.ts
 
 import { NextResponse } from 'next/server';
 import dbConnect from '@/utils/mongoose';
@@ -44,12 +44,12 @@ async function connectToDatabase() {
 // GET-запрос для получения задачи по ID
 export async function GET(
   request: Request,
-  { params }: { params: { taskid: string } }
+  { params }: { params: { taskId: string } }
 ) {
   try {
     await connectToDatabase();
-    const { taskid } = params;
-    const taskIdUpperCase = taskid.toUpperCase();
+    const { taskId } = params;
+    const taskIdUpperCase = taskId.toUpperCase();
 
     const task = await TaskModel.findOne({ taskId: taskIdUpperCase });
     if (!task)
@@ -74,14 +74,14 @@ export async function GET(
 // PATCH-запрос для обновления задачи
 export async function PATCH(
   request: Request,
-  { params }: { params: { taskid: string } }
+  { params }: { params: { taskId: string } }
 ) {
   try {
     await connectToDatabase();
 
     // Ожидаем параметры маршрута
-    const { taskid } = await params;
-    const taskId = taskid.toUpperCase();
+    const { taskId } = params;
+    const taskIdUpperCase = taskId.toUpperCase();
 
     // Проверка аутентификации
     const user = await currentUser();
@@ -93,7 +93,7 @@ export async function PATCH(
     }
 
     // Поиск задачи
-    const task = await TaskModel.findOne({ taskId });
+    const task = await TaskModel.findOne({ taskId: taskIdUpperCase });
     if (!task) {
       return NextResponse.json({ error: 'Task not found' }, { status: 404 });
     }

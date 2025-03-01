@@ -67,7 +67,7 @@ interface User {
   role: string;
 }
 
-const generateTaskId = (): string => {
+const generatetaskId = (): string => {
   const randomPart = Math.random().toString(36).substr(2, 5).toUpperCase();
   return `${randomPart}`;
 };
@@ -374,7 +374,7 @@ const OrderUploadPage: React.FC = () => {
       }
 
       const formDataToSend = new FormData();
-      const taskId = generateTaskId();
+      const taskId = generatetaskId();
 
       // Основные данные
       formDataToSend.append('taskId', taskId);
