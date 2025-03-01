@@ -13,10 +13,10 @@ export const runtime = 'nodejs';
 
 export async function GET(
   request: NextRequest,
-  context: { params: { task: string; baseid: string } }
+  { params }: { params: { task: string; baseid: string } }
 ) {
   try {
-    const { task, baseid } = context.params;
+    const { task, baseid } = params;
 
     console.log(
       `Download request received for task: "${task}", baseid: "${baseid}"`
