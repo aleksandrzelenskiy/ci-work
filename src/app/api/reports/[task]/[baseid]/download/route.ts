@@ -13,10 +13,10 @@ export const runtime = 'nodejs';
 
 export async function GET(
   request: NextRequest,
-  { params }: { params: { task: string; baseid: string } }
+  context: { params: { task: string; baseid: string } }
 ) {
   try {
-    const { task, baseid } = params;
+    const { task, baseid } = context.params;
 
     console.log(
       `Download request received for task: "${task}", baseid: "${baseid}"`
@@ -29,6 +29,13 @@ export async function GET(
       task,
       baseId: baseid,
     }).lean<IReport>();
+
+    if (!task || !baseid) {
+      return NextResponse.json(
+        { error: 'Missing required parameters' },
+        { status: 400 }
+      );
+    }
 
     if (!report) {
       return NextResponse.json({ error: 'Report not found.' }, { status: 404 });
