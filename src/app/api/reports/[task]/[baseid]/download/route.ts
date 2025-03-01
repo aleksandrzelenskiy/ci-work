@@ -11,14 +11,17 @@ import { IReport } from '@/app/types/reportTypes';
 
 export const runtime = 'nodejs';
 
-interface Params {
-  params: {
-    task: string;
-    baseid: string;
-  };
-}
+// interface Params {
+//   params: {
+//     task: string;
+//     baseid: string;
+//   };
+// }
 
-export async function GET(request: NextRequest, { params }: Params) {
+export async function GET(
+  request: NextRequest,
+  { params }: { params: { task: string; baseid: string } }
+) {
   try {
     const { task, baseid } = params;
 
