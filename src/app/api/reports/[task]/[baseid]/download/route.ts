@@ -1,4 +1,7 @@
-import { NextRequest, NextResponse } from 'next/server';
+// app/api/reports/[task]/[baseid]/download/route.ts
+
+import { NextResponse } from 'next/server';
+import type { NextRequest } from 'next/server';
 import dbConnect from '@/utils/mongoose';
 import Report from '@/app/models/ReportModel';
 import archiver from 'archiver';
@@ -6,15 +9,17 @@ import path from 'path';
 import fs from 'fs';
 import { IReport } from '@/app/types/reportTypes';
 
-// Specify Node.js runtime to use Node.js modules
 export const runtime = 'nodejs';
 
-export async function GET(
-  req: NextRequest,
-  { params }: { params: { task: string; baseid: string } }
-) {
+interface Params {
+  params: {
+    task: string;
+    baseid: string;
+  };
+}
+
+export async function GET(request: NextRequest, { params }: Params) {
   try {
-    // Получаем параметры маршрута
     const { task, baseid } = params;
 
     console.log(
@@ -26,13 +31,12 @@ export async function GET(
     console.log('Connected to MongoDB');
 
     // Ищем отчет по task и baseid
-    const report: IReport | null = await Report.findOne({
+    const report = await Report.findOne({
       task,
       baseId: baseid,
     }).lean<IReport>();
 
     if (!report) {
-      console.warn(`Report not found for task: "${task}", baseid: "${baseid}"`);
       return NextResponse.json({ error: 'Report not found.' }, { status: 404 });
     }
 
@@ -103,7 +107,7 @@ export async function GET(
     // Возвращаем поток как ответ
     return new NextResponse(webStream, { headers });
   } catch (error) {
-    console.error('Error downloading report:', error);
+    console.error('Error:', error);
     return NextResponse.json(
       { error: 'Internal Server Error.' },
       { status: 500 }
