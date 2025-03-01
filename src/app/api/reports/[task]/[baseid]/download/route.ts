@@ -8,8 +8,15 @@ import path from 'path';
 import fs from 'fs';
 import { IReport } from '@/app/types/reportTypes';
 
+// Указываем среду выполнения (Node.js), если нужно
 export const runtime = 'nodejs';
 
+/**
+ * Важно:
+ *  1) Вторым аргументом Route Handler'а идёт объект, где указываем params.
+ *  2) Тип обычно можно описать как { params: { ... } }, если вы используете Request из Web API.
+ *  3) Если нужно NextRequest, типизировать надо через собственный контекст либо через тип RouteHandlerContext.
+ */
 export async function GET(
   request: Request,
   { params }: { params: { task: string; baseid: string } }
