@@ -30,7 +30,6 @@ interface UpdateData {
   existingAttachments?: string[];
 }
 
-// Подключение к базе данных
 async function connectToDatabase() {
   try {
     await dbConnect();
@@ -41,20 +40,36 @@ async function connectToDatabase() {
   }
 }
 
-// GET-запрос для получения задачи по ID
-export async function GET(
-  request: Request,
-  { params }: { params: { taskId: string } }
-) {
+/**
+ * GET-запрос для получения задачи по ID
+ */
+export async function GET(request: Request) {
   try {
     await connectToDatabase();
-    const { taskId } = params;
-    const taskIdUpperCase = taskId.toUpperCase();
 
+    // Извлекаем taskId из URL, например:
+    // pathname: /api/task/ABC123
+    // segments[0] = ''; [1] = 'api'; [2] = 'task'; [3] = '[taskId]'
+    const segments = new URL(request.url).pathname.split('/');
+    const taskIdEncoded = segments[3] ?? ''; // 'ABC123', например
+
+    if (!taskIdEncoded) {
+      return NextResponse.json(
+        { error: 'No taskId provided' },
+        { status: 400 }
+      );
+    }
+
+    // Приводим к верхнему регистру, если нужно
+    const taskIdUpperCase = taskIdEncoded.toUpperCase();
+
+    // Ищем задачу
     const task = await TaskModel.findOne({ taskId: taskIdUpperCase });
-    if (!task)
+    if (!task) {
       return NextResponse.json({ error: 'Task not found' }, { status: 404 });
+    }
 
+    // Ищем репорты, связанные с этой задачей
     const photoReports = await Report.find({
       reportId: { $regex: `^${taskIdUpperCase}` },
     });
@@ -71,17 +86,25 @@ export async function GET(
   }
 }
 
-// PATCH-запрос для обновления задачи
-export async function PATCH(
-  request: Request,
-  { params }: { params: { taskId: string } }
-) {
+/**
+ * PATCH-запрос для обновления задачи
+ */
+export async function PATCH(request: Request) {
   try {
     await connectToDatabase();
 
-    // Ожидаем параметры маршрута
-    const { taskId } = params;
-    const taskIdUpperCase = taskId.toUpperCase();
+    // Аналогично вытаскиваем taskId
+    const segments = new URL(request.url).pathname.split('/');
+    const taskIdEncoded = segments[3] ?? '';
+
+    if (!taskIdEncoded) {
+      return NextResponse.json(
+        { error: 'No taskId provided' },
+        { status: 400 }
+      );
+    }
+
+    const taskIdUpperCase = taskIdEncoded.toUpperCase();
 
     // Проверка аутентификации
     const user = await currentUser();
@@ -104,14 +127,11 @@ export async function PATCH(
     const attachments: File[] = [];
 
     if (contentType?.includes('application/json')) {
-      // Обработка JSON-запроса
       updateData = await request.json();
     } else if (contentType?.includes('multipart/form-data')) {
-      // Обработка FormData
       const formData = await request.formData();
       const entries = Array.from(formData.entries());
 
-      // Разделяем вложения и остальные данные
       const otherData: Record<string, FormDataEntryValue> = {};
       for (const [key, value] of entries) {
         if (key.startsWith('attachments_') && value instanceof File) {
@@ -121,9 +141,8 @@ export async function PATCH(
         }
       }
 
-      // Преобразуем в объект UpdateData
       updateData = Object.fromEntries(
-        Object.entries(otherData).map(([key, value]) => [key, value.toString()])
+        Object.entries(otherData).map(([k, v]) => [k, v.toString()])
       ) as unknown as UpdateData;
 
       if (
@@ -134,7 +153,6 @@ export async function PATCH(
         updateData.existingAttachments = [];
       }
 
-      // Парсим existingAttachments если есть
       if (otherData.existingAttachments) {
         try {
           updateData.existingAttachments = JSON.parse(
@@ -152,16 +170,14 @@ export async function PATCH(
       );
     }
 
-    // Переменные для отслеживания изменения статуса
+    // Логика обновления
     let statusChanged = false;
     let oldStatusForEmail = '';
     let newStatusForEmail = '';
     let commentForEmail = '';
 
-    // Обработка прямого изменения статуса
     if (updateData.status) {
       const oldStatus = task.status;
-      // Проверка на изменение статуса
       if (oldStatus !== updateData.status) {
         task.status = updateData.status;
 
@@ -180,7 +196,6 @@ export async function PATCH(
         task.events = task.events || [];
         task.events.push(statusEvent);
 
-        // Обновляем данные для письма только при изменении
         statusChanged = true;
         oldStatusForEmail = oldStatus;
         newStatusForEmail = task.status;
@@ -188,11 +203,11 @@ export async function PATCH(
       }
     }
 
-    // Обновление полей задачи
     if (updateData.taskName) task.taskName = updateData.taskName;
     if (updateData.bsNumber) task.bsNumber = updateData.bsNumber;
     if (updateData.taskDescription)
       task.taskDescription = updateData.taskDescription;
+
     if (updateData.initiatorId) {
       task.initiatorId = updateData.initiatorId;
       const initiator = await UserModel.findOne({
@@ -204,7 +219,7 @@ export async function PATCH(
       }
     }
 
-    // Обработка изменения исполнителя
+    // Изменение исполнителя
     if (updateData.executorId !== undefined) {
       const previousExecutorId = task.executorId;
       const previousStatus = task.status;
@@ -222,11 +237,10 @@ export async function PATCH(
         task.executorEmail = '';
       }
 
-      // Обновляем статус только если изменился executorId
+      // Изменяем статус только при реальном изменении executorId
       if (previousExecutorId !== updateData.executorId) {
         const newStatus = updateData.executorId ? 'Assigned' : 'To do';
 
-        // Добавляем проверку на фактическое изменение статуса
         if (previousStatus !== newStatus) {
           task.status = newStatus;
 
@@ -237,7 +251,7 @@ export async function PATCH(
             date: new Date(),
             details: {
               oldStatus: previousStatus,
-              newStatus: newStatus,
+              newStatus,
               comment: executor
                 ? `The executor is assigned: ${executor.name}`
                 : 'The executor is deleted',
@@ -247,7 +261,6 @@ export async function PATCH(
           task.events = task.events || [];
           task.events.push(statusEvent);
 
-          // Обновляем данные для письма только при реальном изменении статуса
           statusChanged = true;
           oldStatusForEmail = previousStatus;
           newStatusForEmail = newStatus;
@@ -266,6 +279,7 @@ export async function PATCH(
         task.executorEmail = executor.email;
       }
     }
+
     if (updateData.dueDate) {
       const dueDate = new Date(updateData.dueDate);
       if (!isNaN(dueDate.getTime())) task.dueDate = dueDate;
@@ -274,7 +288,7 @@ export async function PATCH(
       task.priority = updateData.priority as PriorityLevel;
     }
 
-    // Обработка вложений
+    // Обработка вложений (multipart/form-data)
     if (contentType?.includes('multipart/form-data')) {
       const existingAttachments = updateData.existingAttachments || [];
       task.attachments = task.attachments.filter((attachment: string) =>
@@ -295,7 +309,7 @@ export async function PATCH(
       task.attachments.push(...newAttachments);
     }
 
-    // Сохранение задачи
+    // Сохраняем задачу
     const updatedTask = await task.save();
 
     // Отправка письма при изменении статуса
@@ -304,7 +318,6 @@ export async function PATCH(
         const frontendUrl = process.env.FRONTEND_URL || 'http://localhost:3000';
         const taskLink = `${frontendUrl}/tasks/${updatedTask.taskId}`;
 
-        // Собираем уникальные email адреса
         const recipients = [
           updatedTask.authorEmail,
           updatedTask.initiatorEmail,
@@ -314,13 +327,11 @@ export async function PATCH(
           .filter((value, index, self) => self.indexOf(value) === index);
 
         for (const email of recipients) {
-          // Определяем роль получателя
           let role = 'Другой участник';
           if (email === updatedTask.authorEmail) role = 'Автор';
           else if (email === updatedTask.initiatorEmail) role = 'Инициатор';
           else if (email === updatedTask.executorEmail) role = 'Исполнитель';
 
-          // Формируем текст в зависимости от роли
           let roleText = '';
           switch (role) {
             case 'Автор':
@@ -336,7 +347,6 @@ export async function PATCH(
               roleText = `Вы упомянуты в задаче "${updatedTask.taskName}".`;
           }
 
-          // Формируем основное содержание письма
           const mainContent = `
     Статус изменен с: ${oldStatusForEmail}
     На: ${newStatusForEmail}
@@ -344,7 +354,6 @@ export async function PATCH(
     Комментарий: ${commentForEmail || 'нет'}
     Ссылка: ${taskLink}`;
 
-          // Собираем полное сообщение
           const fullText = `${roleText}\n\n${mainContent}`;
           const fullHtml = `
             <p>${roleText}</p>
@@ -358,7 +367,6 @@ export async function PATCH(
             <p><a href="${taskLink}">Перейти к задаче</a></p>
           `;
 
-          // Отправляем персональное письмо
           await sendEmail({
             to: email,
             subject: `Статус задачи ${updatedTask.taskId} изменен`,

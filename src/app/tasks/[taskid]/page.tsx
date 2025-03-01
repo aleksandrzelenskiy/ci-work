@@ -57,8 +57,7 @@ import CloudDownloadIcon from '@mui/icons-material/CloudDownload';
 import EditIcon from '@mui/icons-material/Edit';
 import AttachFileIcon from '@mui/icons-material/AttachFile';
 // import PictureAsPdfIcon from '@mui/icons-material/PictureAsPdf';
-// import jsPDF from 'jspdf';
-import 'jspdf-autotable';
+
 import {
   YMaps,
   Map,
@@ -78,13 +77,6 @@ import { TransitionProps } from '@mui/material/transitions';
 import { GetCurrentUserFromMongoDB } from '@/server-actions/users';
 import TaskForm from '@/app/components/TaskForm';
 import { getStatusColor } from '@/utils/statusColors';
-
-// interface JsPDFWithAutoTable extends jsPDF {
-//   autoTable: (options: unknown) => void;
-//   lastAutoTable?: {
-//     finalY: number;
-//   };
-// }
 
 const parseUserInfo = (userString?: string) => {
   if (!userString) return { name: 'N/A', email: 'N/A' };

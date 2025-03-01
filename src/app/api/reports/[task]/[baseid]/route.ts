@@ -1,34 +1,41 @@
 // app/api/reports/[task]/[baseid]/route.ts
 
 import { NextResponse } from 'next/server';
-import ReportModel from '@/app/models/ReportModel';
 import dbConnect from '@/utils/mongoose';
-import { currentUser } from '@clerk/nextjs/server';
+import ReportModel from '@/app/models/ReportModel';
 import UserModel from '@/app/models/UserModel';
 import TaskModel from '@/app/models/TaskModel';
+import { currentUser } from '@clerk/nextjs/server';
 
 /**
  * GET обработчик для получения информации о конкретном отчёте.
  * Дополнительно возвращаем `role` текущего пользователя.
  */
-export async function GET(
-  request: Request,
-  { params }: { params: { task: string; baseid: string } }
-) {
+export async function GET(request: Request) {
   try {
+    // Распарсим динамические сегменты из URL
+    // Пример пути: /api/reports/[task]/[baseid]
+    // segments[0] = '', [1] = 'api', [2] = 'reports', [3] = task, [4] = baseid
+    const segments = request.url.split('/');
+    const taskEncoded = segments[4] ?? '';
+    const baseidEncoded = segments[5] ?? '';
+    // Если у вас другая структура (например, /api/reports/[task]/[baseid]/download),
+    // сдвиньте индексы на +1.
+
+    if (!taskEncoded || !baseidEncoded) {
+      return NextResponse.json(
+        { error: 'Missing parameters in URL' },
+        { status: 400 }
+      );
+    }
+
+    const task = decodeURIComponent(taskEncoded);
+    const baseid = decodeURIComponent(baseidEncoded);
+
     console.log('Подключаемся к базе данных...');
     await dbConnect();
     console.log('Успешное подключение к базе данных.');
 
-    const { task, baseid } = await params;
-    const decodedTask = decodeURIComponent(task);
-    const decodedBaseId = decodeURIComponent(baseid);
-
-    // console.log(
-    //   `Значения после decodeURIComponent -> Task: ${decodedTask}, BaseID: ${decodedBaseId}`
-    // );
-
-    // Получаем текущего пользователя из Clerk
     const clerkUser = await currentUser();
     if (!clerkUser) {
       console.error('Нет активной сессии пользователя');
@@ -50,8 +57,8 @@ export async function GET(
 
     // Находим отчёт по task и baseId
     const report = await ReportModel.findOne({
-      task: decodedTask,
-      baseId: decodedBaseId,
+      task,
+      baseId: baseid,
     });
 
     if (!report) {
@@ -59,9 +66,6 @@ export async function GET(
       return NextResponse.json({ error: 'Отчёт не найден' }, { status: 404 });
     }
 
-    // console.log('Отчёт найден:', report);
-
-    // Возвращаем необходимые данные, включая роль пользователя
     return NextResponse.json({
       reportId: report.reportId,
       files: report.files,
@@ -86,20 +90,27 @@ export async function GET(
 /**
  * PATCH обработчик для обновления информации о конкретном отчёте.
  */
-export async function PATCH(
-  request: Request,
-  { params }: { params: { task: string; baseid: string } }
-) {
+export async function PATCH(request: Request) {
   try {
+    // Аналогично, разбираем task/baseid из URL
+    const segments = request.url.split('/');
+    const taskEncoded = segments[4] ?? '';
+    const baseidEncoded = segments[5] ?? '';
+
+    if (!taskEncoded || !baseidEncoded) {
+      return NextResponse.json(
+        { error: 'Missing parameters in URL' },
+        { status: 400 }
+      );
+    }
+
+    const task = decodeURIComponent(taskEncoded);
+    const baseid = decodeURIComponent(baseidEncoded);
+
     console.log('Подключаемся к базе данных...');
     await dbConnect();
     console.log('Успешное подключение к базе данных.');
 
-    const { task, baseid } = params;
-    const decodedTask = decodeURIComponent(task);
-    const decodedBaseId = decodeURIComponent(baseid);
-
-    // Получаем текущего пользователя
     const user = await currentUser();
     if (!user) {
       console.error('Ошибка аутентификации: пользователь не авторизован');
@@ -112,7 +123,6 @@ export async function PATCH(
     const name = `${user.firstName || 'Unknown'} ${user.lastName || ''}`.trim();
     console.log(`Авторизованный пользователь: ${name}`);
 
-    // Парсим тело запроса
     const body: {
       status?: string;
       issues?: string[];
@@ -120,14 +130,12 @@ export async function PATCH(
       deleteIssueIndex?: number;
     } = await request.json();
 
-    // console.log('Тело запроса:', body);
-
     const { status, issues, updateIssue, deleteIssueIndex } = body;
 
-    // Находим отчёт в базе данных
+    // Находим отчёт
     const report = await ReportModel.findOne({
-      task: decodedTask,
-      baseId: decodedBaseId,
+      task,
+      baseId: baseid,
     });
 
     if (!report) {
@@ -135,18 +143,12 @@ export async function PATCH(
       return NextResponse.json({ error: 'Отчёт не найден' }, { status: 404 });
     }
 
-    console.log('Отчёт найден для обновления:', report);
-
-    // Сохраняем старые значения для истории изменений
     const oldStatus = report.status;
     const oldIssues = [...report.issues];
 
-    // -- Обновление статуса --
+    // Обновляем статус
     if (status && status !== oldStatus) {
-      console.log(`Обновляем статус на: ${status}`);
       report.status = status;
-
-      // Добавляем событие в массив events (история изменений)
       if (!report.events) report.events = [];
       report.events.push({
         action: 'STATUS_CHANGED',
@@ -160,14 +162,12 @@ export async function PATCH(
       });
     }
 
-    // -- Обновление массива issues --
+    // Обновление массива issues
     let issuesChanged = false;
-
     if (Array.isArray(issues)) {
       const oldIssuesSet = new Set(oldIssues);
       const newIssuesSet = new Set(issues);
 
-      // Определяем, какие issues были добавлены, а какие удалены
       const addedIssues = issues.filter((issue) => !oldIssuesSet.has(issue));
       const removedIssues = oldIssues.filter(
         (issue) => !newIssuesSet.has(issue)
@@ -179,10 +179,8 @@ export async function PATCH(
       }
     }
 
-    // Точечное обновление конкретного issue по индексу
     if (updateIssue) {
       const { index, text } = updateIssue;
-      console.log(`Обновляем issue по индексу ${index} на текст: ${text}`);
       if (
         index >= 0 &&
         Array.isArray(report.issues) &&
@@ -191,7 +189,6 @@ export async function PATCH(
         report.issues[index] = text;
         issuesChanged = true;
       } else {
-        console.warn('Неверный индекс для обновления issue.');
         return NextResponse.json(
           { error: 'Неверный индекс для обновления issue' },
           { status: 400 }
@@ -199,13 +196,7 @@ export async function PATCH(
       }
     }
 
-    // Удаление конкретного issue по индексу
     if (typeof deleteIssueIndex === 'number') {
-      console.log(`Удаляем issue по индексу: ${deleteIssueIndex}`);
-      // Автоматически обновляем статус если issues удалены
-      if (report.issues.length === 0) {
-        report.status = 'Pending';
-      }
       if (
         deleteIssueIndex >= 0 &&
         Array.isArray(report.issues) &&
@@ -214,7 +205,6 @@ export async function PATCH(
         report.issues.splice(deleteIssueIndex, 1);
         issuesChanged = true;
       } else {
-        console.warn('Неверный индекс для удаления issue.');
         return NextResponse.json(
           { error: 'Неверный индекс для удаления issue' },
           { status: 400 }
@@ -222,7 +212,7 @@ export async function PATCH(
       }
     }
 
-    // Если список issues был изменён, добавляем событие в историю
+    // Если список issues был изменён, добавляем событие
     if (issuesChanged) {
       if (!report.events) report.events = [];
       report.events.push({
@@ -237,11 +227,10 @@ export async function PATCH(
       });
     }
 
-    // Сохраняем изменения в базе
+    // Сохраняем
     await report.save();
-    console.log('Отчёт успешно обновлён.');
 
-    // Синхронизируем статус с задачей (переименовываем переменную)
+    // Синхронизируем статус с задачей
     const relatedTask = await TaskModel.findOne({ taskId: report.reportId });
     if (relatedTask && relatedTask.status !== report.status) {
       const oldStatus = relatedTask.status;
@@ -258,7 +247,6 @@ export async function PATCH(
         },
       });
       await relatedTask.save();
-      console.log(`Статус задачи обновлен с ${oldStatus} на ${report.status}`);
     }
 
     return NextResponse.json({ message: 'Отчёт успешно обновлён' });

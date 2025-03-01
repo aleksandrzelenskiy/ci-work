@@ -1,0 +1,9 @@
+# Исключаем локальные артефакты и папки
+node_modules
+.next
+.env.local
+*.log
+.git
+.gitignore
+Dockerfile
+docker-compose.yml

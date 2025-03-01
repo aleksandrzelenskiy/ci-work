@@ -1,6 +1,6 @@
 // app/api/reports/[task]/[baseid]/download/route.ts
 
-import { NextResponse } from 'next/server';
+import { NextRequest, NextResponse } from 'next/server';
 import dbConnect from '@/utils/mongoose';
 import Report from '@/app/models/ReportModel';
 import archiver from 'archiver';
@@ -8,34 +8,27 @@ import path from 'path';
 import fs from 'fs';
 import { IReport } from '@/app/types/reportTypes';
 
-// Указываем среду выполнения (Node.js), если нужно
 export const runtime = 'nodejs';
 
-/**
- * Важно:
- *  1) Вторым аргументом Route Handler'а идёт объект, где указываем params.
- *  2) Тип обычно можно описать как { params: { ... } }, если вы используете Request из Web API.
- *  3) Если нужно NextRequest, типизировать надо через собственный контекст либо через тип RouteHandlerContext.
- */
 export async function GET(
-  request: Request,
-  { params }: { params: { task: string; baseid: string } }
+  request: NextRequest,
+  { params }: { params: Promise<{ task: string; baseid: string }> }
 ) {
+  const { task, baseid } = await params;
+
   try {
-    const { task, baseid } = params;
-
-    await dbConnect();
-    const report = await Report.findOne({
-      task,
-      baseId: baseid,
-    }).lean<IReport>();
-
     if (!task || !baseid) {
       return NextResponse.json(
         { error: 'Missing required parameters' },
         { status: 400 }
       );
     }
+
+    await dbConnect();
+    const report = await Report.findOne({
+      task,
+      baseId: baseid,
+    }).lean<IReport>();
 
     if (!report) {
       return NextResponse.json({ error: 'Report not found.' }, { status: 404 });
@@ -49,28 +42,37 @@ export async function GET(
       );
     }
 
+    // Создаем архив
     const archive = archiver('zip', { zlib: { level: 9 } });
     archive.on('error', (err) => {
       throw err;
     });
 
+    // Заголовки для ответа
     const headers = new Headers({
       'Content-Type': 'application/zip',
       'Content-Disposition': `attachment; filename="report-${baseid}.zip"`,
     });
 
+    // Готовим поток данных (ReadableStream), куда собираем zip
     const webStream = new ReadableStream({
       start(controller) {
+        // При каждом новом куске архива — отдаем его в поток
         archive.on('data', (chunk) => {
           controller.enqueue(chunk);
         });
+
+        // Когда архив завершен — закрываем поток
         archive.on('end', () => {
           controller.close();
         });
+
+        // Если возникает ошибка — пробрасываем ее в стрим
         archive.on('error', (err) => {
           controller.error(err);
         });
 
+        // Добавляем все файлы в архив
         for (const filePath of allFiles) {
           const absolutePath = path.join(process.cwd(), 'public', filePath);
           if (fs.existsSync(absolutePath)) {
@@ -78,10 +80,12 @@ export async function GET(
           }
         }
 
+        // Стартуем финализацию архива
         archive.finalize();
       },
     });
 
+    // Возвращаем поток зип-архива
     return new NextResponse(webStream, { headers });
   } catch (error) {
     console.error('Error:', error);

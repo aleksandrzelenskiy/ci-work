@@ -1,3 +1,5 @@
+// app/components/TaskMap.tsx
+
 'use client';
 
 import React, { useEffect, useState, useMemo } from 'react';
@@ -172,7 +174,7 @@ const TaskMap = () => {
               );
             })}
           </Clusterer>
-          <TypeSelector options={{ float: 'right' }} />
+          <TypeSelector />
           <FullscreenControl />
         </Map>
       </YMaps>

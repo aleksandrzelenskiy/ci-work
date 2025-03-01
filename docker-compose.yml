@@ -1,36 +1,26 @@
 version: '3.8'
 
 services:
+  # Сервис приложения
   app:
     build: .
+    container_name: ci-work-app
     ports:
       - '3000:3000'
+    env_file: .env
     environment:
-      MONGODB_URI: mongodb://mongodb:27017/ci_work
-      NEXT_PUBLIC_YANDEX_MAPS_APIKEY: ${NEXT_PUBLIC_YANDEX_MAPS_APIKEY}
-      NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY: ${NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY}
-      CLERK_SECRET_KEY: ${CLERK_SECRET_KEY}
-      EMAIL_HOST: ${EMAIL_HOST}
-      EMAIL_PORT: ${EMAIL_PORT}
-      EMAIL_USER: ${EMAIL_USER}
-      EMAIL_PASS: ${EMAIL_PASS}
-      EMAIL_FROM: ${EMAIL_FROM}
+      #
+      #
     depends_on:
-      - mongodb
+      - mongo
+    restart: unless-stopped
 
-  mongodb:
+  # Сервис MongoDB
+  mongo:
     image: mongo:6
+    container_name: ci-work-mongo
+    restart: unless-stopped
     ports:
       - '27017:27017'
     volumes:
-      - mongodb_data:/data/db
-    environment:
-      MONGO_INITDB_DATABASE: ci_work
-    healthcheck:
-      test: echo 'db.runCommand("ping").ok' | mongosh localhost:27017/test --quiet
-      interval: 30s
-      timeout: 10s
-      retries: 3
-
-volumes:
-  mongodb_data:
+      - ./mongodb_data:/data/db

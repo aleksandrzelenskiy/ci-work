@@ -183,10 +183,6 @@ CI Work`;
 </ul>
 <p>С уважением,<br/>CI Work</p>`;
       break;
-
-    default:
-      console.warn(`Неизвестный тип события: ${event.action}`);
-      return;
   }
 
   const emailOptions: SendEmailOptions = {
