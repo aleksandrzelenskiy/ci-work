@@ -9,7 +9,7 @@ services:
       - '3000:3000'
     env_file: .env
     environment:
-      MONGODB_URI: 'mongodb://mongo:27017/ci_work'
+      MONGODB_URI: 'mongodb://ci-work-mongo:27017/ci_work'
     depends_on:
       - mongo
     restart: unless-stopped
