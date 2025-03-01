@@ -2,23 +2,35 @@ version: '3.8'
 
 services:
   app:
-    container_name: nextjs-app
     build: .
     ports:
       - '3000:3000'
     environment:
-      - NODE_ENV=production
-      - MONGODB_URI=mongodb://mongo:27017/ci_work
+      MONGODB_URI: mongodb://mongodb:27017/ci_work
+      NEXT_PUBLIC_YANDEX_MAPS_APIKEY: ${NEXT_PUBLIC_YANDEX_MAPS_APIKEY}
+      NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY: ${NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY}
+      CLERK_SECRET_KEY: ${CLERK_SECRET_KEY}
+      EMAIL_HOST: ${EMAIL_HOST}
+      EMAIL_PORT: ${EMAIL_PORT}
+      EMAIL_USER: ${EMAIL_USER}
+      EMAIL_PASS: ${EMAIL_PASS}
+      EMAIL_FROM: ${EMAIL_FROM}
     depends_on:
-      - mongo
+      - mongodb
 
-  mongo:
-    container_name: mongo
-    image: mongo:latest
+  mongodb:
+    image: mongo:6
     ports:
       - '27017:27017'
     volumes:
-      - mongo-data:/data/db
+      - mongodb_data:/data/db
+    environment:
+      MONGO_INITDB_DATABASE: ci_work
+    healthcheck:
+      test: echo 'db.runCommand("ping").ok' | mongosh localhost:27017/test --quiet
+      interval: 30s
+      timeout: 10s
+      retries: 3
 
 volumes:
-  mongo-data:
+  mongodb_data:

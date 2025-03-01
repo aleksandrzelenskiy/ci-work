@@ -1,5 +1,5 @@
 {
-  "name": "photo-tagger",
+  "name": "ci-work",
   "version": "0.1.0",
   "private": true,
   "scripts": {
@@ -29,10 +29,11 @@
     "archiver": "^7.0.1",
     "aws-sdk": "^2.1692.0",
     "chart.js": "^4.4.7",
-    "date-fns": "^3.6.0",
+    "date-fns": "^2.30.0",
     "dotenv": "^16.4.7",
     "exifreader": "^4.26.0",
     "heic-convert": "^2.1.0",
+    "jspdf": "^3.0.0",
     "jspdf-autotable": "^3.8.4",
     "mongodb": "^6.12.0",
     "mongoose": "^8.9.4",

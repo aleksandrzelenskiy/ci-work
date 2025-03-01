@@ -1,5 +1,3 @@
-// /app/api/reports/[task]/[baseid]/download/route.ts
-
 import { NextRequest, NextResponse } from 'next/server';
 import dbConnect from '@/utils/mongoose';
 import Report from '@/app/models/ReportModel';
@@ -13,21 +11,21 @@ export const runtime = 'nodejs';
 
 export async function GET(
   req: NextRequest,
-  context: { params: { task: string; baseid: string } }
+  { params }: { params: { task: string; baseid: string } }
 ) {
   try {
-    // Await receiving parameters
-    const { task, baseid } = await Promise.resolve(context.params);
+    // Получаем параметры маршрута
+    const { task, baseid } = params;
 
     console.log(
       `Download request received for task: "${task}", baseid: "${baseid}"`
     );
 
-    // Connect to the database
+    // Подключаемся к базе данных
     await dbConnect();
     console.log('Connected to MongoDB');
 
-    // Find the report by task and baseid
+    // Ищем отчет по task и baseid
     const report: IReport | null = await Report.findOne({
       task,
       baseId: baseid,
@@ -40,7 +38,7 @@ export async function GET(
 
     console.log(`Found report: ${report._id}`);
 
-    // Gather all files to include in the ZIP
+    // Собираем все файлы для добавления в ZIP
     const allFiles = [...report.files, ...report.fixedFiles];
     console.log(`Files to include in ZIP: ${allFiles.join(', ')}`);
 
@@ -52,24 +50,24 @@ export async function GET(
       );
     }
 
-    // Create the archiver
+    // Создаем архиватор
     const archive = archiver('zip', {
-      zlib: { level: 9 }, // Maximum compression level
+      zlib: { level: 9 }, // Максимальный уровень сжатия
     });
 
-    // Archiving error handler
+    // Обработчик ошибок архивации
     archive.on('error', (err) => {
       console.error('Archiving error:', err);
       throw err;
     });
 
-    // Create response headers
+    // Создаем заголовки ответа
     const headers = new Headers({
       'Content-Type': 'application/zip',
       'Content-Disposition': `attachment; filename="report-${baseid}.zip"`,
     });
 
-    // Create a web stream
+    // Создаем поток для чтения
     const webStream = new ReadableStream({
       start(controller) {
         archive.on('data', (chunk) => {
@@ -82,7 +80,7 @@ export async function GET(
           controller.error(err);
         });
 
-        // Add files to the archive
+        // Добавляем файлы в архив
         for (const filePath of allFiles) {
           const absolutePath = path.join(process.cwd(), 'public', filePath);
           console.log(`Adding file to archive: ${absolutePath}`);
@@ -95,14 +93,14 @@ export async function GET(
           }
         }
 
-        // Finish adding files to the archive
+        // Завершаем добавление файлов в архив
         archive.finalize();
       },
     });
 
     console.log('Starting to stream ZIP archive');
 
-    // Return the stream as a response
+    // Возвращаем поток как ответ
     return new NextResponse(webStream, { headers });
   } catch (error) {
     console.error('Error downloading report:', error);

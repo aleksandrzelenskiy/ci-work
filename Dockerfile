@@ -1,23 +1,31 @@
-# Используем официальный образ Node.js
-FROM node:18-alpine
+# Stage 1: Build
+FROM node:20-slim AS builder
 
-# Устанавливаем рабочую директорию
 WORKDIR /app
 
-# Копируем package.json и package-lock.json
+# Установка системных зависимостей
+RUN apt-get update && apt-get install -y \
+    python3 \
+    build-essential \
+    && rm -rf /var/lib/apt/lists/*
+
 COPY package*.json ./
-
-# Устанавливаем зависимости
-RUN npm install
-
-# Копируем исходный код
+RUN npm cache clean --force && npm install --legacy-peer-deps
 COPY . .
-
-# Собираем приложение
 RUN npm run build
 
-# Указываем порт, который будет использовать приложение
-EXPOSE 3000
+# Stage 2: Production
+FROM node:20-slim
 
-# Команда для запуска приложения
+WORKDIR /app
+
+COPY --from=builder /app/package*.json ./
+COPY --from=builder /app/.next ./.next
+COPY --from=builder /app/public ./public
+COPY --from=builder /app/node_modules ./node_modules
+
+ENV NODE_ENV production
+ENV NEXT_TELEMETRY_DISABLED 1
+
+EXPOSE 3000
 CMD ["npm", "start"]
