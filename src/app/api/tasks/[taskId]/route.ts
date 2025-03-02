@@ -45,13 +45,13 @@ async function connectToDatabase() {
  */
 export async function GET(
   request: NextRequest,
-  { params }: { params: Promise<{ taskId: string }> }
+  { params }: { params: { taskId: string } }
 ) {
   try {
     await connectToDatabase();
 
-    // Ожидаем получение параметров маршрута
-    const { taskId } = await params;
+    // Получаем taskId напрямую из объекта params
+    const { taskId } = params;
     if (!taskId) {
       return NextResponse.json(
         { error: 'No taskId provided' },
