@@ -1,6 +1,6 @@
 // app/api/tasks/[taskId]/route.ts
 
-import { NextResponse } from 'next/server';
+import { NextRequest, NextResponse } from 'next/server';
 import dbConnect from '@/utils/mongoose';
 import TaskModel from '@/app/models/TaskModel';
 import UserModel from '@/app/models/UserModel';
@@ -44,22 +44,22 @@ async function connectToDatabase() {
  * GET-запрос для получения задачи по ID
  */
 export async function GET(
-  request: Request,
-  context: { params: { taskId: string } }
+  request: NextRequest,
+  { params }: { params: Promise<{ taskId: string }> }
 ) {
   try {
     await connectToDatabase();
 
-    // Извлекаем параметры маршрута из объекта контекста
-    const { params } = context;
-    if (!params.taskId) {
+    // Ожидаем получение параметров маршрута
+    const { taskId } = await params;
+    if (!taskId) {
       return NextResponse.json(
         { error: 'No taskId provided' },
         { status: 400 }
       );
     }
 
-    const taskIdUpperCase = params.taskId.toUpperCase();
+    const taskIdUpperCase = taskId.toUpperCase();
 
     // Ищем задачу по taskId
     const task = await TaskModel.findOne({ taskId: taskIdUpperCase });
