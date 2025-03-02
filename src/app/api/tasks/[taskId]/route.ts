@@ -43,33 +43,31 @@ async function connectToDatabase() {
 /**
  * GET-запрос для получения задачи по ID
  */
-export async function GET(request: Request) {
+export async function GET(
+  request: Request,
+  context: { params: { taskId: string } }
+) {
   try {
     await connectToDatabase();
 
-    // Извлекаем taskId из URL, например:
-    // pathname: /api/task/ABC123
-    // segments[0] = ''; [1] = 'api'; [2] = 'task'; [3] = '[taskId]'
-    const segments = new URL(request.url).pathname.split('/');
-    const taskIdEncoded = segments[3] ?? ''; // 'ABC123', например
-
-    if (!taskIdEncoded) {
+    // Извлекаем параметры маршрута из объекта контекста
+    const { params } = context;
+    if (!params.taskId) {
       return NextResponse.json(
         { error: 'No taskId provided' },
         { status: 400 }
       );
     }
 
-    // Приводим к верхнему регистру, если нужно
-    const taskIdUpperCase = taskIdEncoded.toUpperCase();
+    const taskIdUpperCase = params.taskId.toUpperCase();
 
-    // Ищем задачу
+    // Ищем задачу по taskId
     const task = await TaskModel.findOne({ taskId: taskIdUpperCase });
     if (!task) {
       return NextResponse.json({ error: 'Task not found' }, { status: 404 });
     }
 
-    // Ищем репорты, связанные с этой задачей
+    // Ищем репорты, связанные с данной задачей
     const photoReports = await Report.find({
       reportId: { $regex: `^${taskIdUpperCase}` },
     });
