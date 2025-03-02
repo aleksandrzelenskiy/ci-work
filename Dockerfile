@@ -1,5 +1,5 @@
-# Используем легковесный Node-образ
-FROM node:18-alpine AS builder
+# Используем легковесный Node-образ с Node.js v20 (например, v20-alpine)
+FROM node:20-alpine AS builder
 
 # Устанавливаем рабочую директорию
 WORKDIR /app
@@ -15,7 +15,7 @@ COPY . .
 RUN npm run build
 
 # Теперь создадим production-образ
-FROM node:18-alpine AS runner
+FROM node:20-alpine AS runner
 
 WORKDIR /app
 
