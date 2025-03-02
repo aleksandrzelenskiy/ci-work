@@ -164,7 +164,7 @@ export default function TaskDetailPage() {
         },
       };
 
-      const response = await fetch(`/api/task/${taskId}`, {
+      const response = await fetch(`/api/tasks/${taskId}`, {
         method: 'PATCH',
         headers: {
           'Content-Type': 'application/json',
