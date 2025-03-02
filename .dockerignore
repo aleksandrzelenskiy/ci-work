@@ -1,5 +1,6 @@
 # Исключаем локальные артефакты и папки
 node_modules
+mongodb_data
 .next
 .env.local
 *.log
