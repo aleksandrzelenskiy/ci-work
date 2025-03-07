@@ -22,6 +22,8 @@ const DashboardPage: React.FC = async () => {
     );
   }
 
+  console.log(`Into .env: ${process.env.MONGODB_URI}`);
+
   const user = response.data;
   const { name, email, clerkUserId, role } = user;
 
