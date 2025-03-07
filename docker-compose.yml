@@ -7,7 +7,7 @@ services:
     ports:
       - '3000:3000'
     environment:
-      MONGODB_URI: 'mongodb://admin:secret123@mongo:27017/ciworkdb'
+      MONGODB_URI: 'mongodb://admin:secret123@mongo:27017/ci_work'
     depends_on:
       - mongo
     restart: unless-stopped
