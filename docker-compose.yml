@@ -16,6 +16,9 @@ services:
   mongo:
     image: mongo:6.0
     container_name: mongo_db
+    environment:
+    MONGO_INITDB_ROOT_USERNAME: admin
+    MONGO_INITDB_ROOT_PASSWORD: secret123
     volumes:
       - db_data:/data/db
     ports:
