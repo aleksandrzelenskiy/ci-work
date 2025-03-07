@@ -13,15 +13,21 @@ import { currentUser } from '@clerk/nextjs/server';
  */
 export async function GET(
   request: Request,
-  context: { params: { task: string; baseid: string } }
+  // 1) Параметры, которые приходят асинхронно:
+  //    { params: Promise<{ task: string; baseid: string }> }
+  { params }: { params: Promise<{ task: string; baseid: string }> }
 ) {
   try {
-    // Извлекаем и "дожидаемся" параметры [task] и [baseid]
-    const rawTask = await context.params.task;
-    const rawBaseId = await context.params.baseid;
+    // Сначала подключаемся к БД
+    await dbConnect();
+    console.log('Успешное подключение к базе данных.');
+
+    // 2) «Дожидаемся» сам объект params
+    const { task, baseid } = await params;
+
     // Декодируем
-    const taskDecoded = decodeURIComponent(rawTask);
-    const baseidDecoded = decodeURIComponent(rawBaseId);
+    const taskDecoded = decodeURIComponent(task);
+    const baseidDecoded = decodeURIComponent(baseid);
 
     if (!taskDecoded || !baseidDecoded) {
       return NextResponse.json(
@@ -29,10 +35,6 @@ export async function GET(
         { status: 400 }
       );
     }
-
-    console.log('Подключаемся к базе данных...');
-    await dbConnect();
-    console.log('Успешное подключение к базе данных.');
 
     const clerkUser = await currentUser();
     if (!clerkUser) {
@@ -43,7 +45,7 @@ export async function GET(
       );
     }
 
-    // Ищем соответствующего пользователя в MongoDB, чтобы узнать его роль
+    // Ищем соответствующего пользователя (для получения роли)
     const dbUser = await UserModel.findOne({ clerkUserId: clerkUser.id });
     if (!dbUser) {
       console.warn('Пользователь не найден в базе данных MongoDB');
@@ -53,7 +55,7 @@ export async function GET(
       );
     }
 
-    // Находим отчёт по task и baseId
+    // Находим отчёт по task + baseId
     const report = await ReportModel.findOne({
       task: taskDecoded,
       baseId: baseidDecoded,
@@ -64,6 +66,7 @@ export async function GET(
       return NextResponse.json({ error: 'Отчёт не найден' }, { status: 404 });
     }
 
+    // Возвращаем данные отчёта вместе с ролью пользователя
     return NextResponse.json({
       reportId: report.reportId,
       files: report.files,
@@ -90,14 +93,16 @@ export async function GET(
  */
 export async function PATCH(
   request: Request,
-  context: { params: { task: string; baseid: string } }
+  { params }: { params: Promise<{ task: string; baseid: string }> }
 ) {
   try {
-    // Аналогично, получаем сырые параметры и дожидаемся их
-    const rawTask = await context.params.task;
-    const rawBaseId = await context.params.baseid;
-    const taskDecoded = decodeURIComponent(rawTask);
-    const baseidDecoded = decodeURIComponent(rawBaseId);
+    await dbConnect();
+    console.log('Успешное подключение к базе данных.');
+
+    // «Дожидаемся» объект params
+    const { task, baseid } = await params;
+    const taskDecoded = decodeURIComponent(task);
+    const baseidDecoded = decodeURIComponent(baseid);
 
     if (!taskDecoded || !baseidDecoded) {
       return NextResponse.json(
@@ -105,10 +110,6 @@ export async function PATCH(
         { status: 400 }
       );
     }
-
-    console.log('Подключаемся к базе данных...');
-    await dbConnect();
-    console.log('Успешное подключение к базе данных.');
 
     const user = await currentUser();
     if (!user) {
@@ -148,9 +149,7 @@ export async function PATCH(
     // Обновляем статус
     if (status && status !== oldStatus) {
       report.status = status;
-      if (!report.events) {
-        report.events = [];
-      }
+      report.events = report.events || [];
       report.events.push({
         action: 'STATUS_CHANGED',
         author: name,
@@ -169,8 +168,8 @@ export async function PATCH(
       const oldIssuesSet = new Set(oldIssues);
       const newIssuesSet = new Set(issues);
 
-      const addedIssues = issues.filter((iss) => !oldIssuesSet.has(iss));
-      const removedIssues = oldIssues.filter((iss) => !newIssuesSet.has(iss));
+      const addedIssues = issues.filter((i) => !oldIssuesSet.has(i));
+      const removedIssues = oldIssues.filter((i) => !newIssuesSet.has(i));
 
       if (addedIssues.length > 0 || removedIssues.length > 0) {
         issuesChanged = true;
@@ -213,9 +212,7 @@ export async function PATCH(
 
     // Если список issues был изменён, добавляем событие
     if (issuesChanged) {
-      if (!report.events) {
-        report.events = [];
-      }
+      report.events = report.events || [];
       report.events.push({
         action: 'ISSUES_UPDATED',
         author: name,
@@ -231,7 +228,7 @@ export async function PATCH(
     // Сохраняем
     await report.save();
 
-    // Синхронизируем статус с задачей (если она есть)
+    // Синхронизируем статус с задачей
     const relatedTask = await TaskModel.findOne({ taskId: report.reportId });
     if (relatedTask && relatedTask.status !== report.status) {
       const oldTaskStatus = relatedTask.status;

@@ -45,12 +45,13 @@ async function connectToDatabase() {
  */
 export async function GET(
   request: NextRequest,
+  // <–– в сигнатуре указываем params как Promise
   { params }: { params: Promise<{ taskId: string }> }
 ) {
   try {
     await connectToDatabase();
 
-    // Ожидаем получение параметров маршрута
+    // «Дожидаемся» весь объект params, а затем вытаскиваем taskId
     const { taskId } = await params;
     if (!taskId) {
       return NextResponse.json(
@@ -87,22 +88,24 @@ export async function GET(
 /**
  * PATCH-запрос для обновления задачи
  */
-export async function PATCH(request: Request) {
+export async function PATCH(
+  request: NextRequest,
+  // Аналогично для PATCH
+  { params }: { params: Promise<{ taskId: string }> }
+) {
   try {
     await connectToDatabase();
 
-    // Аналогично вытаскиваем taskId
-    const segments = new URL(request.url).pathname.split('/');
-    const taskIdEncoded = segments[3] ?? '';
-
-    if (!taskIdEncoded) {
+    // Дожидаемся params, получаем taskId
+    const { taskId } = await params;
+    if (!taskId) {
       return NextResponse.json(
         { error: 'No taskId provided' },
         { status: 400 }
       );
     }
 
-    const taskIdUpperCase = taskIdEncoded.toUpperCase();
+    const taskIdUpperCase = taskId.toUpperCase();
 
     // Проверка аутентификации
     const user = await currentUser();
@@ -201,11 +204,17 @@ export async function PATCH(request: Request) {
       }
     }
 
-    if (updateData.taskName) task.taskName = updateData.taskName;
-    if (updateData.bsNumber) task.bsNumber = updateData.bsNumber;
-    if (updateData.taskDescription)
+    if (updateData.taskName) {
+      task.taskName = updateData.taskName;
+    }
+    if (updateData.bsNumber) {
+      task.bsNumber = updateData.bsNumber;
+    }
+    if (updateData.taskDescription) {
       task.taskDescription = updateData.taskDescription;
+    }
 
+    // Изменение инициатора
     if (updateData.initiatorId) {
       task.initiatorId = updateData.initiatorId;
       const initiator = await UserModel.findOne({
@@ -235,7 +244,6 @@ export async function PATCH(request: Request) {
         task.executorEmail = '';
       }
 
-      // Изменяем статус только при реальном изменении executorId
       if (previousExecutorId !== updateData.executorId) {
         const newStatus = updateData.executorId ? 'Assigned' : 'To do';
 
@@ -267,6 +275,7 @@ export async function PATCH(request: Request) {
       }
     }
 
+    // Ещё раз, если просто нужно записать executor
     if (updateData.executorId) {
       task.executorId = updateData.executorId;
       const executor = await UserModel.findOne({
@@ -280,13 +289,15 @@ export async function PATCH(request: Request) {
 
     if (updateData.dueDate) {
       const dueDate = new Date(updateData.dueDate);
-      if (!isNaN(dueDate.getTime())) task.dueDate = dueDate;
+      if (!isNaN(dueDate.getTime())) {
+        task.dueDate = dueDate;
+      }
     }
     if (updateData.priority) {
       task.priority = updateData.priority as PriorityLevel;
     }
 
-    // Обработка вложений (multipart/form-data)
+    // Обработка вложений
     if (contentType?.includes('multipart/form-data')) {
       const existingAttachments = updateData.existingAttachments || [];
       task.attachments = task.attachments.filter((attachment: string) =>
@@ -342,27 +353,28 @@ export async function PATCH(request: Request) {
               roleText = `Задача "${updatedTask.taskName}" назначена на вас.`;
               break;
             default:
-              roleText = `Вы упомянуты в задаче "${updatedTask.taskName}".`;
+              roleText = `Вы участвуете в задаче "${updatedTask.taskName}".`;
           }
 
           const mainContent = `
-    Статус изменен с: ${oldStatusForEmail}
-    На: ${newStatusForEmail}
-    Автор изменения: ${user.firstName} ${user.lastName}
-    Комментарий: ${commentForEmail || 'нет'}
-    Ссылка: ${taskLink}`;
+Статус изменен с: ${oldStatusForEmail}
+На: ${newStatusForEmail}
+Автор изменения: ${user.firstName} ${user.lastName}
+Комментарий: ${commentForEmail || 'нет'}
+Ссылка: ${taskLink}
+          `;
 
           const fullText = `${roleText}\n\n${mainContent}`;
           const fullHtml = `
-            <p>${roleText}</p>
-            <p>Статус задачи <strong>"${updatedTask.taskName}"</strong> (${
+<p>${roleText}</p>
+<p>Статус задачи <strong>"${updatedTask.taskName}"</strong> (${
             updatedTask.taskId
           })</p>
-            <p>Изменен с: <strong>${oldStatusForEmail}</strong></p>
-            <p>На: <strong>${newStatusForEmail}</strong></p>
-            <p>Автор изменения: ${user.firstName} ${user.lastName}</p>
-            ${commentForEmail ? `<p>Комментарий: ${commentForEmail}</p>` : ''}
-            <p><a href="${taskLink}">Перейти к задаче</a></p>
+<p>Изменен с: <strong>${oldStatusForEmail}</strong></p>
+<p>На: <strong>${newStatusForEmail}</strong></p>
+<p>Автор изменения: ${user.firstName} ${user.lastName}</p>
+${commentForEmail ? `<p>Комментарий: ${commentForEmail}</p>` : ''}
+<p><a href="${taskLink}">Перейти к задаче</a></p>
           `;
 
           await sendEmail({
