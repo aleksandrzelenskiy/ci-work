@@ -3,6 +3,8 @@ import { NextResponse } from 'next/server';
 import { auth } from '@clerk/nextjs/server';
 import UserModel from '@/app/models/UserModel';
 
+console.log(`Into .env: ${process.env.MONGODB_URI}`);
+
 export async function GET() {
   const { userId } = await auth();
 
