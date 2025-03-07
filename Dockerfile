@@ -1,35 +1,21 @@
-# Используем легковесный Node-образ с Node.js v20 (например, v20-alpine)
-FROM node:20-alpine AS builder
+# Базовый образ Node.js (20, Alpine)
+FROM node:20-alpine
 
-# Устанавливаем рабочую директорию
+# Рабочая директория в контейнере
 WORKDIR /app
 
-# Копируем package*.json и устанавливаем зависимости
-COPY package.json package-lock.json ./
+# Копируем package.json и устанавливаем зависимости
+COPY package*.json ./
 RUN npm install
 
-# Копируем исходный код
+# Копируем весь код в контейнер
 COPY . .
 
-# Сборка Next.js приложения
+# Сборка приложения (если используется Next.js)
 RUN npm run build
 
-# Теперь создадим production-образ
-FROM node:20-alpine AS runner
-
-WORKDIR /app
-
-# Копируем node_modules и build-артефакты из builder-слоя
-COPY --from=builder /app/node_modules ./node_modules
-COPY --from=builder /app/.next ./.next
-COPY --from=builder /app/package*.json ./
-COPY --from=builder /app/public ./public
-
-# Переменные окружения
-ENV NODE_ENV=production
-
-# Пробрасываем порт 3000
+# Порт, на котором будет слушать наше Next.js-приложение
 EXPOSE 3000
 
-# Команда запуска
+# Запуск в production-режиме
 CMD ["npm", "run", "start"]

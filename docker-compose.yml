@@ -1,25 +1,25 @@
 version: '3.8'
 
 services:
-  # Сервис приложения
   app:
     build: .
-    container_name: ci-work-app
+    container_name: ci-work_app
     ports:
       - '3000:3000'
-    env_file: .env
     environment:
-      MONGODB_URI: 'mongodb://ci-work-mongo:27017/ci_work'
+      # Замените URL подключения к MongoDB, если надо
+      MONGODB_URI: 'mongodb://mongo:27017/your_database'
     depends_on:
       - mongo
-    restart: unless-stopped
 
-  # Сервис MongoDB
   mongo:
-    image: mongo:6
-    container_name: ci-work-mongo
-    restart: unless-stopped
+    image: mongo:6.0
+    container_name: mongo_db
+    volumes:
+      - db_data:/data/db
     ports:
       - '27017:27017'
-    volumes:
-      - ./mongodb_data:/data/db
+    restart: unless-stopped
+
+volumes:
+  db_data:
