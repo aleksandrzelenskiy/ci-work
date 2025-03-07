@@ -11,26 +11,24 @@ import { currentUser } from '@clerk/nextjs/server';
  * GET обработчик для получения информации о конкретном отчёте.
  * Дополнительно возвращаем `role` текущего пользователя.
  */
-export async function GET(request: Request) {
+export async function GET(
+  request: Request,
+  context: { params: { task: string; baseid: string } }
+) {
   try {
-    // Распарсим динамические сегменты из URL
-    // Пример пути: /api/reports/[task]/[baseid]
-    // segments[0] = '', [1] = 'api', [2] = 'reports', [3] = task, [4] = baseid
-    const segments = request.url.split('/');
-    const taskEncoded = segments[4] ?? '';
-    const baseidEncoded = segments[5] ?? '';
-    // Если у вас другая структура (например, /api/reports/[task]/[baseid]/download),
-    // сдвиньте индексы на +1.
+    // Извлекаем и "дожидаемся" параметры [task] и [baseid]
+    const rawTask = await context.params.task;
+    const rawBaseId = await context.params.baseid;
+    // Декодируем
+    const taskDecoded = decodeURIComponent(rawTask);
+    const baseidDecoded = decodeURIComponent(rawBaseId);
 
-    if (!taskEncoded || !baseidEncoded) {
+    if (!taskDecoded || !baseidDecoded) {
       return NextResponse.json(
         { error: 'Missing parameters in URL' },
         { status: 400 }
       );
     }
-
-    const task = decodeURIComponent(taskEncoded);
-    const baseid = decodeURIComponent(baseidEncoded);
 
     console.log('Подключаемся к базе данных...');
     await dbConnect();
@@ -57,8 +55,8 @@ export async function GET(request: Request) {
 
     // Находим отчёт по task и baseId
     const report = await ReportModel.findOne({
-      task,
-      baseId: baseid,
+      task: taskDecoded,
+      baseId: baseidDecoded,
     });
 
     if (!report) {
@@ -90,22 +88,23 @@ export async function GET(request: Request) {
 /**
  * PATCH обработчик для обновления информации о конкретном отчёте.
  */
-export async function PATCH(request: Request) {
+export async function PATCH(
+  request: Request,
+  context: { params: { task: string; baseid: string } }
+) {
   try {
-    // Аналогично, разбираем task/baseid из URL
-    const segments = request.url.split('/');
-    const taskEncoded = segments[4] ?? '';
-    const baseidEncoded = segments[5] ?? '';
+    // Аналогично, получаем сырые параметры и дожидаемся их
+    const rawTask = await context.params.task;
+    const rawBaseId = await context.params.baseid;
+    const taskDecoded = decodeURIComponent(rawTask);
+    const baseidDecoded = decodeURIComponent(rawBaseId);
 
-    if (!taskEncoded || !baseidEncoded) {
+    if (!taskDecoded || !baseidDecoded) {
       return NextResponse.json(
         { error: 'Missing parameters in URL' },
         { status: 400 }
       );
     }
-
-    const task = decodeURIComponent(taskEncoded);
-    const baseid = decodeURIComponent(baseidEncoded);
 
     console.log('Подключаемся к базе данных...');
     await dbConnect();
@@ -134,8 +133,8 @@ export async function PATCH(request: Request) {
 
     // Находим отчёт
     const report = await ReportModel.findOne({
-      task,
-      baseId: baseid,
+      task: taskDecoded,
+      baseId: baseidDecoded,
     });
 
     if (!report) {
@@ -149,7 +148,9 @@ export async function PATCH(request: Request) {
     // Обновляем статус
     if (status && status !== oldStatus) {
       report.status = status;
-      if (!report.events) report.events = [];
+      if (!report.events) {
+        report.events = [];
+      }
       report.events.push({
         action: 'STATUS_CHANGED',
         author: name,
@@ -168,10 +169,8 @@ export async function PATCH(request: Request) {
       const oldIssuesSet = new Set(oldIssues);
       const newIssuesSet = new Set(issues);
 
-      const addedIssues = issues.filter((issue) => !oldIssuesSet.has(issue));
-      const removedIssues = oldIssues.filter(
-        (issue) => !newIssuesSet.has(issue)
-      );
+      const addedIssues = issues.filter((iss) => !oldIssuesSet.has(iss));
+      const removedIssues = oldIssues.filter((iss) => !newIssuesSet.has(iss));
 
       if (addedIssues.length > 0 || removedIssues.length > 0) {
         issuesChanged = true;
@@ -214,7 +213,9 @@ export async function PATCH(request: Request) {
 
     // Если список issues был изменён, добавляем событие
     if (issuesChanged) {
-      if (!report.events) report.events = [];
+      if (!report.events) {
+        report.events = [];
+      }
       report.events.push({
         action: 'ISSUES_UPDATED',
         author: name,
@@ -230,10 +231,10 @@ export async function PATCH(request: Request) {
     // Сохраняем
     await report.save();
 
-    // Синхронизируем статус с задачей
+    // Синхронизируем статус с задачей (если она есть)
     const relatedTask = await TaskModel.findOne({ taskId: report.reportId });
     if (relatedTask && relatedTask.status !== report.status) {
-      const oldStatus = relatedTask.status;
+      const oldTaskStatus = relatedTask.status;
       relatedTask.status = report.status;
       relatedTask.events.push({
         action: 'STATUS_CHANGED',
@@ -241,7 +242,7 @@ export async function PATCH(request: Request) {
         authorId: user.id,
         date: new Date(),
         details: {
-          oldStatus,
+          oldStatus: oldTaskStatus,
           newStatus: report.status,
           comment: 'Статус синхронизирован с фотоотчетом',
         },
