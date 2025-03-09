@@ -98,7 +98,14 @@ const Transition = React.forwardRef(function Transition(
 });
 
 export default function TaskDetailPage() {
-  const { taskId } = useParams();
+  const params = useParams();
+  console.log('useParams() result:', params); // Смотрим, что реально приходит
+
+  const { taskId } = params ?? {};
+  console.log('taskId from useParams:', taskId);
+
+  // const { taskId } = useParams();
+  console.log('taskId from useParams:', taskId);
   const [task, setTask] = useState<Task | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
