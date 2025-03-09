@@ -1,13 +1,14 @@
 // app/api/current-user/route.ts
 import { NextResponse } from 'next/server';
 import { auth } from '@clerk/nextjs/server';
+import dbConnect from '@/utils/mongoose';
 import UserModel from '@/app/models/UserModel';
 
-console.log(`Into .env: ${process.env.MONGODB_URI}`);
-
 export async function GET() {
-  const { userId } = await auth();
+  // Устанавливаем подключение к MongoDB
+  await dbConnect();
 
+  const { userId } = await auth();
   if (!userId) {
     return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
   }
