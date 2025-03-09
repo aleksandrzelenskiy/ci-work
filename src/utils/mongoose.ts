@@ -28,6 +28,8 @@ async function dbConnect(): Promise<Connection> {
     globalMongoose.promise = mongoose
       .connect(MONGODB_URI, {
         serverSelectionTimeoutMS: 30000,
+        useNewUrlParser: true,
+        useUnifiedTopology: true,
       } as ConnectOptions)
       .then((mongoose) => {
         console.log(

@@ -22,11 +22,9 @@ const DashboardPage: React.FC = async () => {
     );
   }
 
-  console.log(`Into .env: ${process.env.MONGODB_URI}`);
-
   const user = response.data;
   const { name, email, clerkUserId, role } = user;
-
+  console.log(`User ID: ${clerkUserId}`);
   // Условие $match в зависимости от роли
   let matchCondition: Record<string, string> = {};
   if (role === 'executor') {
@@ -175,7 +173,7 @@ const DashboardPage: React.FC = async () => {
         </Typography>
       </Box>
       <Box className='mb-4' sx={{ width: '100%' }}>
-        <Accordion defaultExpanded>
+        <Accordion defaultExpanded={false}>
           <AccordionSummary
             expandIcon={<ExpandMoreIcon />}
             aria-controls='panel1-content'
