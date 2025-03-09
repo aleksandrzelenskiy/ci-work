@@ -3,6 +3,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 export const runtime = 'nodejs';
 export const dynamic = 'force-dynamic';
+
 import dbConnect from '@/utils/mongoose';
 import TaskModel from '@/app/models/TaskModel';
 import UserModel from '@/app/models/UserModel';
@@ -45,14 +46,12 @@ async function connectToDatabase() {
 /**
  * GET-запрос для получения задачи по ID
  */
-export async function GET(
-  request: NextRequest,
-  { params }: { params: { taskId: string } }
-) {
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+export async function GET(request: NextRequest, context: any) {
   try {
     await connectToDatabase();
 
-    const { taskId } = params;
+    const { taskId } = context.params ?? {};
     if (!taskId) {
       return NextResponse.json(
         { error: 'No taskId provided' },
@@ -88,14 +87,12 @@ export async function GET(
 /**
  * PATCH-запрос для обновления задачи
  */
-export async function PATCH(
-  request: NextRequest,
-  { params }: { params: { taskId: string } }
-) {
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+export async function PATCH(request: NextRequest, context: any) {
   try {
     await connectToDatabase();
 
-    const { taskId } = params;
+    const { taskId } = context.params ?? {};
     if (!taskId) {
       return NextResponse.json(
         { error: 'No taskId provided' },
