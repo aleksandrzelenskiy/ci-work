@@ -56,6 +56,7 @@ import CloudUploadIcon from '@mui/icons-material/CloudUpload';
 import CloudDownloadIcon from '@mui/icons-material/CloudDownload';
 import EditIcon from '@mui/icons-material/Edit';
 import AttachFileIcon from '@mui/icons-material/AttachFile';
+import Skeleton from '@mui/material/Skeleton';
 
 import {
   YMaps,
@@ -410,12 +411,23 @@ export default function TaskDetailPage() {
                 </Typography>
                 <Typography>
                   <strong>
-                    {userRole === 'executor' ? 'Cost:' : 'Total Cost:'}
+                    {userRole
+                      ? userRole === 'executor'
+                        ? 'Cost:'
+                        : 'Total Cost:'
+                      : 'Loading...'}
                   </strong>{' '}
-                  {userRole === 'executor'
-                    ? `${(task.totalCost * 0.7).toFixed(2)} RUB`
-                    : `${task.totalCost} RUB`}
+                  {userRole ? (
+                    userRole === 'executor' ? (
+                      `${(task.totalCost * 0.7).toFixed(2)} RUB`
+                    ) : (
+                      `${task.totalCost} RUB`
+                    )
+                  ) : (
+                    <Skeleton variant='text' width={100} />
+                  )}
                 </Typography>
+
                 <Typography>
                   <strong>Priority:</strong> {task.priority}
                 </Typography>
