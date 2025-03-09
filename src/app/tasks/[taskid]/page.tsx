@@ -56,13 +56,12 @@ import CloudUploadIcon from '@mui/icons-material/CloudUpload';
 import CloudDownloadIcon from '@mui/icons-material/CloudDownload';
 import EditIcon from '@mui/icons-material/Edit';
 import AttachFileIcon from '@mui/icons-material/AttachFile';
-// import PictureAsPdfIcon from '@mui/icons-material/PictureAsPdf';
 
 import {
   YMaps,
   Map,
   Placemark,
-  // FullscreenControl,
+  FullscreenControl,
 } from '@pbe/react-yandex-maps';
 import { useParams } from 'next/navigation';
 import {
@@ -99,7 +98,7 @@ const Transition = React.forwardRef(function Transition(
 
 export default function TaskDetailPage() {
   const params = useParams();
-  console.log('useParams() result:', params); // Смотрим, что реально приходит
+  console.log('useParams() result:', params);
 
   const { taskId } = params ?? {};
   console.log('taskId from useParams:', taskId);
@@ -125,21 +124,20 @@ export default function TaskDetailPage() {
   const [snackbarSeverity, setSnackbarSeverity] = useState<'success' | 'error'>(
     'success'
   );
-  // const [generatingPdf, setGeneratingPdf] = useState(false);
   const [isEditFormOpen, setIsEditFormOpen] = useState(false);
-  // const [visibleMaps, setVisibleMaps] = useState<Set<string>>(new Set());
+  const [visibleMaps, setVisibleMaps] = useState<Set<string>>(new Set());
 
-  // const toggleMapVisibility = (coordinates: string) => {
-  //   setVisibleMaps((prev) => {
-  //     const newSet = new Set(prev);
-  //     if (newSet.has(coordinates)) {
-  //       newSet.delete(coordinates);
-  //     } else {
-  //       newSet.add(coordinates);
-  //     }
-  //     return newSet;
-  //   });
-  // };
+  const toggleMapVisibility = (coordinates: string) => {
+    setVisibleMaps((prev) => {
+      const newSet = new Set(prev);
+      if (newSet.has(coordinates)) {
+        newSet.delete(coordinates);
+      } else {
+        newSet.add(coordinates);
+      }
+      return newSet;
+    });
+  };
 
   useEffect(() => {
     const fetchUserRole = async () => {
@@ -236,118 +234,6 @@ export default function TaskDetailPage() {
     setOpen(false);
     setSelectedLocation(null);
   };
-
-  // const handleGeneratePdf = () => {
-  //   if (!task) {
-  //     return <Typography>Task not found</Typography>;
-  //   }
-  //   setGeneratingPdf(true);
-  //   try {
-  //     const doc = new jsPDF() as JsPDFWithAutoTable;
-  //     let yPos = 10;
-
-  //     // Заголовок
-  //     doc.setFont('helvetica', 'bold');
-  //     doc.setFontSize(18);
-  //     doc.text(`Task Details: ${task.taskName}`, 14, yPos);
-  //     yPos += 10;
-
-  //     // Основная информация
-  //     doc.setFontSize(12);
-  //     doc.setFont('helvetica', 'bold');
-  //     doc.text('Basic Information:', 14, yPos);
-  //     yPos += 8;
-  //     doc.setFont('helvetica', 'normal');
-  //     const basicInfo = [
-  //       `BS Number: ${task.bsNumber}`,
-  //       `Address: ${task.bsAddress}`,
-  //       `Total Cost: ${task.totalCost} RUB`,
-  //       `Priority: ${task.priority}`,
-  //       `Created: ${new Date(task.createdAt).toLocaleDateString()}`,
-  //       `Due Date: ${new Date(task.dueDate).toLocaleDateString()}`,
-  //       `Status: ${task.status}`,
-  //     ];
-  //     basicInfo.forEach((info, index) => {
-  //       doc.text(info, 16, yPos + index * 7);
-  //     });
-  //     yPos += basicInfo.length * 7 + 10;
-
-  //     // Локации
-  //     if (task.bsLocation.length > 0) {
-  //       doc.setFont('helvetica', 'bold');
-  //       doc.text('Locations:', 14, yPos);
-  //       yPos += 8;
-  //       doc.setFont('helvetica', 'normal');
-  //       task.bsLocation.forEach((loc, index) => {
-  //         doc.text(`${loc.name}: ${loc.coordinates}`, 16, yPos + index * 7);
-  //       });
-  //       yPos += task.bsLocation.length * 7 + 10;
-  //     }
-
-  //     // Work Items таблица
-  //     if (task.workItems.length > 0) {
-  //       doc.setFont('helvetica', 'bold');
-  //       doc.text('Work Items:', 14, yPos);
-  //       yPos += 8;
-  //       const headers = ['Work Type', 'Quantity', 'Unit', 'Note'];
-  //       const data = task.workItems.map((item) => [
-  //         item.workType,
-  //         item.quantity,
-  //         item.unit,
-  //         item.note,
-  //       ]);
-  //       doc.autoTable({
-  //         startY: yPos,
-  //         head: [headers],
-  //         body: data,
-  //         theme: 'grid',
-  //         styles: { fontSize: 10 },
-  //         headStyles: { fillColor: [41, 128, 185], textColor: 255 },
-  //       });
-
-  //       yPos = (doc.lastAutoTable?.finalY || yPos) + 10;
-  //     }
-
-  //     // История
-  //     if (!task.events) {
-  //       return <Typography>Task events is empty</Typography>;
-  //     }
-  //     if (task.events.length > 0) {
-  //       doc.setFont('helvetica', 'bold');
-  //       doc.text('Task History:', 14, yPos);
-  //       yPos += 8;
-  //       const historyHeaders = ['Date', 'Action', 'Author', 'Details'];
-  //       const historyData = task.events.map((event) => [
-  //         new Date(event.date).toLocaleDateString(),
-  //         event.action.replace('_', ' '),
-  //         event.author,
-  //         event.details
-  //           ? `${event.details.oldStatus || ''} → ${
-  //               event.details.newStatus || ''
-  //             }`
-  //           : '',
-  //       ]);
-  //       doc.autoTable({
-  //         startY: yPos,
-  //         head: [historyHeaders],
-  //         body: historyData,
-  //         theme: 'grid',
-  //         styles: { fontSize: 10 },
-  //         headStyles: { fillColor: [41, 128, 185], textColor: 255 },
-  //       });
-  //     }
-
-  //     // Сохраняем PDF
-  //     doc.save(`task-${task.taskId}-details.pdf`);
-  //   } catch (error) {
-  //     console.error('Error generating PDF:', error);
-  //     setSnackbarMessage('Error generating PDF');
-  //     setSnackbarSeverity('error');
-  //     setSnackbarOpen(true);
-  //   } finally {
-  //     setGeneratingPdf(false);
-  //   }
-  // };
 
   const handleDownloadReport = async (report: PhotoReport) => {
     try {
@@ -473,17 +359,6 @@ export default function TaskDetailPage() {
         }}
       >
         <Typography variant='h5' component='h1'>
-          {/* <IconButton
-            onClick={handleGeneratePdf}
-            disabled={generatingPdf}
-            sx={{ mr: 1 }}
-          >
-            {generatingPdf ? (
-              <CircularProgress size={24} />
-            ) : (
-              <PictureAsPdfIcon />
-            )}
-          </IconButton> */}
           {task.taskName} | {task.bsNumber} &nbsp;
           <Chip
             label={task.status}
@@ -569,13 +444,6 @@ export default function TaskDetailPage() {
                       <strong>{location.name}</strong>
                     </Typography>
                     <Link
-                      href={`https://www.google.com/maps?q=${location.coordinates}`}
-                      target='_blank'
-                      rel='noopener'
-                    >
-                      {location.coordinates}
-                    </Link>
-                    {/* <Link
                       href='#'
                       onClick={(e) => {
                         e.preventDefault();
@@ -584,8 +452,8 @@ export default function TaskDetailPage() {
                       sx={{ cursor: 'pointer', textDecoration: 'none' }}
                     >
                       {location.coordinates}
-                    </Link> */}
-                    {/* {visibleMaps.has(location.coordinates) && (
+                    </Link>
+                    {visibleMaps.has(location.coordinates) && (
                       <Box
                         sx={{
                           height: 300,
@@ -622,13 +490,14 @@ export default function TaskDetailPage() {
                               }}
                               properties={{
                                 balloonContent: location.name,
+                                iconContent: `BS: ${location.name}`,
                               }}
                             />
                             <FullscreenControl />
                           </Map>
                         </YMaps>
                       </Box>
-                    )} */}
+                    )}
                   </Box>
                 ))}
               </AccordionDetails>
