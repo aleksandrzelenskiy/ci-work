@@ -50,7 +50,6 @@ export async function GET(
   try {
     await connectToDatabase();
 
-    // Берём taskId напрямую из params, без await
     const { taskId } = params;
     if (!taskId) {
       return NextResponse.json(
@@ -94,7 +93,6 @@ export async function PATCH(
   try {
     await connectToDatabase();
 
-    // Берём taskId напрямую из params, без await
     const { taskId } = params;
     if (!taskId) {
       return NextResponse.json(
