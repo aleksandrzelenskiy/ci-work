@@ -180,7 +180,7 @@ const DashboardPage: React.FC = async () => {
             id='panel1-header'
           >
             <Typography variant='h5' align='center'>
-              Dashboards
+              Your Reports
             </Typography>
           </AccordionSummary>
           <AccordionDetails>

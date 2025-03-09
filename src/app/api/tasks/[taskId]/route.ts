@@ -45,14 +45,13 @@ async function connectToDatabase() {
  */
 export async function GET(
   request: NextRequest,
-  // <–– в сигнатуре указываем params как Promise
-  { params }: { params: Promise<{ taskId: string }> }
+  { params }: { params: { taskId: string } }
 ) {
   try {
     await connectToDatabase();
 
-    // «Дожидаемся» весь объект params, а затем вытаскиваем taskId
-    const { taskId } = await params;
+    // Берём taskId напрямую из params, без await
+    const { taskId } = params;
     if (!taskId) {
       return NextResponse.json(
         { error: 'No taskId provided' },
@@ -90,14 +89,13 @@ export async function GET(
  */
 export async function PATCH(
   request: NextRequest,
-  // Аналогично для PATCH
-  { params }: { params: Promise<{ taskId: string }> }
+  { params }: { params: { taskId: string } }
 ) {
   try {
     await connectToDatabase();
 
-    // Дожидаемся params, получаем taskId
-    const { taskId } = await params;
+    // Берём taskId напрямую из params, без await
+    const { taskId } = params;
     if (!taskId) {
       return NextResponse.json(
         { error: 'No taskId provided' },
@@ -324,7 +322,7 @@ export async function PATCH(
     // Отправка письма при изменении статуса
     if (statusChanged) {
       try {
-        const frontendUrl = process.env.FRONTEND_URL || 'http://localhost:3000';
+        const frontendUrl = process.env.FRONTEND_URL || 'https://ciwork.pro';
         const taskLink = `${frontendUrl}/tasks/${updatedTask.taskId}`;
 
         const recipients = [
