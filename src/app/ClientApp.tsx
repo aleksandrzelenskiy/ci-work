@@ -25,6 +25,7 @@ import {
   ThemeProvider,
   createTheme,
   CircularProgress,
+  Chip,
 } from '@mui/material';
 import { Menu } from '@mui/icons-material';
 import LightModeIcon from '@mui/icons-material/LightMode';
@@ -236,9 +237,17 @@ export default function ClientApp({ children }: { children: React.ReactNode }) {
                   <Button onClick={handleToggleDrawer} color='inherit'>
                     <Menu />
                   </Button>
-                  <Typography variant='h6' sx={{ flexGrow: 1 }}>
-                    CI Work
-                  </Typography>
+                  <Box
+                    sx={{ flexGrow: 1, display: 'flex', alignItems: 'center' }}
+                  >
+                    <Typography variant='h6'>CI Work</Typography>
+                    <Chip
+                      label='Beta'
+                      color='primary'
+                      size='small'
+                      sx={{ ml: 1 }}
+                    />
+                  </Box>
                   <Box
                     sx={{
                       display: 'flex',
