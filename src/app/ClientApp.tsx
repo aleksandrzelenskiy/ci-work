@@ -25,7 +25,6 @@ import {
   ThemeProvider,
   createTheme,
   CircularProgress,
-  Chip,
 } from '@mui/material';
 import { Menu } from '@mui/icons-material';
 import LightModeIcon from '@mui/icons-material/LightMode';
@@ -240,13 +239,16 @@ export default function ClientApp({ children }: { children: React.ReactNode }) {
                   <Box
                     sx={{ flexGrow: 1, display: 'flex', alignItems: 'center' }}
                   >
-                    <Typography variant='h6'>CI Work</Typography>
-                    <Chip
-                      label='Beta'
+                    <Badge
+                      badgeContent={`B`}
                       color='primary'
-                      size='small'
-                      sx={{ ml: 1 }}
-                    />
+                      anchorOrigin={{
+                        vertical: 'top',
+                        horizontal: 'right',
+                      }}
+                    >
+                      <Typography variant='h6'>CI Work</Typography>
+                    </Badge>
                   </Box>
                   <Box
                     sx={{
