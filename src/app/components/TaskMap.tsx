@@ -47,7 +47,7 @@ import {
 import { v4 as uuidv4 } from 'uuid';
 import { getStatusColor } from '@/utils/statusColors';
 
-// Все статусы
+// Все статусы и приоритеты
 const ALL_STATUSES: CurrentStatus[] = [
   'To do',
   'Assigned',
@@ -59,27 +59,26 @@ const ALL_STATUSES: CurrentStatus[] = [
   'Agreed',
 ];
 
-// Все приоритеты
 const ALL_PRIORITIES: PriorityLevel[] = ['urgent', 'high', 'medium', 'low'];
 
-// Функция для получения цвета приоритета
-function getPriorityColor(priority: PriorityLevel): string {
-  switch (priority) {
-    case 'low':
-      return '#28a0e9';
-    case 'medium':
-      return '#df9b18';
-    case 'high':
-      return '#ca3131';
-    case 'urgent':
-      return '#ff0000';
-    default:
-      return '#28a0e9';
-  }
-}
-
-// Иконка приоритета в виде HTML (для балуна)
+// Функция для вывода приоритета в виде HTML-иконки (используется в балуне)
 function getPriorityIconHTML(priority: PriorityLevel): string {
+  // можно при желании убрать, если не нужны иконки приоритета в балуне
+  const getPriorityColor = (p: PriorityLevel) => {
+    switch (p) {
+      case 'low':
+        return '#28a0e9';
+      case 'medium':
+        return '#df9b18';
+      case 'high':
+        return '#ca3131';
+      case 'urgent':
+        return '#ff0000';
+      default:
+        return '#28a0e9';
+    }
+  };
+
   const color = getPriorityColor(priority);
   let icon = '';
   switch (priority) {
@@ -104,10 +103,10 @@ function getPriorityIconHTML(priority: PriorityLevel): string {
 // Координаты для вычисления расстояния
 const TARGET_COORDINATES = [52.28685807408046, 104.28861941586536];
 
-// Функция вычисления дистанции
+// Функция расчёта дистанции
 const calculateDistance = (lat1: number, lon1: number) => {
   const [lat2, lon2] = TARGET_COORDINATES;
-  const R = 6371; // km
+  const R = 6371;
   const dLat = ((lat2 - lat1) * Math.PI) / 180;
   const dLon = ((lon2 - lon1) * Math.PI) / 180;
   const a =
@@ -119,17 +118,16 @@ const calculateDistance = (lat1: number, lon1: number) => {
   return R * c;
 };
 
-const TaskMap = () => {
-  // Список задач
+export default function TaskMap() {
   const [tasks, setTasks] = useState<Task[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
-  // Drawer (фильтры)
+  // Drawer и поле поиска
   const [drawerOpen, setDrawerOpen] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
 
-  // Состояние статусов (по умолчанию все true)
+  // Фильтр статусов, по умолчанию все выбраны
   const [statusFilter, setStatusFilter] = useState<
     Record<CurrentStatus, boolean>
   >(
@@ -139,7 +137,7 @@ const TaskMap = () => {
     }, {} as Record<CurrentStatus, boolean>)
   );
 
-  // Состояние приоритетов (по умолчанию все true)
+  // Фильтр приоритетов, по умолчанию все выбраны
   const [priorityFilter, setPriorityFilter] = useState<
     Record<PriorityLevel, boolean>
   >(
@@ -149,13 +147,13 @@ const TaskMap = () => {
     }, {} as Record<PriorityLevel, boolean>)
   );
 
-  // Состояние для фильтрации по исполнителю
+  // Фильтр исполнителя
   const [executorFilter, setExecutorFilter] = useState('');
 
-  // Расстояния
+  // Словарь расстояний
   const [distances, setDistances] = useState<Record<string, number>>({});
 
-  // Функция сброса фильтров
+  // Сброс всех фильтров
   const handleResetFilters = () => {
     setSearchQuery('');
     setStatusFilter(
@@ -173,7 +171,47 @@ const TaskMap = () => {
     setExecutorFilter('');
   };
 
-  // Загрузка задач
+  // Кнопки "Clear All" / "Check All" для блока статусов
+  const clearAllStatuses = () => {
+    setStatusFilter((prev) => {
+      const newState = { ...prev };
+      ALL_STATUSES.forEach((st) => {
+        newState[st] = false;
+      });
+      return newState;
+    });
+  };
+  const checkAllStatuses = () => {
+    setStatusFilter((prev) => {
+      const newState = { ...prev };
+      ALL_STATUSES.forEach((st) => {
+        newState[st] = true;
+      });
+      return newState;
+    });
+  };
+
+  // Кнопки "Clear All" / "Check All" для блока приоритетов
+  const clearAllPriorities = () => {
+    setPriorityFilter((prev) => {
+      const newState = { ...prev };
+      ALL_PRIORITIES.forEach((pr) => {
+        newState[pr] = false;
+      });
+      return newState;
+    });
+  };
+  const checkAllPriorities = () => {
+    setPriorityFilter((prev) => {
+      const newState = { ...prev };
+      ALL_PRIORITIES.forEach((pr) => {
+        newState[pr] = true;
+      });
+      return newState;
+    });
+  };
+
+  // Загружаем задачи
   useEffect(() => {
     const fetchTasks = async () => {
       try {
@@ -195,27 +233,26 @@ const TaskMap = () => {
   // Группируем задачи по координатам
   const groupedTasks = useMemo(() => {
     return tasks.reduce((acc, task) => {
-      task.bsLocation.forEach((location: BsLocation) => {
-        const key = location.coordinates;
+      task.bsLocation.forEach((loc: BsLocation) => {
+        const key = loc.coordinates;
         if (!acc[key]) {
           acc[key] = [];
         }
-        acc[key].push({ ...task, location });
+        acc[key].push({ ...task, location: loc });
       });
       return acc;
     }, {} as Record<string, Array<Task & { location: BsLocation }>>);
   }, [tasks]);
 
-  // Список уникальных исполнителей (executorName)
+  // Список уникальных исполнителей
   const uniqueExecutors = useMemo(() => {
     const names = tasks
       .map((t) => t.executorName)
       .filter((val) => Boolean(val) && val.trim() !== '');
-    // убираем возможные дубли
     return Array.from(new Set(names));
   }, [tasks]);
 
-  // Рассчитываем дистанции
+  // Вычисляем дистанции
   const calculatedDistances = useMemo(() => {
     const result: Record<string, number> = {};
     Object.keys(groupedTasks).forEach((coords) => {
@@ -234,15 +271,11 @@ const TaskMap = () => {
     const query = searchQuery.toLowerCase().trim();
     return Object.entries(groupedTasks).filter(([, tasksAtCoord]) =>
       tasksAtCoord.some((t) => {
-        // Поиск по имени BS
         const matchSearch = query
           ? t.location.name.toLowerCase().includes(query)
           : true;
-        // Фильтр по статусу
         const matchStatus = statusFilter[t.status];
-        // Фильтр по приоритету
         const matchPriority = priorityFilter[t.priority];
-        // Фильтр по исполнителю (если executorFilter не пуст, проверяем совпадение)
         const matchExecutor = executorFilter
           ? t.executorName === executorFilter
           : true;
@@ -254,38 +287,18 @@ const TaskMap = () => {
 
   // Проверяем, есть ли отличия от дефолтных фильтров
   const isDefaultFilterState = useMemo(() => {
-    // 1) Поиск должен быть пустой
     if (searchQuery !== '') return false;
-    // 2) По умолчанию executorFilter тоже ''
     if (executorFilter !== '') return false;
-    // 3) Все статусы должны быть true
     for (const st of ALL_STATUSES) {
       if (!statusFilter[st]) return false;
     }
-    // 4) Все приоритеты должны быть true
     for (const pr of ALL_PRIORITIES) {
       if (!priorityFilter[pr]) return false;
     }
     return true;
-  }, [searchQuery, statusFilter, priorityFilter, executorFilter]);
+  }, [searchQuery, executorFilter, statusFilter, priorityFilter]);
 
-  // Вычислить самый высокий приоритет в группе
-  const priorityOrder = { urgent: 4, high: 3, medium: 2, low: 1 };
-  function getHighestPriorityInGroup(
-    tasksAtCoord: Array<Task & { location: BsLocation }>
-  ): PriorityLevel {
-    let maxPrio: PriorityLevel = 'low';
-    let maxValue = 1;
-    for (const t of tasksAtCoord) {
-      const value = priorityOrder[t.priority];
-      if (value > maxValue) {
-        maxValue = value;
-        maxPrio = t.priority;
-      }
-    }
-    return maxPrio;
-  }
-
+  // Если идёт загрузка
   if (loading) {
     return (
       <Box
@@ -299,6 +312,7 @@ const TaskMap = () => {
     );
   }
 
+  // Если ошибка
   if (error) {
     return (
       <Typography color='error' textAlign='center' mt={4}>
@@ -330,10 +344,11 @@ const TaskMap = () => {
             }}
           >
             {filteredGroupedTasks.map(([coords, tasksAtCoord]) => {
-              const [lat, lon] = coords.split(' ').map(Number);
-              const groupPriority = getHighestPriorityInGroup(tasksAtCoord);
+              // Все точки одного цвета (синий)
+              const placemarkColor = '#3498db';
 
-              // Формируем HTML для балуна
+              const [lat, lon] = coords.split(' ').map(Number);
+              // Формируем контент балуна
               const balloonHtml = tasksAtCoord
                 .map((item) => {
                   const priorityIcon = getPriorityIconHTML(item.priority);
@@ -351,9 +366,7 @@ const TaskMap = () => {
                       <strong>Executor:</strong> ${
                         item.executorName || 'N/A'
                       }<br/>
-                      <a href="/tasks/${item.taskId.toLowerCase()}">
-                        View Details
-                      </a>
+                      <a href="/tasks/${item.taskId.toLowerCase()}">View Details</a>
                     </div>
                   `;
                 })
@@ -368,7 +381,7 @@ const TaskMap = () => {
                   }}
                   options={{
                     preset: 'islands#circleDotIcon',
-                    iconColor: getPriorityColor(groupPriority),
+                    iconColor: placemarkColor,
                     balloonCloseButton: true,
                     hideIconOnBalloonOpen: false,
                   }}
@@ -429,8 +442,23 @@ const TaskMap = () => {
 
           <Divider />
 
-          {/* Блок статусов */}
-          <Typography variant='subtitle1'>Status</Typography>
+          {/* Блок статусов + Clear/Check All */}
+          <Box
+            display='flex'
+            justifyContent='space-between'
+            alignItems='center'
+          >
+            <Typography variant='subtitle1'>Status</Typography>
+            <Box display='flex' gap={1}>
+              <Button size='small' onClick={clearAllStatuses}>
+                Clear All
+              </Button>
+              <Button size='small' onClick={checkAllStatuses}>
+                Check All
+              </Button>
+            </Box>
+          </Box>
+
           <List dense sx={{ mb: 1 }}>
             {ALL_STATUSES.map((status) => {
               const circleColor = getStatusColor(status);
@@ -468,7 +496,7 @@ const TaskMap = () => {
             })}
           </List>
 
-          {/* Выпадающий список исполнителей */}
+          {/* Селектор исполнителя (executor) */}
           <Typography variant='subtitle1'>Executor</Typography>
           <FormControl size='small'>
             <InputLabel>Executor</InputLabel>
@@ -488,18 +516,35 @@ const TaskMap = () => {
 
           <Divider />
 
-          {/* Блок приоритетов */}
-          <Typography variant='subtitle1'>Priority</Typography>
+          {/* Блок приоритетов + Clear/Check All */}
+          <Box
+            display='flex'
+            justifyContent='space-between'
+            alignItems='center'
+          >
+            <Typography variant='subtitle1'>Priority</Typography>
+            <Box display='flex' gap={1}>
+              <Button size='small' onClick={clearAllPriorities}>
+                Clear All
+              </Button>
+              <Button size='small' onClick={checkAllPriorities}>
+                Check All
+              </Button>
+            </Box>
+          </Box>
+
           <List dense>
             {ALL_PRIORITIES.map((priority) => {
-              const color = getPriorityColor(priority);
-              let IconElem = <RemoveIcon sx={{ color }} />;
+              // Убираем тип JSX.Element => просто используем ReactNode или не указываем вовсе
+              let IconElem = <RemoveIcon sx={{ color: '#28a0e9' }} />;
               if (priority === 'medium')
-                IconElem = <DragHandleIcon sx={{ color }} />;
+                IconElem = <DragHandleIcon sx={{ color: '#df9b18' }} />;
               if (priority === 'high')
-                IconElem = <KeyboardArrowUpIcon sx={{ color }} />;
+                IconElem = <KeyboardArrowUpIcon sx={{ color: '#ca3131' }} />;
               if (priority === 'urgent')
-                IconElem = <KeyboardDoubleArrowUpIcon sx={{ color }} />;
+                IconElem = (
+                  <KeyboardDoubleArrowUpIcon sx={{ color: '#ff0000' }} />
+                );
 
               return (
                 <ListItem key={priority}>
@@ -529,7 +574,6 @@ const TaskMap = () => {
 
           <Divider sx={{ mt: 1 }} />
 
-          {/* Кнопки внизу: Reset + Close */}
           <Box display='flex' justifyContent='space-between' mt={1}>
             <Button variant='outlined' onClick={handleResetFilters}>
               Reset
@@ -562,6 +606,4 @@ const TaskMap = () => {
       )}
     </Box>
   );
-};
-
-export default TaskMap;
+}
