@@ -421,7 +421,7 @@ export default function TaskDetailPage() {
                     userRole === 'executor' ? (
                       `${(task.totalCost * 0.7).toFixed(2)} RUB`
                     ) : (
-                      `${task.totalCost} RUB`
+                      `${task.totalCost.toFixed(2)} RUB`
                     )
                   ) : (
                     <Skeleton variant='text' width={100} />
