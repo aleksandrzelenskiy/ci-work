@@ -17,10 +17,11 @@ services:
       MONGO_INITDB_ROOT_USERNAME: admin
       MONGO_INITDB_ROOT_PASSWORD: secret123
     volumes:
-      - db_data:/data/db
+      - ci-work_db_data:/data/db
     ports:
       - '27017:27017'
     restart: unless-stopped
 
 volumes:
-  db_data:
+  ci-work_db_data:
+    name: ci-work_db_data
