@@ -1,4 +1,5 @@
 // src/utils/mailer.ts
+
 import nodemailer, { TransportOptions } from 'nodemailer';
 
 export interface SendEmailOptions {
@@ -20,15 +21,21 @@ function createTransporter() {
   // Если EMAIL_SECURE='true' — будет true, иначе false:
   const secure = process.env.EMAIL_SECURE === 'true';
 
-  // Создаём и возвращаем transporter:
+  // Логируем конфигурацию для проверки корректности переменных
+  console.log('Email config:', { host, port, user, secure });
+
+  // Создаём и возвращаем transporter с включёнными опциями логирования и отладки
   return nodemailer.createTransport({
     host,
     port,
     secure,
     auth: { user, pass },
-    // При необходимости можно добавить:
-    // tls: { rejectUnauthorized: false },
-    // если у почтового сервера самоподписанный сертификат.
+    logger: true, // Включаем логирование
+    debug: true, // Включаем режим отладки
+    tls: {
+      // Если сервер использует самоподписанный сертификат, временно отключаем проверку
+      rejectUnauthorized: false,
+    },
   } as TransportOptions);
 }
 
