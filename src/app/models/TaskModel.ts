@@ -62,6 +62,7 @@ const TaskSchema = new Schema<Task & Document>({
   ],
   createdAt: { type: Date, default: Date.now },
   orderUrl: { type: String, required: true },
+  closingDocumentsUrl: { type: String },
   events: [
     {
       action: { type: String, required: true }, // Тип действия (например, "STATUS_CHANGED", "TASK_UPDATED")

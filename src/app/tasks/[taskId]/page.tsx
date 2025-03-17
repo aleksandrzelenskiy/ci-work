@@ -89,9 +89,7 @@ const parseUserInfo = (userString?: string) => {
 };
 
 const Transition = React.forwardRef(function Transition(
-  props: TransitionProps & {
-    children: React.ReactElement;
-  },
+  props: TransitionProps & { children: React.ReactElement },
   ref: React.Ref<unknown>
 ) {
   return <Slide direction='up' ref={ref} {...props} />;
@@ -104,8 +102,6 @@ export default function TaskDetailPage() {
   const { taskId } = params ?? {};
   console.log('taskId from useParams:', taskId);
 
-  // const { taskId } = useParams();
-  console.log('taskId from useParams:', taskId);
   const [task, setTask] = useState<Task | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -573,6 +569,25 @@ export default function TaskDetailPage() {
                   </Box>
                 )}
 
+                {/* Closing Documents Link */}
+                {task.closingDocumentsUrl && (
+                  <Box sx={{ mb: 2 }}>
+                    <Typography variant='body1'>
+                      Closing Documents:{' '}
+                      {task.closingDocumentsUrl.split('/').pop()}
+                    </Typography>
+                    <Button
+                      component='a'
+                      href={task.closingDocumentsUrl}
+                      download
+                      startIcon={<CloudDownloadIcon />}
+                      sx={{ mt: 1 }}
+                    >
+                      Download Closing Documents
+                    </Button>
+                  </Box>
+                )}
+
                 {/* Attachments List */}
                 {task.attachments?.map((fileUrl, index) => {
                   const fileName =
@@ -685,7 +700,6 @@ export default function TaskDetailPage() {
                                     }}
                                   />
                                 </Box>
-
                                 <Typography
                                   variant='body2'
                                   color='text.secondary'
@@ -696,7 +710,6 @@ export default function TaskDetailPage() {
                                     report.createdAt
                                   ).toLocaleDateString()}
                                 </Typography>
-
                                 <Box display='flex'>
                                   {report.status === 'Agreed' && (
                                     <Button
@@ -797,13 +810,7 @@ export default function TaskDetailPage() {
         <Grid item xs={12}>
           {isExecutor && isTaskAssigned && (
             <Box sx={{ mb: 3 }}>
-              <Box
-                sx={{
-                  display: 'flex',
-                  justifyContent: 'center',
-                  gap: 2,
-                }}
-              >
+              <Box sx={{ display: 'flex', justifyContent: 'center', gap: 2 }}>
                 <Button
                   variant='contained'
                   color='success'
@@ -832,13 +839,7 @@ export default function TaskDetailPage() {
 
           {isExecutor && isTaskAtWork && (
             <Box sx={{ mb: 3 }}>
-              <Box
-                sx={{
-                  display: 'flex',
-                  justifyContent: 'center',
-                  gap: 2,
-                }}
-              >
+              <Box sx={{ display: 'flex', justifyContent: 'center', gap: 2 }}>
                 <Button
                   variant='contained'
                   color='primary'
@@ -958,10 +959,7 @@ export default function TaskDetailPage() {
         <Box sx={{ height: '100%', width: '100%' }}>
           <YMaps>
             <Map
-              defaultState={{
-                center: [0, 0],
-                zoom: 15,
-              }}
+              defaultState={{ center: [0, 0], zoom: 15 }}
               width='100%'
               height='100%'
             >

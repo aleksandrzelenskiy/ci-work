@@ -16,6 +16,13 @@ import { v4 as uuidv4 } from 'uuid';
 import fs from 'fs/promises';
 import { sendEmail } from '@/utils/mailer';
 
+interface TaskForExcel {
+  taskName: string;
+  bsNumber: string;
+  bsAddress: string;
+  workItems: { workType: string }[];
+}
+
 interface UpdateData {
   status?: string;
   taskName?: string;
@@ -270,7 +277,7 @@ export async function PATCH(request: NextRequest, context: any) {
       }
     }
 
-    // Ещё раз, если просто нужно записать executor
+    // Если в updateData.executorId присутствует значение – обновляем исполнителя ещё раз
     if (updateData.executorId) {
       task.executorId = updateData.executorId;
       const executor = await UserModel.findOne({
@@ -292,7 +299,7 @@ export async function PATCH(request: NextRequest, context: any) {
       task.priority = updateData.priority as PriorityLevel;
     }
 
-    // Обработка вложений
+    // Обработка вложений (если multipart/form-data)
     if (contentType?.includes('multipart/form-data')) {
       const existingAttachments = updateData.existingAttachments || [];
       task.attachments = task.attachments.filter((attachment: string) =>
@@ -313,10 +320,16 @@ export async function PATCH(request: NextRequest, context: any) {
       task.attachments.push(...newAttachments);
     }
 
+    // Если статус обновлён на 'agreed', генерируем Excel файл с закрывающими документами
+    if (updateData.status && updateData.status.toLowerCase() === 'agreed') {
+      const closingUrl = await generateClosingDocumentsExcel(task);
+      task.closingDocumentsUrl = closingUrl;
+    }
+
     // Сохраняем задачу
     const updatedTask = await task.save();
 
-    // Отправка письма при изменении статуса
+    // Отправка уведомлений по электронной почте при изменении статуса
     if (statusChanged) {
       try {
         const frontendUrl = process.env.FRONTEND_URL || 'https://ciwork.pro';
@@ -392,4 +405,69 @@ ${commentForEmail ? `<p>Комментарий: ${commentForEmail}</p>` : ''}
       { status: 500 }
     );
   }
+}
+/**
+ * Функция для генерации Excel файла с закрывающими документами.
+ * Используется библиотека exceljs для создания книги, добавления листа и записи данных по составу работ,
+ * номеру базовой станции и адресу.
+ */
+async function generateClosingDocumentsExcel(
+  task: TaskForExcel
+): Promise<string> {
+  // Динамический импорт exceljs (убедитесь, что пакет установлен: npm install exceljs)
+  const ExcelJS = (await import('exceljs')).default;
+  const workbook = new ExcelJS.Workbook();
+  const worksheet = workbook.addWorksheet('Closing Documents');
+
+  // Определяем колонки Excel
+  worksheet.columns = [
+    { header: 'Работа', key: 'work', width: 50 },
+    { header: 'BS номер', key: 'bsNumber', width: 20 },
+    { header: 'Адрес', key: 'address', width: 70 },
+  ];
+
+  // Заполняем строки на основе workItems задачи
+  task.workItems.forEach((item) => {
+    worksheet.addRow({
+      work: item.workType,
+      bsNumber: task.bsNumber,
+      address: task.bsAddress,
+    });
+  });
+
+  // Формируем имя папки на основе названия задачи и номера базовой станции
+  const cleanTaskName = task.taskName
+    .replace(/[^a-z0-9а-яё]/gi, '_')
+    .toLowerCase()
+    .replace(/_+/g, '_')
+    .replace(/^_|_$/g, '');
+  const cleanBsNumber = task.bsNumber
+    .replace(/[^a-z0-9-]/gi, '_')
+    .toLowerCase()
+    .replace(/_+/g, '_')
+    .replace(/^_|_$/g, '');
+  const taskFolderName = `${cleanTaskName}_${cleanBsNumber}`;
+
+  // Определяем директорию для сохранения Excel файла
+  const path = await import('path');
+  const fsPromises = fs;
+  const closingDir = path.join(
+    process.cwd(),
+    'public',
+    'uploads',
+    'taskattach',
+    taskFolderName,
+    'closing'
+  );
+  await fsPromises.mkdir(closingDir, { recursive: true });
+
+  const fileName = `closing_${Date.now()}.xlsx`;
+  const filePath = path.join(closingDir, fileName);
+
+  // Сохраняем книгу в файл
+  await workbook.xlsx.writeFile(filePath);
+
+  // Возвращаем URL для скачивания (путь относительно папки public)
+  const fileUrl = `/uploads/taskattach/${taskFolderName}/closing/${fileName}`;
+  return fileUrl;
 }

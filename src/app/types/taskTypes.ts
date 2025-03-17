@@ -74,6 +74,7 @@ export interface Task {
   createdAt: Date;
   attachments?: string[];
   orderUrl?: string;
+  closingDocumentsUrl?: string;
   objectDetails: {
     name: string;
     coordinates: string;
