@@ -344,9 +344,6 @@ export default function TaskMap() {
             }}
           >
             {filteredGroupedTasks.map(([coords, tasksAtCoord]) => {
-              // Все точки одного цвета (синий)
-              const placemarkColor = '#3498db';
-
               const [lat, lon] = coords.split(' ').map(Number);
               // Формируем контент балуна
               const balloonHtml = tasksAtCoord
@@ -371,17 +368,16 @@ export default function TaskMap() {
                   `;
                 })
                 .join('');
-
               return (
                 <Placemark
                   key={uuidv4()}
                   geometry={[lat, lon]}
                   properties={{
                     balloonContent: balloonHtml,
+                    iconContent: tasksAtCoord[0].location.name,
                   }}
                   options={{
-                    preset: 'islands#circleDotIcon',
-                    iconColor: placemarkColor,
+                    preset: 'islands#blueStretchyIcon',
                     balloonCloseButton: true,
                     hideIconOnBalloonOpen: false,
                   }}
@@ -535,8 +531,9 @@ export default function TaskMap() {
 
           <List dense>
             {ALL_PRIORITIES.map((priority) => {
-              // Убираем тип JSX.Element => просто используем ReactNode или не указываем вовсе
-              let IconElem = <RemoveIcon sx={{ color: '#28a0e9' }} />;
+              let IconElem: React.ReactNode = (
+                <RemoveIcon sx={{ color: '#28a0e9' }} />
+              );
               if (priority === 'medium')
                 IconElem = <DragHandleIcon sx={{ color: '#df9b18' }} />;
               if (priority === 'high')
