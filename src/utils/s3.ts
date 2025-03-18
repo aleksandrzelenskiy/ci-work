@@ -24,11 +24,12 @@ export async function uploadBufferToS3(
       Key: key, // Имя файла/ключ в S3
       Body: fileBuffer, // Содержимое файла (Buffer)
       ContentType: contentType,
+      ACL: 'public-read',
     });
     await s3.send(command);
 
     // Формируем публичный URL
-    // https://s3.regru.cloud/ВАШ_БАКЕТ/путь/к/файлу
+    // https://s3.regru.cloud/БАКЕТ/путь/к/файлу
 
     const fileUrl = `${process.env.S3_ENDPOINT!.replace(
       /\/+$/,
