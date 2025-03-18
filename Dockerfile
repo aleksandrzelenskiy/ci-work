@@ -2,8 +2,8 @@
 FROM node:20-alpine
 
 # Устанавливаем необходимые шрифты
-RUN sed -i 's|dl-cdn.alpinelinux.org|dl-8.alpinelinux.org|g' /etc/apk/repositories
-RUN apk update
+RUN echo "https://mirror.yandex.ru/mirrors/alpine/latest-stable/main" > /etc/apk/repositories
+RUN apk update && apk add --no-cache ttf-dejavu
 
 
 # Рабочая директория в контейнере
