@@ -2,7 +2,9 @@
 FROM node:20-alpine
 
 # Устанавливаем необходимые шрифты
-RUN apk add --no-cache ttf-dejavu
+RUN sed -i 's|dl-cdn.alpinelinux.org|dl-8.alpinelinux.org|g' /etc/apk/repositories
+RUN apk update
+
 
 # Рабочая директория в контейнере
 WORKDIR /app
