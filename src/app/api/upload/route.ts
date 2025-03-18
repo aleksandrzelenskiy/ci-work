@@ -1,5 +1,13 @@
 // app/api/upload/route.ts
 
+export const config = {
+  api: {
+    bodyParser: {
+      sizeLimit: '25mb',
+    },
+  },
+};
+
 import { NextResponse } from 'next/server';
 import sharp from 'sharp';
 import ExifReader from 'exifreader';

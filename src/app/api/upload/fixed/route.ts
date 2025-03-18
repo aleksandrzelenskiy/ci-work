@@ -1,4 +1,13 @@
 // app/api/upload/fixed/route.ts
+
+export const config = {
+  api: {
+    bodyParser: {
+      sizeLimit: '25mb',
+    },
+  },
+};
+
 import { NextResponse } from 'next/server';
 import sharp from 'sharp';
 import dbConnect from '@/utils/mongoose';
