@@ -1,6 +1,9 @@
 # Базовый образ Node.js (20, Alpine)
 FROM node:20-alpine
 
+# Устанавливаем необходимые шрифты
+RUN apk add --no-cache ttf-dejavu
+
 # Рабочая директория в контейнере
 WORKDIR /app
 
