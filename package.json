@@ -11,6 +11,7 @@
   },
   "dependencies": {
     "@atlaskit/pragmatic-drag-and-drop": "^1.5.0",
+    "@aws-sdk/client-s3": "^3.758.0",
     "@clerk/clerk-sdk-node": "^5.1.6",
     "@clerk/nextjs": "^6.9.6",
     "@date-io/date-fns": "^2.16.0",

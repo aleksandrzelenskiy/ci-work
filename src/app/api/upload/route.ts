@@ -1,8 +1,6 @@
 // app/api/upload/route.ts
 
 import { NextResponse } from 'next/server';
-import * as fs from 'fs';
-import * as path from 'path';
 import sharp from 'sharp';
 import ExifReader from 'exifreader';
 import Report from '@/app/models/ReportModel';
@@ -10,6 +8,9 @@ import User from '@/app/models/UserModel';
 import TaskModel from '@/app/models/TaskModel';
 import { currentUser } from '@clerk/nextjs/server';
 import dbConnect from '@/utils/mongoose';
+
+// Импортируем S3-утилиту
+import { uploadBufferToS3 } from '@/utils/s3';
 
 // Функция для преобразования координат в формат D° M' S" + N/S/E/W
 function toDMS(
@@ -25,7 +26,6 @@ function toDMS(
     : degrees >= 0
     ? 'E'
     : 'W';
-
   const absDeg = Math.abs(degrees);
   return `${absDeg}° ${minutes}' ${seconds.toFixed(2)}" ${direction}`;
 }
@@ -81,7 +81,6 @@ export async function POST(request: Request) {
       const initiatorUser = await User.findOne({
         clerkUserId: initiatorIdFromForm,
       });
-
       if (initiatorUser) {
         initiatorId = initiatorUser.clerkUserId;
         initiatorName = initiatorUser.name;
@@ -98,6 +97,7 @@ export async function POST(request: Request) {
     initiatorId = (formData.get('initiatorId') as string) || 'unknown';
     initiatorName = (formData.get('initiatorName') as string) || 'unknown';
   }
+
   // Файлы
   const files = formData.getAll('image[]') as File[];
   if (files.length === 0) {
@@ -105,23 +105,7 @@ export async function POST(request: Request) {
     return NextResponse.json({ error: 'No files uploaded' }, { status: 400 });
   }
 
-  // Подготовка директорий
-  const uploadsDir = path.join(
-    process.cwd(),
-    'public',
-    'uploads',
-    'reports',
-    task
-  );
-  const taskDir = path.join(uploadsDir, baseId);
-
-  if (!fs.existsSync(uploadsDir)) {
-    fs.mkdirSync(uploadsDir, { recursive: true });
-  }
-  if (!fs.existsSync(taskDir)) {
-    fs.mkdirSync(taskDir, { recursive: true });
-  }
-
+  // Массив итоговых ссылок
   const fileUrls: string[] = [];
   let fileCounter = 1;
 
@@ -164,16 +148,15 @@ export async function POST(request: Request) {
       console.warn('Error reading Exif data:', error);
     }
 
-    // Генерация имени выходного файла
+    // Генерация имени выходного файла (для S3 key)
     const outputFilename = `${baseId}-${String(fileCounter).padStart(
       3,
       '0'
     )}.jpg`;
-    const outputPath = path.join(taskDir, outputFilename);
 
     try {
-      // Изменение размера и наложение водяного знака
-      await sharp(buffer)
+      // 1) Изменяем размер и накладываем водяной знак -> получаем Buffer
+      const processedBuffer = await sharp(buffer)
         .resize(1920, 1920, {
           fit: sharp.fit.inside,
           withoutEnlargement: true,
@@ -194,13 +177,23 @@ export async function POST(request: Request) {
             gravity: 'southeast',
           },
         ])
-        .toFile(outputPath);
+        .jpeg({ quality: 80 }) // Можно подстраивать качество
+        .toBuffer();
 
-      const fileUrl = `/uploads/reports/${task}/${baseId}/${outputFilename}`;
+      // 2) Формируем "ключ" для хранения в S3
+      const s3Key = `reports/${task}/${baseId}/${outputFilename}`;
+
+      // 3) Загружаем в S3
+      const fileUrl = await uploadBufferToS3(
+        processedBuffer,
+        s3Key,
+        'image/jpeg'
+      );
+
       fileUrls.push(fileUrl);
       fileCounter++;
     } catch (error) {
-      console.error('Error processing image:', error);
+      console.error('Error processing or uploading image:', error);
       return NextResponse.json(
         { error: 'Error processing one or more images' },
         { status: 500 }
@@ -210,6 +203,8 @@ export async function POST(request: Request) {
 
   // Сохранение в базу данных
   try {
+    await dbConnect(); // убеждаемся, что коннект есть
+
     const report = new Report({
       reportId: taskId || 'unknown',
       task,
@@ -221,7 +216,7 @@ export async function POST(request: Request) {
       userAvatar: user.imageUrl || '',
       createdAt: new Date(),
       status: 'Pending',
-      files: fileUrls,
+      files: fileUrls, // <--- складываем ссылки на S3
     });
 
     report.events.push({
@@ -237,7 +232,7 @@ export async function POST(request: Request) {
     await report.save();
     console.log('Report saved to database successfully.');
 
-    // Обновляем статус связанной задачи (переименовываем переменную)
+    // Обновляем статус связанной задачи
     const relatedTask = await TaskModel.findOne({ taskId: report.reportId });
     if (relatedTask) {
       const oldStatus = relatedTask.status;
