@@ -29,8 +29,6 @@ export async function uploadBufferToS3(
     await s3.send(command);
 
     // Формируем публичный URL
-    // https://s3.regru.cloud/БАКЕТ/путь/к/файлу
-
     const fileUrl = `${process.env.S3_ENDPOINT!.replace(
       /\/+$/,
       ''

@@ -74,8 +74,9 @@ export async function POST(request: Request) {
     );
   }
 
-  const baseId = decodeURIComponent(rawBaseId);
-  const task = decodeURIComponent(rawTask);
+  // ВАЖНО: убираем лишние пробелы и корректно декодируем
+  const baseId = decodeURIComponent(rawBaseId).trim();
+  const task = decodeURIComponent(rawTask).trim();
 
   // Получение initiatorId из FormData
   const initiatorIdFromForm = formData.get('initiatorId') as string | null;

@@ -91,8 +91,9 @@ export async function POST(request: Request) {
     );
   }
 
-  const baseId = decodeURIComponent(rawBaseId);
-  const task = decodeURIComponent(rawTask);
+  // ВАЖНО: убираем лишние пробелы и корректно декодируем
+  const baseId = decodeURIComponent(rawBaseId).trim();
+  const task = decodeURIComponent(rawTask).trim();
 
   // Файлы
   const files = formData.getAll('image[]') as File[];
@@ -143,9 +144,7 @@ export async function POST(request: Request) {
       console.warn('Error reading Exif data (fixed):', error);
     }
 
-    // Генерируем уникальное имя
-    // (Можно оставить как у вас — c uniqueSuffix, чтобы не перезаписывалось)
-    // Но важнее сгенерировать путь (S3 key) "reports/задача/baseId/baseId issues fixed/..."
+    // Генерируем уникальное имя (для примера – с random-суффиксом)
     const uniqueSuffix = Date.now() + '-' + Math.round(Math.random() * 1e9);
     const extension = file.name.split('.').pop() || 'jpg';
     const outputFilename = `${baseId}-fixed-${String(fileCounter).padStart(
@@ -176,10 +175,10 @@ export async function POST(request: Request) {
             gravity: 'southeast',
           },
         ])
-        .jpeg({ quality: 80 }) // или extension, если нужно
+        .jpeg({ quality: 80 })
         .toBuffer();
 
-      // 2) S3 Key, например:
+      // 2) Путь (S3 Key) – отдельная подпапка "baseId issues fixed"
       const s3Key = `reports/${task}/${baseId}/${baseId} issues fixed/${outputFilename}`;
 
       // 3) Загрузка в S3
