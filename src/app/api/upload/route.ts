@@ -74,7 +74,7 @@ export async function POST(request: Request) {
     );
   }
 
-  // ВАЖНО: убираем лишние пробелы и корректно декодируем
+  // Очищаем пробелы, декодируем
   const baseId = decodeURIComponent(rawBaseId).trim();
   const task = decodeURIComponent(rawTask).trim();
 
@@ -186,7 +186,7 @@ export async function POST(request: Request) {
             gravity: 'southeast',
           },
         ])
-        .jpeg({ quality: 80 }) // Можно подстраивать качество
+        .jpeg({ quality: 80 }) // Качество
         .toBuffer();
 
       // 2) Формируем "ключ" для хранения в S3
@@ -212,36 +212,67 @@ export async function POST(request: Request) {
 
   // Сохранение в базу данных
   try {
-    await dbConnect(); // убеждаемся, что коннект есть
+    await dbConnect(); // убеждаемся, что есть соединение
 
-    const report = new Report({
+    // === Добавляем логику проверки существующего отчета ===
+    let report = await Report.findOne({
       reportId: taskId || 'unknown',
       task,
       baseId,
-      executorId: user.id,
-      executorName: name,
-      initiatorId,
-      initiatorName,
-      userAvatar: user.imageUrl || '',
-      createdAt: new Date(),
-      status: 'Pending',
-      files: fileUrls, // <--- складываем ссылки на S3
     });
 
-    report.events.push({
-      action: 'REPORT_CREATED',
-      author: name,
-      authorId: user.id,
-      date: new Date(),
-      details: {
-        fileCount: fileUrls.length,
-      },
-    });
+    if (report) {
+      // Уже существует отчёт для (reportId, task, baseId)
+      report.files.push(...fileUrls);
 
-    await report.save();
-    console.log('Report saved to database successfully.');
+      report.events.push({
+        action: 'REPORT_UPDATED',
+        author: name,
+        authorId: user.id,
+        date: new Date(),
+        details: {
+          newFiles: fileUrls.length,
+          comment: 'Additional photos uploaded',
+        },
+      });
 
-    // Обновляем статус связанной задачи
+      // при этом можно оставить статус прежним
+      // Или если нужно, насильно устанавливаем "Pending" снова:
+      report.status = 'Pending';
+
+      await report.save();
+      console.log('Report updated (appended files) successfully.');
+    } else {
+      // Не нашли - создаём новый
+      report = new Report({
+        reportId: taskId || 'unknown',
+        task,
+        baseId,
+        executorId: user.id,
+        executorName: name,
+        initiatorId,
+        initiatorName,
+        userAvatar: user.imageUrl || '',
+        createdAt: new Date(),
+        status: 'Pending',
+        files: fileUrls,
+      });
+
+      report.events.push({
+        action: 'REPORT_CREATED',
+        author: name,
+        authorId: user.id,
+        date: new Date(),
+        details: {
+          fileCount: fileUrls.length,
+        },
+      });
+
+      await report.save();
+      console.log('Report saved to database successfully.');
+    }
+
+    // Обновляем статус связанной задачи (по reportId)
     const relatedTask = await TaskModel.findOne({ taskId: report.reportId });
     if (relatedTask) {
       const oldStatus = relatedTask.status;

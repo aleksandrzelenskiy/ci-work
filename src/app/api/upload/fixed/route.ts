@@ -91,7 +91,7 @@ export async function POST(request: Request) {
     );
   }
 
-  // ВАЖНО: убираем лишние пробелы и корректно декодируем
+  // Очищаем пробелы, декодируем
   const baseId = decodeURIComponent(rawBaseId).trim();
   const task = decodeURIComponent(rawTask).trim();
 
@@ -144,7 +144,7 @@ export async function POST(request: Request) {
       console.warn('Error reading Exif data (fixed):', error);
     }
 
-    // Генерируем уникальное имя (для примера – с random-суффиксом)
+    // Генерируем уникальное имя
     const uniqueSuffix = Date.now() + '-' + Math.round(Math.random() * 1e9);
     const extension = file.name.split('.').pop() || 'jpg';
     const outputFilename = `${baseId}-fixed-${String(fileCounter).padStart(
@@ -178,7 +178,7 @@ export async function POST(request: Request) {
         .jpeg({ quality: 80 })
         .toBuffer();
 
-      // 2) Путь (S3 Key) – отдельная подпапка "baseId issues fixed"
+      // 2) S3 Key
       const s3Key = `reports/${task}/${baseId}/${baseId} issues fixed/${outputFilename}`;
 
       // 3) Загрузка в S3
@@ -201,8 +201,9 @@ export async function POST(request: Request) {
 
   // Сохранение в базу
   try {
-    // Находим отчёт
+    // Находим отчёт (по тому же task + baseId;)
     const report = await ReportModel.findOne({ task, baseId });
+
     if (!report) {
       console.error('Report was not found.');
       return NextResponse.json(
@@ -212,9 +213,10 @@ export async function POST(request: Request) {
     }
 
     // Добавляем ссылки в fixedFiles
-    report.fixedFiles = report.fixedFiles.concat(fileUrls);
+    //
+    report.fixedFiles.push(...fileUrls);
 
-    // Ставим статус Fixed (если не установлен)
+    // Ставим статус Fixed
     if (report.status !== 'Fixed') {
       report.status = 'Fixed';
     }
