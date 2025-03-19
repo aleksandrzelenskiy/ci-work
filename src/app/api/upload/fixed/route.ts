@@ -18,6 +18,9 @@ import ExifReader from 'exifreader';
 // Импорт функции для загрузки в S3
 import { uploadBufferToS3 } from '@/utils/s3';
 
+// Импортируем генератор UUID
+import { v4 as uuidv4 } from 'uuid';
+
 // Функции EXIF / DMS те же
 function toDMS(
   degrees: number,
@@ -105,7 +108,6 @@ export async function POST(request: Request) {
 
   // Массив итоговых ссылок
   const fileUrls: string[] = [];
-  let fileCounter = 1;
 
   for (const file of files) {
     const buffer = Buffer.from(await file.arrayBuffer());
@@ -144,16 +146,13 @@ export async function POST(request: Request) {
       console.warn('Error reading Exif data (fixed):', error);
     }
 
-    // Генерируем уникальное имя
-    const uniqueSuffix = Date.now() + '-' + Math.round(Math.random() * 1e9);
+    // Генерируем *уникальное* имя файла с помощью UUID
+    const uniqueId = uuidv4();
     const extension = file.name.split('.').pop() || 'jpg';
-    const outputFilename = `${baseId}-fixed-${String(fileCounter).padStart(
-      3,
-      '0'
-    )}-${uniqueSuffix}.${extension}`;
+    const outputFilename = `${baseId}-fixed-${uniqueId}.${extension}`;
 
     try {
-      // 1) Sharp -> Buffer
+      // 1) Обработка через Sharp -> получаем Buffer
       const processedBuffer = await sharp(buffer)
         .resize(1920, 1920, {
           fit: sharp.fit.inside,
@@ -178,10 +177,10 @@ export async function POST(request: Request) {
         .jpeg({ quality: 80 })
         .toBuffer();
 
-      // 2) S3 Key
+      // 2) Формируем ключ для S3 (папка: /reports/{task}/{baseId}/{baseId} issues fixed/)
       const s3Key = `reports/${task}/${baseId}/${baseId} issues fixed/${outputFilename}`;
 
-      // 3) Загрузка в S3
+      // 3) Загружаем в S3
       const fileUrl = await uploadBufferToS3(
         processedBuffer,
         s3Key,
@@ -189,7 +188,6 @@ export async function POST(request: Request) {
       );
 
       fileUrls.push(fileUrl);
-      fileCounter++;
     } catch (error) {
       console.error('Error processing image:', error);
       return NextResponse.json(
@@ -199,9 +197,9 @@ export async function POST(request: Request) {
     }
   }
 
-  // Сохранение в базу
+  // Сохранение в базе
   try {
-    // Находим отчёт (по тому же task + baseId;)
+    // Находим отчёт (по task + baseId)
     const report = await ReportModel.findOne({ task, baseId });
 
     if (!report) {
@@ -212,11 +210,10 @@ export async function POST(request: Request) {
       );
     }
 
-    // Добавляем ссылки в fixedFiles
-    //
+    // Добавляем ссылки на новые "fixed" фото
     report.fixedFiles.push(...fileUrls);
 
-    // Ставим статус Fixed
+    // Ставим статус "Fixed", если ещё не установлен
     if (report.status !== 'Fixed') {
       report.status = 'Fixed';
     }

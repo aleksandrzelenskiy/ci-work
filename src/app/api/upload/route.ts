@@ -16,11 +16,12 @@ import User from '@/app/models/UserModel';
 import TaskModel from '@/app/models/TaskModel';
 import { currentUser } from '@clerk/nextjs/server';
 import dbConnect from '@/utils/mongoose';
-
-// Импортируем S3-утилиту
 import { uploadBufferToS3 } from '@/utils/s3';
+import { v4 as uuidv4 } from 'uuid';
 
-// Функция для преобразования координат в формат D° M' S" + N/S/E/W
+/**
+ * Функция для преобразования координат в формат D° M' S" + N/S/E/W
+ */
 function toDMS(
   degrees: number,
   minutes: number,
@@ -38,7 +39,9 @@ function toDMS(
   return `${absDeg}° ${minutes}' ${seconds.toFixed(2)}" ${direction}`;
 }
 
-// Форматирование даты из EXIF в DD.MM.YYYY
+/**
+ * Форматирование даты из EXIF в DD.MM.YYYY
+ */
 function formatDateToDDMMYYYY(exifDateStr: string): string {
   const [datePart] = exifDateStr.split(' ');
   const [yyyy, mm, dd] = datePart.split(':');
@@ -83,8 +86,8 @@ export async function POST(request: Request) {
   let initiatorId = 'unknown';
   let initiatorName = 'unknown';
 
-  if (initiatorIdFromForm) {
-    try {
+  try {
+    if (initiatorIdFromForm) {
       await dbConnect();
       // Ищем пользователя по clerkUserId
       const initiatorUser = await User.findOne({
@@ -96,9 +99,9 @@ export async function POST(request: Request) {
       } else {
         console.warn('Initiator user not found in database');
       }
-    } catch (error) {
-      console.error('Error fetching initiator user:', error);
     }
+  } catch (error) {
+    console.error('Error fetching initiator user:', error);
   }
 
   // Используем значения из URL если не нашли в базе
@@ -116,7 +119,6 @@ export async function POST(request: Request) {
 
   // Массив итоговых ссылок
   const fileUrls: string[] = [];
-  let fileCounter = 1;
 
   for (const file of files) {
     const buffer = Buffer.from(await file.arrayBuffer());
@@ -157,11 +159,9 @@ export async function POST(request: Request) {
       console.warn('Error reading Exif data:', error);
     }
 
-    // Генерация имени выходного файла (для S3 key)
-    const outputFilename = `${baseId}-${String(fileCounter).padStart(
-      3,
-      '0'
-    )}.jpg`;
+    // Генерация уникального имени выходного файла для S3
+    const uniqueId = uuidv4();
+    const outputFilename = `${baseId}-${uniqueId}.jpg`;
 
     try {
       // 1) Изменяем размер и накладываем водяной знак -> получаем Buffer
@@ -186,10 +186,10 @@ export async function POST(request: Request) {
             gravity: 'southeast',
           },
         ])
-        .jpeg({ quality: 80 }) // Качество
+        .jpeg({ quality: 80 })
         .toBuffer();
 
-      // 2) Формируем "ключ" для хранения в S3
+      // 2) Формируем "ключ" для хранения в S3 (папка reports/{task}/{baseId}/)
       const s3Key = `reports/${task}/${baseId}/${outputFilename}`;
 
       // 3) Загружаем в S3
@@ -200,7 +200,6 @@ export async function POST(request: Request) {
       );
 
       fileUrls.push(fileUrl);
-      fileCounter++;
     } catch (error) {
       console.error('Error processing or uploading image:', error);
       return NextResponse.json(
@@ -214,7 +213,7 @@ export async function POST(request: Request) {
   try {
     await dbConnect(); // убеждаемся, что есть соединение
 
-    // === Добавляем логику проверки существующего отчета ===
+    // === Проверяем, есть ли уже отчёт для (reportId, task, baseId) ===
     let report = await Report.findOne({
       reportId: taskId || 'unknown',
       task,
@@ -222,7 +221,7 @@ export async function POST(request: Request) {
     });
 
     if (report) {
-      // Уже существует отчёт для (reportId, task, baseId)
+      // Если отчёт существует, просто добавляем новые фото
       report.files.push(...fileUrls);
 
       report.events.push({
@@ -236,14 +235,13 @@ export async function POST(request: Request) {
         },
       });
 
-      // при этом можно оставить статус прежним
-      // Или если нужно, насильно устанавливаем "Pending" снова:
+      // Опционально можно сбросить статус на "Pending" или оставить прежний
       report.status = 'Pending';
 
       await report.save();
       console.log('Report updated (appended files) successfully.');
     } else {
-      // Не нашли - создаём новый
+      // Если отчёта нет, создаём новый
       report = new Report({
         reportId: taskId || 'unknown',
         task,
