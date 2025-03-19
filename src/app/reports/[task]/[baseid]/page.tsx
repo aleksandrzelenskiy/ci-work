@@ -739,12 +739,12 @@ export default function PhotoReportPage() {
         )}
       >
         <Grid container spacing={1}>
-          {photos.map((photo, idx) => (
-            <Grid item xs={6} sm={4} md={2} key={idx}>
+          {photos.map((photo) => (
+            <Grid item xs={6} sm={4} md={2} key={photo}>
               <PhotoView src={photo}>
                 <img
                   src={photo}
-                  alt={`Photo ${idx + 1}`}
+                  alt='Uploaded photo'
                   style={{
                     width: '100%',
                     aspectRatio: '1 / 1',
