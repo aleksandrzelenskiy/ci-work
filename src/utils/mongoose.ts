@@ -1,3 +1,5 @@
+// src/utils/mongoose.ts
+
 import mongoose, { Connection, ConnectOptions } from 'mongoose';
 
 const MONGODB_URI = process.env.MONGODB_URI || '';
@@ -6,6 +8,7 @@ if (!MONGODB_URI) {
   throw new Error('MONGODB_URI не определён. Добавьте его в файл .env');
 }
 
+console.log('MONGODB_URI is:', process.env.MONGODB_URI);
 interface GlobalMongoose {
   mongoose: {
     conn: Connection | null;
@@ -28,8 +31,6 @@ async function dbConnect(): Promise<Connection> {
     globalMongoose.promise = mongoose
       .connect(MONGODB_URI, {
         serverSelectionTimeoutMS: 30000,
-	useNewUrlParser: true,
-         useUnifiedTopology: true,
       } as ConnectOptions)
       .then((mongoose) => {
         console.log(

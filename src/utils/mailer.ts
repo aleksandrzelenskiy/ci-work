@@ -10,21 +10,17 @@ export interface SendEmailOptions {
 }
 
 /**
- * Создаём и возвращаем transporter для отправки писем.
+ * Транспортер
  */
 function createTransporter() {
-  // Читаем переменные из .env:
   const host = process.env.EMAIL_HOST || '';
   const port = parseInt(process.env.EMAIL_PORT || '465', 10);
   const user = process.env.EMAIL_USER || '';
   const pass = process.env.EMAIL_PASS || '';
-  // Если EMAIL_SECURE='true' — будет true, иначе false:
   const secure = process.env.EMAIL_SECURE === 'true';
 
-  // Логируем конфигурацию для проверки корректности переменных
   console.log('Email config:', { host, port, user, secure });
 
-  // Создаём и возвращаем transporter с включёнными опциями логирования и отладки
   return nodemailer.createTransport({
     host,
     port,
@@ -33,7 +29,6 @@ function createTransporter() {
     logger: true, // Включаем логирование
     debug: true, // Включаем режим отладки
     tls: {
-      // Если сервер использует самоподписанный сертификат, временно отключаем проверку
       rejectUnauthorized: false,
     },
   } as TransportOptions);
