@@ -4,6 +4,7 @@
 
 import React from 'react';
 import { Box, Grid, Paper, Typography } from '@mui/material';
+import MiniMap from '@/app/components/dashboards/MiniMap';
 
 interface ExecutorDashboardProps {
   role: string;
@@ -15,6 +16,7 @@ const ExecutorDashboard: React.FC<ExecutorDashboardProps> = ({
   clerkUserId,
 }) => {
   console.log(role, clerkUserId);
+
   return (
     <Box>
       <Typography variant='h6' gutterBottom>
@@ -33,10 +35,11 @@ const ExecutorDashboard: React.FC<ExecutorDashboardProps> = ({
             {/* Список последних отчётов для Executor */}
           </Paper>
         </Grid>
+        {/* Task Location (с мини-картой) */}
         <Grid item xs={12} md={6}>
           <Paper sx={{ p: 2 }}>
             <Typography variant='subtitle1'>Task Location</Typography>
-            {/* Блок с локацией задач */}
+            <MiniMap role={role} clerkUserId={clerkUserId} />
           </Paper>
         </Grid>
         <Grid item xs={12} md={6}>

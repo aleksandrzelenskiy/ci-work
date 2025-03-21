@@ -4,6 +4,7 @@
 
 import React from 'react';
 import { Box, Grid, Paper, Typography } from '@mui/material';
+import MiniMap from '@/app/components/dashboards/MiniMap';
 
 interface AuthorDashboardProps {
   role: string;
@@ -39,11 +40,11 @@ const AuthorDashboard: React.FC<AuthorDashboardProps> = ({
             {/* Список последних отчётов для Author */}
           </Paper>
         </Grid>
-        {/* Task Location */}
+        {/* Task Location (с мини-картой) */}
         <Grid item xs={12} md={6}>
           <Paper sx={{ p: 2 }}>
             <Typography variant='subtitle1'>Task Location</Typography>
-            {/* Блок с локацией задач */}
+            <MiniMap role={role} clerkUserId={clerkUserId} />
           </Paper>
         </Grid>
         {/* Дополнительный блок */}
