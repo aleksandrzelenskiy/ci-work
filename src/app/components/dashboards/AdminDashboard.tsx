@@ -7,6 +7,7 @@ import { Box, Grid, Paper, Typography } from '@mui/material';
 import MiniMap from '@/app/components/dashboards/MiniMap';
 import MiniTaskTable from '@/app/components/dashboards/MiniTaskTable';
 import MiniReportsList from '@/app/components/dashboards/MiniReportsList';
+import FinancialMetrics from '@/app/components/dashboards/FinancialMetrics';
 
 interface AdminDashboardProps {
   role: string;
@@ -47,6 +48,13 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({
           <Paper sx={{ p: 2 }}>
             <Typography variant='subtitle1'>Task Location</Typography>
             <MiniMap role={role} clerkUserId={clerkUserId} />
+          </Paper>
+        </Grid>
+
+        {/* Financial Metrics */}
+        <Grid item xs={12} md={6}>
+          <Paper sx={{ p: 2 }}>
+            <FinancialMetrics />
           </Paper>
         </Grid>
 
