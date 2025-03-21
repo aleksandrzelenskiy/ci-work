@@ -5,6 +5,7 @@
 import React from 'react';
 import { Box, Grid, Paper, Typography } from '@mui/material';
 import MiniMap from '@/app/components/dashboards/MiniMap';
+import MiniTaskTable from '@/app/components/dashboards/MiniTaskTable';
 
 interface InitiatorDashboardProps {
   role: string;
@@ -29,7 +30,7 @@ const InitiatorDashboard: React.FC<InitiatorDashboardProps> = ({
         <Grid item xs={12} md={6}>
           <Paper sx={{ p: 2 }}>
             <Typography variant='subtitle1'>Last Tasks</Typography>
-            {/* Список последних задач для Initiator */}
+            <MiniTaskTable role={role} clerkUserId={clerkUserId} />
           </Paper>
         </Grid>
         <Grid item xs={12} md={6}>

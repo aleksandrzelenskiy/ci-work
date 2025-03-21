@@ -5,6 +5,7 @@
 import React from 'react';
 import { Box, Grid, Paper, Typography } from '@mui/material';
 import MiniMap from '@/app/components/dashboards/MiniMap';
+import MiniTaskTable from '@/app/components/dashboards/MiniTaskTable';
 
 interface AuthorDashboardProps {
   role: string;
@@ -30,7 +31,7 @@ const AuthorDashboard: React.FC<AuthorDashboardProps> = ({
         <Grid item xs={12} md={6}>
           <Paper sx={{ p: 2 }}>
             <Typography variant='subtitle1'>Last Tasks</Typography>
-            {/* Список последних задач для Author */}
+            <MiniTaskTable role={role} clerkUserId={clerkUserId} />
           </Paper>
         </Grid>
         {/* Last Reports */}

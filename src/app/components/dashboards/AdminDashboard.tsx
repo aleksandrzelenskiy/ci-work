@@ -5,6 +5,8 @@
 import React from 'react';
 import { Box, Grid, Paper, Typography } from '@mui/material';
 import MiniMap from '@/app/components/dashboards/MiniMap';
+import MiniTaskTable from '@/app/components/dashboards/MiniTaskTable'; // <-- импортируем
+
 interface AdminDashboardProps {
   role: string;
   clerkUserId: string;
@@ -27,7 +29,7 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({
         <Grid item xs={12} md={6}>
           <Paper sx={{ p: 2 }}>
             <Typography variant='subtitle1'>Last Tasks</Typography>
-            {/* Список последних задач для Admin */}
+            <MiniTaskTable role={role} clerkUserId={clerkUserId} />
           </Paper>
         </Grid>
 
@@ -51,7 +53,7 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({
         <Grid item xs={12} md={6}>
           <Paper sx={{ p: 2 }}>
             <Typography variant='subtitle1'>Some Future Block</Typography>
-            {/* Вставляйте сюда любой другой нужный функционал */}
+            {/* Ваш другой функционал */}
           </Paper>
         </Grid>
       </Grid>
