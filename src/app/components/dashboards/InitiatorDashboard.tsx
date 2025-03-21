@@ -30,13 +30,17 @@ const InitiatorDashboard: React.FC<InitiatorDashboardProps> = ({
       <Grid container spacing={2}>
         <Grid item xs={12} md={6}>
           <Paper sx={{ p: 2 }}>
-            <Typography variant='subtitle1'>Last Tasks</Typography>
+            <Typography variant='h6' gutterBottom>
+              Last Tasks
+            </Typography>
             <MiniTaskTable role={role} clerkUserId={clerkUserId} />
           </Paper>
         </Grid>
         <Grid item xs={12} md={6}>
           <Paper sx={{ p: 2 }}>
-            <Typography variant='subtitle1'>Last Reports</Typography>
+            <Typography variant='h6' gutterBottom>
+              Last Reports
+            </Typography>
             <MiniReportsList role={role} clerkUserId={clerkUserId} />
           </Paper>
         </Grid>

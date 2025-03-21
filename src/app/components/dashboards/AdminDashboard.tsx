@@ -30,7 +30,9 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({
         {/* Last Tasks */}
         <Grid item xs={12} md={6}>
           <Paper sx={{ p: 2 }}>
-            <Typography variant='subtitle1'>Last Tasks</Typography>
+            <Typography variant='h6' gutterBottom>
+              Last Tasks
+            </Typography>
             <MiniTaskTable role={role} clerkUserId={clerkUserId} />
           </Paper>
         </Grid>
@@ -38,7 +40,9 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({
         {/* Last Reports */}
         <Grid item xs={12} md={6}>
           <Paper sx={{ p: 2 }}>
-            <Typography variant='subtitle1'>Last Reports</Typography>
+            <Typography variant='h6' gutterBottom>
+              Last Reports
+            </Typography>
             <MiniReportsList role={role} clerkUserId={clerkUserId} />
           </Paper>
         </Grid>
@@ -46,7 +50,7 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({
         {/* Task Location (с мини-картой) */}
         <Grid item xs={12} md={6}>
           <Paper sx={{ p: 2 }}>
-            <Typography variant='subtitle1'>Task Location</Typography>
+            <Typography variant='h6'>Task Location</Typography>
             <MiniMap role={role} clerkUserId={clerkUserId} />
           </Paper>
         </Grid>
@@ -54,6 +58,7 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({
         {/* Financial Metrics */}
         <Grid item xs={12} md={6}>
           <Paper sx={{ p: 2 }}>
+            <Typography variant='h6'>Financial Metrics</Typography>
             <FinancialMetrics />
           </Paper>
         </Grid>
@@ -61,7 +66,9 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({
         {/* Дополнительный блок */}
         <Grid item xs={12} md={6}>
           <Paper sx={{ p: 2 }}>
-            <Typography variant='subtitle1'>Some Future Block</Typography>
+            <Typography variant='h6' gutterBottom>
+              Some Future Block
+            </Typography>
           </Paper>
         </Grid>
       </Grid>
