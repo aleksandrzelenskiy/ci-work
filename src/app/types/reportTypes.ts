@@ -1,5 +1,11 @@
 // /app/types/reportTypes.ts
 
+export interface BaseStatus {
+  baseId: string;
+  status: string;
+  latestStatusChangeDate: string;
+}
+
 export interface IEvent {
   action: string;
   author: string;
@@ -8,6 +14,7 @@ export interface IEvent {
   details?: Record<string, unknown>;
 }
 
+// Серверный формат IReport
 export interface IReport {
   _id: string;
   reportId: string;
@@ -25,21 +32,18 @@ export interface IReport {
   events: IEvent[];
 }
 
-export interface BaseStatus {
-  baseId: string;
-  status: string;
-  latestStatusChangeDate: string;
-}
-
 export interface ReportClient {
-  initiatorName: string | undefined;
-  executorName: string | undefined;
-  reviewerName: string | undefined;
   reportId: string;
   task: string;
-  userId: string;
-  userName: string;
-  userAvatar: string;
+  authorId?: string;
+  executorId?: string;
+  executorName?: string;
+  initiatorId?: string;
+  initiatorName?: string;
+  reviewerName?: string;
+  userId?: string;
+  userName?: string;
+  userAvatar?: string;
   createdAt: string;
   baseStatuses: BaseStatus[];
 }

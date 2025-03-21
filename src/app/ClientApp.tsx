@@ -240,7 +240,7 @@ export default function ClientApp({ children }: { children: React.ReactNode }) {
                     sx={{ flexGrow: 1, display: 'flex', alignItems: 'center' }}
                   >
                     <Badge
-                      badgeContent={`B`}
+                      badgeContent={`Pro`}
                       color='primary'
                       anchorOrigin={{
                         vertical: 'top',

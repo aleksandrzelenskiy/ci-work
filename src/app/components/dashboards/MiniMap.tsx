@@ -65,7 +65,7 @@ export default function MiniMap({ role, clerkUserId }: MiniMapProps) {
       // Executor видит задачи, где executorId совпадает с clerkUserId
       return tasks.filter((t) => t.executorId === clerkUserId);
     }
-    // На всякий случай, если какая-то иная роль, вернём пустой массив
+    // если какая-то иная роль, вернём пустой массив
     return [];
   }, [role, clerkUserId, tasks]);
 

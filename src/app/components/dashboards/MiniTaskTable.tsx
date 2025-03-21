@@ -153,8 +153,8 @@ export default function MiniTaskTable({
           <Table size='small' stickyHeader>
             <TableHead>
               <TableRow>
-                <TableCell>Task</TableCell>
-                <TableCell align='center'>Created</TableCell>
+                <TableCell align='center'>ID</TableCell>
+                <TableCell align='center'>Task</TableCell>
                 <TableCell align='center'>Due Date</TableCell>
                 <TableCell align='center'>Status</TableCell>
                 <TableCell align='center'>Priority</TableCell>
@@ -165,12 +165,14 @@ export default function MiniTaskTable({
                 <TableRow key={task.taskId}>
                   <TableCell>
                     <Link href={`/tasks/${task.taskId.toLowerCase()}`}>
-                      {task.taskName}
-                      {task.bsNumber ? ` / ${task.bsNumber}` : ''}
+                      {task.taskId}
                     </Link>
                   </TableCell>
                   <TableCell>
-                    {new Date(task.createdAt).toLocaleDateString()}
+                    <Link href={`/tasks/${task.taskId.toLowerCase()}`}>
+                      {task.taskName}
+                      {task.bsNumber ? ` / ${task.bsNumber}` : ''}
+                    </Link>
                   </TableCell>
                   <TableCell>
                     {new Date(task.dueDate).toLocaleDateString()}
@@ -217,7 +219,7 @@ export default function MiniTaskTable({
         }}
       >
         <Link href='/tasks'>
-          <Button variant='outlined'>All Tasks</Button>
+          <Button variant='text'>All Tasks</Button>
         </Link>
       </Box>
     </Box>
