@@ -35,6 +35,7 @@ export interface TaskEvent {
     oldStatus?: CurrentStatus;
     newStatus?: CurrentStatus;
     comment?: string;
+    commentId?: string;
   };
 }
 
@@ -49,6 +50,15 @@ export interface PhotoReport {
   fixedFiles: string[];
 }
 
+export interface Comment {
+  profilePic: string | undefined;
+  _id?: string;
+  text: string;
+  author: string;
+  authorId: string;
+  createdAt: Date;
+  photoUrl?: string;
+}
 export interface Task {
   _id?: string;
   taskId: string;
@@ -81,8 +91,8 @@ export interface Task {
   };
   events?: TaskEvent[];
   photoReports?: PhotoReport[];
+  comments?: Comment[];
 }
-
 export interface CreateTaskPayload extends Omit<Task, '_id' | 'createdAt'> {
   attachments?: string[];
 }

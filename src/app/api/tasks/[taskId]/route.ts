@@ -32,11 +32,13 @@ interface UpdateData {
   executorId?: string;
   dueDate?: string;
   priority?: PriorityLevel;
+  // Поле event используется только для статуса
   event?: {
     details?: {
       comment?: string;
     };
   };
+  // Поле comment теперь не используется – комментарии добавляются через отдельный эндпоинт
   existingAttachments?: string[];
 }
 
@@ -53,12 +55,14 @@ async function connectToDatabase() {
 /**
  * GET-запрос для получения задачи по ID
  */
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
-export async function GET(request: NextRequest, context: any) {
+export async function GET(
+  request: NextRequest,
+  context: { params: Promise<{ taskId: string }> }
+) {
   try {
     await connectToDatabase();
 
-    const { taskId } = context.params ?? {};
+    const { taskId } = await context.params;
     if (!taskId) {
       return NextResponse.json(
         { error: 'No taskId provided' },
@@ -94,12 +98,14 @@ export async function GET(request: NextRequest, context: any) {
 /**
  * PATCH-запрос для обновления задачи
  */
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
-export async function PATCH(request: NextRequest, context: any) {
+export async function PATCH(
+  request: NextRequest,
+  context: { params: Promise<{ taskId: string }> }
+) {
   try {
     await connectToDatabase();
 
-    const { taskId } = context.params ?? {};
+    const { taskId } = await context.params;
     if (!taskId) {
       return NextResponse.json(
         { error: 'No taskId provided' },
@@ -134,7 +140,6 @@ export async function PATCH(request: NextRequest, context: any) {
     } else if (contentType?.includes('multipart/form-data')) {
       const formData = await request.formData();
       const entries = Array.from(formData.entries());
-
       const otherData: Record<string, FormDataEntryValue> = {};
       for (const [key, value] of entries) {
         if (key.startsWith('attachments_') && value instanceof File) {
@@ -143,11 +148,9 @@ export async function PATCH(request: NextRequest, context: any) {
           otherData[key] = value;
         }
       }
-
       updateData = Object.fromEntries(
         Object.entries(otherData).map(([k, v]) => [k, v.toString()])
       ) as unknown as UpdateData;
-
       if (
         updateData.existingAttachments &&
         !Array.isArray(updateData.existingAttachments)
@@ -155,7 +158,6 @@ export async function PATCH(request: NextRequest, context: any) {
         console.error('Invalid existingAttachments format');
         updateData.existingAttachments = [];
       }
-
       if (otherData.existingAttachments) {
         try {
           updateData.existingAttachments = JSON.parse(
@@ -183,7 +185,6 @@ export async function PATCH(request: NextRequest, context: any) {
       const oldStatus = task.status;
       if (oldStatus !== updateData.status) {
         task.status = updateData.status;
-
         const statusEvent: TaskEvent = {
           action: 'STATUS_CHANGED',
           author: `${user.firstName} ${user.lastName}`.trim() || 'Unknown',
@@ -195,10 +196,8 @@ export async function PATCH(request: NextRequest, context: any) {
             comment: updateData.event?.details?.comment,
           },
         };
-
         task.events = task.events || [];
         task.events.push(statusEvent);
-
         statusChanged = true;
         oldStatusForEmail = oldStatus;
         newStatusForEmail = task.status;
@@ -232,12 +231,10 @@ export async function PATCH(request: NextRequest, context: any) {
     if (updateData.executorId !== undefined) {
       const previousExecutorId = task.executorId;
       const previousStatus = task.status;
-
       task.executorId = updateData.executorId;
       const executor = await UserModel.findOne({
         clerkUserId: updateData.executorId,
       });
-
       if (executor) {
         task.executorName = executor.name;
         task.executorEmail = executor.email;
@@ -245,13 +242,10 @@ export async function PATCH(request: NextRequest, context: any) {
         task.executorName = '';
         task.executorEmail = '';
       }
-
       if (previousExecutorId !== updateData.executorId) {
         const newStatus = updateData.executorId ? 'Assigned' : 'To do';
-
         if (previousStatus !== newStatus) {
           task.status = newStatus;
-
           const statusEvent: TaskEvent = {
             action: 'STATUS_CHANGED',
             author: `${user.firstName} ${user.lastName}`.trim() || 'Unknown',
@@ -265,10 +259,8 @@ export async function PATCH(request: NextRequest, context: any) {
                 : 'The executor is deleted',
             },
           };
-
           task.events = task.events || [];
           task.events.push(statusEvent);
-
           statusChanged = true;
           oldStatusForEmail = previousStatus;
           newStatusForEmail = newStatus;
@@ -305,10 +297,8 @@ export async function PATCH(request: NextRequest, context: any) {
       task.attachments = task.attachments.filter((attachment: string) =>
         existingAttachments.includes(attachment)
       );
-
       const uploadDir = join(process.cwd(), 'public', 'uploads');
       await fs.mkdir(uploadDir, { recursive: true });
-
       const newAttachments: string[] = [];
       for (const file of attachments) {
         const buffer = Buffer.from(await file.arrayBuffer());
@@ -334,7 +324,6 @@ export async function PATCH(request: NextRequest, context: any) {
       try {
         const frontendUrl = process.env.FRONTEND_URL || 'https://ciwork.pro';
         const taskLink = `${frontendUrl}/tasks/${updatedTask.taskId}`;
-
         const recipients = [
           updatedTask.authorEmail,
           updatedTask.initiatorEmail,
@@ -342,13 +331,11 @@ export async function PATCH(request: NextRequest, context: any) {
         ]
           .filter((email) => email && email !== '')
           .filter((value, index, self) => self.indexOf(value) === index);
-
         for (const email of recipients) {
           let role = 'Другой участник';
           if (email === updatedTask.authorEmail) role = 'Автор';
           else if (email === updatedTask.initiatorEmail) role = 'Инициатор';
           else if (email === updatedTask.executorEmail) role = 'Исполнитель';
-
           let roleText = '';
           switch (role) {
             case 'Автор':
@@ -363,7 +350,6 @@ export async function PATCH(request: NextRequest, context: any) {
             default:
               roleText = `Вы участвуете в задаче "${updatedTask.taskName}".`;
           }
-
           const mainContent = `
 Статус изменен с: ${oldStatusForEmail}
 На: ${newStatusForEmail}
@@ -371,7 +357,6 @@ export async function PATCH(request: NextRequest, context: any) {
 Комментарий: ${commentForEmail || 'нет'}
 Ссылка: ${taskLink}
           `;
-
           const fullText = `${roleText}\n\n${mainContent}`;
           const fullHtml = `
 <p>${roleText}</p>
@@ -384,7 +369,6 @@ export async function PATCH(request: NextRequest, context: any) {
 ${commentForEmail ? `<p>Комментарий: ${commentForEmail}</p>` : ''}
 <p><a href="${taskLink}">Перейти к задаче</a></p>
           `;
-
           await sendEmail({
             to: email,
             subject: `Статус задачи ${updatedTask.taskId} изменен`,
@@ -406,6 +390,7 @@ ${commentForEmail ? `<p>Комментарий: ${commentForEmail}</p>` : ''}
     );
   }
 }
+
 /**
  * Функция для генерации Excel файла с закрывающими документами.
  * Используется библиотека exceljs для создания книги, добавления листа и записи данных по составу работ,

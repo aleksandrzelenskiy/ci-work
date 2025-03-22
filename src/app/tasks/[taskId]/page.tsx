@@ -1,5 +1,3 @@
-// app/tasks/[taskId]/page.tsx
-
 'use client';
 
 import React, { useState, useEffect } from 'react';
@@ -32,6 +30,8 @@ import {
   Alert,
   Grid,
   Paper,
+  TextField,
+  Avatar,
 } from '@mui/material';
 import Timeline from '@mui/lab/Timeline';
 import TimelineItem from '@mui/lab/TimelineItem';
@@ -40,12 +40,17 @@ import TimelineConnector from '@mui/lab/TimelineConnector';
 import TimelineContent from '@mui/lab/TimelineContent';
 import TimelineDot from '@mui/lab/TimelineDot';
 import TimelineOppositeContent from '@mui/lab/TimelineOppositeContent';
-import InfoIcon from '@mui/icons-material/Info';
-import LocationOnIcon from '@mui/icons-material/LocationOn';
-import DescriptionIcon from '@mui/icons-material/Description';
-import GroupIcon from '@mui/icons-material/Group';
+// import InfoIcon from '@mui/icons-material/Info';
+import InfoOutlinedIcon from '@mui/icons-material/InfoOutlined';
+// import LocationOnIcon from '@mui/icons-material/LocationOn';
+import LocationOnOutlinedIcon from '@mui/icons-material/LocationOnOutlined';
+// import DescriptionIcon from '@mui/icons-material/Description';
+import DescriptionOutlinedIcon from '@mui/icons-material/DescriptionOutlined';
+// import GroupIcon from '@mui/icons-material/Group';
+import GroupOutlinedIcon from '@mui/icons-material/GroupOutlined';
 import PhotoLibraryIcon from '@mui/icons-material/PhotoLibrary';
-import TableRowsIcon from '@mui/icons-material/TableRows';
+// import TableRowsIcon from '@mui/icons-material/TableRows';
+import TocOutlinedIcon from '@mui/icons-material/TocOutlined';
 import HistoryIcon from '@mui/icons-material/History';
 import CloseIcon from '@mui/icons-material/Close';
 import ArrowBackIcon from '@mui/icons-material/ArrowBack';
@@ -56,6 +61,7 @@ import CloudUploadIcon from '@mui/icons-material/CloudUpload';
 import CloudDownloadIcon from '@mui/icons-material/CloudDownload';
 import EditIcon from '@mui/icons-material/Edit';
 import AttachFileIcon from '@mui/icons-material/AttachFile';
+import CommentOutlinedIcon from '@mui/icons-material/CommentOutlined';
 import Skeleton from '@mui/material/Skeleton';
 
 import {
@@ -96,10 +102,10 @@ const Transition = React.forwardRef(function Transition(
 });
 
 export default function TaskDetailPage() {
-  const params = useParams();
+  const params = useParams() as { taskId: string };
   console.log('useParams() result:', params);
 
-  const { taskId } = params ?? {};
+  const { taskId } = params;
   console.log('taskId from useParams:', taskId);
 
   const [task, setTask] = useState<Task | null>(null);
@@ -123,6 +129,11 @@ export default function TaskDetailPage() {
   );
   const [isEditFormOpen, setIsEditFormOpen] = useState(false);
   const [visibleMaps, setVisibleMaps] = useState<Set<string>>(new Set());
+
+  // Состояния для комментариев
+  const [newCommentText, setNewCommentText] = useState('');
+  const [newCommentPhoto, setNewCommentPhoto] = useState<File | null>(null);
+  const [postingComment, setPostingComment] = useState(false);
 
   const toggleMapVisibility = (coordinates: string) => {
     setVisibleMaps((prev) => {
@@ -286,6 +297,43 @@ export default function TaskDetailPage() {
     fetchTask();
   }, [taskId]);
 
+  // Функция для отправки комментария
+  const handlePostComment = async () => {
+    if (!newCommentText) return;
+    setPostingComment(true);
+    try {
+      const formData = new FormData();
+      formData.append('text', newCommentText);
+      if (newCommentPhoto) {
+        formData.append('photo', newCommentPhoto);
+      }
+      const res = await fetch(`/api/tasks/${taskId}/comments`, {
+        method: 'POST',
+        body: formData,
+      });
+      if (!res.ok) {
+        throw new Error('Failed to post comment');
+      }
+      const data = await res.json();
+      setTask((prevTask) => {
+        if (!prevTask) return prevTask;
+        return {
+          ...prevTask,
+          comments: [...(prevTask.comments || []), data.comment],
+        };
+      });
+      setNewCommentText('');
+      setNewCommentPhoto(null);
+    } catch (error) {
+      console.error(error);
+      setSnackbarMessage('Failed to post comment');
+      setSnackbarSeverity('error');
+      setSnackbarOpen(true);
+    } finally {
+      setPostingComment(false);
+    }
+  };
+
   if (loading) {
     return <CircularProgress sx={{ display: 'block', margin: '20px auto' }} />;
   }
@@ -330,6 +378,7 @@ export default function TaskDetailPage() {
     );
   }
 
+  // Восстанавливаем функционал: переменные для определения роли и статуса задачи
   const isExecutor = userRole === 'executor';
   const isTaskAssigned = task.status === 'Assigned';
   const isTaskAtWork = task.status === 'At work';
@@ -359,10 +408,7 @@ export default function TaskDetailPage() {
           {task.taskName} | {task.bsNumber} &nbsp;
           <Chip
             label={task.status}
-            sx={{
-              backgroundColor: getStatusColor(task.status),
-              color: '#fff',
-            }}
+            sx={{ backgroundColor: getStatusColor(task.status), color: '#fff' }}
           />
         </Typography>
       </Box>
@@ -395,7 +441,7 @@ export default function TaskDetailPage() {
             <Accordion defaultExpanded>
               <AccordionSummary expandIcon={<ExpandMoreIcon />}>
                 <Typography variant='h6'>
-                  <InfoIcon /> Basic Information
+                  <InfoOutlinedIcon /> Basic Information
                 </Typography>
               </AccordionSummary>
               <AccordionDetails>
@@ -423,7 +469,6 @@ export default function TaskDetailPage() {
                     <Skeleton variant='text' width={100} />
                   )}
                 </Typography>
-
                 <Typography>
                   <strong>Priority:</strong> {task.priority}
                 </Typography>
@@ -442,7 +487,7 @@ export default function TaskDetailPage() {
             <Accordion>
               <AccordionSummary expandIcon={<ExpandMoreIcon />}>
                 <Typography variant='h6'>
-                  <LocationOnIcon /> Locations
+                  <LocationOnOutlinedIcon /> Locations
                 </Typography>
               </AccordionSummary>
               <AccordionDetails>
@@ -518,7 +563,7 @@ export default function TaskDetailPage() {
             <Accordion>
               <AccordionSummary expandIcon={<ExpandMoreIcon />}>
                 <Typography variant='h6'>
-                  <DescriptionIcon /> Description
+                  <DescriptionOutlinedIcon /> Description
                 </Typography>
               </AccordionSummary>
               <AccordionDetails>
@@ -551,7 +596,6 @@ export default function TaskDetailPage() {
                 </Typography>
               </AccordionSummary>
               <AccordionDetails>
-                {/* Order File */}
                 {userRole !== 'executor' && task.orderUrl && (
                   <Box sx={{ mb: 2 }}>
                     <Typography variant='body1'>
@@ -568,8 +612,6 @@ export default function TaskDetailPage() {
                     </Button>
                   </Box>
                 )}
-
-                {/* Closing Documents Link */}
                 {task.closingDocumentsUrl && (
                   <Box sx={{ mb: 2 }}>
                     <Typography variant='body1'>
@@ -587,8 +629,6 @@ export default function TaskDetailPage() {
                     </Button>
                   </Box>
                 )}
-
-                {/* Attachments List */}
                 {task.attachments?.map((fileUrl, index) => {
                   const fileName =
                     fileUrl.split('/').pop() || `attachment_${index + 1}`;
@@ -607,8 +647,6 @@ export default function TaskDetailPage() {
                     </Box>
                   );
                 })}
-
-                {/* Empty State */}
                 {((userRole === 'executor' && task.attachments?.length === 0) ||
                   (!task.orderUrl && task.attachments?.length === 0)) && (
                   <Typography variant='body2' color='textSecondary'>
@@ -623,7 +661,7 @@ export default function TaskDetailPage() {
             <Accordion>
               <AccordionSummary expandIcon={<ExpandMoreIcon />}>
                 <Typography variant='h6'>
-                  <GroupIcon /> Participants
+                  <GroupOutlinedIcon /> Participants
                 </Typography>
               </AccordionSummary>
               <AccordionDetails>
@@ -633,7 +671,6 @@ export default function TaskDetailPage() {
                 <Typography>
                   <strong>Email:</strong> {parseUserInfo(task.authorEmail).name}
                 </Typography>
-
                 <Typography sx={{ mt: 2 }}>
                   <strong>Initiator:</strong>{' '}
                   {parseUserInfo(task.initiatorName).name}
@@ -642,7 +679,6 @@ export default function TaskDetailPage() {
                   <strong>Email:</strong>{' '}
                   {parseUserInfo(task.initiatorEmail).name}
                 </Typography>
-
                 <Typography sx={{ mt: 2 }}>
                   <strong>Executor:</strong>{' '}
                   {parseUserInfo(task.executorName).name}
@@ -736,7 +772,7 @@ export default function TaskDetailPage() {
             )}
 
           <Box sx={{ textAlign: 'center' }}>
-            {userRole === 'executor' &&
+            {isExecutor &&
               (task.status === 'Done' ||
                 task.status === 'Pending' ||
                 task.status === 'Issues' ||
@@ -777,7 +813,7 @@ export default function TaskDetailPage() {
               onClick={toggleWorkItems}
             >
               <Typography variant='h6'>
-                <TableRowsIcon /> Work Items
+                <TocOutlinedIcon /> Work Items
               </Typography>
             </AccordionSummary>
             <AccordionDetails>
@@ -807,6 +843,7 @@ export default function TaskDetailPage() {
           </Accordion>
         </Grid>
 
+        {/* Кнопки для изменения статуса */}
         <Grid item xs={12}>
           {isExecutor && isTaskAssigned && (
             <Box sx={{ mb: 3 }}>
@@ -865,6 +902,110 @@ export default function TaskDetailPage() {
               </Box>
             </Box>
           )}
+        </Grid>
+
+        {/* Раздел комментариев */}
+        <Grid item xs={12}>
+          <Accordion defaultExpanded>
+            <AccordionSummary expandIcon={<ExpandMoreIcon />}>
+              <Typography variant='h6'>
+                <CommentOutlinedIcon /> Comments
+              </Typography>
+            </AccordionSummary>
+            <AccordionDetails>
+              {task.comments && task.comments.length > 0 ? (
+                task.comments.map((comment) => (
+                  <Box
+                    key={comment._id}
+                    sx={{
+                      display: 'flex',
+                      alignItems: 'flex-start',
+                      mb: 2,
+                      borderBottom: '1px solid #ccc',
+                      pb: 1,
+                    }}
+                  >
+                    <Avatar
+                      src={comment.profilePic}
+                      alt={comment.author}
+                      sx={{ width: 32, height: 32, mr: 1 }}
+                    />
+                    <Box>
+                      <Typography variant='body1'>{comment.text}</Typography>
+                      {comment.photoUrl && (
+                        <Box
+                          component='img'
+                          src={comment.photoUrl}
+                          alt='Comment photo'
+                          sx={{ maxWidth: '100%', mt: 1 }}
+                        />
+                      )}
+                      <Typography variant='caption' color='textSecondary'>
+                        {comment.author} -{' '}
+                        {new Date(comment.createdAt).toLocaleString()}
+                      </Typography>
+                    </Box>
+                  </Box>
+                ))
+              ) : (
+                <Typography variant='body2' color='textSecondary'>
+                  No comments yet
+                </Typography>
+              )}
+              <Box sx={{ mt: 2 }}>
+                <TextField
+                  label='Add a comment'
+                  multiline
+                  rows={3}
+                  fullWidth
+                  value={newCommentText}
+                  onChange={(e) => setNewCommentText(e.target.value)}
+                />
+                <Box
+                  sx={{ mt: 1, display: 'flex', alignItems: 'center', gap: 2 }}
+                >
+                  <Button
+                    variant='text'
+                    startIcon={<AttachFileIcon />}
+                    component='label'
+                  >
+                    {' '}
+                    Add photo
+                    <input
+                      type='file'
+                      hidden
+                      accept='image/*'
+                      onChange={(e) => {
+                        if (e.target.files && e.target.files[0]) {
+                          setNewCommentPhoto(e.target.files[0]);
+                        }
+                      }}
+                    />
+                  </Button>
+                  {newCommentPhoto && (
+                    <Typography variant='body2'>
+                      {newCommentPhoto.name}
+                    </Typography>
+                  )}
+                </Box>
+                <Box sx={{ textAlign: 'center' }}>
+                  <Button
+                    variant='contained'
+                    color='primary'
+                    sx={{ mt: 2 }}
+                    onClick={handlePostComment}
+                    disabled={postingComment}
+                  >
+                    {postingComment ? (
+                      <CircularProgress size={24} />
+                    ) : (
+                      'Post Comment'
+                    )}
+                  </Button>
+                </Box>
+              </Box>
+            </AccordionDetails>
+          </Accordion>
         </Grid>
 
         <Grid item xs={12}>
@@ -1030,6 +1171,7 @@ export default function TaskDetailPage() {
           {snackbarMessage}
         </Alert>
       </Snackbar>
+
       <TaskForm
         open={isEditFormOpen}
         task={task}
@@ -1040,11 +1182,9 @@ export default function TaskDetailPage() {
               method: 'PATCH',
               body: formData,
             });
-
             if (!response.ok) {
               throw new Error('Failed to update task');
             }
-
             const { task: updatedTask } = await response.json();
             setTask(updatedTask);
             setSnackbarMessage('Task updated successfully!');

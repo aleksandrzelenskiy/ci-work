@@ -72,6 +72,17 @@ const TaskSchema = new Schema<Task & Document>({
       details: { type: Schema.Types.Mixed }, // Детали изменения (например, старый и новый статус)
     },
   ],
+  comments: [
+    {
+      _id: { type: String, required: true },
+      text: { type: String, required: true },
+      author: { type: String, required: true },
+      authorId: { type: String, required: true },
+      createdAt: { type: Date, default: Date.now },
+      photoUrl: { type: String },
+      profilePic: { type: String },
+    },
+  ],
 });
 
 export default models.Task || model<Task & Document>('Task', TaskSchema);
