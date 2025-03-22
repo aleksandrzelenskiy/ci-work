@@ -16,13 +16,12 @@ export const dynamic = 'force-dynamic';
 
 export async function POST(
   request: NextRequest,
-  context: { params: { taskId: string } }
+  { params: { taskId } }: { params: { taskId: string } }
 ) {
   try {
     await dbConnect();
 
-    // Получаем taskId из параметров
-    const { taskId } = await context.params;
+    // Проверяем наличие taskId
     if (!taskId) {
       return NextResponse.json(
         { error: 'No taskId provided' },
