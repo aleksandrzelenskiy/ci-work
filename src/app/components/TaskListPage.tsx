@@ -782,17 +782,10 @@ export default function TaskListPage() {
           </Table>
         </TableContainer>
 
-        {/* Селект для выбора количества строк и пагинация */}
-        <Box
-          sx={{
-            display: 'flex',
-            justifyContent: 'space-between',
-            alignItems: 'center',
-            p: 2,
-          }}
-        >
+        {/* Селект для выбора количества строк */}
+        <Box sx={{ display: 'flex', justifyContent: 'center', mt: 2 }}>
           <FormControl sx={{ minWidth: 120 }} size='small'>
-            <InputLabel id='rows-per-page-label'>Отображать по</InputLabel>
+            <InputLabel id='rows-per-page-label'>Items number</InputLabel>
             <Select
               labelId='rows-per-page-label'
               id='rows-per-page'
@@ -802,7 +795,7 @@ export default function TaskListPage() {
                 setRowsPerPage(value);
                 setCurrentPage(1);
               }}
-              label='Строк на странице'
+              label='Items number'
             >
               <MenuItem value={10}>10</MenuItem>
               <MenuItem value={50}>50</MenuItem>
@@ -810,7 +803,10 @@ export default function TaskListPage() {
               <MenuItem value={-1}>Все</MenuItem>
             </Select>
           </FormControl>
+        </Box>
 
+        {/* Пагинация */}
+        <Box sx={{ display: 'flex', justifyContent: 'center', p: 2 }}>
           <Pagination
             count={totalPages}
             page={currentPage}
