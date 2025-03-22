@@ -16,8 +16,11 @@ export const dynamic = 'force-dynamic';
 
 export async function POST(
   request: NextRequest,
-  { params: { taskId } }: { params: { taskId: string } }
+  context: { params: { taskId: string } }
 ) {
+  // Извлекаем taskId из контекста
+  const { taskId } = context.params;
+
   try {
     await dbConnect();
 
