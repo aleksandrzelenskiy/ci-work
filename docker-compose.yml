@@ -1,3 +1,4 @@
+version: '3.8'
 services:
   app:
     build: .
@@ -32,3 +33,9 @@ services:
 volumes:
   ci-work_db_data:
     name: ci-work_db_data
+
+networks:
+  default:
+    driver: bridge
+    driver_opts:
+      com.docker.network.driver.mtu: '1450'
