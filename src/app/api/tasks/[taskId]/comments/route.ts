@@ -9,17 +9,17 @@ import { writeFile } from 'fs/promises';
 import { join } from 'path';
 import { v4 as uuidv4 } from 'uuid';
 import fs from 'fs/promises';
-import { sendEmail } from '@/utils/mailer'; // Импорт функции отправки письма
+import { sendEmail } from '@/utils/mailer';
 
 export const runtime = 'nodejs';
 export const dynamic = 'force-dynamic';
 
 export async function POST(
   request: NextRequest,
-  context: { params: { taskId: string } }
+  context: { params: Promise<{ taskId: string }> }
 ) {
-  // Извлекаем taskId из контекста
-  const { taskId } = context.params;
+  // Дожидаемся получения параметров
+  const { taskId } = await context.params;
 
   try {
     await dbConnect();
