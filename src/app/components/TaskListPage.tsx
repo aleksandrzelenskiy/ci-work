@@ -547,7 +547,9 @@ export default function TaskListPage() {
                     <Chip
                       key={label}
                       label={`${label}: ${
-                        typeof value === 'string' && !isNaN(Date.parse(value))
+                        label !== 'BS Number' &&
+                        typeof value === 'string' &&
+                        !isNaN(Date.parse(value))
                           ? new Date(value).toLocaleDateString()
                           : value
                       }`}
@@ -557,6 +559,7 @@ export default function TaskListPage() {
                     />
                   )
               )}
+
               {createdDateRange[0] && createdDateRange[1] && (
                 <Chip
                   key='created-range'
