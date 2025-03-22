@@ -81,10 +81,8 @@ function Row({
 
   const parseUserInfo = (userString?: string) => {
     if (!userString) return { name: 'N/A', email: 'N/A' };
-
     const cleanedString = userString.replace(/\)$/, '');
     const parts = cleanedString.split(' (');
-
     return {
       name: parts[0] || 'N/A',
       email: parts[1] || 'N/A',
@@ -185,7 +183,6 @@ function Row({
               color='primary'
               sx={{ mt: 1, marginLeft: 2 }}
             />
-
             <Box sx={{ marginLeft: 3 }}>
               <Box sx={{ mb: 2, mt: 2 }}>
                 <Typography variant='subtitle1'>BS Number</Typography>
@@ -204,24 +201,6 @@ function Row({
                 >
                   {task.bsAddress}
                 </Typography>
-                {/* <Typography variant='subtitle1'>Location</Typography> */}
-                {/* <Typography
-                  variant='body2'
-                  color='text.secondary'
-                  component='div'
-                >
-                  {task.bsLocation.map((item: BsLocation) => (
-                    <Box key={item.coordinates}>
-                      <Typography
-                        variant='body2'
-                        color='text.secondary'
-                        component='div'
-                      >
-                        {item.name} {item.coordinates}
-                      </Typography>
-                    </Box>
-                  ))}
-                </Typography> */}
                 {role !== 'executor' && (
                   <>
                     <Typography variant='subtitle1'>Cost</Typography>
@@ -318,17 +297,22 @@ export default function TaskListPage() {
   const [anchorEl, setAnchorEl] = useState<HTMLElement | null>(null);
   const [currentFilter, setCurrentFilter] = useState<string>('');
   const [currentPage, setCurrentPage] = useState(1);
-  const itemsPerPage = 10;
 
-  // Расчет данных для пагинации
+  // Новое состояние для выбора количества строк на странице
+  // Значение -1 будет обозначать "Все"
+  const [rowsPerPage, setRowsPerPage] = useState<number>(10);
+
+  // Пагинация с учётом выбранного количества строк
   const paginatedTasks = useMemo(() => {
-    const startIndex = (currentPage - 1) * itemsPerPage;
-    return filteredTasks.slice(startIndex, startIndex + itemsPerPage);
-  }, [currentPage, filteredTasks]);
+    if (rowsPerPage === -1) return filteredTasks;
+    const startIndex = (currentPage - 1) * rowsPerPage;
+    return filteredTasks.slice(startIndex, startIndex + rowsPerPage);
+  }, [currentPage, filteredTasks, rowsPerPage]);
 
   const totalPages = useMemo(() => {
-    return Math.ceil(filteredTasks.length / itemsPerPage);
-  }, [filteredTasks]);
+    if (rowsPerPage === -1) return 1;
+    return Math.ceil(filteredTasks.length / rowsPerPage);
+  }, [filteredTasks, rowsPerPage]);
 
   const activeFiltersCount = useMemo(
     () =>
@@ -370,11 +354,9 @@ export default function TaskListPage() {
       try {
         const response = await fetch('/api/tasks');
         const data = await response.json();
-
         if (!response.ok) {
           throw new Error(data.error || 'Failed to fetch tasks');
         }
-
         const tasksWithId = data.tasks.map((task: Task) => ({
           ...task,
           workItems: task.workItems.map((workItem: WorkItem) => ({
@@ -382,7 +364,6 @@ export default function TaskListPage() {
             id: uuidv4(),
           })),
         }));
-
         setTasks(tasksWithId);
         setLoading(false);
       } catch (error) {
@@ -401,7 +382,7 @@ export default function TaskListPage() {
         if (userResponse.success && userResponse.data) {
           const userRole = userResponse.data.role;
           console.log('User role:', userRole);
-          setRole(userRole); // Устанавливаем роль в состояние
+          setRole(userRole);
         } else {
           console.error('Failed to fetch user role:', userResponse.message);
         }
@@ -801,8 +782,35 @@ export default function TaskListPage() {
           </Table>
         </TableContainer>
 
-        {/* Пагинация */}
-        <Box sx={{ display: 'flex', justifyContent: 'center', p: 2 }}>
+        {/* Селект для выбора количества строк и пагинация */}
+        <Box
+          sx={{
+            display: 'flex',
+            justifyContent: 'space-between',
+            alignItems: 'center',
+            p: 2,
+          }}
+        >
+          <FormControl sx={{ minWidth: 120 }} size='small'>
+            <InputLabel id='rows-per-page-label'>Отображать по</InputLabel>
+            <Select
+              labelId='rows-per-page-label'
+              id='rows-per-page'
+              value={rowsPerPage}
+              onChange={(e) => {
+                const value = Number(e.target.value);
+                setRowsPerPage(value);
+                setCurrentPage(1);
+              }}
+              label='Строк на странице'
+            >
+              <MenuItem value={10}>10</MenuItem>
+              <MenuItem value={50}>50</MenuItem>
+              <MenuItem value={100}>100</MenuItem>
+              <MenuItem value={-1}>Все</MenuItem>
+            </Select>
+          </FormControl>
+
           <Pagination
             count={totalPages}
             page={currentPage}
