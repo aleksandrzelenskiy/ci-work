@@ -1,3 +1,5 @@
+// app/tasks/[taskId]/page.tsx
+
 'use client';
 
 import React, { useState, useEffect } from 'react';
@@ -572,6 +574,22 @@ export default function TaskDetailPage() {
             </Accordion>
           </Box>
 
+          {/* Closing Documents Section */}
+          {task.closingDocumentsUrl && (
+            <Paper elevation={3} sx={{ p: 2, mb: 3 }}>
+              <Typography variant='h6'>Closing Documents</Typography>
+              <Button
+                component='a'
+                href={task.closingDocumentsUrl}
+                download
+                startIcon={<CloudDownloadIcon />}
+                sx={{ mt: 1 }}
+              >
+                Download {task.closingDocumentsUrl.split('/').pop()}
+              </Button>
+            </Paper>
+          )}
+
           {/* Attachments Section */}
           <Box sx={{ mb: 3 }}>
             <Accordion>
@@ -609,23 +627,6 @@ export default function TaskDetailPage() {
                       sx={{ mt: 1 }}
                     >
                       Download Order
-                    </Button>
-                  </Box>
-                )}
-                {task.closingDocumentsUrl && (
-                  <Box sx={{ mb: 2 }}>
-                    <Typography variant='body1'>
-                      Closing Documents:{' '}
-                      {task.closingDocumentsUrl.split('/').pop()}
-                    </Typography>
-                    <Button
-                      component='a'
-                      href={task.closingDocumentsUrl}
-                      download
-                      startIcon={<CloudDownloadIcon />}
-                      sx={{ mt: 1 }}
-                    >
-                      Download Closing Documents
                     </Button>
                   </Box>
                 )}

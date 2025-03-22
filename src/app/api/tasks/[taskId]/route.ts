@@ -15,13 +15,7 @@ import { join } from 'path';
 import { v4 as uuidv4 } from 'uuid';
 import fs from 'fs/promises';
 import { sendEmail } from '@/utils/mailer';
-
-interface TaskForExcel {
-  taskName: string;
-  bsNumber: string;
-  bsAddress: string;
-  workItems: { workType: string }[];
-}
+import { generateClosingDocumentsExcel } from '@/utils/generateExcel';
 
 interface UpdateData {
   status?: string;
@@ -389,70 +383,4 @@ ${commentForEmail ? `<p>Комментарий: ${commentForEmail}</p>` : ''}
       { status: 500 }
     );
   }
-}
-
-/**
- * Функция для генерации Excel файла с закрывающими документами.
- * Используется библиотека exceljs для создания книги, добавления листа и записи данных по составу работ,
- * номеру базовой станции и адресу.
- */
-async function generateClosingDocumentsExcel(
-  task: TaskForExcel
-): Promise<string> {
-  // Динамический импорт exceljs (убедитесь, что пакет установлен: npm install exceljs)
-  const ExcelJS = (await import('exceljs')).default;
-  const workbook = new ExcelJS.Workbook();
-  const worksheet = workbook.addWorksheet('Closing Documents');
-
-  // Определяем колонки Excel
-  worksheet.columns = [
-    { header: 'Работа', key: 'work', width: 50 },
-    { header: 'BS номер', key: 'bsNumber', width: 20 },
-    { header: 'Адрес', key: 'address', width: 70 },
-  ];
-
-  // Заполняем строки на основе workItems задачи
-  task.workItems.forEach((item) => {
-    worksheet.addRow({
-      work: item.workType,
-      bsNumber: task.bsNumber,
-      address: task.bsAddress,
-    });
-  });
-
-  // Формируем имя папки на основе названия задачи и номера базовой станции
-  const cleanTaskName = task.taskName
-    .replace(/[^a-z0-9а-яё]/gi, '_')
-    .toLowerCase()
-    .replace(/_+/g, '_')
-    .replace(/^_|_$/g, '');
-  const cleanBsNumber = task.bsNumber
-    .replace(/[^a-z0-9-]/gi, '_')
-    .toLowerCase()
-    .replace(/_+/g, '_')
-    .replace(/^_|_$/g, '');
-  const taskFolderName = `${cleanTaskName}_${cleanBsNumber}`;
-
-  // Определяем директорию для сохранения Excel файла
-  const path = await import('path');
-  const fsPromises = fs;
-  const closingDir = path.join(
-    process.cwd(),
-    'public',
-    'uploads',
-    'taskattach',
-    taskFolderName,
-    'closing'
-  );
-  await fsPromises.mkdir(closingDir, { recursive: true });
-
-  const fileName = `closing_${Date.now()}.xlsx`;
-  const filePath = path.join(closingDir, fileName);
-
-  // Сохраняем книгу в файл
-  await workbook.xlsx.writeFile(filePath);
-
-  // Возвращаем URL для скачивания (путь относительно папки public)
-  const fileUrl = `/uploads/taskattach/${taskFolderName}/closing/${fileName}`;
-  return fileUrl;
 }

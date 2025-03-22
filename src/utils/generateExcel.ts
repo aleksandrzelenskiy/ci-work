@@ -1,4 +1,5 @@
 // src/utils/generateExcel.ts
+
 import ExcelJS from 'exceljs';
 import path from 'path';
 import { existsSync, mkdirSync } from 'fs';
@@ -10,23 +11,25 @@ export async function generateClosingDocumentsExcel(
   const workbook = new ExcelJS.Workbook();
   const worksheet = workbook.addWorksheet('Closing Documents');
 
-  // Определяем колонки: можно добавлять и другие поля, если нужно
-  worksheet.columns = [
-    { header: 'Работа', key: 'work', width: 50 },
-    { header: 'BS номер', key: 'bsNumber', width: 20 },
-    { header: 'Адрес', key: 'address', width: 70 },
-  ];
+  // Добавляем заголовок в первой строке и объединяем ячейки A1:C1
+  const header = `BS номер: ${task.bsNumber}`;
+  worksheet.addRow([header]);
+  worksheet.mergeCells('A1:C1');
 
-  // Заполняем строки данными из workItems
+  // Добавляем строку с заголовками таблицы (начинается со второй строки)
+  worksheet.addRow(['', 'Работа', 'Количество']);
+
+  // Настройка ширины столбцов
+  worksheet.getColumn(1).width = 5; // пустой столбец
+  worksheet.getColumn(2).width = 50; // Работа
+  worksheet.getColumn(3).width = 15; // Количество
+
+  // Заполняем таблицу данными из workItems (начиная с третьей строки)
   task.workItems.forEach((item) => {
-    worksheet.addRow({
-      work: item.workType,
-      bsNumber: task.bsNumber,
-      address: task.bsAddress,
-    });
+    worksheet.addRow(['', item.workType, item.quantity]);
   });
 
-  // Определяем папку для сохранения: можно использовать логику, аналогичную созданию taskFolderName
+  // Формируем путь для сохранения файла
   const cleanTaskName = task.taskName
     .replace(/[^a-z0-9а-яё]/gi, '_')
     .toLowerCase()
@@ -39,7 +42,7 @@ export async function generateClosingDocumentsExcel(
     .replace(/^_|_$/g, '');
   const taskFolderName = `${cleanTaskName}_${cleanBsNumber}`;
 
-  // Формируем путь для сохранения файла (например, в папку public/uploads/taskattach/{taskFolderName}/closing)
+  // Путь для сохранения файла (например, в папку public/uploads/taskattach/{taskFolderName}/closing)
   const closingDir = path.join(
     process.cwd(),
     'public',
@@ -59,7 +62,7 @@ export async function generateClosingDocumentsExcel(
   // Сохраняем файл
   await workbook.xlsx.writeFile(filePath);
 
-  // Возвращаем URL, по которому файл будет доступен (учтите, что public является корневой папкой)
+  // Возвращаем URL, по которому файл будет доступен
   const fileUrl = `/uploads/taskattach/${taskFolderName}/closing/${fileName}`;
   return fileUrl;
 }
