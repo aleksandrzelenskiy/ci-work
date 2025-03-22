@@ -378,7 +378,7 @@ export default function TaskDetailPage() {
     );
   }
 
-  // Восстанавливаем функционал: переменные для определения роли и статуса задачи
+  // Переменные для определения роли и статуса задачи
   const isExecutor = userRole === 'executor';
   const isTaskAssigned = task.status === 'Assigned';
   const isTaskAtWork = task.status === 'At work';
@@ -906,10 +906,19 @@ export default function TaskDetailPage() {
 
         {/* Раздел комментариев */}
         <Grid item xs={12}>
-          <Accordion defaultExpanded>
+          <Accordion>
             <AccordionSummary expandIcon={<ExpandMoreIcon />}>
               <Typography variant='h6'>
-                <CommentOutlinedIcon /> Comments
+                <CommentOutlinedIcon sx={{ mr: 1 }} />
+                Comments
+                {task.comments && task.comments.length > 0 && (
+                  <Chip
+                    label={task.comments.length}
+                    color='primary'
+                    size='small'
+                    sx={{ ml: 1 }}
+                  />
+                )}
               </Typography>
             </AccordionSummary>
             <AccordionDetails>
@@ -969,7 +978,6 @@ export default function TaskDetailPage() {
                     startIcon={<AttachFileIcon />}
                     component='label'
                   >
-                    {' '}
                     Add photo
                     <input
                       type='file'
