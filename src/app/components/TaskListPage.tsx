@@ -3,6 +3,7 @@
 'use client';
 
 import React, { useState, useEffect, useMemo } from 'react';
+import { useSearchParams } from 'next/navigation';
 import { v4 as uuidv4 } from 'uuid';
 import {
   Box,
@@ -394,6 +395,15 @@ export default function TaskListPage() {
     fetchTasks();
     fetchUserRole();
   }, []);
+
+  const searchParams = useSearchParams();
+
+  useEffect(() => {
+    const statusParam = searchParams.get('status');
+    if (statusParam) {
+      setStatusFilter(statusParam);
+    }
+  }, [searchParams]);
 
   useEffect(() => {
     let filtered = [...tasks];

@@ -12,6 +12,7 @@ import {
 } from 'recharts';
 import { Task } from '@/app/types/taskTypes';
 import { getStatusColor } from '@/utils/statusColors';
+import { useRouter } from 'next/navigation';
 
 interface ChartData {
   name: string;
@@ -22,6 +23,7 @@ export default function ExecutorFinancialMetrics() {
   const [tasks, setTasks] = useState<Task[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const router = useRouter();
 
   useEffect(() => {
     async function fetchTasks() {
@@ -66,8 +68,17 @@ export default function ExecutorFinancialMetrics() {
     );
   }
 
-  // Допустимые статусы, как они записаны в базе
-  const statuses = ['Assigned', 'At work', 'Done', 'Issues', 'Agreed'];
+  // Полный список допустимых статусов
+  const statuses: string[] = [
+    'To do',
+    'Assigned',
+    'At work',
+    'Done',
+    'Pending',
+    'Issues',
+    'Fixed',
+    'Agreed',
+  ];
 
   // Группируем задачи по статусам и считаем количество для каждого
   const chartData: ChartData[] = statuses.map((status) => {
@@ -78,7 +89,7 @@ export default function ExecutorFinancialMetrics() {
     };
   });
 
-  // Исключаем статусы, у которых нет задач
+  // Оставляем только статусы, у которых количество задач больше нуля
   const filteredChartData = chartData.filter((data) => data.count > 0);
 
   // Общее количество задач для всех отображаемых статусов
@@ -86,6 +97,11 @@ export default function ExecutorFinancialMetrics() {
     (acc, item) => acc + item.count,
     0
   );
+
+  // При клике на сегмент переходим на /tasks с фильтром по статусу
+  const handleSegmentClick = (status: string) => {
+    router.push(`/tasks?status=${encodeURIComponent(status)}`);
+  };
 
   return (
     <Box>
@@ -104,15 +120,20 @@ export default function ExecutorFinancialMetrics() {
               labelLine={false}
             >
               {filteredChartData.map((entry, index) => (
-                <Cell key={`cell-${index}`} fill={getStatusColor(entry.name)} />
+                <Cell
+                  key={`cell-${index}`}
+                  fill={getStatusColor(entry.name)}
+                  onClick={() => handleSegmentClick(entry.name)}
+                  style={{ cursor: 'pointer' }}
+                />
               ))}
             </Pie>
-            {/* Отображаем общий счетчик задач крупнее по центру диаграммы */}
+            {/* Отображаем общий счетчик задач крупным шрифтом по центру диаграммы */}
             <text
               x='50%'
-              y='47.5%'
+              y='50%'
               textAnchor='middle'
-              dominantBaseline='center'
+              dominantBaseline='middle'
               style={{ fontSize: '42px', fontWeight: 'bold' }}
             >
               {totalCount}
