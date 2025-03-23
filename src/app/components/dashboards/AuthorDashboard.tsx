@@ -23,7 +23,7 @@ const AuthorDashboard: React.FC<AuthorDashboardProps> = ({
   return (
     <Box>
       <Typography variant='h6' gutterBottom>
-        Author Dashboard
+        Author Dashboards
       </Typography>
 
       <Grid container spacing={2}>

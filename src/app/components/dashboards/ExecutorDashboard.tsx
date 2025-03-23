@@ -8,6 +8,7 @@ import MiniMap from '@/app/components/dashboards/MiniMap';
 import MiniTaskTable from '@/app/components/dashboards/MiniTaskTable';
 import MiniReportsList from '@/app/components/dashboards/MiniReportsList';
 import TaskMetricDiagram from '@/app/components/dashboards/TaskMetricDiagram';
+import ExecutorFinancialMetrics from '@/app/components/dashboards/ExecutorFinancialMetrics';
 
 interface ExecutorDashboardProps {
   role: string;
@@ -23,7 +24,7 @@ const ExecutorDashboard: React.FC<ExecutorDashboardProps> = ({
   return (
     <Box>
       <Typography variant='h6' gutterBottom>
-        Executor Dashboard
+        Executor Dashboards
       </Typography>
       <Grid container spacing={2}>
         <Grid item xs={12} md={6}>
@@ -53,7 +54,12 @@ const ExecutorDashboard: React.FC<ExecutorDashboardProps> = ({
         <Grid item xs={12} md={6}>
           <Paper sx={{ p: 2 }}>
             <Typography variant='h6'>Metrics</Typography>
-            <TaskMetricDiagram role={role} clerkUserId={clerkUserId} />
+            <Box sx={{ mb: 2 }}>
+              <TaskMetricDiagram role={role} clerkUserId={clerkUserId} />
+            </Box>
+            <Box sx={{ mb: 2 }}>
+              <ExecutorFinancialMetrics />
+            </Box>
           </Paper>
         </Grid>
       </Grid>

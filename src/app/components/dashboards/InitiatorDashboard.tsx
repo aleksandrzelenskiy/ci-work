@@ -23,7 +23,7 @@ const InitiatorDashboard: React.FC<InitiatorDashboardProps> = ({
   return (
     <Box>
       <Typography variant='h6' gutterBottom>
-        Initiator Dashboard
+        Initiator Dashboards
       </Typography>
 
       {/* Блок со статистикой */}

@@ -24,7 +24,7 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({
   return (
     <Box>
       <Typography variant='h6' gutterBottom>
-        Admin Dashboard
+        Admin Dashboards
       </Typography>
 
       <Grid container spacing={2}>
