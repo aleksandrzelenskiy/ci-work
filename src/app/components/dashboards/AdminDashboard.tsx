@@ -8,6 +8,7 @@ import MiniMap from '@/app/components/dashboards/MiniMap';
 import MiniTaskTable from '@/app/components/dashboards/MiniTaskTable';
 import MiniReportsList from '@/app/components/dashboards/MiniReportsList';
 import FinancialMetrics from '@/app/components/dashboards/FinancialMetrics';
+import TaskMetricDiagram from './TaskMetricDiagram';
 
 interface AdminDashboardProps {
   role: string;
@@ -55,22 +56,27 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({
           </Paper>
         </Grid>
 
-        {/* Financial Metrics */}
+        {/* Metrics */}
         <Grid item xs={12} md={6}>
           <Paper sx={{ p: 2 }}>
-            <Typography variant='h6'>Financial Metrics</Typography>
-            <FinancialMetrics />
+            <Typography variant='h6'>Metrics</Typography>
+            <Box sx={{ mb: 2 }}>
+              <FinancialMetrics />
+            </Box>
+            <Box sx={{ mb: 2 }}>
+              <TaskMetricDiagram role={role} clerkUserId={clerkUserId} />
+            </Box>
           </Paper>
         </Grid>
 
         {/* Дополнительный блок */}
-        <Grid item xs={12} md={6}>
+        {/* <Grid item xs={12} md={6}>
           <Paper sx={{ p: 2 }}>
             <Typography variant='h6' gutterBottom>
               Some Future Block
             </Typography>
           </Paper>
-        </Grid>
+        </Grid> */}
       </Grid>
     </Box>
   );

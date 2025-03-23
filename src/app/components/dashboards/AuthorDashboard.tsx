@@ -7,6 +7,7 @@ import { Box, Grid, Paper, Typography } from '@mui/material';
 import MiniMap from '@/app/components/dashboards/MiniMap';
 import MiniTaskTable from '@/app/components/dashboards/MiniTaskTable';
 import MiniReportsList from '@/app/components/dashboards/MiniReportsList';
+import TaskMetricDiagram from '@/app/components/dashboards/TaskMetricDiagram';
 
 interface AuthorDashboardProps {
   role: string;
@@ -24,8 +25,6 @@ const AuthorDashboard: React.FC<AuthorDashboardProps> = ({
       <Typography variant='h6' gutterBottom>
         Author Dashboard
       </Typography>
-
-      {/* Блок со статистикой */}
 
       <Grid container spacing={2}>
         {/* Last Tasks */}
@@ -53,10 +52,11 @@ const AuthorDashboard: React.FC<AuthorDashboardProps> = ({
             <MiniMap role={role} clerkUserId={clerkUserId} />
           </Paper>
         </Grid>
-        {/* Дополнительный блок */}
+        {/* Метрики */}
         <Grid item xs={12} md={6}>
           <Paper sx={{ p: 2 }}>
-            <Typography variant='h6'>Some Future Block</Typography>
+            <Typography variant='h6'>Metrics</Typography>
+            <TaskMetricDiagram role={role} clerkUserId={clerkUserId} />
           </Paper>
         </Grid>
       </Grid>

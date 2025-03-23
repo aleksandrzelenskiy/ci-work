@@ -7,6 +7,7 @@ import { Box, Grid, Paper, Typography } from '@mui/material';
 import MiniMap from '@/app/components/dashboards/MiniMap';
 import MiniTaskTable from '@/app/components/dashboards/MiniTaskTable';
 import MiniReportsList from '@/app/components/dashboards/MiniReportsList';
+import TaskMetricDiagram from '@/app/components/dashboards/TaskMetricDiagram';
 
 interface InitiatorDashboardProps {
   role: string;
@@ -51,10 +52,11 @@ const InitiatorDashboard: React.FC<InitiatorDashboardProps> = ({
             <MiniMap role={role} clerkUserId={clerkUserId} />
           </Paper>
         </Grid>
+        {/* Метрики */}
         <Grid item xs={12} md={6}>
           <Paper sx={{ p: 2 }}>
-            <Typography variant='subtitle1'>Some Future Block</Typography>
-            {/* Дополнительный блок */}
+            <Typography variant='h6'>Metrics</Typography>
+            <TaskMetricDiagram role={role} clerkUserId={clerkUserId} />
           </Paper>
         </Grid>
       </Grid>

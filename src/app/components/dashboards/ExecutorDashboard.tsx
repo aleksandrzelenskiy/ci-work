@@ -7,7 +7,7 @@ import { Box, Grid, Paper, Typography } from '@mui/material';
 import MiniMap from '@/app/components/dashboards/MiniMap';
 import MiniTaskTable from '@/app/components/dashboards/MiniTaskTable';
 import MiniReportsList from '@/app/components/dashboards/MiniReportsList';
-import ExecutorTaskMetrics from '@/app/components/dashboards/ExecutorTaskMetrics';
+import TaskMetricDiagram from '@/app/components/dashboards/TaskMetricDiagram';
 
 interface ExecutorDashboardProps {
   role: string;
@@ -45,15 +45,15 @@ const ExecutorDashboard: React.FC<ExecutorDashboardProps> = ({
         {/* Task Location (с мини-картой) */}
         <Grid item xs={12} md={6}>
           <Paper sx={{ p: 2 }}>
-            <Typography variant='subtitle1'>Task Location</Typography>
+            <Typography variant='h6'>Task Location</Typography>
             <MiniMap role={role} clerkUserId={clerkUserId} />
           </Paper>
         </Grid>
-        {/* Финансовые метрики исполнителя */}
+        {/* Метрики */}
         <Grid item xs={12} md={6}>
           <Paper sx={{ p: 2 }}>
-            <Typography variant='subtitle1'>Tasks Metrics</Typography>
-            <ExecutorTaskMetrics />
+            <Typography variant='h6'>Metrics</Typography>
+            <TaskMetricDiagram role={role} clerkUserId={clerkUserId} />
           </Paper>
         </Grid>
       </Grid>

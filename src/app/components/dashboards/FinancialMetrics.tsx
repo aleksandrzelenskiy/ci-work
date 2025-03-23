@@ -97,6 +97,8 @@ export default function FinancialMetrics() {
 
   return (
     <Box>
+      <Typography variant='subtitle1'>Financial metrics</Typography>
+
       {/* <Typography variant='body1'>
         Total cost (status = &quot;Agreed&quot;): {formatRuble(totalAgreed)}
       </Typography>
@@ -123,7 +125,7 @@ export default function FinancialMetrics() {
               cx='50%'
               cy='50%'
               outerRadius={120}
-              innerRadius={60}
+              innerRadius={90}
               label={({ value }) => formatRuble(value)}
               labelLine={false}
             >
