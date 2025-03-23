@@ -3,14 +3,7 @@
 'use client';
 
 import React, { useEffect, useState, useMemo } from 'react';
-import {
-  YMaps,
-  Map,
-  Placemark,
-  Clusterer,
-  FullscreenControl,
-  TypeSelector,
-} from '@pbe/react-yandex-maps';
+import { YMaps, Map, Placemark, Clusterer } from '@pbe/react-yandex-maps';
 import { Box, CircularProgress, Typography, Button } from '@mui/material';
 import Link from 'next/link';
 import MapIcon from '@mui/icons-material/Map';
@@ -110,9 +103,6 @@ export default function MiniMap({ role, clerkUserId }: MiniMapProps) {
           width='100%'
           height='100%'
         >
-          <TypeSelector />
-          <FullscreenControl />
-
           <Clusterer
             options={{
               preset: 'islands#invertedBlueClusterIcons',

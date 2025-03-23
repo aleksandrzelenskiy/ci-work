@@ -88,10 +88,10 @@ export default function ExecutorFinancialMetrics() {
 
   return (
     <Box>
-      <Typography variant='subtitle1'>Financial metrics by All time</Typography>
+      <Typography variant='h6'>Financial metrics</Typography>
 
       {/* Вывод текстовых строк с суммами для каждого статуса */}
-      <Box mb={2}>
+      <Box>
         {chartData.map((dataItem) => (
           <Typography
             key={dataItem.name}
@@ -103,7 +103,7 @@ export default function ExecutorFinancialMetrics() {
         ))}
       </Box>
 
-      <Box width='100%' height={400}>
+      <Box width='100%' height={350}>
         <ResponsiveContainer>
           <PieChart>
             <Pie

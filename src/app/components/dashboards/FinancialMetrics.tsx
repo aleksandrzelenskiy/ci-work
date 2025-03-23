@@ -97,7 +97,7 @@ export default function FinancialMetrics() {
 
   return (
     <Box>
-      <Typography variant='subtitle1'>Financial metrics</Typography>
+      <Typography variant='h6'>Financial metrics</Typography>
 
       {/* <Typography variant='body1'>
         Total cost (status = &quot;Agreed&quot;): {formatRuble(totalAgreed)}

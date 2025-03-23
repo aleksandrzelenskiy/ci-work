@@ -206,8 +206,8 @@ export default function TaskMetricDiagram({
 
   return (
     <Box>
-      <Typography variant='subtitle1'>Task counts</Typography>
-      <Box width='100%' height={400}>
+      <Typography variant='h6'>Task counts</Typography>
+      <Box width='100%' height={350}>
         <ResponsiveContainer>
           <PieChart>
             <Pie
