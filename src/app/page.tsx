@@ -4,7 +4,7 @@ import React from 'react';
 import { Box, Typography } from '@mui/material';
 import { GetCurrentUserFromMongoDB } from 'src/server-actions/users';
 import AdminDashboard from '@/app/components/dashboards/AdminDashboard';
-import ManagerDashboard from '@/app/components/dashboards/AdminDashboard';
+import ManagerDashboard from '@/app/components/dashboards/ManagerDashboard';
 import AuthorDashboard from '@/app/components/dashboards/AuthorDashboard';
 import InitiatorDashboard from '@/app/components/dashboards/InitiatorDashboard';
 import ExecutorDashboard from '@/app/components/dashboards/ExecutorDashboard';
