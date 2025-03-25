@@ -84,8 +84,8 @@ export default function MiniReportsList({
 
   // 2) Фильтрация по роли
   const filteredReports = useMemo(() => {
-    if (role === 'admin') {
-      // админ видит все
+    if (role === 'admin' || role === 'manager') {
+      // Админ и Менеджер видит все отчеты
       return reports;
     } else if (role === 'author') {
       // Author видит те, где report.authorId === clerkUserId

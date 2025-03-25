@@ -82,8 +82,8 @@ export default function MiniTaskTable({
 
   // 2. Фильтруем задачи
   const filteredTasks = useMemo(() => {
-    if (role === 'admin') {
-      // Админ видит все задачи
+    if (role === 'admin' || role === 'manager') {
+      // Админ и Менеджер видит все задачи
       return tasks;
     } else if (role === 'author') {
       // Автор видит задачи, где authorId == clerkUserId

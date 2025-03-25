@@ -11,7 +11,7 @@ import MapIcon from '@mui/icons-material/Map';
 import { Task, BsLocation } from '@/app/types/taskTypes';
 
 interface MiniMapProps {
-  role: string; // admin | author | initiator | executor
+  role: string; // admin | manager | author | initiator | executor
   clerkUserId: string; // Текущий userId пользователя (из Clerk)
 }
 
@@ -45,8 +45,8 @@ export default function MiniMap({ role, clerkUserId }: MiniMapProps) {
 
   // 2. Фильтруем задачи на клиенте
   const filteredTasks = useMemo(() => {
-    if (role === 'admin') {
-      // Admin видит все задачи
+    if (role === 'admin' || role === 'manager') {
+      // Админ и Менеджер видит все задачи
       return tasks;
     } else if (role === 'author') {
       // Author видит задачи, где authorId совпадает с clerkUserId
