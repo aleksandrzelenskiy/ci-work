@@ -167,6 +167,7 @@ export async function POST(request: Request) {
     try {
       // 1) Изменяем размер и накладываем водяной знак -> получаем Buffer
       const processedBuffer = await sharp(buffer)
+        .rotate()
         .resize(1920, 1920, {
           fit: sharp.fit.inside,
           withoutEnlargement: true,
@@ -187,6 +188,7 @@ export async function POST(request: Request) {
             gravity: 'southeast',
           },
         ])
+        .withMetadata({ orientation: 1 })
         .jpeg({ quality: 80 })
         .toBuffer();
 
