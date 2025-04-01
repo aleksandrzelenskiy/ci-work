@@ -119,20 +119,21 @@ export async function POST(
       return NextResponse.json({ error: 'Task not found' }, { status: 404 });
     }
 
-    // Отправляем уведомления по почте всем участникам задачи
+    // Отправляем уведомления по почте всем участникам задачи и на общий почтовый ящик
     try {
       const frontendUrl = process.env.FRONTEND_URL || 'https://ciwork.pro';
       const taskLink = `${frontendUrl}/tasks/${updatedTask.taskId}`;
       const recipients = new Set(
         [
           updatedTask.authorEmail,
-          updatedTask.initiatorEmail,
+          // updatedTask.initiatorEmail,
           updatedTask.executorEmail,
+          'transport@t2.ru',
         ].filter((email) => email && email.trim())
       );
       const authorName = `${user.firstName} ${user.lastName}`.trim();
       const emailContent = {
-        subject: `Новый комментарий в задаче ${updatedTask.taskId}`,
+        subject: `Новый комментарий в задаче "${updatedTask.taskName} ${updatedTask.bsNumber}" (${updatedTask.taskId})`,
         text: `Автор: ${authorName}\nКомментарий: ${commentText}\nСсылка: ${taskLink}`,
         html: `
           <p>Автор: <strong>${authorName}</strong></p>

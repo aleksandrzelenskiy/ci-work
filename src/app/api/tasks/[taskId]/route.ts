@@ -313,59 +313,132 @@ export async function PATCH(
     // Сохраняем задачу
     const updatedTask = await task.save();
 
-    // Отправка уведомлений по электронной почте при изменении статуса
+    // ----------------------------------------
+    // Отправка уведомлений по электронной почте
+    // ----------------------------------------
     if (statusChanged) {
       try {
         const frontendUrl = process.env.FRONTEND_URL || 'https://ciwork.pro';
         const taskLink = `${frontendUrl}/tasks/${updatedTask.taskId}`;
+
         const recipients = [
           updatedTask.authorEmail,
-          updatedTask.initiatorEmail,
+          // updatedTask.initiatorEmail,
           updatedTask.executorEmail,
+          'transport@t2.ru',
         ]
           .filter((email) => email && email !== '')
           .filter((value, index, self) => self.indexOf(value) === index);
+
         for (const email of recipients) {
-          let role = 'Другой участник';
-          if (email === updatedTask.authorEmail) role = 'Автор';
-          else if (email === updatedTask.initiatorEmail) role = 'Инициатор';
-          else if (email === updatedTask.executorEmail) role = 'Исполнитель';
+          let role = 'Participant';
+          if (email === updatedTask.authorEmail) role = 'Author';
+          else if (email === updatedTask.initiatorEmail) role = 'Initiator';
+          else if (email === updatedTask.executorEmail) role = 'Executor';
+
           let roleText = '';
           switch (role) {
-            case 'Автор':
-              roleText = `Вы создали задачу "${updatedTask.taskName}".`;
+            case 'Author':
+              roleText = `Вы получили это письмо, так как являетесь автором задачи "${updatedTask.taskName} ${updatedTask.bsNumber}" (${updatedTask.taskId}).`;
               break;
-            case 'Инициатор':
-              roleText = `Вы инициировали задачу "${updatedTask.taskName}".`;
+            case 'Initiator':
+              roleText = `Вы получили это письмо, так как являетесь инициатором задачи "${updatedTask.taskName} ${updatedTask.bsNumber}" (${updatedTask.taskId}).`;
               break;
-            case 'Исполнитель':
-              roleText = `Задача "${updatedTask.taskName}" назначена на вас.`;
+            case 'Executor':
+              roleText = `Вы получили это письмо, так как назначены в качестве исполнителя задачи "${updatedTask.taskName} ${updatedTask.bsNumber}" (${updatedTask.taskId}).`;
               break;
             default:
-              roleText = `Вы участвуете в задаче "${updatedTask.taskName}".`;
+              roleText = `Информация по задаче "${updatedTask.taskName} ${updatedTask.bsNumber}" (${updatedTask.taskId}).`;
           }
-          const mainContent = `
-Статус изменен с: ${oldStatusForEmail}
+
+          // Базовый контент
+          let mainContent = `
+Статус задачи был изменен с: ${oldStatusForEmail}
 На: ${newStatusForEmail}
 Автор изменения: ${user.firstName} ${user.lastName}
 Комментарий: ${commentForEmail || 'нет'}
-Ссылка: ${taskLink}
-          `;
+Ссылка на задачу: ${taskLink}
+          `.trim();
+
+          // Если новый статус == 'pending'
+          if (newStatusForEmail.toLowerCase() === 'pending') {
+            mainContent += `
+
+Исполнитель задачи ${updatedTask.taskId}, ${updatedTask.executorName} добавил фотоочет о выполненной работе.
+Ссылка на фотоотчет доступна на <a href="${taskLink}">странице задачи</a>
+`.trim();
+          }
+
+          // Если новый статус == 'issues'
+          if (newStatusForEmail.toLowerCase() === 'issues') {
+            mainContent += `
+
+Инициатор задачи ${updatedTask.taskId}, ${updatedTask.initiatorName} добавил замечания к фотоотчету о выполненной работе.
+Ссылка на фотоотчет доступна на <a href="${taskLink}">странице задачи</a>
+`.trim();
+          }
+
+          // Если новый статус == 'fixed'
+          if (newStatusForEmail.toLowerCase() === 'fixed') {
+            mainContent += `
+
+Исполнитель задачи ${updatedTask.taskId}, ${updatedTask.executorName} добавил фотоотчет о исправлении замечаний к выполненной работе.
+Ссылка на фотоотчет доступна на <a href="${taskLink}">странице задачи</a>
+`.trim();
+          }
+
+          // Если новый статус == 'agreed'
+          if (newStatusForEmail.toLowerCase() === 'agreed') {
+            mainContent += `
+
+Инициатор задачи ${updatedTask.taskId}, ${updatedTask.initiatorName} согласовал фотоотчет о выполненной работе.
+Ссылка на фотоотчет доступна на <a href="${taskLink}">странице задачи</a>. Фотоотчет будет доступен для скачивания в течении 30 дней.
+`.trim();
+          }
+
           const fullText = `${roleText}\n\n${mainContent}`;
-          const fullHtml = `
+          // Формируем HTML-версию
+          let fullHtml = `
 <p>${roleText}</p>
-<p>Статус задачи <strong>"${updatedTask.taskName}"</strong> (${
-            updatedTask.taskId
-          })</p>
+<p>Статус задачи <strong>${updatedTask.taskId}</strong></p>
 <p>Изменен с: <strong>${oldStatusForEmail}</strong></p>
 <p>На: <strong>${newStatusForEmail}</strong></p>
 <p>Автор изменения: ${user.firstName} ${user.lastName}</p>
 ${commentForEmail ? `<p>Комментарий: ${commentForEmail}</p>` : ''}
 <p><a href="${taskLink}">Перейти к задаче</a></p>
-          `;
+`;
+
+          if (newStatusForEmail.toLowerCase() === 'pending') {
+            fullHtml += `
+<p>Исполнитель задачи ${updatedTask.taskId}, ${updatedTask.executorName} добавил фотоочет о выполненной работе.<br>
+Ссылка на фотоотчет доступна на <a href="${taskLink}">странице задачи</a>.</p>
+`;
+          }
+
+          if (newStatusForEmail.toLowerCase() === 'issues') {
+            fullHtml += `
+<p>Инициатор задачи ${updatedTask.taskId}, ${updatedTask.initiatorName} добавил замечания к фотоотчету о выполненной работе.<br>
+Ссылка на фотоотчет доступна на <a href="${taskLink}">странице задачи</a>.</p>
+`;
+          }
+
+          if (newStatusForEmail.toLowerCase() === 'fixed') {
+            fullHtml += `
+<p>Исполнитель задачи ${updatedTask.taskId}, ${updatedTask.executorName} добавил фотоотчет о исправлении замечаний к выполненной работе.<br>
+Ссылка на фотоотчет доступна на <a href="${taskLink}">странице задачи</a>.</p>
+`;
+          }
+
+          if (newStatusForEmail.toLowerCase() === 'agreed') {
+            fullHtml += `
+<p>Инициатор задачи ${updatedTask.taskId}, ${updatedTask.initiatorName} согласовал фотоотчет о выполненной работе.<br>
+Ссылка на фотоотчет доступна на <a href="${taskLink}">странице задачи</a>. Фотоотчет будет доступен для скачивания в течении 30 дней.</p>
+`;
+          }
+
           await sendEmail({
             to: email,
-            subject: `Статус задачи ${updatedTask.taskId} изменен`,
+            subject: `Статус задачи "${updatedTask.taskName} ${updatedTask.bsNumber}" (${updatedTask.taskId}) изменен`,
             text: fullText,
             html: fullHtml,
           });

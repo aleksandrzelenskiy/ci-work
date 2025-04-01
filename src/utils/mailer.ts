@@ -39,7 +39,7 @@ function createTransporter() {
  */
 export async function sendEmail(options: SendEmailOptions): Promise<void> {
   const transporter = createTransporter();
-  const from = process.env.EMAIL_FROM || 'CI Work <no-reply@example.com>';
+  const from = process.env.EMAIL_FROM || 'CI Work <no-reply@ciwork.pro>';
 
   const mailData = {
     from,

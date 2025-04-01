@@ -8,6 +8,7 @@ import { writeFileSync, mkdirSync, existsSync } from 'fs';
 import path from 'path';
 import { PriorityLevel, WorkItem } from 'src/app/types/taskTypes';
 import { v4 as uuidv4 } from 'uuid';
+import { sendEmail } from 'src/utils/mailer';
 
 function normalizeBsNumber(bsNumber: string): string {
   // Удаляем информацию о высоте антенной опоры и другие лишние символы
@@ -17,7 +18,7 @@ function normalizeBsNumber(bsNumber: string): string {
 
   const parts = cleanedBsNumber.split('-');
   const normalizedParts = parts.map((part) => {
-    const regionCode = part.substring(0, 2).toUpperCase(); // Получаем код региона (первые два символа)
+    const regionCode = part.substring(0, 2).toUpperCase(); // Код региона (первые два символа)
     const bsDigits = part.substring(2).replace(/^0+/, ''); // Удаляем ведущие нули
 
     // Добавляем ведущие нули, чтобы общее количество цифр было 4
@@ -85,7 +86,7 @@ export async function POST(request: Request) {
     // Обработка файлов
     const excelFile = formData.get('excelFile') as File;
 
-    // Сбор вложений через последовательный перебор
+    // Сбор вложений
     const attachments: File[] = [];
     let index = 0;
     while (formData.has(`attachments_${index}`)) {
@@ -134,8 +135,9 @@ export async function POST(request: Request) {
       'taskattach',
       taskFolderName
     );
-    if (!existsSync(attachmentsDir))
+    if (!existsSync(attachmentsDir)) {
       mkdirSync(attachmentsDir, { recursive: true });
+    }
 
     const attachmentsUrls = await Promise.all(
       attachments.map(async (file, index) => {
@@ -165,7 +167,7 @@ export async function POST(request: Request) {
       },
     ];
 
-    // Добавляем событие назначения при наличии исполнителя
+    // Дополнительное событие при наличии исполнителя
     if (taskData.executorId) {
       events.push({
         action: 'TASK_ASSIGNED',
@@ -179,17 +181,107 @@ export async function POST(request: Request) {
       });
     }
 
-    // Создаем задачу с обновленными событиями
     const newTask = new Task({
       ...taskData,
       status: taskStatus,
       orderUrl: `/uploads/taskattach/${taskFolderName}/order/${excelFileName}`,
       attachments: attachmentsUrls,
       createdAt: new Date(),
-      events: events, // Используем модифицированный массив событий
+      events: events,
     });
 
     await newTask.save();
+
+    // ==============================
+    // Отправка уведомления о новой задаче
+    // ==============================
+    try {
+      // Формируем список получателей: автор, инициатор, исполнитель и общий адрес
+      const recipients = [
+        newTask.authorEmail,
+        // newTask.initiatorEmail,
+        newTask.executorEmail,
+        'transport@t2.ru',
+      ]
+        .filter((email) => email && email.trim() !== '')
+        .filter((value, index, self) => self.indexOf(value) === index);
+
+      const frontendUrl = process.env.FRONTEND_URL || 'https://ciwork.pro';
+      const taskLink = `${frontendUrl}/tasks/${newTask.taskId}`;
+
+      // Берем информацию по задаче
+      const creationDate = new Date(newTask.createdAt).toLocaleString('ru-RU');
+      const dueDateStr = newTask.dueDate
+        ? new Date(newTask.dueDate).toLocaleString('ru-RU')
+        : '—';
+      const priority = newTask.priority || '—';
+      const description = newTask.taskDescription || '—';
+
+      // Текст письма (plain text)
+      const textContent = `
+Новая задача создана!
+
+ID задачи: ${newTask.taskId}
+Название: ${newTask.taskName}
+Базовые станции: ${newTask.bsNumber}
+
+Участники задачи:
+  • Автор: ${newTask.authorName} (${newTask.authorEmail || '—'})
+  • Инициатор: ${newTask.initiatorName || '—'} (${
+        newTask.initiatorEmail || '—'
+      })
+  • Исполнитель: ${newTask.executorName || '—'} (${
+        newTask.executorEmail || '—'
+      })
+
+Дата создания: ${creationDate}
+Срок выполнения: ${dueDateStr}
+Приоритет: ${priority}
+
+Описание:
+${description}
+
+Ссылка на задачу:
+${taskLink}
+`.trim();
+
+      // Текст письма (HTML)
+      const htmlContent = `
+<p><strong>Новая задача создана!</strong></p>
+<p><strong>ID задачи:</strong> ${newTask.taskId}</p>
+<p><strong>Название:</strong> ${newTask.taskName}</p>
+<p><strong>Базовые станции:</strong> ${newTask.bsNumber}</p>
+
+<p><strong>Участники задачи:</strong></p>
+<ul>
+  <li>Автор: ${newTask.authorName}</li>
+  <li>Инициатор: ${newTask.initiatorName || '—'}</li>
+  <li>Исполнитель: ${newTask.executorName || '—'}</li>
+</ul>
+
+<p><strong>Дата создания:</strong> ${creationDate}</p>
+<p><strong>Срок выполнения:</strong> ${dueDateStr}</p>
+<p><strong>Приоритет:</strong> ${priority}</p>
+
+<p><strong>Описание:</strong> ${description}</p>
+
+<p><a href="${taskLink}">Перейти к задаче</a></p>
+`.trim();
+
+      for (const email of recipients) {
+        await sendEmail({
+          to: email,
+          subject: `Новая задача ${newTask.taskName} ${newTask.bsNumber} (${newTask.taskId})`,
+          text: textContent,
+          html: htmlContent,
+        });
+      }
+    } catch (emailError) {
+      console.error(
+        'Ошибка при отправке письма о создании задачи:',
+        emailError
+      );
+    }
 
     return NextResponse.json(newTask, { status: 201 });
   } catch (error) {
