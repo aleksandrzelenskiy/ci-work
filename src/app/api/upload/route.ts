@@ -18,6 +18,7 @@ import { currentUser } from '@clerk/nextjs/server';
 import dbConnect from '@/utils/mongoose';
 import { uploadBufferToS3 } from '@/utils/s3';
 import { v4 as uuidv4 } from 'uuid';
+import { sendEmail } from '@/utils/mailer';
 
 /**
  * Функция для преобразования координат в формат D° M' S" + N/S/E/W
@@ -288,6 +289,76 @@ export async function POST(request: Request) {
       });
       await relatedTask.save();
       console.log('Статус задачи обновлен на Pending');
+    }
+
+    // Добавляем логику отправки уведомления
+    try {
+      const frontendUrl = process.env.FRONTEND_URL || 'https://ciwork.pro';
+      const taskLink = `${frontendUrl}/tasks/${relatedTask.taskId}`;
+
+      // Формируем список получателей
+      const recipients = [
+        relatedTask.authorEmail,
+        // relatedTask.initiatorEmail,
+        relatedTask.executorEmail,
+        'transport@t2.ru',
+      ]
+        .filter((email) => email && email !== '')
+        .filter((value, index, self) => self.indexOf(value) === index);
+
+      // Для каждого получателя формируем письмо
+      for (const email of recipients) {
+        // Определяем роль получателя
+        let role = 'Participant';
+        if (email === relatedTask.authorEmail) role = 'Author';
+        else if (email === relatedTask.initiatorEmail) role = 'Initiator';
+        else if (email === relatedTask.executorEmail) role = 'Executor';
+
+        // Формируем текст роли
+        let roleText = '';
+        switch (role) {
+          case 'Author':
+            roleText = `Вы получили это письмо как автор задачи "${relatedTask.taskName} ${relatedTask.bsNumber}" (${relatedTask.taskId}).`;
+            break;
+          case 'Initiator':
+            roleText = `Вы получили это письмо как инициатор задачи "${relatedTask.taskName} ${relatedTask.bsNumber}" (${relatedTask.taskId}).`;
+            break;
+          case 'Executor':
+            roleText = `Вы получили это письмо как исполнитель задачи "${relatedTask.taskName} ${relatedTask.bsNumber}" (${relatedTask.taskId}).`;
+            break;
+          default:
+            roleText = `Информация по задаче "${relatedTask.taskName} ${relatedTask.bsNumber}" (${relatedTask.taskId}).`;
+        }
+
+        // Основное содержимое письма
+        const mainContent = `
+Статус задачи изменён на: Pending
+Автор изменения: ${name}
+Комментарий: Статус изменён после загрузки фотоотчёта
+Ссылка на задачу: ${taskLink}
+    `.trim();
+
+        // HTML-версия письма
+        const fullHtml = `
+<p>${roleText}</p>
+<p>Статус задачи <strong>${relatedTask.taskId}</strong> был изменён на <strong>Pending</strong></p>
+<p>Автор изменения: ${name}</p>
+<p>Комментарий: Статус изменён после загрузки фотоотчёта</p>
+<p><a href="${taskLink}">Перейти к задаче</a></p>
+<p>Исполнитель задачи ${relatedTask.taskId}, ${name} добавил фотоотчёт о выполненной работе.</p>
+<p>Ссылка на фотоотчёт доступна на <a href="${taskLink}">странице задачи</a></p>
+`;
+
+        // Отправляем письмо
+        await sendEmail({
+          to: email,
+          subject: `Статус задачи "${relatedTask.taskName} ${relatedTask.bsNumber}" (${relatedTask.taskId}) изменён`,
+          text: `${roleText}\n\n${mainContent}`,
+          html: fullHtml,
+        });
+      }
+    } catch (error) {
+      console.error('Ошибка при отправке уведомлений:', error);
     }
 
     return NextResponse.json({
