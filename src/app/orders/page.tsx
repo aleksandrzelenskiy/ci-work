@@ -192,9 +192,7 @@ const OrderUploadPage: React.FC = () => {
   };
 
   const parseData = (data: ExcelData): ParsedValues => {
-    const total = findValueByLabel(data, 'Итого с учетом Коэф.') as
-      | number
-      | null;
+    const total = findValueByLabel(data, 'Итого ') as number | null;
 
     return {
       bsNumber: findValueByLabel(data, 'Номер БС:') as string | null,
