@@ -46,7 +46,7 @@ export async function POST(request: Request) {
         });
         if (!object) {
           throw new Error(
-            `Базовая станция ${name} не найдена в коллекции objects-t2-ir`
+            `Базовая станция ${name} не найдена в составе коллекции objects-t2-ir`
           );
         }
         return {

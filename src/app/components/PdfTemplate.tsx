@@ -137,7 +137,7 @@ export const PdfTemplate = ({
                 <View style={styles.signatureRow}>
                     <View style={styles.signatureCell}>
                         <Text style={styles.signatureLine}>
-                            _______________________ / Гераськов А.С. /
+                            _____________________ / Гераськов А.С. /
                         </Text>
                     </View>
                     <View style={styles.signatureCellDivider}></View>
