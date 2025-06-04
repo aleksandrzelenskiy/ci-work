@@ -11,23 +11,23 @@ import { v4 as uuidv4 } from 'uuid';
 import { sendEmail } from 'src/utils/mailer';
 
 function normalizeBsNumber(bsNumber: string): string {
-  // Удаляем информацию о высоте антенной опоры и другие лишние символы
-  const cleanedBsNumber = bsNumber
-    .replace(/\(.*?\)/g, '')
-    .replace(/[^a-zA-Z0-9-]/g, '');
+  // Ищем все подстроки формата IR и 6 цифр (например, IR002143)
+  const matches = bsNumber.match(/IR\d{6}/gi);
 
-  const parts = cleanedBsNumber.split('-');
-  const normalizedParts = parts.map((part) => {
-    const regionCode = part.substring(0, 2).toUpperCase(); // Код региона (первые два символа)
-    const bsDigits = part.substring(2).replace(/^0+/, ''); // Удаляем ведущие нули
+  if (!matches) {
+    return '';
+  }
 
-    // Добавляем ведущие нули, чтобы общее количество цифр было 4
-    const paddedBsDigits = bsDigits.padStart(4, '0');
-    return `${regionCode}${paddedBsDigits}`;
+  const normalizedParts = matches.map((part) => {
+    const regionCode = part.substring(0, 2).toUpperCase(); // IR
+    const bsDigits = part.substring(2).replace(/^0+/, ''); // 002143 -> 2143
+    const paddedBsDigits = bsDigits.padStart(4, '0');      // 2143 -> 2143 (если уже 4+ знака)
+    return `${regionCode}${paddedBsDigits}`;              // IR2143
   });
 
-  return normalizedParts.join('-');
+  return normalizedParts.join('-'); // IR2143-IR9143
 }
+
 
 export async function POST(request: Request) {
   await dbConnect();

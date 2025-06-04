@@ -14,6 +14,10 @@ import CloudDownloadIcon from '@mui/icons-material/CloudDownload';
 dayjs.locale('ru');
 
 export const PdfGenerator = () => {
+    // Добавляем состояния для пропсов договора
+    const [contractNumber, setContractNumber] = useState('27-1/24');
+    const [contractDate, setContractDate] = useState<Dayjs | null>(dayjs('2024-04-25'));
+
     const [orderNumber, setOrderNumber] = useState('');
     const [objectNumber, setObjectNumber] = useState('');
     const [objectAddress, setObjectAddress] = useState('');
@@ -22,6 +26,8 @@ export const PdfGenerator = () => {
     const [completionDate, setCompletionDate] = useState<Dayjs | null>(null);
 
     const isValid =
+        contractNumber &&
+        contractDate &&
         orderNumber &&
         objectNumber &&
         objectAddress &&
@@ -33,6 +39,8 @@ export const PdfGenerator = () => {
         orderNumber,
         objectNumber,
         objectAddress,
+        contractNumber,
+        contractDate: contractDate?.format('DD.MM.YYYY') || '',
         orderDate: orderDate?.format('DD.MM.YYYY') || '',
         completionDate: completionDate?.format('DD.MM.YYYY') || '',
     };
@@ -40,6 +48,22 @@ export const PdfGenerator = () => {
     return (
         <Stack spacing={3} maxWidth={600} mx="auto" mt={4}>
             <Typography variant="h5">Генерация уведомления о завершении работ</Typography>
+
+            {/* Добавляем поля для данных договора */}
+            <TextField
+                label="Номер договора"
+                value={contractNumber}
+                onChange={(e) => setContractNumber(e.target.value)}
+                fullWidth
+            />
+
+            <DatePicker
+                label="Дата договора"
+                format="DD.MM.YYYY"
+                value={contractDate}
+                onChange={setContractDate}
+                slotProps={{ textField: { fullWidth: true } }}
+            />
 
             <TextField
                 label="Номер заказа"
@@ -82,12 +106,12 @@ export const PdfGenerator = () => {
                 value={objectAddress}
                 onChange={(e) => setObjectAddress(e.target.value)}
                 fullWidth
+                multiline
+                rows={3}
             />
 
             {isValid && (
                 <>
-
-
                     <Typography variant="h6">Предпросмотр:</Typography>
                     <div style={{ height: 600 }}>
                         <PDFViewer width="100%" height="100%">
