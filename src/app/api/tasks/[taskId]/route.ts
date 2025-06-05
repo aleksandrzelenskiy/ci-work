@@ -26,6 +26,9 @@ interface UpdateData {
   executorId?: string;
   dueDate?: string;
   priority?: PriorityLevel;
+  orderNumber?: string;
+  orderDate?: string;
+  orderSignDate?: string;
   // Поле event используется только для статуса
   event?: {
     details?: {
@@ -207,6 +210,24 @@ export async function PATCH(
     }
     if (updateData.taskDescription) {
       task.taskDescription = updateData.taskDescription;
+    }
+
+    if (updateData.orderNumber !== undefined) {
+      task.orderNumber = updateData.orderNumber;
+    }
+
+    if (updateData.orderDate) {
+      const orderDate = new Date(updateData.orderDate);
+      if (!isNaN(orderDate.getTime())) {
+        task.orderDate = orderDate;
+      }
+    }
+
+    if (updateData.orderSignDate) {
+      const orderSignDate = new Date(updateData.orderSignDate);
+      if (!isNaN(orderSignDate.getTime())) {
+        task.orderSignDate = orderSignDate;
+      }
     }
 
     // Изменение инициатора

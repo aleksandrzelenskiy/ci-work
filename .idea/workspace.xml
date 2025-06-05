@@ -4,12 +4,17 @@
     <option name="autoReloadType" value="SELECTIVE" />
   </component>
   <component name="ChangeListManager">
-    <list default="true" id="b3c91f45-fbe1-4477-9fd9-38d0fcaf660d" name="Changes" comment="added generation of UOR">
-      <change beforePath="$PROJECT_DIR$/.idea/workspace.xml" beforeDir="false" afterPath="$PROJECT_DIR$/.idea/workspace.xml" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/package-lock.json" beforeDir="false" afterPath="$PROJECT_DIR$/package-lock.json" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/package.json" beforeDir="false" afterPath="$PROJECT_DIR$/package.json" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/src/app/api/addtasks/route.ts" beforeDir="false" afterPath="$PROJECT_DIR$/src/app/api/addtasks/route.ts" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/src/types/jspdf.d.ts" beforeDir="false" />
+    <list default="true" id="b3c91f45-fbe1-4477-9fd9-38d0fcaf660d" name="Changes" comment="Generation of UOR and addtask route has been modified">
+      <change beforePath="$PROJECT_DIR$/mongo-dump/ci_work/objects-t2-ir.bson" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/mongo-dump/ci_work/objects-t2-ir.metadata.json" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/mongo-dump/ci_work/reports.bson" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/mongo-dump/ci_work/reports.metadata.json" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/mongo-dump/ci_work/tasks.bson" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/mongo-dump/ci_work/tasks.metadata.json" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/mongo-dump/ci_work/users.bson" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/mongo-dump/ci_work/users.metadata.json" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/src/app/models/TaskModel.ts" beforeDir="false" afterPath="$PROJECT_DIR$/src/app/models/TaskModel.ts" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/src/app/types/taskTypes.ts" beforeDir="false" afterPath="$PROJECT_DIR$/src/app/types/taskTypes.ts" afterDir="false" />
     </list>
     <option name="SHOW_DIALOG" value="false" />
     <option name="HIGHLIGHT_CONFLICTS" value="true" />
@@ -94,6 +99,7 @@
       <workItem from="1747876665849" duration="611000" />
       <workItem from="1748950600448" duration="633000" />
       <workItem from="1749005553606" duration="3777000" />
+      <workItem from="1749048081853" duration="4254000" />
     </task>
     <task id="LOCAL-00001" summary="Dockerfile has been modified #2">
       <option name="closed" value="true" />
@@ -119,7 +125,23 @@
       <option name="project" value="LOCAL" />
       <updated>1746728600824</updated>
     </task>
-    <option name="localTasksCounter" value="4" />
+    <task id="LOCAL-00004" summary="Generation of UOR and addtask route has been modified">
+      <option name="closed" value="true" />
+      <created>1749050731543</created>
+      <option name="number" value="00004" />
+      <option name="presentableId" value="LOCAL-00004" />
+      <option name="project" value="LOCAL" />
+      <updated>1749050731543</updated>
+    </task>
+    <task id="LOCAL-00005" summary="Generation of UOR and addtask route has been modified">
+      <option name="closed" value="true" />
+      <created>1749051283567</created>
+      <option name="number" value="00005" />
+      <option name="presentableId" value="LOCAL-00005" />
+      <option name="project" value="LOCAL" />
+      <updated>1749051283567</updated>
+    </task>
+    <option name="localTasksCounter" value="6" />
     <servers />
   </component>
   <component name="TypeScriptGeneratedFilesManager">
@@ -129,6 +151,7 @@
     <MESSAGE value="Dockerfile has been modified #2" />
     <MESSAGE value="Dependencies has been changed" />
     <MESSAGE value="added generation of UOR" />
-    <option name="LAST_COMMIT_MESSAGE" value="added generation of UOR" />
+    <MESSAGE value="Generation of UOR and addtask route has been modified" />
+    <option name="LAST_COMMIT_MESSAGE" value="Generation of UOR and addtask route has been modified" />
   </component>
 </project>

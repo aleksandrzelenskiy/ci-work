@@ -84,6 +84,9 @@ export interface Task {
   createdAt: Date;
   attachments?: string[];
   orderUrl?: string;
+  orderNumber?: string;
+  orderDate?: Date;
+  orderSignDate?: Date;
   closingDocumentsUrl?: string;
   objectDetails: {
     name: string;
