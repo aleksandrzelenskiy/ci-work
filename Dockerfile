@@ -13,6 +13,9 @@ WORKDIR /app
 COPY package*.json ./
 RUN npm install
 
+# 4. Копируем prod-env → .env
+COPY .env.production .env
+
 # Копируем весь код в контейнер
 COPY . .
 
