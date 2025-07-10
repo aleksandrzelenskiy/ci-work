@@ -2,6 +2,7 @@ services:
   app:
     build: .
     container_name: ci-work_app
+    env_file: .env.production
     ports:
       - '3000:3000'
     environment:
