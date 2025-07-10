@@ -5,13 +5,6 @@ services:
     env_file: .env.production
     ports:
       - '127.0.0.1:3000:3000'
-    environment:
-      MONGODB_URI: 'mongodb://admin:secret123@mongo:27017/ci_work?authSource=admin'
-      S3_ENDPOINT: 'https://s3.regru.cloud'
-      S3_ACCESS_KEY_ID: '6SGVNS8EGMF6EY3QPIRS'
-      S3_SECRET_ACCESS_KEY: 'DjfoXfJsdYQvfiwAi01YBWhsPa8jtEuBZXq7CyWZ'
-      S3_BUCKET_NAME: 'ci-work'
-      S3_REGION: 'us-east-1'
     depends_on:
       - mongo
     restart: unless-stopped
