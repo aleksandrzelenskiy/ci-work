@@ -132,7 +132,7 @@ export default function TaskMap() {
     Record<CurrentStatus, boolean>
   >(
     ALL_STATUSES.reduce((acc, status) => {
-      acc[status] = true;
+      acc[status] = status !== 'Agreed';
       return acc;
     }, {} as Record<CurrentStatus, boolean>)
   );
@@ -158,7 +158,7 @@ export default function TaskMap() {
     setSearchQuery('');
     setStatusFilter(
       ALL_STATUSES.reduce((acc, status) => {
-        acc[status] = true;
+        acc[status] = status ! == 'Agreed';
         return acc;
       }, {} as Record<CurrentStatus, boolean>)
     );
@@ -290,7 +290,11 @@ export default function TaskMap() {
     if (searchQuery !== '') return false;
     if (executorFilter !== '') return false;
     for (const st of ALL_STATUSES) {
-      if (!statusFilter[st]) return false;
+      if (st === 'Agreed') {
+        if (statusFilter[st]) return false
+      } else {
+        if (!statusFilter[st]) return false
+      }
     }
     for (const pr of ALL_PRIORITIES) {
       if (!priorityFilter[pr]) return false;

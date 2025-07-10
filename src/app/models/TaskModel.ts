@@ -68,11 +68,11 @@ const TaskSchema = new Schema<Task & Document>({
   closingDocumentsUrl: { type: String },
   events: [
     {
-      action: { type: String, required: true }, // Тип действия (например, "STATUS_CHANGED", "TASK_UPDATED")
+      action: { type: String, required: true }, // Тип действия
       author: { type: String, required: true }, // Имя автора изменения
       authorId: { type: String, required: true }, // ID автора изменения
       date: { type: Date, default: Date.now }, // Дата изменения
-      details: { type: Schema.Types.Mixed }, // Детали изменения (например, старый и новый статус)
+      details: { type: Schema.Types.Mixed }, // Детали изменения
     },
   ],
   comments: [

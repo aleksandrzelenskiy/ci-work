@@ -346,7 +346,7 @@ export async function PATCH(
           updatedTask.authorEmail,
           // updatedTask.initiatorEmail,
           updatedTask.executorEmail,
-          'transport@t2.ru',
+          //'transport@t2.ru',
         ]
           .filter((email) => email && email !== '')
           .filter((value, index, self) => self.indexOf(value) === index);

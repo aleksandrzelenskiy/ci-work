@@ -68,14 +68,14 @@ import Skeleton from '@mui/material/Skeleton';
 import { LocalizationProvider } from '@mui/x-date-pickers/LocalizationProvider';
 import { AdapterDayjs } from '@mui/x-date-pickers/AdapterDayjs';
 import { DatePicker } from '@mui/x-date-pickers/DatePicker';
-import dayjs, { Dayjs } from 'dayjs';
+import dayjs from 'dayjs';
 import {
   YMaps,
   Map,
   Placemark,
   FullscreenControl,
 } from '@pbe/react-yandex-maps';
-import { useParams } from 'next/navigation';
+import { useParams,useRouter } from 'next/navigation';
 import {
   Task,
   WorkItem,
@@ -112,6 +112,8 @@ export default function TaskDetailPage() {
 
   const { taskId } = params;
   console.log('taskId from useParams:', taskId);
+
+  const router = useRouter();
 
   const [task, setTask] = useState<Task | null>(null);
   const [loading, setLoading] = useState(true);
@@ -170,6 +172,16 @@ export default function TaskDetailPage() {
 
     fetchUserRole();
   }, []);
+
+  // Ищем событие, где статус сменился на "Agreed"
+  const agreedEvent = task?.events?.find(
+      e =>
+          e.action === 'STATUS_CHANGED' &&
+          e.details?.newStatus === 'Agreed'
+  );
+  const completionDate = agreedEvent
+      ? dayjs(agreedEvent.date).format('YYYY-MM-DD')
+      : '';
 
   const updateStatus = async (newStatus: CurrentStatus) => {
     try {
@@ -466,6 +478,27 @@ export default function TaskDetailPage() {
         >
           Edit
         </Button>}
+      {userRole === 'admin' && (
+          <Button
+                   size="small"
+                    variant="outlined"
+                    onClick={() => {
+                      router.push(
+                       `/ncw?orderNumber=${encodeURIComponent(task.orderNumber || '')}` +
+                          `&orderDate=${encodeURIComponent(
+                            task.orderDate
+                              ? dayjs(task.orderDate).format('YYYY-MM-DD')
+                              : ''
+                          )}` +
+                          `&completionDate=${encodeURIComponent(completionDate)}` +
+                          `&objectNumber=${encodeURIComponent(task.bsNumber)}` +
+                          `&objectAddress=${encodeURIComponent(task.bsAddress)}`
+                      );
+                    }}
+                  >
+                    NCW
+                  </Button>
+                )}
       <Typography variant='body2' component='span'>
         Created by{' '}
         {task.events?.find((event) => event.action === 'TASK_CREATED')
@@ -510,7 +543,7 @@ export default function TaskDetailPage() {
               </Typography>
               <Typography>
                 <strong>Created:</strong>{' '}
-                {new Date(task.createdAt).toLocaleDateString()}
+                {dayjs(task.createdAt).format('DD.MM.YYYY')}
               </Typography>
               <Typography>
                 <strong>Due Date:</strong>{' '}
@@ -522,15 +555,17 @@ export default function TaskDetailPage() {
                     </Typography>
                     <Typography>
                       <strong>Order Date:</strong>{" "}
-                      {new Date(task.orderDate).toLocaleDateString()}
+                      {dayjs(task.orderDate).format('DD.MM.YYYY')}
                     </Typography>
                     <Typography>
                       <strong>Order Sign Date:</strong>{" "}
                       {task.orderSignDate
-                          ? new Date(task.orderSignDate).toLocaleDateString()
+                          ? dayjs(task.orderSignDate).format('DD.MM.YYYY')
                           : "N/A"}
                     </Typography>
                   </>}
+              {userRole === 'admin' && (
+
               <Box sx={{ mt: 1 }}>
                 <Button
                     size='small'
@@ -541,6 +576,7 @@ export default function TaskDetailPage() {
                   {task.orderNumber ? 'Edit Order' : 'Add Order'}
                 </Button>
               </Box>
+              )}
 
             </AccordionDetails>
           </Accordion>
@@ -1057,9 +1093,9 @@ export default function TaskDetailPage() {
               {task.events?.map((event: TaskEvent) => <TimelineItem key={event._id}>
                   <TimelineOppositeContent sx={{ py: '12px', px: 2 }}>
                     <Typography variant='body2' color='textSecondary'>
-                      {new Date(event.date).toLocaleDateString()}
+                      {dayjs(event.date).format('DD.MM.YYYY')}
                       <br />
-                      {new Date(event.date).toLocaleTimeString()}
+                      {dayjs(event.date).format('HH:mm')}
                     </Typography>
                   </TimelineOppositeContent>
                   <TimelineSeparator>
@@ -1161,7 +1197,7 @@ export default function TaskDetailPage() {
       </DialogTitle>
       <DialogContent>
         {(confirmAction === 'accept' || confirmAction === 'done') && <Typography>
-            The due date is {new Date(task.dueDate).toLocaleDateString()}.
+            The due date is {dayjs(task.dueDate).format('DD.MM.YYYY')}.
           </Typography>}
       </DialogContent>
       <DialogActions>
@@ -1189,7 +1225,8 @@ export default function TaskDetailPage() {
       </DialogActions>
     </Dialog>
 
-    // Диалог добавления информации о заказе
+    {userRole === 'admin' && (
+
 <Dialog
   open={openOrderDialog}
   onClose={() => setOpenOrderDialog(false)}
@@ -1247,6 +1284,7 @@ export default function TaskDetailPage() {
     </Button>
   </DialogActions>
 </Dialog>
+    )}
 
     <Snackbar
       open={snackbarOpen}

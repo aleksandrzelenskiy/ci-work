@@ -1,12 +1,12 @@
-// app/uor/page.tsx
+// app/ncw/page.tsx
 import ClientLocalizationWrapper from '@/app/components/ClientLocalizationWrapper';
-import { PdfGenerator } from '@/app/components/PdfGenerator';
+import { NcwGenerator } from '@/app/components/NcwGenerator';
 
-export default function UorGeneratePage() {
+export default function NcwGeneratePage() {
     return (
         <main className="min-h-screen p-8">
             <ClientLocalizationWrapper>
-                <PdfGenerator />
+                <NcwGenerator />
             </ClientLocalizationWrapper>
         </main>
     );

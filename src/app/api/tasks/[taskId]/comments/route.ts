@@ -128,7 +128,7 @@ export async function POST(
           updatedTask.authorEmail,
           // updatedTask.initiatorEmail,
           updatedTask.executorEmail,
-          'transport@t2.ru',
+          //'transport@t2.ru',
         ].filter((email) => email && email.trim())
       );
       const authorName = `${user.firstName} ${user.lastName}`.trim();

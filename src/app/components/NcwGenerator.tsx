@@ -1,6 +1,7 @@
 'use client';
 
 import { useState } from 'react';
+import { useSearchParams } from 'next/navigation';
 import { PdfTemplate } from './PdfTemplate';
 import { PDFViewer, PDFDownloadLink } from '@react-pdf/renderer';
 import { TextField, Button, Stack, Typography } from '@mui/material';
@@ -13,17 +14,31 @@ import CloudDownloadIcon from '@mui/icons-material/CloudDownload';
 
 dayjs.locale('ru');
 
-export const PdfGenerator = () => {
+export const NcwGenerator = () => {
+
+    const params = useSearchParams();
+      const initialOrderNumber = params.get('orderNumber') || '';
+      const initialOrderDate = params.get('orderDate')
+        ? dayjs(params.get('orderDate'))
+            : null;
+      const initialCompletionDate = params.get('completionDate')
+        ? dayjs(params.get('completionDate'))
+            : null;
+      const initialObjectNumber = params.get('objectNumber') || '';
+      const initialObjectAddress = params.get('objectAddress') || '';
+
     // Добавляем состояния для пропсов договора
-    const [contractNumber, setContractNumber] = useState('27-1/24');
-    const [contractDate, setContractDate] = useState<Dayjs | null>(dayjs('2024-04-25'));
+    const [contractNumber, setContractNumber] = useState('27-1/25');
+    const [contractDate, setContractDate] = useState<Dayjs | null>(dayjs('2025-04-07'));
 
-    const [orderNumber, setOrderNumber] = useState('');
-    const [objectNumber, setObjectNumber] = useState('');
-    const [objectAddress, setObjectAddress] = useState('');
+    const [orderNumber, setOrderNumber] = useState(initialOrderNumber);
+    const [objectNumber, setObjectNumber] = useState(initialObjectNumber);
+    const [objectAddress, setObjectAddress] = useState(initialObjectAddress);
 
-    const [orderDate, setOrderDate] = useState<Dayjs | null>(null);
-    const [completionDate, setCompletionDate] = useState<Dayjs | null>(null);
+    const [orderDate, setOrderDate] = useState<Dayjs | null>(initialOrderDate);
+      const [completionDate, setCompletionDate] = useState<Dayjs | null>(
+            initialCompletionDate
+          );
 
     const isValid =
         contractNumber &&

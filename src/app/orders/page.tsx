@@ -113,8 +113,8 @@ const OrderUploadPage: React.FC = () => {
   }>({ open: false, message: '', severity: 'info' });
 
   const showNotification = (
-    message: string,
-    severity: 'error' | 'success' | 'info' | 'warning'
+      message: string,
+      severity: 'error' | 'success' | 'info' | 'warning'
   ) => {
     setNotification({ open: true, message, severity });
     setTimeout(() => {
@@ -124,9 +124,9 @@ const OrderUploadPage: React.FC = () => {
 
   const filterUsers = (options: User[], inputValue: string) => {
     return options.filter(
-      (option) =>
-        option.name.toLowerCase().includes(inputValue.toLowerCase()) ||
-        option.email.toLowerCase().includes(inputValue.toLowerCase())
+        (option) =>
+            option.name.toLowerCase().includes(inputValue.toLowerCase()) ||
+            option.email.toLowerCase().includes(inputValue.toLowerCase())
     );
   };
 
@@ -163,13 +163,13 @@ const OrderUploadPage: React.FC = () => {
   }, []);
 
   const findValueByLabel = (
-    data: ExcelData,
-    label: string
+      data: ExcelData,
+      label: string
   ): string | number | null => {
     for (const sheet of Object.values(data)) {
       for (const row of sheet) {
         const labelEntry = Object.entries(row).find(
-          ([, value]) => value === label
+            ([, value]) => value === label
         );
 
         if (labelEntry) {
@@ -193,8 +193,8 @@ const OrderUploadPage: React.FC = () => {
 
   const parseData = (data: ExcelData): ParsedValues => {
     const total = findValueByLabel(data, 'Итого с учетом Коэф.') as
-      | number
-      | null;
+        | number
+        | null;
 
     return {
       bsNumber: findValueByLabel(data, 'Номер БС:') as string | null,
@@ -226,35 +226,35 @@ const OrderUploadPage: React.FC = () => {
     ];
 
     return Object.values(parsedData)
-      .flat()
-      .filter((row) => {
-        const quantity = row['__EMPTY_2'];
-        const empty1Value = String(row['__EMPTY_1']);
+        .flat()
+        .filter((row) => {
+          const quantity = row['__EMPTY_2'];
+          const empty1Value = String(row['__EMPTY_1']);
 
-        return (
-          row['__EMPTY_1'] &&
-          typeof quantity === 'number' &&
-          quantity !== 0 &&
-          row['__EMPTY_3'] &&
-          !excludedValues.includes(empty1Value)
-        );
-      });
+          return (
+              row['__EMPTY_1'] &&
+              typeof quantity === 'number' &&
+              quantity !== 0 &&
+              row['__EMPTY_3'] &&
+              !excludedValues.includes(empty1Value)
+          );
+        });
   };
 
   const onDrop = useCallback(
-    (acceptedFiles: File[], fileRejections: FileRejection[]) => {
-      setParsedData(null);
-      setValues({ total: null, bsNumber: null, bsAddress: null, fot: null });
+      (acceptedFiles: File[], fileRejections: FileRejection[]) => {
+        setParsedData(null);
+        setValues({ total: null, bsNumber: null, bsAddress: null, fot: null });
 
-      if (fileRejections.length > 0) {
-        setError('Some files were rejected. Please upload a valid Excel file.');
-      }
+        if (fileRejections.length > 0) {
+          setError('Some files were rejected. Please upload a valid Excel file.');
+        }
 
-      if (acceptedFiles.length > 0) {
-        setFile(acceptedFiles[0]);
-      }
-    },
-    []
+        if (acceptedFiles.length > 0) {
+          setFile(acceptedFiles[0]);
+        }
+      },
+      []
   );
 
   const { getRootProps, getInputProps, isDragActive } = useDropzone({
@@ -310,10 +310,10 @@ const OrderUploadPage: React.FC = () => {
     } catch (err) {
       console.error(err);
       showNotification(
-        err instanceof Error
-          ? err.message
-          : 'Error occurred during file upload',
-        'error'
+          err instanceof Error
+              ? err.message
+              : 'Error occurred during file upload',
+          'error'
       );
     } finally {
       setUploading(false);
@@ -390,14 +390,14 @@ const OrderUploadPage: React.FC = () => {
       formDataToSend.append('authorId', user.id);
       formDataToSend.append('authorName', getDisplayName());
       formDataToSend.append(
-        'authorEmail',
-        user.primaryEmailAddress.emailAddress
+          'authorEmail',
+          user.primaryEmailAddress.emailAddress
       );
 
       // Данные исполнителя (если выбран)
       if (formData.executorId) {
         const executorUser = users.find(
-          (user) => user.clerkUserId === formData.executorId
+            (user) => user.clerkUserId === formData.executorId
         );
         formDataToSend.append('executorId', executorUser?.clerkUserId || '');
         formDataToSend.append('executorName', formData.executorName || '');
@@ -406,7 +406,7 @@ const OrderUploadPage: React.FC = () => {
 
       // Данные инициатора
       const initiatorUser = users.find(
-        (user) => user.clerkUserId === formData.initiatorId
+          (user) => user.clerkUserId === formData.initiatorId
       );
       formDataToSend.append('initiatorId', initiatorUser?.clerkUserId || '');
       formDataToSend.append('initiatorName', formData.initiatorName || '');
@@ -444,8 +444,8 @@ const OrderUploadPage: React.FC = () => {
     } catch (err) {
       console.error('Error saving task:', err);
       showNotification(
-        err instanceof Error ? err.message : 'Error saving task',
-        'error'
+          err instanceof Error ? err.message : 'Error saving task',
+          'error'
       );
     } finally {
       setUploadProgress(0);
@@ -456,450 +456,450 @@ const OrderUploadPage: React.FC = () => {
 
   if (!isLoaded) {
     return (
-      <Box
-        sx={{
-          display: 'flex',
-          justifyContent: 'center',
-          alignItems: 'center',
-          height: '100vh',
-        }}
-      >
-        <CircularProgress />
-      </Box>
+        <Box
+            sx={{
+              display: 'flex',
+              justifyContent: 'center',
+              alignItems: 'center',
+              height: '100vh',
+            }}
+        >
+          <CircularProgress />
+        </Box>
     );
   }
 
   return (
-    <LocalizationProvider dateAdapter={AdapterDateFns}>
-      <Box
-        sx={{
-          display: 'flex',
-          justifyContent: 'center',
-          alignItems: 'center',
-          position: 'relative',
-        }}
-      >
-        {/* Уведомления */}
+      <LocalizationProvider dateAdapter={AdapterDateFns}>
         <Box
-          sx={{
-            position: 'fixed',
-            top: 20,
-            left: '50%',
-            transform: 'translateX(-50%)',
-            zIndex: 9999,
-            width: 'auto',
-          }}
-        >
-          <Collapse in={notification.open}>
-            <Alert
-              severity={notification.severity}
-              action={
-                <IconButton
-                  aria-label='close'
-                  color='inherit'
-                  size='small'
-                  onClick={() => {
-                    setNotification((prev) => ({ ...prev, open: false }));
-                  }}
-                >
-                  <CloseIcon fontSize='inherit' />
-                </IconButton>
-              }
-              sx={{
-                boxShadow: 3,
-                minWidth: 300,
-                '& .MuiAlert-message': { flexGrow: 1 },
-              }}
-            >
-              {notification.message}
-            </Alert>
-          </Collapse>
-        </Box>
-
-        <Paper
-          elevation={3}
-          sx={{ padding: 4, maxWidth: 800, width: '100%', textAlign: 'center' }}
-        >
-          <Typography variant='h5' gutterBottom>
-            Upload Order in Excel
-          </Typography>
-
-          <Box
-            {...getRootProps()}
             sx={{
-              border: '2px dashed #1976d2',
-              borderRadius: 2,
-              padding: 4,
-              cursor: 'pointer',
-              backgroundColor: isDragActive ? '#e3f2fd' : '#fafafa',
-              transition: 'background-color 0.3s',
-              marginTop: 2,
               display: 'flex',
               justifyContent: 'center',
               alignItems: 'center',
-              height: '100px',
+              position: 'relative',
             }}
+        >
+          {/* Уведомления */}
+          <Box
+              sx={{
+                position: 'fixed',
+                top: 20,
+                left: '50%',
+                transform: 'translateX(-50%)',
+                zIndex: 9999,
+                width: 'auto',
+              }}
           >
-            <input {...getInputProps()} />
-            <Typography>
-              {isDragActive
-                ? 'Drop the file to upload'
-                : 'Drag file here or click to select file'}
-            </Typography>
+            <Collapse in={notification.open}>
+              <Alert
+                  severity={notification.severity}
+                  action={
+                    <IconButton
+                        aria-label='close'
+                        color='inherit'
+                        size='small'
+                        onClick={() => {
+                          setNotification((prev) => ({ ...prev, open: false }));
+                        }}
+                    >
+                      <CloseIcon fontSize='inherit' />
+                    </IconButton>
+                  }
+                  sx={{
+                    boxShadow: 3,
+                    minWidth: 300,
+                    '& .MuiAlert-message': { flexGrow: 1 },
+                  }}
+              >
+                {notification.message}
+              </Alert>
+            </Collapse>
           </Box>
 
-          {file && (
-            <Box sx={{ marginTop: 2 }}>
-              <Typography variant='subtitle1'>Selected file:</Typography>
-              <Typography variant='body1'>{file.name}</Typography>
-              <Button
-                variant='contained'
-                color='primary'
-                sx={{ mt: 2, mb: 2 }}
-                onClick={parsedData ? handleClear : handleUpload}
-                disabled={uploading}
-                startIcon={uploading && <CircularProgress size={20} />}
-              >
-                {uploading ? 'Uploading...' : parsedData ? 'Clear' : 'Upload'}
-              </Button>
-              {uploading && (
-                <LinearProgress
-                  variant='determinate'
-                  value={uploadProgress}
-                  sx={{ mt: 1 }}
-                />
-              )}
-            </Box>
-          )}
-
-          {(values.total !== null || values.bsNumber || values.bsAddress) && (
-            <Box sx={{ marginTop: 2, textAlign: 'left' }}>
-              {values.bsNumber && (
-                <Typography variant='body1' gutterBottom>
-                  <strong>BS Number:</strong> {values.bsNumber}
-                </Typography>
-              )}
-
-              {values.bsAddress && (
-                <Typography variant='body1' gutterBottom>
-                  <strong>BS Address:</strong> {values.bsAddress}
-                </Typography>
-              )}
-
-              {values.total !== null && (
-                <Typography variant='body1' gutterBottom>
-                  <strong>Total:</strong> {values.total.toFixed(2)}
-                  {/* {(parseFloat(values.total.toFixed(2)) * 0.7).toFixed(2)} */}
-                </Typography>
-              )}
-            </Box>
-          )}
-
-          {tableData.length > 0 && (
-            <>
-              <Box sx={{ marginTop: 4 }}>
-                <Typography variant='h6' gutterBottom>
-                  Work Items
-                </Typography>
-                <TableContainer component={Paper}>
-                  <Table>
-                    <TableHead>
-                      <TableRow>
-                        <TableCell>Work Type</TableCell>
-                        <TableCell>Qty</TableCell>
-                        <TableCell>Unit</TableCell>
-                        <TableCell>Note</TableCell>
-                      </TableRow>
-                    </TableHead>
-                    <TableBody>
-                      {tableData.map((row, index) => (
-                        <TableRow key={index}>
-                          <TableCell>{String(row['__EMPTY_1'])}</TableCell>
-                          <TableCell>{String(row['__EMPTY_2'])}</TableCell>
-                          <TableCell>{String(row['__EMPTY_3'])}</TableCell>
-                          <TableCell>{String(row['__EMPTY_18'])}</TableCell>
-                        </TableRow>
-                      ))}
-                    </TableBody>
-                  </Table>
-                </TableContainer>
-              </Box>
-              <Button
-                variant='contained'
-                color='primary'
-                sx={{ mt: 2 }}
-                onClick={handleAddTask}
-              >
-                Add Task
-              </Button>
-            </>
-          )}
-
-          <Dialog
-            open={openDialog}
-            onClose={() => setOpenDialog(false)}
-            fullWidth
-            maxWidth='md'
+          <Paper
+              elevation={3}
+              sx={{ padding: 4, maxWidth: 800, width: '100%', textAlign: 'center' }}
           >
-            <DialogTitle>Create New Task</DialogTitle>
-            <DialogContent>
-              <Box
-                sx={{ mt: 2, display: 'flex', flexDirection: 'column', gap: 2 }}
-              >
-                <TextField
-                  label='Task Name'
-                  value={formData.taskName || ''}
-                  onChange={(e) =>
-                    setFormData({ ...formData, taskName: e.target.value })
-                  }
-                  fullWidth
-                  required
-                  sx={{ mb: 2 }}
-                />
-                <TextField
-                  label='BS Number'
-                  value={formData.bsNumber || ''}
-                  onChange={(e) =>
-                    setFormData({ ...formData, bsNumber: e.target.value })
-                  }
-                  fullWidth
-                  required
-                />
+            <Typography variant='h5' gutterBottom>
+              Upload Order in Excel
+            </Typography>
 
-                <TextField
-                  label='BS Address'
-                  value={formData.bsAddress || ''}
-                  onChange={(e) =>
-                    setFormData({ ...formData, bsAddress: e.target.value })
-                  }
-                  fullWidth
-                  required
-                  disabled
-                />
+            <Box
+                {...getRootProps()}
+                sx={{
+                  border: '2px dashed #1976d2',
+                  borderRadius: 2,
+                  padding: 4,
+                  cursor: 'pointer',
+                  backgroundColor: isDragActive ? '#e3f2fd' : '#fafafa',
+                  transition: 'background-color 0.3s',
+                  marginTop: 2,
+                  display: 'flex',
+                  justifyContent: 'center',
+                  alignItems: 'center',
+                  height: '100px',
+                }}
+            >
+              <input {...getInputProps()} />
+              <Typography>
+                {isDragActive
+                    ? 'Drop the file to upload'
+                    : 'Drag file here or click to select file'}
+              </Typography>
+            </Box>
 
-                <Box sx={{ display: 'flex', gap: 2 }}>
-                  <FormControl fullWidth>
-                    <InputLabel>Priority</InputLabel>
-                    <Select
-                      value={formData.priority}
-                      onChange={(e) =>
-                        setFormData({
-                          ...formData,
-                          priority: e.target.value as PriorityLevel,
-                        })
-                      }
-                      label='Priority'
-                    >
-                      <MenuItem value='urgent'>
-                        <Stack direction='row' alignItems='center' gap={1}>
-                          <KeyboardDoubleArrowUpIcon
-                            sx={{ color: '#ff0000' }}
-                          />
-                          <span>Urgent</span>
-                        </Stack>
-                      </MenuItem>
-                      <MenuItem value='high'>
-                        <Stack direction='row' alignItems='center' gap={1}>
-                          <KeyboardArrowUpIcon sx={{ color: '#ca3131' }} />
-                          <span>High</span>
-                        </Stack>
-                      </MenuItem>
-                      <MenuItem value='medium'>
-                        <Stack direction='row' alignItems='center' gap={1}>
-                          <DragHandleIcon sx={{ color: '#df9b18' }} />
-                          <span>Medium</span>
-                        </Stack>
-                      </MenuItem>
-                      <MenuItem value='low'>
-                        <Stack direction='row' alignItems='center' gap={1}>
-                          <RemoveIcon sx={{ color: '#28a0e9' }} />
-                          <span>Low</span>
-                        </Stack>
-                      </MenuItem>
-                    </Select>
-                  </FormControl>
-                  <DatePicker
-                    label='Due Date'
-                    value={formData.dueDate}
-                    onChange={(newValue) =>
-                      setFormData({ ...formData, dueDate: newValue as Date })
-                    }
-                  />
-                </Box>
-                <TextField
-                  label='Task Author'
-                  value={getDisplayNameWithEmail()}
-                  fullWidth
-                  required
-                  disabled
-                  sx={{
-                    '& .MuiInputBase-input': {
-                      color: 'rgba(0, 0, 0, 0.6)',
-                      pointerEvents: 'none',
-                    },
-                  }}
-                />
-                <FormControl fullWidth sx={{ mt: 2 }}>
-                  <Autocomplete
-                    options={users}
-                    filterOptions={(options, { inputValue }) =>
-                      filterUsers(options, inputValue)
-                    }
-                    getOptionLabel={(user) => `${user.name} (${user.email})`}
-                    value={
-                      users.find(
-                        (user) => user.clerkUserId === formData.executorId
-                      ) || null
-                    }
-                    onChange={(_, newValue) => {
-                      setFormData({
-                        ...formData,
-                        executorId: newValue?.clerkUserId || '',
-                        executorName: newValue?.name || '',
-                        executorEmail: newValue?.email || '',
-                      });
-                    }}
-                    isOptionEqualToValue={(option, value) =>
-                      option._id === value._id
-                    }
-                    renderInput={(params) => (
-                      <TextField
-                        {...params}
-                        label='Executor'
-                        InputProps={{
-                          ...params.InputProps,
-                          type: 'search',
-                        }}
-                      />
-                    )}
-                    loading={loadingUsers}
-                    loadingText='Loading users...'
-                    noOptionsText='No users found'
-                  />
-                </FormControl>
-
-                <FormControl fullWidth sx={{ mt: 2 }}>
-                  <Autocomplete
-                    options={users}
-                    filterOptions={(options, { inputValue }) =>
-                      filterUsers(options, inputValue)
-                    }
-                    getOptionLabel={(user) => `${user.name} (${user.email})`}
-                    value={
-                      users.find(
-                        (user) => user.clerkUserId === formData.initiatorId
-                      ) || null
-                    }
-                    onChange={(_, newValue) => {
-                      setFormData({
-                        ...formData,
-                        initiatorId: newValue?.clerkUserId || '',
-                        initiatorName: newValue?.name || '',
-                        initiatorEmail: newValue?.email || '',
-                      });
-                    }}
-                    isOptionEqualToValue={(option, value) =>
-                      option._id === value._id
-                    }
-                    renderInput={(params) => (
-                      <TextField
-                        {...params}
-                        label='Task Initiator'
-                        InputProps={{
-                          ...params.InputProps,
-                          type: 'search',
-                        }}
-                        required
-                      />
-                    )}
-                    loading={loadingUsers}
-                    loadingText='Loading users...'
-                    noOptionsText='No users found'
-                  />
-                </FormControl>
-                <TextField
-                  label='Task Description'
-                  value={formData.taskDescription || ''}
-                  onChange={(e) =>
-                    setFormData({
-                      ...formData,
-                      taskDescription: e.target.value,
-                    })
-                  }
-                  multiline
-                  minRows={3}
-                  maxRows={6}
-                  fullWidth
-                  required
-                />
-
-                <Box sx={{ mt: 2 }}>
-                  <Typography variant='subtitle1' gutterBottom>
-                    Attached Files
-                  </Typography>
-                  {attachmentFiles.map((file, index) => (
-                    <Chip
-                      key={index}
-                      label={`${file.name} (${(file.size / 1024).toFixed(
-                        1
-                      )} KB)`}
-                      onDelete={() => {
-                        setAttachmentFiles((prev) =>
-                          prev.filter((_, i) => i !== index)
-                        );
-                      }}
-                      deleteIcon={<CloseIcon />}
-                      variant='outlined'
-                      sx={{ m: 0.5 }}
-                    />
-                  ))}
-                  {uploading && (
-                    <LinearProgress
-                      variant='determinate'
-                      value={uploadProgress}
-                      sx={{ mt: 1 }}
-                    />
-                  )}
-                  <Box
-                    {...getAttachmentRootProps()}
-                    sx={{
-                      border: '2px dashed #1976d2',
-                      borderRadius: 2,
-                      padding: 4,
-                      cursor: 'pointer',
-                      backgroundColor: isDragActive ? '#e3f2fd' : '#fafafa',
-                      transition: 'background-color 0.3s',
-                      marginTop: 2,
-                      display: 'flex',
-                      justifyContent: 'center',
-                      alignItems: 'center',
-                      height: '100px',
-                    }}
+            {file && (
+                <Box sx={{ marginTop: 2 }}>
+                  <Typography variant='subtitle1'>Selected file:</Typography>
+                  <Typography variant='body1'>{file.name}</Typography>
+                  <Button
+                      variant='contained'
+                      color='primary'
+                      sx={{ mt: 2, mb: 2 }}
+                      onClick={parsedData ? handleClear : handleUpload}
+                      disabled={uploading}
+                      startIcon={uploading && <CircularProgress size={20} />}
                   >
-                    <input {...getAttachmentInputProps()} />
-                    <Typography>
-                      {isDragActiveAttachments
-                        ? 'Drop files to upload'
-                        : 'Drag files here or click to select'}
+                    {uploading ? 'Uploading...' : parsedData ? 'Clear' : 'Upload'}
+                  </Button>
+                  {uploading && (
+                      <LinearProgress
+                          variant='determinate'
+                          value={uploadProgress}
+                          sx={{ mt: 1 }}
+                      />
+                  )}
+                </Box>
+            )}
+
+            {(values.total !== null || values.bsNumber || values.bsAddress) && (
+                <Box sx={{ marginTop: 2, textAlign: 'left' }}>
+                  {values.bsNumber && (
+                      <Typography variant='body1' gutterBottom>
+                        <strong>BS Number:</strong> {values.bsNumber}
+                      </Typography>
+                  )}
+
+                  {values.bsAddress && (
+                      <Typography variant='body1' gutterBottom>
+                        <strong>BS Address:</strong> {values.bsAddress}
+                      </Typography>
+                  )}
+
+                  {values.total !== null && (
+                      <Typography variant='body1' gutterBottom>
+                        <strong>Total:</strong> {values.total.toFixed(2)}
+                        {/* {(parseFloat(values.total.toFixed(2)) * 0.7).toFixed(2)} */}
+                      </Typography>
+                  )}
+                </Box>
+            )}
+
+            {tableData.length > 0 && (
+                <>
+                  <Box sx={{ marginTop: 4 }}>
+                    <Typography variant='h6' gutterBottom>
+                      Work Items
                     </Typography>
+                    <TableContainer component={Paper}>
+                      <Table>
+                        <TableHead>
+                          <TableRow>
+                            <TableCell>Work Type</TableCell>
+                            <TableCell>Qty</TableCell>
+                            <TableCell>Unit</TableCell>
+                            <TableCell>Note</TableCell>
+                          </TableRow>
+                        </TableHead>
+                        <TableBody>
+                          {tableData.map((row, index) => (
+                              <TableRow key={index}>
+                                <TableCell>{String(row['__EMPTY_1'])}</TableCell>
+                                <TableCell>{String(row['__EMPTY_2'])}</TableCell>
+                                <TableCell>{String(row['__EMPTY_3'])}</TableCell>
+                                <TableCell>{String(row['__EMPTY_18'])}</TableCell>
+                              </TableRow>
+                          ))}
+                        </TableBody>
+                      </Table>
+                    </TableContainer>
+                  </Box>
+                  <Button
+                      variant='contained'
+                      color='primary'
+                      sx={{ mt: 2 }}
+                      onClick={handleAddTask}
+                  >
+                    Add Task
+                  </Button>
+                </>
+            )}
+
+            <Dialog
+                open={openDialog}
+                onClose={() => setOpenDialog(false)}
+                fullWidth
+                maxWidth='md'
+            >
+              <DialogTitle>Create New Task</DialogTitle>
+              <DialogContent>
+                <Box
+                    sx={{ mt: 2, display: 'flex', flexDirection: 'column', gap: 2 }}
+                >
+                  <TextField
+                      label='Task Name'
+                      value={formData.taskName || ''}
+                      onChange={(e) =>
+                          setFormData({ ...formData, taskName: e.target.value })
+                      }
+                      fullWidth
+                      required
+                      sx={{ mb: 2 }}
+                  />
+                  <TextField
+                      label='BS Number'
+                      value={formData.bsNumber || ''}
+                      onChange={(e) =>
+                          setFormData({ ...formData, bsNumber: e.target.value })
+                      }
+                      fullWidth
+                      required
+                  />
+
+                  <TextField
+                      label='BS Address'
+                      value={formData.bsAddress || ''}
+                      onChange={(e) =>
+                          setFormData({ ...formData, bsAddress: e.target.value })
+                      }
+                      fullWidth
+                      required
+                      disabled
+                  />
+
+                  <Box sx={{ display: 'flex', gap: 2 }}>
+                    <FormControl fullWidth>
+                      <InputLabel>Priority</InputLabel>
+                      <Select
+                          value={formData.priority}
+                          onChange={(e) =>
+                              setFormData({
+                                ...formData,
+                                priority: e.target.value as PriorityLevel,
+                              })
+                          }
+                          label='Priority'
+                      >
+                        <MenuItem value='urgent'>
+                          <Stack direction='row' alignItems='center' gap={1}>
+                            <KeyboardDoubleArrowUpIcon
+                                sx={{ color: '#ff0000' }}
+                            />
+                            <span>Urgent</span>
+                          </Stack>
+                        </MenuItem>
+                        <MenuItem value='high'>
+                          <Stack direction='row' alignItems='center' gap={1}>
+                            <KeyboardArrowUpIcon sx={{ color: '#ca3131' }} />
+                            <span>High</span>
+                          </Stack>
+                        </MenuItem>
+                        <MenuItem value='medium'>
+                          <Stack direction='row' alignItems='center' gap={1}>
+                            <DragHandleIcon sx={{ color: '#df9b18' }} />
+                            <span>Medium</span>
+                          </Stack>
+                        </MenuItem>
+                        <MenuItem value='low'>
+                          <Stack direction='row' alignItems='center' gap={1}>
+                            <RemoveIcon sx={{ color: '#28a0e9' }} />
+                            <span>Low</span>
+                          </Stack>
+                        </MenuItem>
+                      </Select>
+                    </FormControl>
+                    <DatePicker
+                        label='Due Date'
+                        value={formData.dueDate}
+                        onChange={(newValue) =>
+                            setFormData({ ...formData, dueDate: newValue as Date })
+                        }
+                    />
+                  </Box>
+                  <TextField
+                      label='Task Author'
+                      value={getDisplayNameWithEmail()}
+                      fullWidth
+                      required
+                      disabled
+                      sx={{
+                        '& .MuiInputBase-input': {
+                          color: 'rgba(0, 0, 0, 0.6)',
+                          pointerEvents: 'none',
+                        },
+                      }}
+                  />
+                  <FormControl fullWidth sx={{ mt: 2 }}>
+                    <Autocomplete
+                        options={users}
+                        filterOptions={(options, { inputValue }) =>
+                            filterUsers(options, inputValue)
+                        }
+                        getOptionLabel={(user) => `${user.name} (${user.email})`}
+                        value={
+                            users.find(
+                                (user) => user.clerkUserId === formData.executorId
+                            ) || null
+                        }
+                        onChange={(_, newValue) => {
+                          setFormData({
+                            ...formData,
+                            executorId: newValue?.clerkUserId || '',
+                            executorName: newValue?.name || '',
+                            executorEmail: newValue?.email || '',
+                          });
+                        }}
+                        isOptionEqualToValue={(option, value) =>
+                            option._id === value._id
+                        }
+                        renderInput={(params) => (
+                            <TextField
+                                {...params}
+                                label='Executor'
+                                InputProps={{
+                                  ...params.InputProps,
+                                  type: 'search',
+                                }}
+                            />
+                        )}
+                        loading={loadingUsers}
+                        loadingText='Loading users...'
+                        noOptionsText='No users found'
+                    />
+                  </FormControl>
+
+                  <FormControl fullWidth sx={{ mt: 2 }}>
+                    <Autocomplete
+                        options={users}
+                        filterOptions={(options, { inputValue }) =>
+                            filterUsers(options, inputValue)
+                        }
+                        getOptionLabel={(user) => `${user.name} (${user.email})`}
+                        value={
+                            users.find(
+                                (user) => user.clerkUserId === formData.initiatorId
+                            ) || null
+                        }
+                        onChange={(_, newValue) => {
+                          setFormData({
+                            ...formData,
+                            initiatorId: newValue?.clerkUserId || '',
+                            initiatorName: newValue?.name || '',
+                            initiatorEmail: newValue?.email || '',
+                          });
+                        }}
+                        isOptionEqualToValue={(option, value) =>
+                            option._id === value._id
+                        }
+                        renderInput={(params) => (
+                            <TextField
+                                {...params}
+                                label='Task Initiator'
+                                InputProps={{
+                                  ...params.InputProps,
+                                  type: 'search',
+                                }}
+                                required
+                            />
+                        )}
+                        loading={loadingUsers}
+                        loadingText='Loading users...'
+                        noOptionsText='No users found'
+                    />
+                  </FormControl>
+                  <TextField
+                      label='Task Description'
+                      value={formData.taskDescription || ''}
+                      onChange={(e) =>
+                          setFormData({
+                            ...formData,
+                            taskDescription: e.target.value,
+                          })
+                      }
+                      multiline
+                      minRows={3}
+                      maxRows={6}
+                      fullWidth
+                      required
+                  />
+
+                  <Box sx={{ mt: 2 }}>
+                    <Typography variant='subtitle1' gutterBottom>
+                      Attached Files
+                    </Typography>
+                    {attachmentFiles.map((file, index) => (
+                        <Chip
+                            key={index}
+                            label={`${file.name} (${(file.size / 1024).toFixed(
+                                1
+                            )} KB)`}
+                            onDelete={() => {
+                              setAttachmentFiles((prev) =>
+                                  prev.filter((_, i) => i !== index)
+                              );
+                            }}
+                            deleteIcon={<CloseIcon />}
+                            variant='outlined'
+                            sx={{ m: 0.5 }}
+                        />
+                    ))}
+                    {uploading && (
+                        <LinearProgress
+                            variant='determinate'
+                            value={uploadProgress}
+                            sx={{ mt: 1 }}
+                        />
+                    )}
+                    <Box
+                        {...getAttachmentRootProps()}
+                        sx={{
+                          border: '2px dashed #1976d2',
+                          borderRadius: 2,
+                          padding: 4,
+                          cursor: 'pointer',
+                          backgroundColor: isDragActive ? '#e3f2fd' : '#fafafa',
+                          transition: 'background-color 0.3s',
+                          marginTop: 2,
+                          display: 'flex',
+                          justifyContent: 'center',
+                          alignItems: 'center',
+                          height: '100px',
+                        }}
+                    >
+                      <input {...getAttachmentInputProps()} />
+                      <Typography>
+                        {isDragActiveAttachments
+                            ? 'Drop files to upload'
+                            : 'Drag files here or click to select'}
+                      </Typography>
+                    </Box>
                   </Box>
                 </Box>
-              </Box>
-            </DialogContent>
-            <DialogActions>
-              <Button onClick={() => setOpenDialog(false)}>Cancel</Button>
-              <Button
-                onClick={handleSubmit}
-                variant='contained'
-                color='primary'
-              >
-                Save
-              </Button>
-            </DialogActions>
-          </Dialog>
-        </Paper>
-      </Box>
-    </LocalizationProvider>
+              </DialogContent>
+              <DialogActions>
+                <Button onClick={() => setOpenDialog(false)}>Cancel</Button>
+                <Button
+                    onClick={handleSubmit}
+                    variant='contained'
+                    color='primary'
+                >
+                  Save
+                </Button>
+              </DialogActions>
+            </Dialog>
+          </Paper>
+        </Box>
+      </LocalizationProvider>
   );
 };
 

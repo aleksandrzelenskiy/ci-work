@@ -11,22 +11,29 @@ import { v4 as uuidv4 } from 'uuid';
 import { sendEmail } from 'src/utils/mailer';
 
 function normalizeBsNumber(bsNumber: string): string {
-  // Ищем все подстроки формата IR и 6 цифр (например, IR002143)
-  const matches = bsNumber.match(/IR\d{6}/gi);
+  // Ищем все подстроки IR + любая длина цифр
+  const matches = bsNumber.match(/IR\d+/gi);
 
   if (!matches) {
     return '';
   }
 
   const normalizedParts = matches.map((part) => {
-    const regionCode = part.substring(0, 2).toUpperCase(); // IR
-    const bsDigits = part.substring(2).replace(/^0+/, ''); // 002143 -> 2143
-    const paddedBsDigits = bsDigits.padStart(4, '0');      // 2143 -> 2143 (если уже 4+ знака)
-    return `${regionCode}${paddedBsDigits}`;              // IR2143
+    // берём 'IR'
+    const regionCode = part.substring(0, 2).toUpperCase();
+    // забираем цифры, убираем все ведущие нули
+    const rawDigits = part.substring(2).replace(/^0+/, '');
+    // если после удаления нулей ничего не осталось — оставим '0'
+    const digits = rawDigits === '' ? '0' : rawDigits;
+    // дополняем до минимум 4 цифр
+    const padded = digits.padStart(4, '0');
+    return `${regionCode}${padded}`;
   });
 
-  return normalizedParts.join('-'); // IR2143-IR9143
+  // склеиваем через дефис
+  return normalizedParts.join('-');
 }
+
 
 
 export async function POST(request: Request) {
@@ -201,7 +208,7 @@ export async function POST(request: Request) {
         newTask.authorEmail,
         // newTask.initiatorEmail,
         newTask.executorEmail,
-        'transport@t2.ru',
+        //'transport@t2.ru',
       ]
         .filter((email) => email && email.trim() !== '')
         .filter((value, index, self) => self.indexOf(value) === index);

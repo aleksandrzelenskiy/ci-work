@@ -1,68 +1,52 @@
 // src/utils/generateExcel.ts
-
 import ExcelJS from 'exceljs';
 import path from 'path';
 import { existsSync, mkdirSync } from 'fs';
 import { Task } from 'src/app/types/taskTypes';
 
-export async function generateClosingDocumentsExcel(
-  task: Task
-): Promise<string> {
+export async function generateClosingDocumentsExcel(task: Task): Promise<string> {
+  /* 1. Загружаем шаблон */
   const workbook = new ExcelJS.Workbook();
-  const worksheet = workbook.addWorksheet('Closing Documents');
+  const templatePath = path.join(process.cwd(), 'templates', 'closing_template.xlsx');
+  await workbook.xlsx.readFile(templatePath);           // <-- вместо new Workbook()
 
-  // Добавляем заголовок в первой строке и объединяем ячейки A1:C1
-  const header = `BS номер: ${task.bsNumber}`;
-  worksheet.addRow([header]);
-  worksheet.mergeCells('A1:C1');
+  /* 2. Берём нужный лист (по имени или индексу) */
+  const worksheet = workbook.getWorksheet('Closing Documents')
+      ?? workbook.worksheets[0];             // запасной вариант
 
-  // Добавляем строку с заголовками таблицы (начинается со второй строки)
-  worksheet.addRow(['', 'Работа', 'Количество']);
+  /* 3. Записываем реквизиты в заранее зарезервированные ячейки */
+  worksheet.getCell('A1').value = `BS номер: ${task.bsNumber}`;
 
-  // Настройка ширины столбцов
-  worksheet.getColumn(1).width = 5; // пустой столбец
-  worksheet.getColumn(2).width = 50; // Работа
-  worksheet.getColumn(3).width = 15; // Количество
+  /* 4. Определяем, откуда начинается табличная часть
+        — например, шаблон хранит строку-шапку во 2-й строке,
+        а данные должны начинаться с 3-й */
+  const firstDataRow = 3;
 
-  // Заполняем таблицу данными из workItems (начиная с третьей строки)
-  task.workItems.forEach((item) => {
-    worksheet.addRow(['', item.workType, item.quantity]);
+  /* 5. Чистим «старые» строки (если шаблон содержит демо-строки) */
+  worksheet.spliceRows(firstDataRow, worksheet.rowCount - firstDataRow + 1);
+
+  /* 6. Вставляем строки, при необходимости копируя стили у строки-образца */
+  const styleRow = worksheet.getRow(firstDataRow - 1);  // строка-шапка: переносим стили
+  task.workItems.forEach((item, idx) => {
+    const row = worksheet.insertRow(firstDataRow + idx, ['', item.workType, item.quantity]);
+    styleRow.eachCell({ includeEmpty: true }, (cell, colNumber) => {
+      row.getCell(colNumber).style = { ...cell.style }; // копируем стиль столбца
+    });
   });
 
-  // Формируем путь для сохранения файла
-  const cleanTaskName = task.taskName
-    .replace(/[^a-z0-9а-яё]/gi, '_')
-    .toLowerCase()
-    .replace(/_+/g, '_')
-    .replace(/^_|_$/g, '');
-  const cleanBsNumber = task.bsNumber
-    .replace(/[^a-z0-9-]/gi, '_')
-    .toLowerCase()
-    .replace(/_+/g, '_')
-    .replace(/^_|_$/g, '');
+  /* 7. Формируем путь, создаём папку, сохраняем копию */
+  const cleanTaskName = task.taskName.replace(/[^a-z0-9а-яё]/gi, '_').toLowerCase()
+      .replace(/_+/g, '_').replace(/^_|_$/g, '');
+  const cleanBsNumber = task.bsNumber.replace(/[^a-z0-9-]/gi, '_').toLowerCase()
+      .replace(/_+/g, '_').replace(/^_|_$/g, '');
   const taskFolderName = `${cleanTaskName}_${cleanBsNumber}`;
-
-  // Путь для сохранения файла (например, в папку public/uploads/taskattach/{taskFolderName}/closing)
-  const closingDir = path.join(
-    process.cwd(),
-    'public',
-    'uploads',
-    'taskattach',
-    taskFolderName,
-    'closing'
-  );
-
-  if (!existsSync(closingDir)) {
-    mkdirSync(closingDir, { recursive: true });
-  }
+  const closingDir = path.join(process.cwd(), 'public', 'uploads', 'taskattach', taskFolderName, 'closing');
+  if (!existsSync(closingDir)) mkdirSync(closingDir, { recursive: true });
 
   const fileName = `closing_${Date.now()}.xlsx`;
   const filePath = path.join(closingDir, fileName);
-
-  // Сохраняем файл
   await workbook.xlsx.writeFile(filePath);
 
-  // Возвращаем URL, по которому файл будет доступен
-  const fileUrl = `/uploads/taskattach/${taskFolderName}/closing/${fileName}`;
-  return fileUrl;
+  /* 8. Отдаём URL для фронта */
+  return `/uploads/taskattach/${taskFolderName}/closing/${fileName}`;
 }
