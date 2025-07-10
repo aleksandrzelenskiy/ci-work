@@ -4,7 +4,7 @@ services:
     container_name: ci-work_app
     env_file: .env.production
     ports:
-      - '3000:3000'
+      - '127.0.0.1:3000:3000'
     environment:
       MONGODB_URI: 'mongodb://admin:secret123@mongo:27017/ci_work?authSource=admin'
       S3_ENDPOINT: 'https://s3.regru.cloud'
