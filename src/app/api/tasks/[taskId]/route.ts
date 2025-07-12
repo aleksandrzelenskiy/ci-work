@@ -339,7 +339,7 @@ export async function PATCH(
     // ----------------------------------------
     if (statusChanged) {
       try {
-        const frontendUrl = process.env.FRONTEND_URL || 'https://ciwork.pro';
+        const frontendUrl = process.env.FRONTEND_URL || 'https://ciwork.ru';
         const taskLink = `${frontendUrl}/tasks/${updatedTask.taskId}`;
 
         const recipients = [

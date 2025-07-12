@@ -334,7 +334,7 @@ export async function POST(request: Request) {
 
     // Добавляем логику отправки уведомления
     try {
-      const frontendUrl = process.env.FRONTEND_URL || 'https://ciwork.pro';
+      const frontendUrl = process.env.FRONTEND_URL || 'https://ciwork.ru';
       const taskLink = `${frontendUrl}/tasks/${relatedTask.taskId}`;
 
       // Формируем список получателей

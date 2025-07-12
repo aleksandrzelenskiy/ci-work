@@ -213,7 +213,7 @@ export async function POST(request: Request) {
         .filter((email) => email && email.trim() !== '')
         .filter((value, index, self) => self.indexOf(value) === index);
 
-      const frontendUrl = process.env.FRONTEND_URL || 'https://ciwork.pro';
+      const frontendUrl = process.env.FRONTEND_URL || 'https://ciwork.ru';
       const taskLink = `${frontendUrl}/tasks/${newTask.taskId}`;
 
       // Берем информацию по задаче

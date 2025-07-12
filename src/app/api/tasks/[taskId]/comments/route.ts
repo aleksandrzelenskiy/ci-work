@@ -121,7 +121,7 @@ export async function POST(
 
     // Отправляем уведомления по почте всем участникам задачи и на общий почтовый ящик
     try {
-      const frontendUrl = process.env.FRONTEND_URL || 'https://ciwork.pro';
+      const frontendUrl = process.env.FRONTEND_URL || 'https://ciwork.ru';
       const taskLink = `${frontendUrl}/tasks/${updatedTask.taskId}`;
       const recipients = new Set(
         [
