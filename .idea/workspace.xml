@@ -4,23 +4,7 @@
     <option name="autoReloadType" value="SELECTIVE" />
   </component>
   <component name="ChangeListManager">
-    <list default="true" id="b3c91f45-fbe1-4477-9fd9-38d0fcaf660d" name="Changes" comment="Order information logic has been added into task page">
-      <change beforePath="$PROJECT_DIR$/.idea/workspace.xml" beforeDir="false" afterPath="$PROJECT_DIR$/.idea/workspace.xml" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/package-lock.json" beforeDir="false" afterPath="$PROJECT_DIR$/package-lock.json" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/package.json" beforeDir="false" afterPath="$PROJECT_DIR$/package.json" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/src/app/api/addtasks/route.ts" beforeDir="false" afterPath="$PROJECT_DIR$/src/app/api/addtasks/route.ts" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/src/app/api/orders/route.ts" beforeDir="false" afterPath="$PROJECT_DIR$/src/app/api/orders/route.ts" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/src/app/api/tasks/[taskId]/comments/route.ts" beforeDir="false" afterPath="$PROJECT_DIR$/src/app/api/tasks/[taskId]/comments/route.ts" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/src/app/api/tasks/[taskId]/route.ts" beforeDir="false" afterPath="$PROJECT_DIR$/src/app/api/tasks/[taskId]/route.ts" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/src/app/api/upload/route.ts" beforeDir="false" afterPath="$PROJECT_DIR$/src/app/api/upload/route.ts" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/src/app/components/PdfGenerator.tsx" beforeDir="false" afterPath="$PROJECT_DIR$/src/app/components/NcwGenerator.tsx" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/src/app/components/TaskMap.tsx" beforeDir="false" afterPath="$PROJECT_DIR$/src/app/components/TaskMap.tsx" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/src/app/models/TaskModel.ts" beforeDir="false" afterPath="$PROJECT_DIR$/src/app/models/TaskModel.ts" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/src/app/orders/page.tsx" beforeDir="false" afterPath="$PROJECT_DIR$/src/app/orders/page.tsx" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/src/app/tasks/[taskId]/page.tsx" beforeDir="false" afterPath="$PROJECT_DIR$/src/app/tasks/[taskId]/page.tsx" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/src/app/uor/page.tsx" beforeDir="false" afterPath="$PROJECT_DIR$/src/app/ncw/page.tsx" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/src/utils/generateExcel.ts" beforeDir="false" afterPath="$PROJECT_DIR$/src/utils/generateExcel.ts" afterDir="false" />
-    </list>
+    <list default="true" id="b3c91f45-fbe1-4477-9fd9-38d0fcaf660d" name="Changes" comment="S3 settings  has been clear into docker-compose.yml" />
     <option name="SHOW_DIALOG" value="false" />
     <option name="HIGHLIGHT_CONFLICTS" value="true" />
     <option name="HIGHLIGHT_NON_ACTIVE_CHANGELIST" value="false" />
@@ -109,6 +93,7 @@
       <workItem from="1751173836254" duration="20651000" />
       <workItem from="1751377932234" duration="2462000" />
       <workItem from="1751887037491" duration="2748000" />
+      <workItem from="1752121076363" duration="11441000" />
     </task>
     <task id="LOCAL-00001" summary="Dockerfile has been modified #2">
       <option name="closed" value="true" />
@@ -158,7 +143,39 @@
       <option name="project" value="LOCAL" />
       <updated>1749132755422</updated>
     </task>
-    <option name="localTasksCounter" value="7" />
+    <task id="LOCAL-00007" summary="TaskMap page has been modified">
+      <option name="closed" value="true" />
+      <created>1752121971051</created>
+      <option name="number" value="00007" />
+      <option name="presentableId" value="LOCAL-00007" />
+      <option name="project" value="LOCAL" />
+      <updated>1752121971051</updated>
+    </task>
+    <task id="LOCAL-00008" summary="docker-compose.yml has been modofied">
+      <option name="closed" value="true" />
+      <created>1752139850839</created>
+      <option name="number" value="00008" />
+      <option name="presentableId" value="LOCAL-00008" />
+      <option name="project" value="LOCAL" />
+      <updated>1752139850839</updated>
+    </task>
+    <task id="LOCAL-00009" summary="dockerfile has been modified">
+      <option name="closed" value="true" />
+      <created>1752143920385</created>
+      <option name="number" value="00009" />
+      <option name="presentableId" value="LOCAL-00009" />
+      <option name="project" value="LOCAL" />
+      <updated>1752143920385</updated>
+    </task>
+    <task id="LOCAL-00010" summary="S3 settings  has been clear into docker-compose.yml">
+      <option name="closed" value="true" />
+      <created>1752149984296</created>
+      <option name="number" value="00010" />
+      <option name="presentableId" value="LOCAL-00010" />
+      <option name="project" value="LOCAL" />
+      <updated>1752149984296</updated>
+    </task>
+    <option name="localTasksCounter" value="11" />
     <servers />
   </component>
   <component name="TypeScriptGeneratedFilesManager">
@@ -170,6 +187,10 @@
     <MESSAGE value="added generation of UOR" />
     <MESSAGE value="Generation of UOR and addtask route has been modified" />
     <MESSAGE value="Order information logic has been added into task page" />
-    <option name="LAST_COMMIT_MESSAGE" value="Order information logic has been added into task page" />
+    <MESSAGE value="TaskMap page has been modified" />
+    <MESSAGE value="docker-compose.yml has been modofied" />
+    <MESSAGE value="dockerfile has been modified" />
+    <MESSAGE value="S3 settings  has been clear into docker-compose.yml" />
+    <option name="LAST_COMMIT_MESSAGE" value="S3 settings  has been clear into docker-compose.yml" />
   </component>
 </project>

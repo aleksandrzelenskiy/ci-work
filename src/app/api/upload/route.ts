@@ -50,6 +50,7 @@ function formatDateToDDMMYYYY(exifDateStr: string): string {
 }
 
 export async function POST(request: Request) {
+  console.log('>>>> /api/upload called', new Date().toISOString());
   // Проверка аутентификации
   const user = await currentUser();
   if (!user) {
