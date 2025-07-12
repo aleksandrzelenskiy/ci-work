@@ -54,64 +54,68 @@ interface BaseStation {
 }
 
 const DropzoneArea = ({
-  onDrop,
-  label,
-}: {
+                        onDrop,
+                        label,
+                      }: {
   onDrop: (files: File[]) => void;
   label: string;
 }) => {
   const { getRootProps, getInputProps } = useDropzone({ onDrop });
 
   return (
-    <Box
-      {...getRootProps()}
-      sx={{
-        border: '2px dashed #ccc',
-        borderRadius: '8px',
-        p: 2,
-        textAlign: 'center',
-        mb: 2,
-        cursor: 'pointer',
-      }}
-    >
-      <input {...getInputProps()} />
-      <Typography>{label}</Typography>
-    </Box>
+      <Box
+          {...getRootProps()}
+          sx={{
+            border: '2px dashed #ccc',
+            borderRadius: '8px',
+            p: 2,
+            textAlign: 'center',
+            mb: 2,
+            cursor: 'pointer',
+          }}
+      >
+        <input {...getInputProps()} />
+        <Typography>{label}</Typography>
+      </Box>
   );
 };
 
 export default function UploadPage() {
+  /* ─────────── безопасно читаем query-параметры ─────────── */
   const searchParams = useSearchParams();
-  const taskId = searchParams.get('taskId');
-  const taskNameParam = searchParams.get('taskName');
-  const bsNumberParam = searchParams.get('bsNumber');
-  const executorName = searchParams.get('executorName');
-  const executorId = searchParams.get('executorId');
-  const initiatorName = searchParams.get('initiatorName');
-  const initiatorId = searchParams.get('initiatorId');
 
+  const taskId        = searchParams?.get('taskId')        ?? '';
+  const taskNameParam = searchParams?.get('taskName')      ?? '';
+  const bsNumberParam = searchParams?.get('bsNumber')      ?? '';
+  const executorName  = searchParams?.get('executorName')  ?? '';
+  const executorId    = searchParams?.get('executorId')    ?? '';
+  const initiatorName = searchParams?.get('initiatorName') ?? '';
+  const initiatorId   = searchParams?.get('initiatorId')   ?? '';
+
+  /* ─────────── состояние ─────────── */
   const { isLoaded, isSignedIn } = useUser();
   const router = useRouter();
+
   const [baseStations, setBaseStations] = useState<BaseStation[]>([]);
-  const [task, setTask] = useState('');
-  const [isCheckboxChecked, setIsCheckboxChecked] = useState(false);
+  const [task, setTask]                 = useState('');
+  const [isCheckboxChecked, setIsCheckboxChecked]     = useState(false);
   const [isAccordionExpanded, setIsAccordionExpanded] = useState(true);
-  const [fileToDelete, setFileToDelete] = useState<{
+  const [fileToDelete, setFileToDelete]               = useState<{
     bsId: string;
     file: UploadedFile;
   } | null>(null);
   const [successMessage, setSuccessMessage] = useState<string | null>(null);
-  const [errorMessage, setErrorMessage] = useState<string | null>(null);
+  const [errorMessage, setErrorMessage]     = useState<string | null>(null);
 
+  /* ---------- формируем список БС из query ---------- */
   useEffect(() => {
     if (taskNameParam && bsNumberParam) {
       const decodedTask = decodeURIComponent(taskNameParam);
-      const decodedBS = decodeURIComponent(bsNumberParam);
+      const decodedBS   = decodeURIComponent(bsNumberParam);
       setTask(`${decodedTask} | ${decodedBS}`);
 
-      const bsNumbers = decodedBS.split('-');
-      const stations = bsNumbers.map((num, index) => ({
-        id: `bs-${index}-${Date.now()}`,
+      const stations = decodedBS.split('-').map((num, idx) => ({
+        id: `bs-${idx}-${Date.now()}`,
         number: num.trim(),
         files: [],
         uploadProgress: 0,
@@ -123,47 +127,37 @@ export default function UploadPage() {
   }, [taskNameParam, bsNumberParam]);
 
   useEffect(() => {
-    if (isCheckboxChecked) {
-      setIsAccordionExpanded(false);
-    }
+    if (isCheckboxChecked) setIsAccordionExpanded(false);
   }, [isCheckboxChecked]);
 
   useEffect(() => {
-    if (isLoaded && !isSignedIn) {
-      router.push('/auth/login');
-    }
+    if (isLoaded && !isSignedIn) router.push('/auth/login');
   }, [isLoaded, isSignedIn, router]);
 
-  const handleDrop = (bsId: string, acceptedFiles: File[]) => {
-    const newFiles = acceptedFiles.map((file) => ({
+  /* ---------- drop / remove / delete ---------- */
+  const handleDrop = (bsId: string, files: File[]) => {
+    const newFiles = files.map((file) => ({
       id: `${Date.now()}-${file.name}`,
       file,
       preview: URL.createObjectURL(file),
       progress: 0,
     }));
-
     setBaseStations((prev) =>
-      prev.map((bs) =>
-        bs.id === bsId
-          ? { ...bs, files: [...bs.files, ...newFiles], isUploaded: false }
-          : bs
-      )
+        prev.map((bs) =>
+            bs.id === bsId ? { ...bs, files: [...bs.files, ...newFiles], isUploaded: false } : bs
+        )
     );
   };
 
-  const handleRemoveFile = (bsId: string, fileId: string) => {
-    setBaseStations((prev) =>
-      prev.map((bs) =>
-        bs.id === bsId
-          ? { ...bs, files: bs.files.filter((f) => f.id !== fileId) }
-          : bs
-      )
-    );
-  };
+  const confirmRemoveFile = (bsId: string, file: UploadedFile) =>
+      setFileToDelete({ bsId, file });
 
-  const confirmRemoveFile = (bsId: string, file: UploadedFile) => {
-    setFileToDelete({ bsId, file });
-  };
+  const handleRemoveFile = (bsId: string, fileId: string) =>
+      setBaseStations((prev) =>
+          prev.map((bs) =>
+              bs.id === bsId ? { ...bs, files: bs.files.filter((f) => f.id !== fileId) } : bs
+          )
+      );
 
   const handleDeleteConfirmed = () => {
     if (fileToDelete) {
@@ -172,8 +166,9 @@ export default function UploadPage() {
     }
   };
 
+  /* ---------- upload ---------- */
   const handleUpload = async (bsId: string) => {
-    const bs = baseStations.find((bs) => bs.id === bsId);
+    const bs = baseStations.find((b) => b.id === bsId);
     if (!bs || bs.files.length === 0) return;
 
     try {
@@ -185,126 +180,107 @@ export default function UploadPage() {
       formData.append('executorName', executorName || 'unknown');
       formData.append('initiatorId', initiatorId || 'unknown');
       formData.append('initiatorName', initiatorName || 'unknown');
-
-      bs.files.forEach((file) => {
-        formData.append('image[]', file.file);
-      });
+      bs.files.forEach((f) => formData.append('image[]', f.file));
 
       setBaseStations((prev) =>
-        prev.map((prevBs) =>
-          prevBs.id === bsId
-            ? {
-                ...prevBs,
-                files: prevBs.files.map((f) => ({ ...f, uploading: true })),
-                isUploading: true,
-                uploadProgress: 0,
-              }
-            : prevBs
-        )
+          prev.map((p) =>
+              p.id === bsId
+                  ? {
+                    ...p,
+                    files: p.files.map((f) => ({ ...f, uploading: true })),
+                    isUploading: true,
+                    uploadProgress: 0,
+                  }
+                  : p
+          )
       );
 
       const xhr = new XMLHttpRequest();
       xhr.open('POST', '/api/upload', true);
 
-      xhr.upload.onprogress = (event) => {
-        if (event.lengthComputable) {
-          const totalProgress = (event.loaded / event.total) * 100;
+      xhr.upload.onprogress = (ev) => {
+        if (ev.lengthComputable) {
+          const prog = (ev.loaded / ev.total) * 100;
           setBaseStations((prev) =>
-            prev.map((prevBs) => {
-              if (prevBs.id === bsId) {
-                const files = prevBs.files.map((f) => ({
-                  ...f,
-                  progress: Math.min(totalProgress, 99),
-                }));
-                return {
-                  ...prevBs,
-                  files,
-                  uploadProgress: totalProgress,
-                };
-              }
-              return prevBs;
-            })
+              prev.map((p) =>
+                  p.id === bsId
+                      ? {
+                        ...p,
+                        files: p.files.map((f) => ({ ...f, progress: Math.min(prog, 99) })),
+                        uploadProgress: prog,
+                      }
+                      : p
+              )
           );
         }
       };
 
-      await new Promise((resolve, reject) => {
-        xhr.onload = () => {
-          if (xhr.status === 200) {
-            setBaseStations((prev) =>
-              prev.map((prevBs) =>
-                prevBs.id === bsId
-                  ? {
-                      ...prevBs,
-                      files: [],
-                      isUploading: false,
-                      uploadProgress: 100,
-                      isUploaded: true,
-                      uploadedCount: prevBs.files.length,
-                    }
-                  : prevBs
-              )
-            );
-            setSuccessMessage(`Files for ${bs.number} uploaded successfully!`);
-            resolve(xhr.response);
-          } else {
-            reject(new Error('Upload failed'));
-          }
-        };
-        xhr.onerror = () => {
-          reject(new Error('Upload error'));
-          setErrorMessage(`Error uploading files for ${bs.number}`);
-        };
+      await new Promise<void>((resolve, reject) => {
+        xhr.onload = () => (xhr.status === 200 ? resolve() : reject(new Error('Upload failed')));
+        xhr.onerror = () => reject(new Error('Upload error'));
         xhr.send(formData);
       });
-    } catch (error) {
-      console.error('Upload error:', error);
-      setErrorMessage(`Error uploading files for ${bs.number}`);
+
       setBaseStations((prev) =>
-        prev.map((prevBs) =>
-          prevBs.id === bsId
-            ? {
-                ...prevBs,
-                files: prevBs.files.map((f) => ({
-                  ...f,
-                  uploading: false,
-                })),
-                isUploading: false,
-                uploadProgress: 0,
-              }
-            : prevBs
-        )
+          prev.map((p) =>
+              p.id === bsId
+                  ? {
+                    ...p,
+                    files: [],
+                    isUploading: false,
+                    uploadProgress: 100,
+                    isUploaded: true,
+                    uploadedCount: p.files.length,
+                  }
+                  : p
+          )
+      );
+      setSuccessMessage(`Files for ${bs.number} uploaded successfully!`);
+    } catch (err) {
+      console.error(err);
+      setErrorMessage(`Error uploading files for ${bs?.number}`);
+      setBaseStations((prev) =>
+          prev.map((p) =>
+              p.id === bsId
+                  ? {
+                    ...p,
+                    files: p.files.map((f) => ({ ...f, uploading: false })),
+                    isUploading: false,
+                    uploadProgress: 0,
+                  }
+                  : p
+          )
       );
     }
   };
 
-  if (!isLoaded) {
-    return <Typography>Loading...</Typography>;
-  }
+  if (!isLoaded) return <Typography>Loading...</Typography>;
 
+  /* ---------- JSX ---------- */
   return (
-    <Box sx={{ flexGrow: 1 }}>
-      <Snackbar
-        open={!!successMessage}
-        autoHideDuration={4000}
-        onClose={() => setSuccessMessage(null)}
-        anchorOrigin={{ vertical: 'top', horizontal: 'center' }}
-      >
-        <Alert severity='success' sx={{ width: '100%' }}>
-          {successMessage}
-        </Alert>
-      </Snackbar>
+      <Box sx={{ flexGrow: 1 }}>
+        {/* Snackbars */}
+        <Snackbar
+            open={!!successMessage}
+            autoHideDuration={4000}
+            onClose={() => setSuccessMessage(null)}
+            anchorOrigin={{ vertical: 'top', horizontal: 'center' }}
+        >
+          <Alert severity='success' sx={{ width: '100%' }}>
+            {successMessage}
+          </Alert>
+        </Snackbar>
 
-      <Snackbar
-        open={!!errorMessage}
-        autoHideDuration={4000}
-        onClose={() => setErrorMessage(null)}
-        anchorOrigin={{ vertical: 'top', horizontal: 'center' }}
-      >
-        <Alert severity='error' sx={{ width: '100%' }}>
-          {errorMessage}
-        </Alert>
-      </Snackbar>
+        <Snackbar
+            open={!!errorMessage}
+            autoHideDuration={4000}
+            onClose={() => setErrorMessage(null)}
+            anchorOrigin={{ vertical: 'top', horizontal: 'center' }}
+        >
+          <Alert severity='error' sx={{ width: '100%' }}>
+            {errorMessage}
+          </Alert>
+        </Snackbar>
 
       <Grid container spacing={2}>
         <Grid item xs={12} md={6}>
