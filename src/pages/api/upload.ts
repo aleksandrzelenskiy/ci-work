@@ -9,8 +9,6 @@ import dbConnect from '@/utils/mongoose';
 import { uploadBufferToS3 } from '@/utils/s3';
 import { v4 as uuidv4 } from 'uuid';
 import Busboy from 'busboy';
-import { Readable } from 'stream';
-import type { ReadableStream as NodeWebStream } from 'stream/web';
 import { sendEmail } from '@/utils/mailer';
 
 export const config = {
@@ -80,11 +78,10 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
         stream.on('end', () => fileBuffers.push(Buffer.concat(chunks)));
     });
 
-    await new Promise<void>((res, rej) => {
-        bb.on('finish', res);
-        bb.on('error', rej);
-        const nodeStream = Readable.fromWeb(req.body as unknown as NodeWebStream);
-        nodeStream.pipe(bb);
+    await new Promise<void>((resolve, reject) => {
+        bb.on('finish', resolve);
+        bb.on('error',  reject);
+        req.pipe(bb);
     });
 
     const rawBaseId = fields.baseId;
