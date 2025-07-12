@@ -4,42 +4,50 @@ import { useState } from 'react';
 import { useSearchParams } from 'next/navigation';
 import { PdfTemplate } from './PdfTemplate';
 import { PDFViewer, PDFDownloadLink } from '@react-pdf/renderer';
-import { TextField, Button, Stack, Typography } from '@mui/material';
+import {
+    TextField,
+    Button,
+    Stack,
+    Typography,
+    Box,
+    Alert,
+    CircularProgress,
+} from '@mui/material';
 import { DatePicker } from '@mui/x-date-pickers/DatePicker';
-import 'dayjs/locale/ru';
-import dayjs from 'dayjs';
-import { Dayjs } from 'dayjs';
-import { Box } from '@mui/material';
 import CloudDownloadIcon from '@mui/icons-material/CloudDownload';
+import dayjs, { Dayjs } from 'dayjs';
+import 'dayjs/locale/ru';
 
 dayjs.locale('ru');
 
 export const NcwGenerator = () => {
-
+    /* ─────────────── безопасно читаем query-параметры ─────────────── */
     const params = useSearchParams();
-      const initialOrderNumber = params.get('orderNumber') || '';
-      const initialOrderDate = params.get('orderDate')
-        ? dayjs(params.get('orderDate'))
-            : null;
-      const initialCompletionDate = params.get('completionDate')
-        ? dayjs(params.get('completionDate'))
-            : null;
-      const initialObjectNumber = params.get('objectNumber') || '';
-      const initialObjectAddress = params.get('objectAddress') || '';
 
-    // Добавляем состояния для пропсов договора
+    const initialOrderNumber   = params?.get('orderNumber')   ?? '';
+    const initialOrderDate     = params?.get('orderDate')
+        ? dayjs(params.get('orderDate') as string)
+        : null;
+    const initialCompletionDate = params?.get('completionDate')
+        ? dayjs(params.get('completionDate') as string)
+        : null;
+    const initialObjectNumber  = params?.get('objectNumber')  ?? '';
+    const initialObjectAddress = params?.get('objectAddress') ?? '';
+
+    /* ─────────────── состояния ─────────────── */
     const [contractNumber, setContractNumber] = useState('27-1/25');
-    const [contractDate, setContractDate] = useState<Dayjs | null>(dayjs('2025-04-07'));
+    const [contractDate, setContractDate] = useState<Dayjs | null>(
+        dayjs('2025-04-07')
+    );
 
-    const [orderNumber, setOrderNumber] = useState(initialOrderNumber);
-    const [objectNumber, setObjectNumber] = useState(initialObjectNumber);
-    const [objectAddress, setObjectAddress] = useState(initialObjectAddress);
+    const [orderNumber, setOrderNumber]       = useState(initialOrderNumber);
+    const [objectNumber, setObjectNumber]     = useState(initialObjectNumber);
+    const [objectAddress, setObjectAddress]   = useState(initialObjectAddress);
 
-    const [orderDate, setOrderDate] = useState<Dayjs | null>(initialOrderDate);
-      const [completionDate, setCompletionDate] = useState<Dayjs | null>(
-            initialCompletionDate
-          );
+    const [orderDate, setOrderDate]           = useState<Dayjs | null>(initialOrderDate);
+    const [completionDate, setCompletionDate] = useState<Dayjs | null>(initialCompletionDate);
 
+    /* ─────────────── валидация ─────────────── */
     const isValid =
         contractNumber &&
         contractDate &&
@@ -50,21 +58,24 @@ export const NcwGenerator = () => {
         completionDate &&
         completionDate.isAfter(orderDate);
 
+    /* ─────────────── данные для PDF ─────────────── */
     const formData = {
         orderNumber,
         objectNumber,
         objectAddress,
         contractNumber,
-        contractDate: contractDate?.format('DD.MM.YYYY') || '',
-        orderDate: orderDate?.format('DD.MM.YYYY') || '',
+        contractDate:  contractDate?.format('DD.MM.YYYY') || '',
+        orderDate:     orderDate?.format('DD.MM.YYYY')    || '',
         completionDate: completionDate?.format('DD.MM.YYYY') || '',
     };
 
+    /* ─────────────── UI ─────────────── */
     return (
         <Stack spacing={3} maxWidth={600} mx="auto" mt={4}>
-            <Typography variant="h5">Генерация уведомления о завершении работ</Typography>
+            <Typography variant="h5">
+                Генерация уведомления о завершении работ
+            </Typography>
 
-            {/* Добавляем поля для данных договора */}
             <TextField
                 label="Номер договора"
                 value={contractNumber}
@@ -104,9 +115,9 @@ export const NcwGenerator = () => {
             />
 
             {orderDate && completionDate && completionDate.isBefore(orderDate) && (
-                <Typography color="error">
+                <Alert severity="error">
                     Дата окончания работ не может быть раньше даты заказа.
-                </Typography>
+                </Alert>
             )}
 
             <TextField
@@ -128,11 +139,11 @@ export const NcwGenerator = () => {
             {isValid && (
                 <>
                     <Typography variant="h6">Предпросмотр:</Typography>
-                    <div style={{ height: 600 }}>
+                    <Box height={600}>
                         <PDFViewer width="100%" height="100%">
                             <PdfTemplate {...formData} />
                         </PDFViewer>
-                    </div>
+                    </Box>
 
                     <Box display="flex" justifyContent="center" mt={2}>
                         <PDFDownloadLink
@@ -140,8 +151,22 @@ export const NcwGenerator = () => {
                             fileName={`Уведомление_${orderNumber}.pdf`}
                         >
                             {({ loading }) => (
-                                <Button variant="contained" color="primary" startIcon={<CloudDownloadIcon />}>
-                                    {loading ? 'Генерация...' : 'Скачать PDF'}
+                                <Button
+                                    variant="contained"
+                                    color="primary"
+                                    startIcon={<CloudDownloadIcon />}
+                                >
+                                    {loading ? (
+                                        <>
+                                            <CircularProgress
+                                                size={18}
+                                                sx={{ mr: 1, color: 'inherit' }}
+                                            />
+                                            Генерация…
+                                        </>
+                                    ) : (
+                                        'Скачать PDF'
+                                    )}
                                 </Button>
                             )}
                         </PDFDownloadLink>
