@@ -1,8 +1,10 @@
 /** @type {import('next').NextConfig} */
 const nextConfig = {
-  reactStrictMode: true,
   experimental: {
-    // serverActions: true,
+    serverActions: {
+      // ставим с запасом: 100 мегабайт
+      bodySizeLimit: '100mb',
+    },
   },
 };
 

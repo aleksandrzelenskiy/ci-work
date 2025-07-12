@@ -1,3 +1,5 @@
+// pages/api/upload.ts
+
 import type { NextApiRequest, NextApiResponse } from 'next';
 import { getAuth } from '@clerk/nextjs/server';
 import sharp from 'sharp';
@@ -14,7 +16,7 @@ import { sendEmail } from '@/utils/mailer';
 export const config = {
     api: {
         bodyParser: false,
-        sizeLimit: '25mb',
+        sizeLimit: '100mb',
     },
 };
 
