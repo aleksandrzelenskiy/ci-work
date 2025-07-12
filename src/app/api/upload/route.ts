@@ -198,33 +198,37 @@ export async function POST(request: Request) {
     const outputFilename = `${baseId}-${uniqueId}.jpg`;
 
     try {
-      // 1) Изменяем размер, накладываем адаптивный водяной знак → Buffer
-      const img = sharp(buffer)
+
+// 1) Поворот + ресайз ➜ получаем buffer И размеры кадра
+      const { data: resizedBuffer, info } = await sharp(buffer)
           .rotate()
-          .resize(1920, 1920, { fit: sharp.fit.inside, withoutEnlargement: true });
+          .resize(1920, 1920, {
+            fit: sharp.fit.inside,
+            withoutEnlargement: true,
+          })
+          .toBuffer({ resolveWithObject: true });   // ← info.width / info.height
 
-// ширина картинки после ресайза (нужна для SVG)
-      const { width = 900 } = await img.metadata();
-
-// генерируем SVG с этой шириной
-      const overlayHeight = 80; // высоту при желании можно вычислять динамически
+// 2) SVG-оверлей ровно по фактической ширине
+      const overlayHeight = 80;
       const overlaySvg = `
-  <svg width="${width}" height="${overlayHeight}">
-    <rect width="100%" height="100%" fill="black" opacity="0.6" />
-    <text x="20" y="30" font-size="24" font-family="Arial, sans-serif" fill="white">
+  <svg width="${info.width}" height="${overlayHeight}">
+    <rect width="100%" height="100%" fill="black" opacity="0.6"/>
+    <text x="20" y="30" font-size="24" font-family="Arial" fill="white">
       ${date} | Task: ${task} | BS: ${baseId}
     </text>
-    <text x="20" y="60" font-size="24" font-family="Arial, sans-serif" fill="white">
+    <text x="20" y="60" font-size="24" font-family="Arial" fill="white">
       Location: ${coordinates} | Executor: ${name}
     </text>
   </svg>`;
 
-// финальное изображение
-      const processedBuffer = await img
+// 3) Композитинг и финальный JPEG
+      const processedBuffer = await sharp(resizedBuffer)
           .composite([{ input: Buffer.from(overlaySvg), gravity: 'south' }])
-          .withMetadata({ orientation: 1 })
           .jpeg({ quality: 80 })
           .toBuffer();
+
+// 🔄--- КОНЕЦ НОВОГО БЛОКА -------------------------------------------------
+
 
 
       // 2) Формируем "ключ" для хранения в S3 (папка reports/{task}/{baseId}/)
