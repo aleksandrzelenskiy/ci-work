@@ -32,6 +32,7 @@ import {
   ListItem,
   ListItemIcon,
   ListItemText,
+  Alert,
 } from '@mui/material';
 import { DateRangePicker } from '@mui/x-date-pickers-pro/DateRangePicker';
 import { SingleInputDateRangeField } from '@mui/x-date-pickers-pro/SingleInputDateRangeField';
@@ -42,18 +43,18 @@ import {
   KeyboardArrowUp as KeyboardArrowUpIcon,
   DragHandle as DragHandleIcon,
   Remove as RemoveIcon,
+  ViewColumn as ViewColumnIcon,
+  FilterList as FilterListIcon,
+  Search as SearchIcon,
+  KeyboardArrowDown as KeyboardArrowDownIcon,
 } from '@mui/icons-material';
-import ViewColumnIcon from '@mui/icons-material/ViewColumn';
-import FilterListIcon from '@mui/icons-material/FilterList';
-import SearchIcon from '@mui/icons-material/Search';
-import KeyboardArrowDownIcon from '@mui/icons-material/KeyboardArrowDown';
-
 import { LocalizationProvider } from '@mui/x-date-pickers/LocalizationProvider';
 import { AdapterDateFns } from '@mui/x-date-pickers/AdapterDateFns';
 import { Task, WorkItem } from '../types/taskTypes';
 import { GetCurrentUserFromMongoDB } from 'src/server-actions/users';
 import { getStatusColor } from '@/utils/statusColors';
 
+/* ───────────── вспомогательные элементы ───────────── */
 const getPriorityIcon = (priority: string) => {
   switch (priority) {
     case 'low':
@@ -69,11 +70,12 @@ const getPriorityIcon = (priority: string) => {
   }
 };
 
+/* ───────────── строка задачи ───────────── */
 function Row({
-  task,
-  columnVisibility,
-  role,
-}: {
+               task,
+               columnVisibility,
+               role,
+             }: {
   task: Task;
   columnVisibility: Record<string, boolean>;
   role: string;
@@ -91,172 +93,124 @@ function Row({
   };
 
   return (
-    <>
-      <TableRow sx={{ '& > *': { borderBottom: 'unset' } }}>
-        <TableCell>
-          <IconButton size='small' onClick={() => setOpen(!open)}>
-            {open ? <KeyboardArrowUpIcon /> : <KeyboardArrowDownIcon />}
-          </IconButton>
-        </TableCell>
-
-        {columnVisibility.task && (
+      <>
+        <TableRow sx={{ '& > *': { borderBottom: 'unset' } }}>
           <TableCell>
-            <Box sx={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-              <Link
-                href={`/tasks/${task.taskId.toLowerCase()}`}
-                sx={{ cursor: 'pointer' }}
-              >
-                {task.taskName} | {task.bsNumber}
-              </Link>
-            </Box>
+            <IconButton size='small' onClick={() => setOpen(!open)}>
+              {open ? <KeyboardArrowDownIcon /> : <KeyboardArrowDownIcon sx={{ transform: 'rotate(-90deg)' }} />}
+            </IconButton>
           </TableCell>
-        )}
 
-        {columnVisibility.author && (
-          <TableCell align='center'>
-            <Box>
-              <Typography variant='subtitle2'>
-                {parseUserInfo(task.authorName).name}
-              </Typography>
-            </Box>
-          </TableCell>
-        )}
+          {columnVisibility.task && (
+              <TableCell>
+                <Box sx={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                  <Link href={`/tasks/${task.taskId.toLowerCase()}`} sx={{ cursor: 'pointer' }}>
+                    {task.taskName} | {task.bsNumber}
+                  </Link>
+                </Box>
+              </TableCell>
+          )}
 
-        {columnVisibility.initiator && (
-          <TableCell align='center'>
-            <Box>
-              <Typography variant='subtitle2'>
-                {parseUserInfo(task.initiatorName).name}
-              </Typography>
-            </Box>
-          </TableCell>
-        )}
+          {columnVisibility.author && (
+              <TableCell align='center'>
+                <Typography variant='subtitle2'>{parseUserInfo(task.authorName).name}</Typography>
+              </TableCell>
+          )}
 
-        {/* Скрываем столбец Executor для роли executor */}
-        {role !== 'executor' && columnVisibility.executor && (
-          <TableCell align='center'>
-            <Box>
-              <Typography variant='subtitle2'>
-                {parseUserInfo(task.executorName).name}
-              </Typography>
-            </Box>
-          </TableCell>
-        )}
+          {columnVisibility.initiator && (
+              <TableCell align='center'>
+                <Typography variant='subtitle2'>{parseUserInfo(task.initiatorName).name}</Typography>
+              </TableCell>
+          )}
 
-        {columnVisibility.created && (
-          <TableCell align='center'>
-            {new Date(task.createdAt).toLocaleDateString()}
-          </TableCell>
-        )}
+          {role !== 'executor' && columnVisibility.executor && (
+              <TableCell align='center'>
+                <Typography variant='subtitle2'>{parseUserInfo(task.executorName).name}</Typography>
+              </TableCell>
+          )}
 
-        {columnVisibility.due && (
-          <TableCell align='center'>
-            {new Date(task.dueDate).toLocaleDateString()}
-          </TableCell>
-        )}
+          {columnVisibility.created && (
+              <TableCell align='center'>{new Date(task.createdAt).toLocaleDateString()}</TableCell>
+          )}
 
-        {columnVisibility.status && (
-          <TableCell align='center'>
-            <Chip
-              label={task.status}
-              sx={{
-                backgroundColor: getStatusColor(task.status),
-                color: '#fff',
-              }}
-            />
-          </TableCell>
-        )}
+          {columnVisibility.due && (
+              <TableCell align='center'>{new Date(task.dueDate).toLocaleDateString()}</TableCell>
+          )}
 
-        {columnVisibility.priority && (
-          <TableCell align='center'>
-            {getPriorityIcon(task.priority)}
-            {task.priority}
-          </TableCell>
-        )}
-      </TableRow>
+          {columnVisibility.status && (
+              <TableCell align='center'>
+                <Chip label={task.status} sx={{ backgroundColor: getStatusColor(task.status), color: '#fff' }} />
+              </TableCell>
+          )}
 
-      <TableRow>
-        <TableCell colSpan={11} style={{ paddingBottom: 0, paddingTop: 0 }}>
-          <Collapse in={open} timeout='auto' unmountOnExit>
-            <Chip
-              label={task.taskId}
-              size='small'
-              color='primary'
-              sx={{ mt: 1, marginLeft: 2 }}
-            />
-            <Box sx={{ marginLeft: 3 }}>
-              <Box sx={{ mb: 2, mt: 2 }}>
+          {columnVisibility.priority && (
+              <TableCell align='center'>
+                {getPriorityIcon(task.priority)}
+                {task.priority}
+              </TableCell>
+          )}
+        </TableRow>
+
+        <TableRow>
+          <TableCell colSpan={11} sx={{ p: 0 }}>
+            <Collapse in={open} timeout='auto' unmountOnExit>
+              <Chip label={task.taskId} size='small' color='primary' sx={{ mt: 1, ml: 2 }} />
+              <Box sx={{ ml: 3, mt: 2 }}>
                 <Typography variant='subtitle1'>BS Number</Typography>
-                <Typography
-                  variant='body2'
-                  color='text.secondary'
-                  component='div'
-                >
+                <Typography variant='body2' color='text.secondary'>
                   {task.bsNumber}
                 </Typography>
+
                 <Typography variant='subtitle1'>Address</Typography>
-                <Typography
-                  variant='body2'
-                  color='text.secondary'
-                  component='div'
-                >
+                <Typography variant='body2' color='text.secondary'>
                   {task.bsAddress}
                 </Typography>
+
                 {role !== 'executor' && (
-                  <>
-                    <Typography variant='subtitle1'>Cost</Typography>
-                    <Typography variant='body2' component='div'>
-                      {task.totalCost}
-                    </Typography>
-                  </>
+                    <>
+                      <Typography variant='subtitle1'>Cost</Typography>
+                      <Typography variant='body2'>{task.totalCost}</Typography>
+                    </>
                 )}
-              </Box>
-              <Typography variant='h6' gutterBottom>
-                Work Items
-              </Typography>
-              <Table size='small'>
-                <TableHead>
-                  <TableRow>
-                    <TableCell>Work Type</TableCell>
-                    <TableCell>Quantity</TableCell>
-                    <TableCell>Unit</TableCell>
-                    <TableCell>Note</TableCell>
-                  </TableRow>
-                </TableHead>
-                <TableBody>
-                  {task.workItems.map((item: WorkItem) => (
-                    <TableRow key={item.id}>
-                      <TableCell>{item.workType}</TableCell>
-                      <TableCell>{item.quantity}</TableCell>
-                      <TableCell>{item.unit}</TableCell>
-                      <TableCell>{item.note}</TableCell>
+
+                <Typography variant='h6' sx={{ mt: 2 }}>
+                  Work Items
+                </Typography>
+                <Table size='small'>
+                  <TableHead>
+                    <TableRow>
+                      <TableCell>Work Type</TableCell>
+                      <TableCell>Quantity</TableCell>
+                      <TableCell>Unit</TableCell>
+                      <TableCell>Note</TableCell>
                     </TableRow>
-                  ))}
-                </TableBody>
-              </Table>
-              <Box
-                display='flex'
-                justifyContent='start'
-                alignItems='center'
-                width='100%'
-                sx={{ margin: 2 }}
-              >
-                <Button
-                  href={`/tasks/${task.taskId.toLowerCase()}`}
-                  variant='contained'
-                  size='small'
-                >
-                  More
-                </Button>
+                  </TableHead>
+                  <TableBody>
+                    {task.workItems.map((item: WorkItem) => (
+                        <TableRow key={item.id}>
+                          <TableCell>{item.workType}</TableCell>
+                          <TableCell>{item.quantity}</TableCell>
+                          <TableCell>{item.unit}</TableCell>
+                          <TableCell>{item.note}</TableCell>
+                        </TableRow>
+                    ))}
+                  </TableBody>
+                </Table>
+
+                <Box sx={{ display: 'flex', mt: 2, mb: 1 }}>
+                  <Button href={`/tasks/${task.taskId.toLowerCase()}`} variant='contained' size='small'>
+                    More
+                  </Button>
+                </Box>
               </Box>
-            </Box>
-          </Collapse>
-        </TableCell>
-      </TableRow>
-    </>
+            </Collapse>
+          </TableCell>
+        </TableRow>
+      </>
   );
 }
 
+/* ───────────── основной компонент ───────────── */
 export default function TaskListPage() {
   const [tasks, setTasks] = useState<Task[]>([]);
   const [filteredTasks, setFilteredTasks] = useState<Task[]>([]);
@@ -264,26 +218,18 @@ export default function TaskListPage() {
   const [error, setError] = useState<string | null>(null);
   const [role, setRole] = useState<string>('');
 
-  // Filters
+  /* ----- фильтры ----- */
   const [authorFilter, setAuthorFilter] = useState('');
   const [initiatorFilter, setInitiatorFilter] = useState('');
   const [executorFilter, setExecutorFilter] = useState('');
   const [statusFilter, setStatusFilter] = useState('');
   const [priorityFilter, setPriorityFilter] = useState('');
-  const [createdDateRange, setCreatedDateRange] = useState<DateRange<Date>>([
-    null,
-    null,
-  ]);
-  const [dueDateRange, setDueDateRange] = useState<DateRange<Date>>([
-    null,
-    null,
-  ]);
+  const [createdDateRange, setCreatedDateRange] = useState<DateRange<Date>>([null, null]);
+  const [dueDateRange, setDueDateRange] = useState<DateRange<Date>>([null, null]);
   const [bsSearch, setBsSearch] = useState('');
 
-  // Column visibility
-  const [columnVisibility, setColumnVisibility] = useState<
-    Record<string, boolean>
-  >({
+  /* ----- видимость колонок ----- */
+  const [columnVisibility, setColumnVisibility] = useState<Record<string, boolean>>({
     task: true,
     author: true,
     initiator: true,
@@ -294,16 +240,13 @@ export default function TaskListPage() {
     priority: true,
   });
 
-  // Popover
+  /* ----- popover / пагинация ----- */
   const [anchorEl, setAnchorEl] = useState<HTMLElement | null>(null);
   const [currentFilter, setCurrentFilter] = useState<string>('');
   const [currentPage, setCurrentPage] = useState(1);
+  const [rowsPerPage, setRowsPerPage] = useState<number>(10); // -1 = All
 
-  // Новое состояние для выбора количества строк на странице
-  // Значение -1 будет обозначать "Все"
-  const [rowsPerPage, setRowsPerPage] = useState<number>(10);
-
-  // Пагинация с учётом выбранного количества строк
+  /* ----- пагинация ----- */
   const paginatedTasks = useMemo(() => {
     if (rowsPerPage === -1) return filteredTasks;
     const startIndex = (currentPage - 1) * rowsPerPage;
@@ -316,79 +259,66 @@ export default function TaskListPage() {
   }, [filteredTasks, rowsPerPage]);
 
   const activeFiltersCount = useMemo(
-    () =>
+      () =>
+          [
+            authorFilter,
+            initiatorFilter,
+            executorFilter,
+            statusFilter,
+            priorityFilter,
+            createdDateRange[0] || createdDateRange[1] ? createdDateRange : null,
+            dueDateRange[0] || dueDateRange[1] ? dueDateRange : null,
+            bsSearch,
+          ].filter(Boolean).length,
       [
         authorFilter,
         initiatorFilter,
         executorFilter,
         statusFilter,
         priorityFilter,
-        createdDateRange[0] || createdDateRange[1] ? createdDateRange : null,
-        dueDateRange[0] || dueDateRange[1] ? dueDateRange : null,
+        createdDateRange,
+        dueDateRange,
         bsSearch,
-      ].filter(Boolean).length,
-    [
-      authorFilter,
-      initiatorFilter,
-      executorFilter,
-      statusFilter,
-      priorityFilter,
-      createdDateRange,
-      dueDateRange,
-      bsSearch,
-    ]
+      ]
   );
 
   const uniqueValues = useMemo(
-    () => ({
-      authors: Array.from(new Set(tasks.map((t) => t.authorName))),
-      initiators: Array.from(new Set(tasks.map((t) => t.initiatorName))),
-      executors: Array.from(new Set(tasks.map((t) => t.executorName))),
-      statuses: Array.from(new Set(tasks.map((t) => t.status))),
-      priorities: Array.from(new Set(tasks.map((t) => t.priority))),
-    }),
-    [tasks]
+      () => ({
+        authors: Array.from(new Set(tasks.map((t) => t.authorName))),
+        initiators: Array.from(new Set(tasks.map((t) => t.initiatorName))),
+        executors: Array.from(new Set(tasks.map((t) => t.executorName))),
+        statuses: Array.from(new Set(tasks.map((t) => t.status))),
+        priorities: Array.from(new Set(tasks.map((t) => t.priority))),
+      }),
+      [tasks]
   );
 
+  /* ----- загрузка задач и роли пользователя ----- */
   useEffect(() => {
     const fetchTasks = async () => {
       try {
         const response = await fetch('/api/tasks');
         const data = await response.json();
-        if (!response.ok) {
-          throw new Error(data.error || 'Failed to fetch tasks');
-        }
+        if (!response.ok) throw new Error(data.error || 'Failed to fetch tasks');
+
         const tasksWithId = data.tasks.map((task: Task) => ({
           ...task,
-          workItems: task.workItems.map((workItem: WorkItem) => ({
-            ...workItem,
-            id: uuidv4(),
-          })),
+          workItems: task.workItems.map((wi: WorkItem) => ({ ...wi, id: uuidv4() })),
         }));
         setTasks(tasksWithId);
-        setLoading(false);
-      } catch (error) {
-        if (error instanceof Error) {
-          setError(error.message);
-        } else {
-          setError('An unknown error occurred');
-        }
+      } catch (err) {
+        setError(err instanceof Error ? err.message : 'Unknown error');
+      } finally {
         setLoading(false);
       }
     };
 
     const fetchUserRole = async () => {
       try {
-        const userResponse = await GetCurrentUserFromMongoDB();
-        if (userResponse.success && userResponse.data) {
-          const userRole = userResponse.data.role;
-          console.log('User role:', userRole);
-          setRole(userRole);
-        } else {
-          console.error('Failed to fetch user role:', userResponse.message);
-        }
-      } catch (error) {
-        console.error('Error fetching user role:', error);
+        const res = await GetCurrentUserFromMongoDB();
+        if (res.success && res.data) setRole(res.data.role);
+      } catch (err) {
+        console.error('Error fetching user role:', err);
       }
     };
 
@@ -396,46 +326,37 @@ export default function TaskListPage() {
     fetchUserRole();
   }, []);
 
+  /* ----- читаем статус из query-строки безопасно ----- */
   const searchParams = useSearchParams();
 
   useEffect(() => {
-    const statusParam = searchParams.get('status');
-    if (statusParam) {
-      setStatusFilter(statusParam);
-    }
+    const statusParam = searchParams?.get('status'); // ← ❗ безопасно
+    if (statusParam) setStatusFilter(statusParam);
   }, [searchParams]);
 
+  /* ----- применение фильтров ----- */
   useEffect(() => {
     let filtered = [...tasks];
 
-    if (authorFilter)
-      filtered = filtered.filter((t) => t.authorName === authorFilter);
-    if (initiatorFilter)
-      filtered = filtered.filter((t) => t.initiatorName === initiatorFilter);
-    if (executorFilter)
-      filtered = filtered.filter((t) => t.executorName === executorFilter);
-    if (statusFilter)
-      filtered = filtered.filter((t) => t.status === statusFilter);
-    if (priorityFilter)
-      filtered = filtered.filter((t) => t.priority === priorityFilter);
+    if (authorFilter)    filtered = filtered.filter((t) => t.authorName    === authorFilter);
+    if (initiatorFilter) filtered = filtered.filter((t) => t.initiatorName === initiatorFilter);
+    if (executorFilter)  filtered = filtered.filter((t) => t.executorName  === executorFilter);
+    if (statusFilter)    filtered = filtered.filter((t) => t.status        === statusFilter);
+    if (priorityFilter)  filtered = filtered.filter((t) => t.priority      === priorityFilter);
+
     if (createdDateRange[0] && createdDateRange[1]) {
       filtered = filtered.filter((t) => {
-        const taskDate = new Date(t.createdAt);
-        return (
-          taskDate >= createdDateRange[0]! && taskDate <= createdDateRange[1]!
-        );
+        const d = new Date(t.createdAt);
+        return d >= createdDateRange[0]! && d <= createdDateRange[1]!;
       });
     }
     if (dueDateRange[0] && dueDateRange[1]) {
       filtered = filtered.filter((t) => {
-        const taskDate = new Date(t.dueDate);
-        return taskDate >= dueDateRange[0]! && taskDate <= dueDateRange[1]!;
+        const d = new Date(t.dueDate);
+        return d >= dueDateRange[0]! && d <= dueDateRange[1]!;
       });
     }
-    if (bsSearch)
-      filtered = filtered.filter((t) =>
-        t.bsNumber.toLowerCase().includes(bsSearch.toLowerCase())
-      );
+    if (bsSearch) filtered = filtered.filter((t) => t.bsNumber.toLowerCase().includes(bsSearch.toLowerCase()));
 
     setFilteredTasks(filtered);
     setCurrentPage(1);
@@ -451,47 +372,27 @@ export default function TaskListPage() {
     bsSearch,
   ]);
 
-  const handleFilterClick = (
-    event: React.MouseEvent<HTMLElement>,
-    filterType: string
-  ) => {
-    setAnchorEl(event.currentTarget);
-    setCurrentFilter(filterType);
+  /* ----- popover helpers ----- */
+  const handleFilterClick = (e: React.MouseEvent<HTMLElement>, type: string) => {
+    setAnchorEl(e.currentTarget);
+    setCurrentFilter(type);
   };
-
   const handleClose = () => {
     setAnchorEl(null);
     setCurrentFilter('');
   };
-
   const handleColumnVisibilityChange =
-    (column: string) => (event: React.ChangeEvent<HTMLInputElement>) => {
-      setColumnVisibility((prev) => ({
-        ...prev,
-        [column]: event.target.checked,
-      }));
-    };
+      (col: string) => (e: React.ChangeEvent<HTMLInputElement>) =>
+          setColumnVisibility((prev) => ({ ...prev, [col]: e.target.checked }));
 
+  /* ----- loading / error UI ----- */
   if (loading)
     return (
-      <Box
-        sx={{
-          display: 'flex',
-          justifyContent: 'center',
-          marginTop: '20px',
-          padding: 5,
-        }}
-      >
-        <CircularProgress />
-      </Box>
+        <Box sx={{ display: 'flex', justifyContent: 'center', mt: 4, p: 5 }}>
+          <CircularProgress />
+        </Box>
     );
-  if (error)
-    return (
-      <Typography color='error' align='center' sx={{ mt: 2 }}>
-        {error}
-      </Typography>
-    );
-
+  if (error) return <Alert severity='error'>{error}</Alert>;
   return (
     <LocalizationProvider dateAdapter={AdapterDateFns}>
       <Box sx={{ width: '100%', margin: '0 auto' }}>
