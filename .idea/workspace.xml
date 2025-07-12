@@ -4,8 +4,8 @@
     <option name="autoReloadType" value="SELECTIVE" />
   </component>
   <component name="ChangeListManager">
-    <list default="true" id="b3c91f45-fbe1-4477-9fd9-38d0fcaf660d" name="Changes" comment="upload route has been modified">
-      <change beforePath="$PROJECT_DIR$/.idea/workspace.xml" beforeDir="false" afterPath="$PROJECT_DIR$/.idea/workspace.xml" afterDir="false" />
+    <list default="true" id="b3c91f45-fbe1-4477-9fd9-38d0fcaf660d" name="Changes" comment="change .pro to .ru">
+      <change afterPath="$PROJECT_DIR$/src/app/pages/api/upload.ts" afterDir="false" />
     </list>
     <option name="SHOW_DIALOG" value="false" />
     <option name="HIGHLIGHT_CONFLICTS" value="true" />
@@ -98,6 +98,7 @@
       <workItem from="1752121076363" duration="11441000" />
       <workItem from="1752286667729" duration="5283000" />
       <workItem from="1752300992500" duration="2367000" />
+      <workItem from="1752311814044" duration="1390000" />
     </task>
     <task id="LOCAL-00001" summary="Dockerfile has been modified #2">
       <option name="closed" value="true" />
@@ -227,7 +228,15 @@
       <option name="project" value="LOCAL" />
       <updated>1752311562119</updated>
     </task>
-    <option name="localTasksCounter" value="17" />
+    <task id="LOCAL-00017" summary="change .pro to .ru">
+      <option name="closed" value="true" />
+      <created>1752312594812</created>
+      <option name="number" value="00017" />
+      <option name="presentableId" value="LOCAL-00017" />
+      <option name="project" value="LOCAL" />
+      <updated>1752312594812</updated>
+    </task>
+    <option name="localTasksCounter" value="18" />
     <servers />
   </component>
   <component name="TypeScriptGeneratedFilesManager">
@@ -248,6 +257,7 @@
     <MESSAGE value="fix(upload): support large files and prevent SVG overlay errors" />
     <MESSAGE value="back to app route api for upload" />
     <MESSAGE value="upload route has been modified" />
-    <option name="LAST_COMMIT_MESSAGE" value="upload route has been modified" />
+    <MESSAGE value="change .pro to .ru" />
+    <option name="LAST_COMMIT_MESSAGE" value="change .pro to .ru" />
   </component>
 </project>
