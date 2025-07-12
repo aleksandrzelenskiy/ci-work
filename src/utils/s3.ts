@@ -1,8 +1,11 @@
 // utils/s3.ts
 import { S3Client, PutObjectCommand } from '@aws-sdk/client-s3';
 
-const BUCKET = process.env.S3_BUCKET_NAME!;
-const REGION = process.env.S3_REGION!;
+const BUCKET = process.env.AWS_S3_BUCKET!;
+const REGION = process.env.AWS_S3_REGION!;
+console.log('REGION:', REGION);
+console.log('BUCKET:', BUCKET);
+
 
 const s3 = new S3Client({
   region: REGION,
