@@ -18,7 +18,12 @@ import { currentUser } from '@clerk/nextjs/server';
 import dbConnect from '@/utils/mongoose';
 import { uploadBufferToS3 } from '@/utils/s3';
 import { v4 as uuidv4 } from 'uuid';
+import Busboy from 'busboy';
+import { Readable } from 'stream';
+import type { ReadableStream as NodeWebStream } from 'stream/web';
 import { sendEmail } from '@/utils/mailer';
+
+export const dynamic = 'force-dynamic';
 
 /**
  * Функция для преобразования координат в формат D° M' S" + N/S/E/W
@@ -63,13 +68,36 @@ export async function POST(request: Request) {
 
   const name = `${user.firstName || 'Unknown'} ${user.lastName || ''}`.trim();
 
-  // Извлечение FormData
-  const formData = await request.formData();
+  // Потоковый парсер
+  const fields: Record<string, string> = {};
+  const fileBuffers: Buffer[] = [];
+
+  const bb = Busboy({ headers: Object.fromEntries(request.headers) });
+
+  bb.on('field', (name, val) => (fields[name] = val));
+
+  bb.on('file', (_field, stream) => {
+    const chunks: Buffer[] = [];
+    stream.on('data', (c) => chunks.push(c));
+    stream.on('end', () => fileBuffers.push(Buffer.concat(chunks)));
+  });
+
+  await new Promise<void>((res, rej) => {
+    bb.on('finish', res);
+    bb.on('error', rej);
+
+    const nodeStream = Readable.fromWeb(
+        request.body as unknown as NodeWebStream
+    );
+    nodeStream.pipe(bb);
+  });
+
+
 
   // Декодирование task/baseId
-  const rawBaseId = formData.get('baseId') as string | null;
-  const rawTask = formData.get('task') as string | null;
-  const taskId = formData.get('taskId') as string | null;
+  const rawBaseId = fields.baseId;
+  const rawTask   = fields.task;
+  const taskId    = fields.taskId ?? 'unknown';
 
   if (!rawBaseId || !rawTask) {
     console.error('Validation error: Base ID or Task is missing');
@@ -84,9 +112,15 @@ export async function POST(request: Request) {
   const task = decodeURIComponent(rawTask).trim();
 
   // Получение initiatorId из FormData
-  const initiatorIdFromForm = formData.get('initiatorId') as string | null;
+  const initiatorIdFromForm = fields.initiatorId ?? null;
   let initiatorId = 'unknown';
   let initiatorName = 'unknown';
+
+  if (initiatorId === 'unknown') {
+    initiatorId  = fields.initiatorId  ?? 'unknown';
+    initiatorName = fields.initiatorName ?? 'unknown';
+  }
+
 
   try {
     if (initiatorIdFromForm) {
@@ -108,13 +142,12 @@ export async function POST(request: Request) {
 
   // Используем значения из URL если не нашли в базе
   if (initiatorId === 'unknown') {
-    initiatorId = (formData.get('initiatorId') as string) || 'unknown';
-    initiatorName = (formData.get('initiatorName') as string) || 'unknown';
+    initiatorId = fields.initiatorId || 'unknown'
+    initiatorName = fields.initiatorName || 'unknown'
   }
 
   // Файлы
-  const files = formData.getAll('image[]') as File[];
-  if (files.length === 0) {
+  if (fileBuffers.length === 0) {
     console.error('Validation error: No files uploaded');
     return NextResponse.json({ error: 'No files uploaded' }, { status: 400 });
   }
@@ -122,8 +155,7 @@ export async function POST(request: Request) {
   // Массив итоговых ссылок
   const fileUrls: string[] = [];
 
-  for (const file of files) {
-    const buffer = Buffer.from(await file.arrayBuffer());
+  for (const buffer of fileBuffers) {
 
     let date = 'Unknown Date';
     let coordinates = 'Unknown Location';
@@ -166,32 +198,34 @@ export async function POST(request: Request) {
     const outputFilename = `${baseId}-${uniqueId}.jpg`;
 
     try {
-      // 1) Изменяем размер и накладываем водяной знак -> получаем Buffer
-      const processedBuffer = await sharp(buffer)
-        .rotate()
-        .resize(1920, 1920, {
-          fit: sharp.fit.inside,
-          withoutEnlargement: true,
-        })
-        .composite([
-          {
-            input: Buffer.from(
-              `<svg width="900" height="200">
-                <rect x="0" y="120" width="900" height="80" fill="black" opacity="0.6" />
-                <text x="20" y="150" font-size="20" font-family="Arial, sans-serif" fill="white" text-anchor="start">
-                  ${date} | Task: ${task} | BS: ${baseId}
-                </text>
-                <text x="20" y="180" font-size="20" font-family="Arial, sans-serif" fill="white" text-anchor="start">
-                  Location: ${coordinates} | Executor: ${name}
-                </text>
-              </svg>`
-            ),
-            gravity: 'southeast',
-          },
-        ])
-        .withMetadata({ orientation: 1 })
-        .jpeg({ quality: 80 })
-        .toBuffer();
+      // 1) Изменяем размер, накладываем адаптивный водяной знак → Buffer
+      const img = sharp(buffer)
+          .rotate()
+          .resize(1920, 1920, { fit: sharp.fit.inside, withoutEnlargement: true });
+
+// ширина картинки после ресайза (нужна для SVG)
+      const { width = 900 } = await img.metadata();
+
+// генерируем SVG с этой шириной
+      const overlayHeight = 80; // высоту при желании можно вычислять динамически
+      const overlaySvg = `
+  <svg width="${width}" height="${overlayHeight}">
+    <rect width="100%" height="100%" fill="black" opacity="0.6" />
+    <text x="20" y="30" font-size="24" font-family="Arial, sans-serif" fill="white">
+      ${date} | Task: ${task} | BS: ${baseId}
+    </text>
+    <text x="20" y="60" font-size="24" font-family="Arial, sans-serif" fill="white">
+      Location: ${coordinates} | Executor: ${name}
+    </text>
+  </svg>`;
+
+// финальное изображение
+      const processedBuffer = await img
+          .composite([{ input: Buffer.from(overlaySvg), gravity: 'south' }])
+          .withMetadata({ orientation: 1 })
+          .jpeg({ quality: 80 })
+          .toBuffer();
+
 
       // 2) Формируем "ключ" для хранения в S3 (папка reports/{task}/{baseId}/)
       const s3Key = `reports/${task}/${baseId}/${outputFilename}`;

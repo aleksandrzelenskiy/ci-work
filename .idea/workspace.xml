@@ -4,7 +4,12 @@
     <option name="autoReloadType" value="SELECTIVE" />
   </component>
   <component name="ChangeListManager">
-    <list default="true" id="b3c91f45-fbe1-4477-9fd9-38d0fcaf660d" name="Changes" comment="S3 settings  has been clear into docker-compose.yml" />
+    <list default="true" id="b3c91f45-fbe1-4477-9fd9-38d0fcaf660d" name="Changes" comment="switch to Busboy streaming, add adaptive SVG watermark &amp; fix type errors">
+      <change beforePath="$PROJECT_DIR$/.idea/workspace.xml" beforeDir="false" afterPath="$PROJECT_DIR$/.idea/workspace.xml" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/package-lock.json" beforeDir="false" afterPath="$PROJECT_DIR$/package-lock.json" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/package.json" beforeDir="false" afterPath="$PROJECT_DIR$/package.json" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/src/app/api/upload/route.ts" beforeDir="false" afterPath="$PROJECT_DIR$/src/app/api/upload/route.ts" afterDir="false" />
+    </list>
     <option name="SHOW_DIALOG" value="false" />
     <option name="HIGHLIGHT_CONFLICTS" value="true" />
     <option name="HIGHLIGHT_NON_ACTIVE_CHANGELIST" value="false" />
@@ -94,6 +99,7 @@
       <workItem from="1751377932234" duration="2462000" />
       <workItem from="1751887037491" duration="2748000" />
       <workItem from="1752121076363" duration="11441000" />
+      <workItem from="1752286667729" duration="3057000" />
     </task>
     <task id="LOCAL-00001" summary="Dockerfile has been modified #2">
       <option name="closed" value="true" />
@@ -175,7 +181,15 @@
       <option name="project" value="LOCAL" />
       <updated>1752149984296</updated>
     </task>
-    <option name="localTasksCounter" value="11" />
+    <task id="LOCAL-00011" summary="console.log has been added into upload route">
+      <option name="closed" value="true" />
+      <created>1752290652423</created>
+      <option name="number" value="00011" />
+      <option name="presentableId" value="LOCAL-00011" />
+      <option name="project" value="LOCAL" />
+      <updated>1752290652423</updated>
+    </task>
+    <option name="localTasksCounter" value="12" />
     <servers />
   </component>
   <component name="TypeScriptGeneratedFilesManager">
@@ -191,6 +205,8 @@
     <MESSAGE value="docker-compose.yml has been modofied" />
     <MESSAGE value="dockerfile has been modified" />
     <MESSAGE value="S3 settings  has been clear into docker-compose.yml" />
-    <option name="LAST_COMMIT_MESSAGE" value="S3 settings  has been clear into docker-compose.yml" />
+    <MESSAGE value="console.log has been added into upload route" />
+    <MESSAGE value="switch to Busboy streaming, add adaptive SVG watermark &amp; fix type errors" />
+    <option name="LAST_COMMIT_MESSAGE" value="switch to Busboy streaming, add adaptive SVG watermark &amp; fix type errors" />
   </component>
 </project>
