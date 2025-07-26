@@ -269,13 +269,19 @@ export default function TaskColumnPage() {
   }, [tasks, searchQuery]);
 
   if (loading)
-    return <CircularProgress sx={{ display: 'block', mx: 'auto', mt: 4 }} />;
+    return (
+        <Box sx={{ display: 'flex', justifyContent: 'center', mt: 4, p: 5 }}>
+          <CircularProgress />
+        </Box>
+    );
+
   if (error)
     return (
-      <Typography color='error' sx={{ mt: 4, textAlign: 'center' }}>
-        {error}
-      </Typography>
+        <Typography color="error" sx={{ mt: 4, textAlign: 'center' }}>
+          {error}
+        </Typography>
     );
+
 
   return (
     <Box>

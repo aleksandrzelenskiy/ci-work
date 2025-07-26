@@ -7,7 +7,7 @@
     <list default="true" id="b3c91f45-fbe1-4477-9fd9-38d0fcaf660d" name="Changes" comment="Task Calendar component hidden for executor role">
       <change beforePath="$PROJECT_DIR$/.idea/workspace.xml" beforeDir="false" afterPath="$PROJECT_DIR$/.idea/workspace.xml" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/src/app/components/TaskCalendarPage.tsx" beforeDir="false" afterPath="$PROJECT_DIR$/src/app/components/TaskCalendarPage.tsx" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/src/app/tasks/page.tsx" beforeDir="false" afterPath="$PROJECT_DIR$/src/app/tasks/page.tsx" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/src/app/components/TaskColumnPage.tsx" beforeDir="false" afterPath="$PROJECT_DIR$/src/app/components/TaskColumnPage.tsx" afterDir="false" />
     </list>
     <option name="SHOW_DIALOG" value="false" />
     <option name="HIGHLIGHT_CONFLICTS" value="true" />
@@ -102,7 +102,7 @@
       <workItem from="1752300992500" duration="2367000" />
       <workItem from="1752311814044" duration="1390000" />
       <workItem from="1752325908476" duration="4211000" />
-      <workItem from="1753535538711" duration="9907000" />
+      <workItem from="1753535538711" duration="10490000" />
     </task>
     <task id="LOCAL-00001" summary="Dockerfile has been modified #2">
       <option name="closed" value="true" />
@@ -288,7 +288,15 @@
       <option name="project" value="LOCAL" />
       <updated>1753551011078</updated>
     </task>
-    <option name="localTasksCounter" value="24" />
+    <task id="LOCAL-00024" summary="Task Calendar component hidden for executor role">
+      <option name="closed" value="true" />
+      <created>1753552188665</created>
+      <option name="number" value="00024" />
+      <option name="presentableId" value="LOCAL-00024" />
+      <option name="project" value="LOCAL" />
+      <updated>1753552188665</updated>
+    </task>
+    <option name="localTasksCounter" value="25" />
     <servers />
   </component>
   <component name="TypeScriptGeneratedFilesManager">

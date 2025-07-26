@@ -211,7 +211,7 @@ export default function TaskCalendarPage() {
     /* --- лоадер --- */
     if (loading)
         return (
-            <Box display="flex" justifyContent="center" mt={4}>
+            <Box sx={{ display: 'flex', justifyContent: 'center', mt: 4, p: 5 }}>
                 <CircularProgress />
             </Box>
         );
