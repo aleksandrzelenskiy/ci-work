@@ -4,9 +4,10 @@
     <option name="autoReloadType" value="SELECTIVE" />
   </component>
   <component name="ChangeListManager">
-    <list default="true" id="b3c91f45-fbe1-4477-9fd9-38d0fcaf660d" name="Changes" comment="Task Calendar component has been added">
+    <list default="true" id="b3c91f45-fbe1-4477-9fd9-38d0fcaf660d" name="Changes" comment="Task Calendar component hidden for executor role">
       <change beforePath="$PROJECT_DIR$/.idea/workspace.xml" beforeDir="false" afterPath="$PROJECT_DIR$/.idea/workspace.xml" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/src/app/components/TaskCalendarPage.tsx" beforeDir="false" afterPath="$PROJECT_DIR$/src/app/components/TaskCalendarPage.tsx" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/src/app/tasks/page.tsx" beforeDir="false" afterPath="$PROJECT_DIR$/src/app/tasks/page.tsx" afterDir="false" />
     </list>
     <option name="SHOW_DIALOG" value="false" />
     <option name="HIGHLIGHT_CONFLICTS" value="true" />
@@ -101,7 +102,7 @@
       <workItem from="1752300992500" duration="2367000" />
       <workItem from="1752311814044" duration="1390000" />
       <workItem from="1752325908476" duration="4211000" />
-      <workItem from="1753535538711" duration="8743000" />
+      <workItem from="1753535538711" duration="9907000" />
     </task>
     <task id="LOCAL-00001" summary="Dockerfile has been modified #2">
       <option name="closed" value="true" />
@@ -279,7 +280,15 @@
       <option name="project" value="LOCAL" />
       <updated>1753546499847</updated>
     </task>
-    <option name="localTasksCounter" value="23" />
+    <task id="LOCAL-00023" summary="Task Calendar component has been modified (tasks view by role)">
+      <option name="closed" value="true" />
+      <created>1753551011078</created>
+      <option name="number" value="00023" />
+      <option name="presentableId" value="LOCAL-00023" />
+      <option name="project" value="LOCAL" />
+      <updated>1753551011078</updated>
+    </task>
+    <option name="localTasksCounter" value="24" />
     <servers />
   </component>
   <component name="TypeScriptGeneratedFilesManager">
@@ -306,6 +315,8 @@
     <MESSAGE value="S3 utils keys name has been changed" />
     <MESSAGE value="next config and upload route has been modified" />
     <MESSAGE value="Task Calendar component has been added" />
-    <option name="LAST_COMMIT_MESSAGE" value="Task Calendar component has been added" />
+    <MESSAGE value="Task Calendar component has been modified (tasks view by role)" />
+    <MESSAGE value="Task Calendar component hidden for executor role" />
+    <option name="LAST_COMMIT_MESSAGE" value="Task Calendar component hidden for executor role" />
   </component>
 </project>

@@ -1,3 +1,4 @@
+// app/tasks/page.tsx
 'use client';
 
 import { useState, useEffect } from 'react';
@@ -14,51 +15,57 @@ import AddIcon from '@mui/icons-material/Add';
 
 import TaskListPage from '../components/TaskListPage';
 import TaskColumnPage from '../components/TaskColumnPage';
-import TaskCalendarPage from '../components/TaskCalendarPage';   // ← NEW
+import TaskCalendarPage from '../components/TaskCalendarPage';
 
-type ViewMode = 'table' | 'kanban' | 'calendar';                 // ← NEW
+type ViewMode = 'table' | 'kanban' | 'calendar';
 
 export default function TasksPage() {
     const [viewMode, setViewMode] = useState<ViewMode>('table');
     const [userRole, setUserRole] = useState<string | null>(null);
     const router = useRouter();
 
-    /* --- узнаём роль пользователя ------------------------------------ */
+    /* ---- получаем роль пользователя ---- */
     useEffect(() => {
         (async () => {
             try {
                 const res = await fetch('/api/current-user');
                 const data = await res.json();
                 setUserRole(data.role);
+
+                /* если роль — executor и включён календарь → переключаем на table */
+                if (data.role === 'executor' && viewMode === 'calendar') {
+                    setViewMode('table');
+                }
             } catch (err) {
                 console.error('Error fetching user role:', err);
             }
         })();
-    }, []);
+    }, [viewMode]);
 
-    /* --- переход на страницу заказов --------------------------------- */
+    /* ---- переход к orders ---- */
     const handleAddClick = () => router.push('/orders');
 
     return (
         <Box>
-            {/* ---------------- переключатель режимов ---------------------- */}
+            {/* ---- переключатель вида ---- */}
             <Box sx={{ display: 'flex', alignItems: 'center', gap: 2, mb: 2 }}>
                 <Typography variant="body2">Select Mode:</Typography>
                 <ToggleButtonGroup
                     value={viewMode}
                     exclusive
-                    onChange={(_, newMode) => {
-                        if (newMode) setViewMode(newMode as ViewMode);
-                    }}
+                    onChange={(_, newMode) => newMode && setViewMode(newMode as ViewMode)}
                     size="small"
                 >
                     <ToggleButton value="table">Table</ToggleButton>
                     <ToggleButton value="kanban">Kanban</ToggleButton>
-                    <ToggleButton value="calendar">Calendar</ToggleButton> {/* NEW */}
+                    {/* Календарь виден всем, КРОМЕ executor */}
+                    {userRole !== 'executor' && (
+                        <ToggleButton value="calendar">Calendar</ToggleButton>
+                    )}
                 </ToggleButtonGroup>
             </Box>
 
-            {/* ------------------- контент по режиму ----------------------- */}
+            {/* ---- контент ---- */}
             <Paper
                 sx={{
                     width: '100%',
@@ -66,12 +73,14 @@ export default function TasksPage() {
                     minWidth: { xs: '100%', sm: 600 },
                 }}
             >
-                {viewMode === 'table'    && <TaskListPage />}
-                {viewMode === 'kanban'   && <TaskColumnPage />}
-                {viewMode === 'calendar' && <TaskCalendarPage />}        {/* NEW */}
+                {viewMode === 'table' && <TaskListPage />}
+                {viewMode === 'kanban' && <TaskColumnPage />}
+                {viewMode === 'calendar' && userRole !== 'executor' && (
+                    <TaskCalendarPage />
+                )}
             </Paper>
 
-            {/* ------------------ кнопка «добавить» ------------------------ */}
+            {/* ---- кнопка «Add» (не для executor) ---- */}
             {userRole !== 'executor' && (
                 <Fab
                     color="primary"

@@ -17,6 +17,7 @@ import {
     Switch,
     FormControlLabel,
     ButtonGroup,
+    Alert,
 } from '@mui/material';
 import {
     format,
@@ -69,7 +70,7 @@ interface Task {
 
 type CalendarEvent = RBCEvent<{ priority: Priority; status: string }>;
 
-/* ---------- helpers ---------- */
+/* ---------- helpers (цвета, иконки) ---------- */
 
 const prColors: Record<Priority, string> = {
     urgent: '#d32f2f',
@@ -92,27 +93,18 @@ const shortName = (v?: string) =>
 
 /* ---------- кастомный Toolbar ---------- */
 
-interface RbcToolbarProps {
+interface ToolbarProps {
     label: string;
     view: ViewType;
     date: Date;
-    onNavigate: (action: 'PREV' | 'NEXT' | 'TODAY' | 'DATE') => void;
-    onView: (view: ViewType) => void;
+    onNavigate: (a: 'PREV' | 'NEXT' | 'TODAY' | 'DATE') => void;
+    onView: (v: ViewType) => void;
 }
 
-function NavToolbar({ label, view, date, onNavigate, onView }: RbcToolbarProps) {
+function NavToolbar({ label, view, date, onNavigate, onView }: ToolbarProps) {
     const prefix = view === 'week' ? `W${getISOWeek(date)} — ` : '';
-
     return (
-        <Box
-            sx={{
-                px: 2,
-                py: 1,
-                display: 'flex',
-                alignItems: 'center',
-                justifyContent: 'space-between',
-            }}
-        >
+        <Box sx={{ px: 2, py: 1, display: 'flex', justifyContent: 'space-between' }}>
             <ButtonGroup size="small">
                 <Button onClick={() => onNavigate('PREV')}>
                     <ArrowBackIos fontSize="inherit" />
@@ -150,7 +142,7 @@ function NavToolbar({ label, view, date, onNavigate, onView }: RbcToolbarProps) 
 const Calendar = dynamic(
     () =>
         import('react-big-calendar').then(
-            (mod) => mod.Calendar as React.ComponentType<CalendarProps<CalendarEvent>>
+            (m) => m.Calendar as React.ComponentType<CalendarProps<CalendarEvent>>
         ),
     { ssr: false }
 );
@@ -178,7 +170,7 @@ export default function TaskCalendarPage() {
     const [currentDate, setCurrentDate] = useState<Date>(new Date());
     const [view, setView] = useState<ViewType>('month');
 
-    /* загрузка */
+    /* --- загрузка задач и роли --- */
     useEffect(() => {
         (async () => {
             try {
@@ -190,39 +182,33 @@ export default function TaskCalendarPage() {
                 const { tasks: rawTasks } = await taskRes.json();
                 const userData = userRes.success ? userRes.data : null;
 
-                if (userData) {
-                    setRole(userData.role as 'admin' | 'executor' | 'other');
-                }
+                if (userData) setRole(userData.role as 'admin' | 'executor' | 'other');
 
-                const visible =
-                    userData?.role === 'executor'
-                        ? (rawTasks as Task[]).filter(
-                            (t) => t.executorId === userData.clerkUserId
-                        )
-                        : (rawTasks as Task[]);
-
-                setTasks(visible);
+                setTasks(rawTasks as Task[]);
             } finally {
                 setLoading(false);
             }
         })();
     }, []);
 
-    /* events */
+    /* --- вычисляем события (hook всегда вызывается) --- */
     const events = useMemo<CalendarEvent[]>(() => {
-        const base = showCompleted
+        if (role === 'executor') return []; // executor календарь всё равно не видит
+
+        const list = showCompleted
             ? tasks
             : tasks.filter((t) => !['Done', 'Fixed', 'Agreed'].includes(t.status));
 
-        return base.map((t) => ({
+        return list.map((t) => ({
             id: t._id,
             title: `${t.taskName} | ${t.bsNumber}`,
             start: new Date(t.dueDate),
             end: addHours(new Date(t.dueDate), 1),
             resource: { priority: t.priority, status: t.status },
         }));
-    }, [tasks, showCompleted]);
+    }, [tasks, showCompleted, role]);
 
+    /* --- лоадер --- */
     if (loading)
         return (
             <Box display="flex" justifyContent="center" mt={4}>
@@ -230,6 +216,15 @@ export default function TaskCalendarPage() {
             </Box>
         );
 
+    /* --- календарь недоступен для executor --- */
+    if (role === 'executor')
+        return (
+            <Alert severity="info" sx={{ m: 4 }}>
+                Календарь недоступен для вашей роли.
+            </Alert>
+        );
+
+    /* --- основной рендер --- */
     return (
         <>
             <FormControlLabel
@@ -256,9 +251,9 @@ export default function TaskCalendarPage() {
                     views={{ month: true, week: true, day: true }}
                     popup
                     style={{ height: '100%' }}
-                    eventPropGetter={(event) => ({
+                    eventPropGetter={(e) => ({
                         style: {
-                            backgroundColor: getStatusColor(event.resource?.status || ''),
+                            backgroundColor: getStatusColor(e.resource?.status || ''),
                             fontSize: '0.75rem',
                             lineHeight: 1.15,
                         },
@@ -322,13 +317,9 @@ export default function TaskCalendarPage() {
                                 <Typography variant="subtitle2">
                                     Executor:&nbsp;{shortName(selected.executorName)}
                                 </Typography>
-
-                                {/* Cost полностью скрыт для executor */}
-                                {role !== 'executor' && (
-                                    <Typography variant="subtitle2">
-                                        Cost:&nbsp;{selected.totalCost}
-                                    </Typography>
-                                )}
+                                <Typography variant="subtitle2">
+                                    Cost:&nbsp;{selected.totalCost}
+                                </Typography>
                             </Stack>
                         </DialogContent>
 
