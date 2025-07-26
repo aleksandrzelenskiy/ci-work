@@ -60,6 +60,7 @@ interface Task {
     authorName?: string;
     initiatorName?: string;
     executorName?: string;
+    executorId?: string;
     createdAt: string;
     dueDate: string;
     status: string;
@@ -171,7 +172,7 @@ export default function TaskCalendarPage() {
     const [loading, setLoading] = useState(true);
 
     const [selected, setSelected] = useState<Task | null>(null);
-    const [role, setRole] = useState('executor');
+    const [role, setRole] = useState<'admin' | 'executor' | 'other'>('other');
     const [showCompleted, setShowCompleted] = useState(false);
 
     const [currentDate, setCurrentDate] = useState<Date>(new Date());
@@ -185,9 +186,22 @@ export default function TaskCalendarPage() {
                     fetch('/api/tasks'),
                     GetCurrentUserFromMongoDB(),
                 ]);
-                const { tasks: t } = await taskRes.json();
-                setTasks(t as Task[]);
-                if (userRes.success && userRes.data) setRole(userRes.data.role);
+
+                const { tasks: rawTasks } = await taskRes.json();
+                const userData = userRes.success ? userRes.data : null;
+
+                if (userData) {
+                    setRole(userData.role as 'admin' | 'executor' | 'other');
+                }
+
+                const visible =
+                    userData?.role === 'executor'
+                        ? (rawTasks as Task[]).filter(
+                            (t) => t.executorId === userData.clerkUserId
+                        )
+                        : (rawTasks as Task[]);
+
+                setTasks(visible);
             } finally {
                 setLoading(false);
             }
@@ -196,11 +210,11 @@ export default function TaskCalendarPage() {
 
     /* events */
     const events = useMemo<CalendarEvent[]>(() => {
-        const filtered = showCompleted
+        const base = showCompleted
             ? tasks
             : tasks.filter((t) => !['Done', 'Fixed', 'Agreed'].includes(t.status));
 
-        return filtered.map((t) => ({
+        return base.map((t) => ({
             id: t._id,
             title: `${t.taskName} | ${t.bsNumber}`,
             start: new Date(t.dueDate),
@@ -236,9 +250,9 @@ export default function TaskCalendarPage() {
                     events={events}
                     date={currentDate}
                     view={view}
-                    onNavigate={(d) => setCurrentDate(d)}
+                    onNavigate={setCurrentDate}
                     onView={(v) => setView(v as ViewType)}
-                    components={{ toolbar: NavToolbar as React.ComponentType<unknown> }} // ← фикс
+                    components={{ toolbar: NavToolbar as React.ComponentType<unknown> }}
                     views={{ month: true, week: true, day: true }}
                     popup
                     style={{ height: '100%' }}
@@ -283,14 +297,19 @@ export default function TaskCalendarPage() {
                                     <Typography>{selected.priority}</Typography>
                                 </Stack>
                                 <Typography variant="body2">
-                                    Created:&nbsp;{format(new Date(selected.createdAt), 'dd.MM.yyyy')}
+                                    Created:&nbsp;
+                                    {format(new Date(selected.createdAt), 'dd.MM.yyyy')}
                                 </Typography>
                                 <Typography variant="body2">
-                                    Due:&nbsp;{format(new Date(selected.dueDate), 'dd.MM.yyyy')}
+                                    Due:&nbsp;
+                                    {format(new Date(selected.dueDate), 'dd.MM.yyyy')}
                                 </Typography>
                             </Stack>
 
                             <Stack spacing={1}>
+                                <Typography variant="subtitle2">
+                                    BS Number:&nbsp;{selected.bsNumber}
+                                </Typography>
                                 <Typography variant="subtitle2">
                                     Address:&nbsp;{selected.bsAddress}
                                 </Typography>
@@ -300,11 +319,11 @@ export default function TaskCalendarPage() {
                                 <Typography variant="subtitle2">
                                     Initiator:&nbsp;{shortName(selected.initiatorName)}
                                 </Typography>
-                                {role !== 'executor' && (
-                                    <Typography variant="subtitle2">
-                                        Executor:&nbsp;{shortName(selected.executorName)}
-                                    </Typography>
-                                )}
+                                <Typography variant="subtitle2">
+                                    Executor:&nbsp;{shortName(selected.executorName)}
+                                </Typography>
+
+                                {/* Cost полностью скрыт для executor */}
                                 {role !== 'executor' && (
                                     <Typography variant="subtitle2">
                                         Cost:&nbsp;{selected.totalCost}
