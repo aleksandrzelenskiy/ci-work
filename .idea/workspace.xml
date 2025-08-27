@@ -4,10 +4,9 @@
     <option name="autoReloadType" value="SELECTIVE" />
   </component>
   <component name="ChangeListManager">
-    <list default="true" id="b3c91f45-fbe1-4477-9fd9-38d0fcaf660d" name="Changes" comment="Task Calendar component hidden for executor role">
+    <list default="true" id="b3c91f45-fbe1-4477-9fd9-38d0fcaf660d" name="Changes" comment="Add padding style for loader into calendar and kanban page">
       <change beforePath="$PROJECT_DIR$/.idea/workspace.xml" beforeDir="false" afterPath="$PROJECT_DIR$/.idea/workspace.xml" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/src/app/components/TaskCalendarPage.tsx" beforeDir="false" afterPath="$PROJECT_DIR$/src/app/components/TaskCalendarPage.tsx" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/src/app/components/TaskColumnPage.tsx" beforeDir="false" afterPath="$PROJECT_DIR$/src/app/components/TaskColumnPage.tsx" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/src/app/api/addtasks/route.ts" beforeDir="false" afterPath="$PROJECT_DIR$/src/app/api/addtasks/route.ts" afterDir="false" />
     </list>
     <option name="SHOW_DIALOG" value="false" />
     <option name="HIGHLIGHT_CONFLICTS" value="true" />
@@ -102,7 +101,7 @@
       <workItem from="1752300992500" duration="2367000" />
       <workItem from="1752311814044" duration="1390000" />
       <workItem from="1752325908476" duration="4211000" />
-      <workItem from="1753535538711" duration="10490000" />
+      <workItem from="1753535538711" duration="13489000" />
     </task>
     <task id="LOCAL-00001" summary="Dockerfile has been modified #2">
       <option name="closed" value="true" />
@@ -296,7 +295,15 @@
       <option name="project" value="LOCAL" />
       <updated>1753552188665</updated>
     </task>
-    <option name="localTasksCounter" value="25" />
+    <task id="LOCAL-00025" summary="Add padding style for loader into calendar and kanban page">
+      <option name="closed" value="true" />
+      <created>1753552975115</created>
+      <option name="number" value="00025" />
+      <option name="presentableId" value="LOCAL-00025" />
+      <option name="project" value="LOCAL" />
+      <updated>1753552975115</updated>
+    </task>
+    <option name="localTasksCounter" value="26" />
     <servers />
   </component>
   <component name="TypeScriptGeneratedFilesManager">
@@ -325,6 +332,7 @@
     <MESSAGE value="Task Calendar component has been added" />
     <MESSAGE value="Task Calendar component has been modified (tasks view by role)" />
     <MESSAGE value="Task Calendar component hidden for executor role" />
-    <option name="LAST_COMMIT_MESSAGE" value="Task Calendar component hidden for executor role" />
+    <MESSAGE value="Add padding style for loader into calendar and kanban page" />
+    <option name="LAST_COMMIT_MESSAGE" value="Add padding style for loader into calendar and kanban page" />
   </component>
 </project>

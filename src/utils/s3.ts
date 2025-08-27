@@ -1,3 +1,5 @@
+// src/app/utils/s3.ts
+
 import { S3Client, PutObjectCommand } from '@aws-sdk/client-s3';
 
 const BUCKET = process.env.AWS_S3_BUCKET!;
