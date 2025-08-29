@@ -54,18 +54,46 @@ const TaskSchema = new Schema<Task & Document>({
     ] as CurrentStatus[],
     default: 'To do',
   },
+
+  // Тип задачи (строительная или документальная)
+  taskType: {
+    type: String,
+    enum: ['construction', 'installation', 'document'],
+    required: true,
+    default: 'construction',
+  },
+
+  // Какие вложения обязательны (например: ['photo'] или ['pdf','dwg'])
+  requiredAttachments: [
+    {
+      type: String,
+      enum: ['photo', 'pdf', 'doc', 'xlsm', 'xlsx', 'dwg'],
+    },
+  ],
+
+  // Ссылки на связанные задачи (для зависимостей и макро-задач)
+  relatedTasks: [{ type: Schema.Types.ObjectId, ref: 'Task' }],
+
+  // Вложения (фото или файлы)
   attachments: [
     {
       type: String,
       required: false,
     },
   ],
+
+  // Поля согласования
+  approvedBy: { type: String }, // ID или имя инициатора, согласовавшего задачу
+  approvedAt: { type: Date },
+
   createdAt: { type: Date, default: Date.now },
   orderUrl: { type: String, required: true },
   orderNumber: { type: String },
   orderDate: { type: Date },
   orderSignDate: { type: Date },
   closingDocumentsUrl: { type: String },
+
+  // История событий
   events: [
     {
       action: { type: String, required: true }, // Тип действия
@@ -75,6 +103,8 @@ const TaskSchema = new Schema<Task & Document>({
       details: { type: Schema.Types.Mixed }, // Детали изменения
     },
   ],
+
+  // Комментарии
   comments: [
     {
       _id: { type: String, required: true },
