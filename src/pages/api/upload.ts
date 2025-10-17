@@ -8,7 +8,7 @@ import Report from '@/app/models/ReportModel';
 import User from '@/app/models/UserModel';
 import TaskModel from '@/app/models/TaskModel';
 import dbConnect from '@/utils/mongoose';
-import { uploadBufferToS3 } from '@/utils/s3';
+import { uploadBuffer } from '@/utils/s3';
 import { v4 as uuidv4 } from 'uuid';
 import Busboy from 'busboy';
 import { sendEmail } from '@/utils/mailer';
@@ -196,7 +196,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
                 .toBuffer();
 
             const s3Key = `reports/${task}/${baseId}/${outputFilename}`;
-            const fileUrl = await uploadBufferToS3(processedBuffer, s3Key, 'image/jpeg');
+            const fileUrl = await uploadBuffer(processedBuffer, s3Key, 'image/jpeg');
             fileUrls.push(fileUrl);
         } catch (error) {
             console.error('Error processing or uploading image:', error);

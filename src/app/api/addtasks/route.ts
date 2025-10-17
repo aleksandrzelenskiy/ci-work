@@ -8,7 +8,7 @@ import path from 'path'; // только для path.extname
 import { PriorityLevel, WorkItem } from 'src/app/types/taskTypes';
 import { v4 as uuidv4 } from 'uuid';
 import { sendEmail } from 'src/utils/mailer';
-import { uploadBufferToS3 } from 'src/utils/s3';
+import { uploadBuffer } from 'src/utils/s3';
 
 function normalizeBsNumber(bsNumber: string): string {
   // Ищем все подстроки IR + любая длина цифр
@@ -118,7 +118,7 @@ export async function POST(request: Request) {
     // ======== Загрузка Excel в S3 ========
     const excelExt = path.extname(excelFile.name) || '.xlsx';
     const excelKey = `taskattach/${taskFolderName}/order/order_${Date.now()}${excelExt}`;
-    const orderUrl = await uploadBufferToS3(
+    const orderUrl = await uploadBuffer(
         Buffer.from(await excelFile.arrayBuffer()),
         excelKey,
         excelFile.type ||
@@ -130,7 +130,7 @@ export async function POST(request: Request) {
         attachments.map(async (file, idx) => {
           const ext = path.extname(file.name) || '';
           const key = `taskattach/${taskFolderName}/attachment_${Date.now()}_${idx}${ext}`;
-          return await uploadBufferToS3(
+          return await uploadBuffer(
               Buffer.from(await file.arrayBuffer()),
               key,
               file.type || 'application/octet-stream'

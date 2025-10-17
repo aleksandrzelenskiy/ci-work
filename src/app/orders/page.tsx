@@ -327,7 +327,7 @@ const OrderUploadPage: React.FC = () => {
       workType: String(row['__EMPTY_1']),
       quantity: Number(row['__EMPTY_2']),
       unit: String(row['__EMPTY_3']),
-      note: String(row['__EMPTY_18'] || ''),
+      note: String(row['__EMPTY_17'] || ''),
     }));
 
     return {
@@ -422,7 +422,7 @@ const OrderUploadPage: React.FC = () => {
         workType: String(row['__EMPTY_1']),
         quantity: Number(row['__EMPTY_2']),
         unit: String(row['__EMPTY_3']),
-        note: String(row['__EMPTY_18'] || ''),
+        note: String(row['__EMPTY_17'] || ''),
       }));
       formDataToSend.append('workItems', JSON.stringify(workItems));
 
@@ -614,13 +614,14 @@ const OrderUploadPage: React.FC = () => {
                         <TableBody>
                           {tableData.map((row, index) => (
                               <TableRow key={index}>
-                                <TableCell>{String(row['__EMPTY_1'])}</TableCell>
-                                <TableCell>{String(row['__EMPTY_2'])}</TableCell>
-                                <TableCell>{String(row['__EMPTY_3'])}</TableCell>
-                                <TableCell>{String(row['__EMPTY_18'])}</TableCell>
+                                <TableCell>{row['__EMPTY_1'] ? String(row['__EMPTY_1']) : ''}</TableCell>
+                                <TableCell>{row['__EMPTY_2'] ? String(row['__EMPTY_2']) : ''}</TableCell>
+                                <TableCell>{row['__EMPTY_3'] ? String(row['__EMPTY_3']) : ''}</TableCell>
+                                <TableCell>{row['__EMPTY_17'] ? String(row['__EMPTY_17']) : ''}</TableCell>
                               </TableRow>
                           ))}
                         </TableBody>
+
                       </Table>
                     </TableContainer>
                   </Box>

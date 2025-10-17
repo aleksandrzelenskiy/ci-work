@@ -34,8 +34,7 @@ import PlaceIcon from '@mui/icons-material/Place';
 import CloudUploadIcon from '@mui/icons-material/CloudUpload';
 import PermMediaIcon from '@mui/icons-material/PermMedia';
 import StorageIcon from '@mui/icons-material/Storage';
-import Badge from '@mui/material/Badge';
-import MailIcon from '@mui/icons-material/Mail';
+import Badge from '@mui/material/Badge'
 import { useRouter } from 'next/navigation';
 import UserMenu from './components/UserMenu';
 
@@ -117,11 +116,11 @@ export default function ClientApp({ children }: { children: React.ReactNode }) {
   const DrawerList = (
     <Box sx={{ width: 250 }} role='presentation'>
       <Box sx={{ display: 'flex', justifyContent: 'center', p: 2, mb: 2 }}>
-        {/* <img
-          src='/ci-logo.png'
-          alt='CI Logo'
+<img
+          src='/t2logo.png'
+          alt='T2 Logo'
           style={{ width: '70%', maxWidth: '200px' }}
-        /> */}
+        />
       </Box>
       <List>
         <ListItemButton
@@ -276,9 +275,6 @@ export default function ClientApp({ children }: { children: React.ReactNode }) {
                       marginRight: '20px',
                     }}
                   >
-                    <Badge badgeContent={0} color='primary'>
-                      <MailIcon />
-                    </Badge>
                   </Box>
 
                   <UserMenu />

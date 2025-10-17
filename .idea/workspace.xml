@@ -6,7 +6,10 @@
   <component name="ChangeListManager">
     <list default="true" id="b3c91f45-fbe1-4477-9fd9-38d0fcaf660d" name="Changes" comment="Add padding style for loader into calendar and kanban page">
       <change beforePath="$PROJECT_DIR$/.idea/workspace.xml" beforeDir="false" afterPath="$PROJECT_DIR$/.idea/workspace.xml" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/src/app/api/addtasks/route.ts" beforeDir="false" afterPath="$PROJECT_DIR$/src/app/api/addtasks/route.ts" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/src/app/ClientApp.tsx" beforeDir="false" afterPath="$PROJECT_DIR$/src/app/ClientApp.tsx" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/src/app/api/tasks/route.ts" beforeDir="false" afterPath="$PROJECT_DIR$/src/app/api/tasks/route.ts" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/src/app/components/ReportListPage.tsx" beforeDir="false" afterPath="$PROJECT_DIR$/src/app/components/ReportListPage.tsx" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/src/app/orders/page.tsx" beforeDir="false" afterPath="$PROJECT_DIR$/src/app/orders/page.tsx" afterDir="false" />
     </list>
     <option name="SHOW_DIALOG" value="false" />
     <option name="HIGHLIGHT_CONFLICTS" value="true" />
@@ -102,6 +105,11 @@
       <workItem from="1752311814044" duration="1390000" />
       <workItem from="1752325908476" duration="4211000" />
       <workItem from="1753535538711" duration="13489000" />
+      <workItem from="1756713074662" duration="5226000" />
+      <workItem from="1757131895999" duration="103000" />
+      <workItem from="1760682587180" duration="5253000" />
+      <workItem from="1760696024453" duration="1032000" />
+      <workItem from="1760697711020" duration="397000" />
     </task>
     <task id="LOCAL-00001" summary="Dockerfile has been modified #2">
       <option name="closed" value="true" />

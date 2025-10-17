@@ -345,7 +345,7 @@ export default function ReportListPage() {
     return Math.ceil(filteredReports.length / itemsPerPage);
   }, [filteredReports]);
 
-  // Подсчитываем количество активных фильтров
+  // Количество активных фильтров
   const activeFiltersCount = useMemo(() => {
     return [
       executorFilter,
@@ -362,7 +362,7 @@ export default function ReportListPage() {
     createdDateRange,
   ]);
 
-  // Получаем уникальных авторовc
+  // Получаем уникальных авторов
   const uniqueExecutors = useMemo(() => {
     const executors = reports.map((report) => report.executorName);
     // console.log('Executors:', executors);
