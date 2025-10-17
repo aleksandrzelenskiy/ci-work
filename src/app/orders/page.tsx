@@ -425,7 +425,6 @@ const OrderUploadPage: React.FC = () => {
         note: String(row['__EMPTY_17'] || ''),
       }));
       formDataToSend.append('workItems', JSON.stringify(workItems));
-
       const response = await fetch('/api/addtasks', {
         method: 'POST',
         body: formDataToSend,
