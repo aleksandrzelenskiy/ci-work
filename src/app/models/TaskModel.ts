@@ -87,7 +87,7 @@ const TaskSchema = new Schema<Task & Document>({
   approvedAt: { type: Date },
 
   createdAt: { type: Date, default: Date.now },
-  orderUrl: { type: String, required: true },
+  orderUrl: { type: String },
   orderNumber: { type: String },
   orderDate: { type: Date },
   orderSignDate: { type: Date },

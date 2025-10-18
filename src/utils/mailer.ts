@@ -10,32 +10,71 @@ export interface SendEmailOptions {
 }
 
 /**
- * Транспортер
+ * Создаёт и настраивает Nodemailer transporter.
+ * Автовыбор secure: если EMAIL_SECURE задан — используем его,
+ * иначе считаем secure = (port === 465).
  */
 function createTransporter() {
   const host = process.env.EMAIL_HOST || '';
   const port = parseInt(process.env.EMAIL_PORT || '465', 10);
   const user = process.env.EMAIL_USER || '';
   const pass = process.env.EMAIL_PASS || '';
-  const secure = process.env.EMAIL_SECURE === 'true';
 
-  console.log('Email config:', { host, port, user, secure });
+  // Если переменная не задана, то secure по умолчанию = true для 465, иначе false
+  const secureEnv = process.env.EMAIL_SECURE;
+  const secure =
+      typeof secureEnv === 'string'
+          ? secureEnv === 'true'
+          : port === 465;
 
-  return nodemailer.createTransport({
+  const transporter = nodemailer.createTransport({
     host,
     port,
     secure,
-    auth: { user, pass },
-    logger: true, // Включаем логирование
-    debug: true, // Включаем режим отладки
+    auth: user && pass ? { user, pass } : undefined,
+
+    // Пул соединений снижает шанс подвисаний/повторных коннектов
+    pool: true,
+    maxConnections: 3,
+    maxMessages: 50,
+
+    // Таймауты, чтобы не ждать бесконечно "Greeting"
+    // (значения можно подстроить под ваш хостинг)
+    connectionTimeout: 10_000, // до установления TCP/TLS
+    greetingTimeout: 10_000,   // ожидание SMTP greeting
+    socketTimeout: 20_000,     // неактивность сокета
+
+    // Для некоторых хостингов полезно отключить строгую проверку сертификата
     tls: {
       rejectUnauthorized: false,
     },
+
+    // Включите лог только на dev; на проде лучше выключить
+    logger: true,
+    debug: true,
   } as TransportOptions);
+
+  // Можно попытаться в фоне верифицировать соединение (не блокирует send)
+  transporter.verify().then(
+      () => {
+        console.log(
+            `SMTP OK: host=${host} port=${port} secure=${secure} user=${user ? '[set]' : '[empty]'}`
+        );
+      },
+      (err) => {
+        console.warn('SMTP verify failed (will still try to send):', err?.message || err);
+      }
+  );
+
+  console.log('Email config:', { host, port, user, secure });
+
+  return transporter;
 }
 
 /**
- * Функция для отправки писем
+ * Отправка письма.
+ * ВАЖНО: Чтобы не блокировать бизнес-логику, мы НЕ бросаем исключения.
+ * Ошибки только логируются.
  */
 export async function sendEmail(options: SendEmailOptions): Promise<void> {
   const transporter = createTransporter();
@@ -51,9 +90,9 @@ export async function sendEmail(options: SendEmailOptions): Promise<void> {
 
   try {
     const info = await transporter.sendMail(mailData);
-    console.log('Message sent: %s', info.messageId);
+    console.log('Message sent:', info?.messageId || '[no id]');
   } catch (error) {
-    console.error('Error sending email:', error);
-    throw new Error('Email sending failed');
+    // Не пробрасываем ошибку, чтобы создание задач/эндпоинты не падали.
+    console.error('Error sending email (ignored):', error);
   }
 }

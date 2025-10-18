@@ -170,25 +170,15 @@ export default function ClientApp({ children }: { children: React.ReactNode }) {
           <ListItemText primary='BS Catalog' />
         </ListItemButton>
 
-        {/* <ListItemButton
-          onClick={() => handleNavigation('/upload')}
-          sx={{ paddingLeft: 5 }}
-        >
-          <ListItemIcon sx={{ minWidth: 30 }}>
-            <AddPhotoAlternateIcon sx={{ fontSize: 20 }} />
-          </ListItemIcon>
-          <ListItemText primary='Upload Report' />
-        </ListItemButton> */}
-
         {userRole !== 'executor' && (
           <ListItemButton
-            onClick={() => handleNavigation('/orders')}
+            onClick={() => handleNavigation('/estimates')}
             sx={{ paddingLeft: 5 }}
           >
             <ListItemIcon sx={{ minWidth: 30 }}>
               <CloudUploadIcon sx={{ fontSize: 20 }} />
             </ListItemIcon>
-            <ListItemText primary='Upload Order' />
+            <ListItemText primary='Upload Estimate' />
           </ListItemButton>
         )}
       </List>

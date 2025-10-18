@@ -42,8 +42,8 @@ export default function TasksPage() {
         })();
     }, [viewMode]);
 
-    /* ---- переход к orders ---- */
-    const handleAddClick = () => router.push('/orders');
+    /* ---- переход к estimates ---- */
+    const handleAddClick = () => router.push('/estimates');
 
     return (
         <Box>

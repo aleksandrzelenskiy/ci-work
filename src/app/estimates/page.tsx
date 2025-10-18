@@ -1,11 +1,9 @@
-// app/orders/page.tsx
+// app/estimates/page.tsx
 
 'use client';
 
 import React, { useCallback, useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
-// import jsPDF from 'jspdf';
-// import 'jspdf-autotable';
 import {
   Box,
   Typography,
@@ -72,7 +70,7 @@ const generatetaskId = (): string => {
   return `${randomPart}`;
 };
 
-const OrderUploadPage: React.FC = () => {
+const EstimateUploadPage: React.FC = () => {
   const router = useRouter();
   const { isLoaded, user } = useUser();
   const [users, setUsers] = useState<User[]>([]);
@@ -292,7 +290,7 @@ const OrderUploadPage: React.FC = () => {
       const formData = new FormData();
       formData.append('file', file);
 
-      const response = await fetch('/api/orders', {
+      const response = await fetch('/api/estimates', {
         method: 'POST',
         body: formData,
       });
@@ -520,7 +518,7 @@ const OrderUploadPage: React.FC = () => {
               sx={{ padding: 4, maxWidth: 800, width: '100%', textAlign: 'center' }}
           >
             <Typography variant='h5' gutterBottom>
-              Upload Order in Excel
+              Upload Estimate in Excel
             </Typography>
 
             <Box
@@ -903,4 +901,4 @@ const OrderUploadPage: React.FC = () => {
   );
 };
 
-export default OrderUploadPage;
+export default EstimateUploadPage;
