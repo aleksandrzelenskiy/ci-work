@@ -569,7 +569,7 @@ export default function TaskDetailPage() {
 
                           if (userRole === 'executor') {
                             // Исполнитель видит только выплату
-                            return `${sumToPay.toFixed(2)} RUB`;
+                            return `${sumToPay.toFixed(2)} ₽`;
                           } else {
                             // Для админа и ревьюера — показываем tooltip с детализацией
                             return (
@@ -577,16 +577,16 @@ export default function TaskDetailPage() {
                                     title={
                                       <Box sx={{ p: 1 }}>
                                         <Typography variant="body2">
-                                          <strong>Commission:</strong> {commission.toFixed(2)} RUB
+                                          <strong>Commission:</strong> {commission.toFixed(2)} ₽
                                         </Typography>
                                         <Typography variant="body2">
-                                          <strong>Tax:</strong> {tax.toFixed(2)} RUB
+                                          <strong>Tax:</strong> {tax.toFixed(2)} ₽
                                         </Typography>
                                         <Typography variant="body2">
-                                          <strong>Sum to Pay:</strong> {sumToPay.toFixed(2)} RUB
+                                          <strong>Sum to Pay:</strong> {sumToPay.toFixed(2)} ₽
                                         </Typography>
                                         <Typography variant="body2">
-                                          <strong>Profit:</strong> {profit.toFixed(2)} RUB
+                                          <strong>Profit:</strong> {profit.toFixed(2)} ₽
                                         </Typography>
                                       </Box>
                                     }
@@ -601,7 +601,7 @@ export default function TaskDetailPage() {
                                         '&:hover': { color: 'primary.main' },
                                       }}
                                   >
-                                    {total.toFixed(2)} RUB
+                                    {total.toFixed(2)} ₽
                                   </Typography>
                                 </Tooltip>
                             );

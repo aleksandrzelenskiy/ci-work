@@ -52,7 +52,7 @@ export default function ExecutorFinancialMetrics() {
     const sumToPay = totalAgreed * SUM_TO_PAY_PERCENT;
 
     const formatRuble = (value: number) =>
-        `${value.toLocaleString('ru-RU', { minimumFractionDigits: 2 })} RUB`;
+        `${value.toLocaleString('ru-RU', { minimumFractionDigits: 2 })} ₽`;
 
     const handleClick = () => {
         router.push('/tasks?status=Agreed');
@@ -72,7 +72,7 @@ export default function ExecutorFinancialMetrics() {
                     </Typography>
 
                     <Typography
-                        variant="h3"
+                        variant="h2"
                         fontWeight={600}
                         color="primary"
                         sx={{
