@@ -4,19 +4,8 @@
     <option name="autoReloadType" value="SELECTIVE" />
   </component>
   <component name="ChangeListManager">
-    <list default="true" id="b3c91f45-fbe1-4477-9fd9-38d0fcaf660d" name="Changes" comment="Order Parsing logic has been modified">
+    <list default="true" id="b3c91f45-fbe1-4477-9fd9-38d0fcaf660d" name="Changes" comment="File upload logic has been modified. Order uploading added into task detail page.">
       <change beforePath="$PROJECT_DIR$/.idea/workspace.xml" beforeDir="false" afterPath="$PROJECT_DIR$/.idea/workspace.xml" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/src/app/ClientApp.tsx" beforeDir="false" afterPath="$PROJECT_DIR$/src/app/ClientApp.tsx" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/src/app/api/addtasks/route.ts" beforeDir="false" afterPath="$PROJECT_DIR$/src/app/api/addtasks/route.ts" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/src/app/api/orders/route.ts" beforeDir="false" afterPath="$PROJECT_DIR$/src/app/api/estimates/route.ts" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/src/app/api/tasks/[taskId]/comments/route.ts" beforeDir="false" afterPath="$PROJECT_DIR$/src/app/api/tasks/[taskId]/comments/route.ts" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/src/app/api/tasks/[taskId]/route.ts" beforeDir="false" afterPath="$PROJECT_DIR$/src/app/api/tasks/[taskId]/route.ts" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/src/app/models/TaskModel.ts" beforeDir="false" afterPath="$PROJECT_DIR$/src/app/models/TaskModel.ts" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/src/app/orders/page.tsx" beforeDir="false" afterPath="$PROJECT_DIR$/src/app/estimates/page.tsx" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/src/app/tasks/[taskId]/page.tsx" beforeDir="false" afterPath="$PROJECT_DIR$/src/app/tasks/[taskId]/page.tsx" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/src/app/tasks/page.tsx" beforeDir="false" afterPath="$PROJECT_DIR$/src/app/tasks/page.tsx" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/src/utils/mailer.ts" beforeDir="false" afterPath="$PROJECT_DIR$/src/utils/mailer.ts" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/src/utils/s3.ts" beforeDir="false" afterPath="$PROJECT_DIR$/src/utils/s3.ts" afterDir="false" />
     </list>
     <option name="SHOW_DIALOG" value="false" />
     <option name="HIGHLIGHT_CONFLICTS" value="true" />
@@ -118,7 +107,7 @@
       <workItem from="1760696024453" duration="1032000" />
       <workItem from="1760697711020" duration="397000" />
       <workItem from="1760706203085" duration="849000" />
-      <workItem from="1760709754356" duration="31259000" />
+      <workItem from="1760709754356" duration="31847000" />
     </task>
     <task id="LOCAL-00001" summary="Dockerfile has been modified #2">
       <option name="closed" value="true" />
@@ -328,7 +317,15 @@
       <option name="project" value="LOCAL" />
       <updated>1760710476128</updated>
     </task>
-    <option name="localTasksCounter" value="27" />
+    <task id="LOCAL-00027" summary="File upload logic has been modified. Order uploading added into task detail page.">
+      <option name="closed" value="true" />
+      <created>1760793878016</created>
+      <option name="number" value="00027" />
+      <option name="presentableId" value="LOCAL-00027" />
+      <option name="project" value="LOCAL" />
+      <updated>1760793878016</updated>
+    </task>
+    <option name="localTasksCounter" value="28" />
     <servers />
   </component>
   <component name="TypeScriptGeneratedFilesManager">
@@ -359,6 +356,7 @@
     <MESSAGE value="Task Calendar component hidden for executor role" />
     <MESSAGE value="Add padding style for loader into calendar and kanban page" />
     <MESSAGE value="Order Parsing logic has been modified" />
-    <option name="LAST_COMMIT_MESSAGE" value="Order Parsing logic has been modified" />
+    <MESSAGE value="File upload logic has been modified. Order uploading added into task detail page." />
+    <option name="LAST_COMMIT_MESSAGE" value="File upload logic has been modified. Order uploading added into task detail page." />
   </component>
 </project>
