@@ -2,139 +2,110 @@
 
 import React, { useEffect, useState } from 'react';
 import { Box, Typography, CircularProgress } from '@mui/material';
-import {
-  PieChart,
-  Pie,
-  Cell,
-  Tooltip,
-  Legend,
-  ResponsiveContainer,
-} from 'recharts';
+import { useRouter } from 'next/navigation';
 import { Task } from '@/app/types/taskTypes';
-import { getStatusColor } from '@/utils/statusColors';
+import { FINANCE_CONFIG } from '@/config/finance';
 
 export default function ExecutorFinancialMetrics() {
-  const [tasks, setTasks] = useState<Task[]>([]);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
+    const [tasks, setTasks] = useState<Task[]>([]);
+    const [loading, setLoading] = useState(true);
+    const [error, setError] = useState<string | null>(null);
 
-  // Коэффициент для расчёта стоимости для исполнителя
-  const executorCoefficient = 0.7;
+    const { SUM_TO_PAY_PERCENT } = FINANCE_CONFIG;
+    const router = useRouter();
 
-  useEffect(() => {
-    async function fetchTasks() {
-      try {
-        const res = await fetch('/api/tasks');
-        if (!res.ok) {
-          throw new Error('Error fetching tasks');
+    useEffect(() => {
+        async function fetchTasks() {
+            try {
+                const res = await fetch('/api/tasks');
+                if (!res.ok) throw new Error('Error fetching tasks');
+                const data = await res.json();
+                setTasks(data.tasks);
+            } catch (err: unknown) {
+                setError(err instanceof Error ? err.message : 'Unknown error');
+            } finally {
+                setLoading(false);
+            }
         }
-        const data = await res.json();
-        setTasks(data.tasks);
-      } catch (err: unknown) {
-        if (err instanceof Error) {
-          setError(err.message);
-        } else {
-          setError('Unknown error');
-        }
-      } finally {
-        setLoading(false);
-      }
+        fetchTasks();
+    }, []);
+
+    if (loading) {
+        return (
+            <Box display="flex" justifyContent="center" alignItems="center" minHeight={100}>
+                <CircularProgress />
+            </Box>
+        );
     }
-    fetchTasks();
-  }, []);
 
-  if (loading) {
-    return (
-      <Box
-        display='flex'
-        justifyContent='center'
-        alignItems='center'
-        minHeight={100}
-      >
-        <CircularProgress />
-      </Box>
-    );
-  }
+    if (error) {
+        return (
+            <Typography color="error" textAlign="center">
+                {error}
+            </Typography>
+        );
+    }
 
-  if (error) {
-    return (
-      <Typography color='error' textAlign='center'>
-        {error}
-      </Typography>
-    );
-  }
+    const agreedTasks = tasks.filter((t) => t.status === 'Agreed');
+    const agreedCount = agreedTasks.length;
+    const totalAgreed = agreedTasks.reduce((acc, t) => acc + (t.totalCost || 0), 0);
+    const sumToPay = totalAgreed * SUM_TO_PAY_PERCENT;
 
-  // Определяем интересующие нас статусы
-  const statuses = ['Assigned', 'At work', 'Done', 'Issues', 'Agreed'];
+    const formatRuble = (value: number) =>
+        `${value.toLocaleString('ru-RU', { minimumFractionDigits: 2 })} ₽`;
 
-  // Группируем данные: для каждого статуса суммируем totalCost заказов и умножаем на коэффициент исполнителя
-  const chartData = statuses.map((status) => {
-    const sum = tasks
-      .filter((t) => t.status === status)
-      .reduce((acc, t) => acc + (t.totalCost || 0), 0);
-    return {
-      name: status,
-      value: Number((sum * executorCoefficient).toFixed(2)),
+    const handleClick = () => {
+        router.push('/tasks?status=Agreed');
     };
-  });
 
-  // Общая стоимость всех заказов
-  const totalCost = tasks.reduce((acc, t) => acc + (t.totalCost || 0), 0);
-  // Стоимость для исполнителя (70% от общей стоимости)
-  const executorTotalCost = totalCost * executorCoefficient;
+    return (
+        <Box textAlign="center" sx={{ mt: 4 }}>
+            {agreedCount > 0 ? (
+                <>
+                    <Typography
+                        variant="body1"
+                        color="text.primary"
+                        sx={{ mb: 1, cursor: 'pointer' }}
+                        onClick={handleClick}
+                    >
+                        {`${agreedCount} ${getTaskWord(agreedCount)} к оплате на сумму:`}
+                    </Typography>
 
-  // Функция форматирования суммы с символом рубля
-  const formatRuble = (value: number) => `${value.toFixed(2)} ₽`;
+                    <Typography
+                        variant="h2"
+                        fontWeight={600}
+                        color="primary"
+                        sx={{
+                            cursor: 'pointer',
+                            transition: 'color 0.2s ease',
+                            '&:hover': { color: 'primary.dark' },
+                        }}
+                        onClick={handleClick}
+                    >
+                        {formatRuble(sumToPay)}
+                    </Typography>
 
-  return (
-    <Box>
-      <Typography variant='h6'>Financial metrics</Typography>
+                    <Typography variant="caption" color="text.secondary">
+                        Отображается общая стоимость согласованных и неоплаченных задач
+                    </Typography>
+                </>
+            ) : (
+                <Typography variant="h6" color="text.secondary">
+                    Нет задач к оплате
+                </Typography>
+            )}
+        </Box>
 
-      {/* Вывод текстовых строк с суммами для каждого статуса */}
-      <Box>
-        {chartData.map((dataItem) => (
-          <Typography
-            key={dataItem.name}
-            variant='body1'
-            style={{ color: getStatusColor(dataItem.name) }}
-          >
-            {dataItem.name} tasks: {formatRuble(dataItem.value)}
-          </Typography>
-        ))}
-      </Box>
 
-      <Box width='100%' height={350}>
-        <ResponsiveContainer>
-          <PieChart>
-            <Pie
-              data={chartData}
-              dataKey='value'
-              nameKey='name'
-              cx='50%'
-              cy='50%'
-              outerRadius={120}
-              innerRadius={80}
-              label={false}
-            >
-              {chartData.map((entry, index) => (
-                <Cell key={`cell-${index}`} fill={getStatusColor(entry.name)} />
-              ))}
-            </Pie>
-            {/* Текст в центре диаграммы для SVG */}
-            <text
-              x='50%'
-              y='45%'
-              textAnchor='middle'
-              dominantBaseline='middle'
-              style={{ fontSize: '18px', fontWeight: 'bold' }}
-            >
-              {formatRuble(executorTotalCost)}
-            </text>
-            <Tooltip formatter={(value: number) => formatRuble(value)} />
-            <Legend />
-          </PieChart>
-        </ResponsiveContainer>
-      </Box>
-    </Box>
-  );
+
+    );
+}
+
+// Функция для корректного склонения слова "задача"
+function getTaskWord(count: number): string {
+    const mod10 = count % 10;
+    const mod100 = count % 100;
+    if (mod10 === 1 && mod100 !== 11) return 'задача';
+    if (mod10 >= 2 && mod10 <= 4 && (mod100 < 10 || mod100 >= 20)) return 'задачи';
+    return 'задач';
 }

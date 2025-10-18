@@ -55,11 +55,12 @@ const ExecutorDashboard: React.FC<ExecutorDashboardProps> = ({
           <Paper sx={{ p: 2 }}>
             <Typography variant='h6'>Metrics</Typography>
             <Box sx={{ mb: 2 }}>
-              <TaskMetricDiagram role={role} clerkUserId={clerkUserId} />
-            </Box>
-            <Box sx={{ mb: 2 }}>
               <ExecutorFinancialMetrics />
             </Box>
+            <Box sx={{ mb: 2 }}>
+              <TaskMetricDiagram role={role} clerkUserId={clerkUserId} />
+            </Box>
+
           </Paper>
         </Grid>
       </Grid>

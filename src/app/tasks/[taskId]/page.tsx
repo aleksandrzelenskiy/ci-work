@@ -1,6 +1,7 @@
 // app/tasks/[taskId]/page.tsx
 'use client';
 
+import { FINANCE_CONFIG } from '@/config/finance';
 import React, { useState, useEffect } from 'react';
 import { v4 as uuidv4 } from 'uuid';
 import {
@@ -34,7 +35,7 @@ import {
   Avatar,
   Grid,
 } from '@mui/material';
-
+import Tooltip from '@mui/material/Tooltip';
 import Timeline from '@mui/lab/Timeline';
 import TimelineItem from '@mui/lab/TimelineItem';
 import TimelineSeparator from '@mui/lab/TimelineSeparator';
@@ -557,13 +558,61 @@ export default function TaskDetailPage() {
                           : 'Loading...'}
                     </strong>{' '}
                     {userRole ? (
-                        userRole === 'executor'
-                            ? `${(task.totalCost * 0.7).toFixed(2)} RUB`
-                            : `${task.totalCost.toFixed(2)} RUB`
+                        (() => {
+                          const total = task.totalCost;
+                          const commission = total * FINANCE_CONFIG.COMMISSION_PERCENT;
+                          const sumToPay = total * FINANCE_CONFIG.SUM_TO_PAY_PERCENT;
+                          const tax =
+                              (total * (1 - FINANCE_CONFIG.COMMISSION_PERCENT)) *
+                              FINANCE_CONFIG.TAX_PERCENT_OF_REMAINING;
+                          const profit = total - (commission + sumToPay + tax);
+
+                          if (userRole === 'executor') {
+                            // Исполнитель видит только выплату
+                            return `${sumToPay.toFixed(2)} RUB`;
+                          } else {
+                            // Для админа и ревьюера — показываем tooltip с детализацией
+                            return (
+                                <Tooltip
+                                    title={
+                                      <Box sx={{ p: 1 }}>
+                                        <Typography variant="body2">
+                                          <strong>Commission:</strong> {commission.toFixed(2)} RUB
+                                        </Typography>
+                                        <Typography variant="body2">
+                                          <strong>Tax:</strong> {tax.toFixed(2)} RUB
+                                        </Typography>
+                                        <Typography variant="body2">
+                                          <strong>Sum to Pay:</strong> {sumToPay.toFixed(2)} RUB
+                                        </Typography>
+                                        <Typography variant="body2">
+                                          <strong>Profit:</strong> {profit.toFixed(2)} RUB
+                                        </Typography>
+                                      </Box>
+                                    }
+                                    arrow
+                                    placement="top"
+                                >
+                                  <Typography
+                                      component="span"
+                                      sx={{
+                                        cursor: 'help',
+                                        borderBottom: '1px dotted gray',
+                                        '&:hover': { color: 'primary.main' },
+                                      }}
+                                  >
+                                    {total.toFixed(2)} RUB
+                                  </Typography>
+                                </Tooltip>
+                            );
+                          }
+                        })()
                     ) : (
                         <Skeleton variant="text" width={100} />
                     )}
                   </Typography>
+
+
                   <Typography>
                     <strong>Priority:</strong> {task.priority}
                   </Typography>

@@ -11,6 +11,7 @@ import {
   Legend,
   ResponsiveContainer,
 } from 'recharts';
+import { FINANCE_CONFIG } from '@/config/finance';
 
 export default function FinancialMetrics() {
   const [tasks, setTasks] = useState<Task[]>([]);
@@ -27,11 +28,7 @@ export default function FinancialMetrics() {
         const data = await res.json();
         setTasks(data.tasks);
       } catch (err: unknown) {
-        if (err instanceof Error) {
-          setError(err.message);
-        } else {
-          setError('Unknown error');
-        }
+        setError(err instanceof Error ? err.message : 'Unknown error');
       } finally {
         setLoading(false);
       }
@@ -41,116 +38,111 @@ export default function FinancialMetrics() {
 
   if (loading) {
     return (
-      <Box
-        display='flex'
-        justifyContent='center'
-        alignItems='center'
-        minHeight={100}
-      >
-        <CircularProgress />
-      </Box>
+        <Box display='flex' justifyContent='center' alignItems='center' minHeight={100}>
+          <CircularProgress />
+        </Box>
     );
   }
 
   if (error) {
     return (
-      <Typography color='error' textAlign='center'>
-        {error}
-      </Typography>
+        <Typography color='error' textAlign='center'>
+          {error}
+        </Typography>
     );
   }
 
   // Фильтруем задачи со статусом "Agreed"
   const agreedTasks = tasks.filter((t) => t.status === 'Agreed');
 
-  // Общая сумма totalCost для задач со статусом "Agreed" – это наш total (100%)
-  const totalAgreed = agreedTasks.reduce(
-    (acc, t) => acc + (t.totalCost || 0),
-    0
-  );
+  // Общая сумма totalCost для задач со статусом "Agreed"
+  const totalAgreed = agreedTasks.reduce((acc, t) => acc + (t.totalCost || 0), 0);
 
-  // Вычисляем метрики по логике:
-  // Sum to Pay = 70% от total
-  const sumToPay = totalAgreed * 0.7;
-  // Commission = 10% от total (отображается серым)
-  const commission = totalAgreed * 0.1;
-  // Эффективный revenue = 30% от total минус commission = 20% от total
-  const effectiveRevenue = totalAgreed * 0.2;
-  // Разбиваем effectiveRevenue на Tax и Profit:
-  // Tax = 15% от effectiveRevenue, Profit = 85% от effectiveRevenue
-  const tax = effectiveRevenue * 0.15;
-  const profit = effectiveRevenue * 0.85;
+  // Используем коэффициенты из FINANCE_CONFIG
+  const { COMMISSION_PERCENT, SUM_TO_PAY_PERCENT, TAX_PERCENT_OF_REMAINING } = FINANCE_CONFIG;
+
+  // Комиссия
+  const commission = totalAgreed * COMMISSION_PERCENT;
+
+  // Оплата
+  const sumToPay = totalAgreed * SUM_TO_PAY_PERCENT;
+
+  // Налог
+  const tax = (totalAgreed * (1 - COMMISSION_PERCENT)) * TAX_PERCENT_OF_REMAINING;
+
+  // Маржа
+  const profit = totalAgreed - (commission + sumToPay + tax);
 
   // Подготавливаем данные для диаграммы
   const chartData = [
-    { name: 'Sum to Pay', value: Number(sumToPay.toFixed(2)) },
-    { name: 'Commission', value: Number(commission.toFixed(2)) },
-    { name: 'Tax', value: Number(tax.toFixed(2)) },
-    { name: 'Profit', value: Number(profit.toFixed(2)) },
+    { name: 'Sum to Pay', value: sumToPay, color: '#0088FE' },
+    { name: 'Commission', value: commission, color: '#B3B3B3' },
+    { name: 'Tax', value: tax, color: '#FFBB28' },
+    { name: 'Profit', value: profit, color: '#388E3C' },
   ];
 
-  // Цвета для каждого сегмента
-  const COLORS = ['#0088FE', '#B3B3B3', '#FFBB28', '#388E3C'];
+  const COLORS = chartData.map((c) => c.color);
 
-  // Функция форматирования суммы с символом рубля
-  const formatRuble = (value: number) => `${value.toFixed(2)} ₽`;
+  // Форматирование ₽
+  const formatRuble = (value: number) =>
+      `${value.toLocaleString('ru-RU', { minimumFractionDigits: 2 })} ₽`;
+
+  // Форматирование процента
+  const formatPercent = (value: number) => ((value / totalAgreed) * 100).toFixed(1) + '%';
 
   return (
-    <Box>
-      <Typography variant='h6'>Financial metrics</Typography>
+      <Box>
+        <Typography variant='h6' sx={{ mb: 2 }}>
+          Financial Metrics
+        </Typography>
 
-      {/* <Typography variant='body1'>
-        Total cost (status = &quot;Agreed&quot;): {formatRuble(totalAgreed)}
-      </Typography>
-      <Typography variant='body1'>
-        Sum to Pay (70%): {formatRuble(sumToPay)}
-      </Typography>
-      <Typography variant='body1'>
-        Commission (10%): {formatRuble(commission)}
-      </Typography>
-      <Typography variant='body1'>
-        Tax (15% от effective revenue): {formatRuble(tax)}
-      </Typography>
-      <Typography variant='body1'>
-        Profit (85% от effective revenue): {formatRuble(profit)}
-      </Typography> */}
+        <Box width='100%' height={400}>
+          <ResponsiveContainer>
+            <PieChart>
+              <Pie
+                  data={chartData}
+                  dataKey='value'
+                  nameKey='name'
+                  cx='50%'
+                  cy='50%'
+                  outerRadius={120}
+                  innerRadius={90}
+                  labelLine={false}
+                  label={({ name, value }) => `${name}: ${formatPercent(value)}`}
+              >
+                {chartData.map((entry, index) => (
+                    <Cell key={`cell-${index}`} fill={COLORS[index]} />
+                ))}
+              </Pie>
 
-      <Box width='100%' height={400}>
-        <ResponsiveContainer>
-          <PieChart>
-            <Pie
-              data={chartData}
-              dataKey='value'
-              nameKey='name'
-              cx='50%'
-              cy='50%'
-              outerRadius={120}
-              innerRadius={90}
-              label={({ value }) => formatRuble(value)}
-              labelLine={false}
-            >
-              {chartData.map((entry, index) => (
-                <Cell
-                  key={`cell-${index}`}
-                  fill={COLORS[index % COLORS.length]}
-                />
-              ))}
-            </Pie>
-            {/* Текст в центре диаграммы */}
-            <text
-              x='50%'
-              y='47.5%'
-              textAnchor='middle'
-              dominantBaseline='middle'
-              style={{ fontSize: '18px', fontWeight: 'bold' }}
-            >
-              {formatRuble(totalAgreed)}
-            </text>
-            <Tooltip formatter={(value: number) => formatRuble(value)} />
-            <Legend />
-          </PieChart>
-        </ResponsiveContainer>
+              {/* Текст в центре диаграммы */}
+              <text
+                  x='50%'
+                  y='47.5%'
+                  textAnchor='middle'
+                  dominantBaseline='middle'
+                  style={{ fontSize: '18px', fontWeight: 'bold' }}
+              >
+                {formatRuble(totalAgreed)}
+              </text>
+
+              {/* Всплывающая подсказка */}
+              <Tooltip
+                  formatter={(value: number, name: string) => [
+                    `${formatRuble(value)} (${formatPercent(value)})`,
+                    name,
+                  ]}
+                  contentStyle={{
+                    backgroundColor: '#fff',
+                    border: '1px solid #ccc',
+                    borderRadius: 8,
+                  }}
+              />
+
+              <Legend />
+            </PieChart>
+          </ResponsiveContainer>
+        </Box>
       </Box>
-    </Box>
   );
 }

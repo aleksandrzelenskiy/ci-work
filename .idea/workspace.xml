@@ -4,8 +4,16 @@
     <option name="autoReloadType" value="SELECTIVE" />
   </component>
   <component name="ChangeListManager">
-    <list default="true" id="b3c91f45-fbe1-4477-9fd9-38d0fcaf660d" name="Changes" comment="File upload logic has been modified. Order uploading added into task detail page.">
+    <list default="true" id="b3c91f45-fbe1-4477-9fd9-38d0fcaf660d" name="Changes" comment="uploadBuffer error bug has been fixed">
+      <change afterPath="$PROJECT_DIR$/src/config/finance.ts" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/.idea/workspace.xml" beforeDir="false" afterPath="$PROJECT_DIR$/.idea/workspace.xml" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/src/app/ClientApp.tsx" beforeDir="false" afterPath="$PROJECT_DIR$/src/app/ClientApp.tsx" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/src/app/components/dashboards/ExecutorDashboard.tsx" beforeDir="false" afterPath="$PROJECT_DIR$/src/app/components/dashboards/ExecutorDashboard.tsx" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/src/app/components/dashboards/ExecutorFinancialMetrics.tsx" beforeDir="false" afterPath="$PROJECT_DIR$/src/app/components/dashboards/ExecutorFinancialMetrics.tsx" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/src/app/components/dashboards/FinancialMetrics.tsx" beforeDir="false" afterPath="$PROJECT_DIR$/src/app/components/dashboards/FinancialMetrics.tsx" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/src/app/layout.tsx" beforeDir="false" afterPath="$PROJECT_DIR$/src/app/layout.tsx" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/src/app/tasks/[taskId]/page.tsx" beforeDir="false" afterPath="$PROJECT_DIR$/src/app/tasks/[taskId]/page.tsx" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/src/utils/deleteReportUtils.ts" beforeDir="false" />
     </list>
     <option name="SHOW_DIALOG" value="false" />
     <option name="HIGHLIGHT_CONFLICTS" value="true" />
@@ -107,7 +115,7 @@
       <workItem from="1760696024453" duration="1032000" />
       <workItem from="1760697711020" duration="397000" />
       <workItem from="1760706203085" duration="849000" />
-      <workItem from="1760709754356" duration="31847000" />
+      <workItem from="1760709754356" duration="39684000" />
     </task>
     <task id="LOCAL-00001" summary="Dockerfile has been modified #2">
       <option name="closed" value="true" />
@@ -325,14 +333,21 @@
       <option name="project" value="LOCAL" />
       <updated>1760793878016</updated>
     </task>
-    <option name="localTasksCounter" value="28" />
+    <task id="LOCAL-00028" summary="uploadBuffer error bug has been fixed">
+      <option name="closed" value="true" />
+      <created>1760794651099</created>
+      <option name="number" value="00028" />
+      <option name="presentableId" value="LOCAL-00028" />
+      <option name="project" value="LOCAL" />
+      <updated>1760794651099</updated>
+    </task>
+    <option name="localTasksCounter" value="29" />
     <servers />
   </component>
   <component name="TypeScriptGeneratedFilesManager">
     <option name="version" value="3" />
   </component>
   <component name="VcsManagerConfiguration">
-    <MESSAGE value="Dockerfile has been modified #2" />
     <MESSAGE value="Dependencies has been changed" />
     <MESSAGE value="added generation of UOR" />
     <MESSAGE value="Generation of UOR and addtask route has been modified" />
@@ -357,6 +372,7 @@
     <MESSAGE value="Add padding style for loader into calendar and kanban page" />
     <MESSAGE value="Order Parsing logic has been modified" />
     <MESSAGE value="File upload logic has been modified. Order uploading added into task detail page." />
-    <option name="LAST_COMMIT_MESSAGE" value="File upload logic has been modified. Order uploading added into task detail page." />
+    <MESSAGE value="uploadBuffer error bug has been fixed" />
+    <option name="LAST_COMMIT_MESSAGE" value="uploadBuffer error bug has been fixed" />
   </component>
 </project>

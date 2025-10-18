@@ -116,11 +116,11 @@ export default function ClientApp({ children }: { children: React.ReactNode }) {
   const DrawerList = (
     <Box sx={{ width: 250 }} role='presentation'>
       <Box sx={{ display: 'flex', justifyContent: 'center', p: 2, mb: 2 }}>
-<img
-          src='/t2logo.png'
-          alt='T2 Logo'
-          style={{ width: '70%', maxWidth: '200px' }}
-        />
+{/*<img*/}
+{/*          src='/t2logo.png'*/}
+{/*          alt='T2 Logo'*/}
+{/*          style={{ width: '70%', maxWidth: '200px' }}*/}
+{/*        />*/}
       </Box>
       <List>
         <ListItemButton
@@ -229,7 +229,7 @@ export default function ClientApp({ children }: { children: React.ReactNode }) {
                     sx={{ flexGrow: 1, display: 'flex', alignItems: 'center' }}
                   >
                     <Badge
-                      badgeContent={`Pro`}
+                      badgeContent={`T2`}
                       color='primary'
                       anchorOrigin={{
                         vertical: 'top',
