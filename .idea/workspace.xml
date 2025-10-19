@@ -4,7 +4,7 @@
     <option name="autoReloadType" value="SELECTIVE" />
   </component>
   <component name="ChangeListManager">
-    <list default="true" id="b3c91f45-fbe1-4477-9fd9-38d0fcaf660d" name="Changes" comment="Status changing logics bug has been fixed">
+    <list default="true" id="b3c91f45-fbe1-4477-9fd9-38d0fcaf660d" name="Changes" comment="changed the display of maps on the task page">
       <change beforePath="$PROJECT_DIR$/.idea/workspace.xml" beforeDir="false" afterPath="$PROJECT_DIR$/.idea/workspace.xml" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/src/app/tasks/[taskId]/page.tsx" beforeDir="false" afterPath="$PROJECT_DIR$/src/app/tasks/[taskId]/page.tsx" afterDir="false" />
     </list>
@@ -108,7 +108,7 @@
       <workItem from="1760696024453" duration="1032000" />
       <workItem from="1760697711020" duration="397000" />
       <workItem from="1760706203085" duration="849000" />
-      <workItem from="1760709754356" duration="52359000" />
+      <workItem from="1760709754356" duration="53887000" />
     </task>
     <task id="LOCAL-00001" summary="Dockerfile has been modified #2">
       <option name="closed" value="true" />
@@ -366,15 +366,21 @@
       <option name="project" value="LOCAL" />
       <updated>1760848912437</updated>
     </task>
-    <option name="localTasksCounter" value="33" />
+    <task id="LOCAL-00033" summary="Documents on the task page are hidden for the executor">
+      <option name="closed" value="true" />
+      <created>1760873099004</created>
+      <option name="number" value="00033" />
+      <option name="presentableId" value="LOCAL-00033" />
+      <option name="project" value="LOCAL" />
+      <updated>1760873099004</updated>
+    </task>
+    <option name="localTasksCounter" value="34" />
     <servers />
   </component>
   <component name="TypeScriptGeneratedFilesManager">
     <option name="version" value="3" />
   </component>
   <component name="VcsManagerConfiguration">
-    <MESSAGE value="docker-compose.yml has been modofied" />
-    <MESSAGE value="dockerfile has been modified" />
     <MESSAGE value="S3 settings  has been clear into docker-compose.yml" />
     <MESSAGE value="console.log has been added into upload route" />
     <MESSAGE value="switch to Busboy streaming, add adaptive SVG watermark &amp; fix type errors" />
@@ -398,6 +404,8 @@
     <MESSAGE value="replace RUB to ₽" />
     <MESSAGE value="Status changing lojic bug has been fixed" />
     <MESSAGE value="Status changing logics bug has been fixed" />
-    <option name="LAST_COMMIT_MESSAGE" value="Status changing logics bug has been fixed" />
+    <MESSAGE value="Documents on the task page are hidden for the executor" />
+    <MESSAGE value="changed the display of maps on the task page" />
+    <option name="LAST_COMMIT_MESSAGE" value="changed the display of maps on the task page" />
   </component>
 </project>

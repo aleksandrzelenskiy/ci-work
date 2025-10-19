@@ -64,7 +64,8 @@ import { LocalizationProvider } from '@mui/x-date-pickers/LocalizationProvider';
 import { AdapterDayjs } from '@mui/x-date-pickers/AdapterDayjs';
 import { DatePicker } from '@mui/x-date-pickers/DatePicker';
 import dayjs from 'dayjs';
-import { YMaps, Map, Placemark, FullscreenControl } from '@pbe/react-yandex-maps';
+import { YMaps, Map, Placemark, FullscreenControl, TypeSelector, ZoomControl, GeolocationControl, SearchControl } from '@pbe/react-yandex-maps';
+
 import NextLink from 'next/link';
 import { useParams, useRouter } from 'next/navigation';
 import {
@@ -133,8 +134,7 @@ export default function TaskDetailPage() {
     const [snackbarMessage, setSnackbarMessage] = useState('');
     const [snackbarSeverity, setSnackbarSeverity] = useState<'success' | 'error'>('success');
     const [isEditFormOpen, setIsEditFormOpen] = useState(false);
-    const [visibleMaps, setVisibleMaps] = useState<Set<string>>(new Set());
-
+    const [selectedMapPoint, setSelectedMapPoint] = useState<{ coords: [number, number]; title: string } | null>(null);
     const [mapOpen, setMapOpen] = useState(false);
 
     const [openOrderDialog, setOpenOrderDialog] = useState(false);
@@ -167,14 +167,27 @@ export default function TaskDetailPage() {
         },
     });
 
-    const toggleMapVisibility = (coordinates: string) => {
-        setVisibleMaps((prev) => {
-            const next = new Set(prev);
-            if (next.has(coordinates)) next.delete(coordinates);
-            else next.add(coordinates);
-            return next;
-        });
+
+// парсер координат вида "52.283056 104.303778" (любой разделитель: пробел, запятая, точка с запятой)
+    const parseCoords = (s?: string): [number, number] | null => {
+        if (!s) return null;
+        const parts = s.trim().split(/[ ,;]+/).map(Number).filter(n => !Number.isNaN(n));
+        if (parts.length >= 2) return [parts[0], parts[1]] as [number, number];
+        return null;
     };
+
+    const openMapAt = (coordString: string, title: string) => {
+        const coords = parseCoords(coordString);
+        if (!coords) {
+            setSnackbarMessage('Неверный формат координат');
+            setSnackbarSeverity('error');
+            setSnackbarOpen(true);
+            return;
+        }
+        setSelectedMapPoint({ coords, title });
+        setMapOpen(true);
+    };
+
 
     useEffect(() => {
         const fetchUserRole = async () => {
@@ -695,56 +708,18 @@ export default function TaskDetailPage() {
                                         <Typography>
                                             <strong>{location.name}</strong>
                                         </Typography>
+
                                         <MUILink
                                             component="button"
-                                            onClick={() => {
-                                                toggleMapVisibility(location.coordinates);
-                                                setMapOpen(true);
-                                            }}
+                                            onClick={() => openMapAt(location.coordinates, location.name)}
                                             sx={{ cursor: 'pointer', textDecoration: 'none' }}
                                         >
                                             {location.coordinates}
                                         </MUILink>
-                                        {visibleMaps.has(location.coordinates) && (
-                                            <Box
-                                                sx={{
-                                                    height: 300,
-                                                    width: '100%',
-                                                    mt: 2,
-                                                    borderRadius: 1,
-                                                    overflow: 'hidden',
-                                                    boxShadow: 3,
-                                                }}
-                                            >
-                                                <YMaps query={{ apikey: '1c3860d8-3994-4e6e-841b-31ad57f69c78' }}>
-                                                    <Map
-                                                        state={{
-                                                            center: location.coordinates.split(' ').map(Number) as [number, number],
-                                                            zoom: 14,
-                                                            type: 'yandex#satellite',
-                                                        }}
-                                                        width="100%"
-                                                        height="100%"
-                                                    >
-                                                        <Placemark
-                                                            geometry={location.coordinates.split(' ').map(Number) as [number, number]}
-                                                            options={{
-                                                                preset: 'islands#blueStretchyIcon',
-                                                                iconColor: '#ff0000',
-                                                            }}
-                                                            properties={{
-                                                                balloonContent: location.name,
-                                                                iconContent: `BS: ${location.name}`,
-                                                            }}
-                                                        />
-                                                        <FullscreenControl />
-                                                    </Map>
-                                                </YMaps>
-                                            </Box>
-                                        )}
                                     </Box>
                                 ))}
                             </AccordionDetails>
+
                         </Accordion>
                     </Box>
                 </Grid>
@@ -1288,18 +1263,50 @@ export default function TaskDetailPage() {
                             <CloseIcon />
                         </IconButton>
                         <Typography sx={{ ml: 2, flex: 1 }} variant="h6" component="div">
-                            Map
+                            {selectedMapPoint?.title ?? 'Map'}
                         </Typography>
                     </Toolbar>
                 </AppBar>
+
                 <Box sx={{ height: '100%', width: '100%' }}>
-                    <YMaps>
-                        <Map defaultState={{ center: [0, 0], zoom: 15 }} width="100%" height="100%">
-                            <Placemark geometry={[0, 0]} />
+                    <YMaps query={{ apikey: '1c3860d8-3994-4e6e-841b-31ad57f69c78', lang: 'ru_RU' }}>
+                        <Map
+                            state={
+                                selectedMapPoint
+                                    ? { center: selectedMapPoint.coords, zoom: 14, type: 'yandex#hybrid' } // было yandex#satellite
+                                    : { center: [55.751244, 37.618423], zoom: 4, type: 'yandex#map' }
+                            }
+                            width="100%"
+                            height="100%"
+                            modules={[
+                                'control.ZoomControl',
+                                'control.TypeSelector',
+                                'control.FullscreenControl',
+                                'control.GeolocationControl',
+                                'control.SearchControl',
+                                'geoObject.addon.balloon',
+                            ]}
+                        >
+                            {/* Контролы, чтобы можно было менять слои и искать адреса */}
+                            <ZoomControl />
+                            <TypeSelector />
+                            <GeolocationControl />
+                            <SearchControl />
+
+                            {selectedMapPoint && (
+                                <Placemark
+                                    geometry={selectedMapPoint.coords}
+                                    options={{ preset: 'islands#blueStretchyIcon', iconColor: '#ff0000' }}
+                                    properties={{ balloonContent: selectedMapPoint.title, iconContent: `BS: ${selectedMapPoint.title}` }}
+                                />
+                            )}
+                            <FullscreenControl />
                         </Map>
                     </YMaps>
+
                 </Box>
             </Dialog>
+
 
             {/* Подтверждение смены статуса */}
             <Dialog open={confirmDialogOpen} onClose={() => setConfirmDialogOpen(false)}>
