@@ -229,10 +229,34 @@ export default function TaskDetailPage() {
   };
 
   const handleConfirmAction = async () => {
-    if (confirmAction === 'accept') await updateStatus('At work');
-    else if (confirmAction === 'reject' || confirmAction === 'refuse') await updateStatus('To do');
-    else if (confirmAction === 'done') await updateStatus('Done');
+    if (!task) return;
+
+    const bodyData: Record<string, string | null> = { decision: null };
+
+    if (confirmAction === 'accept') {
+      bodyData.decision = 'accept';
+      bodyData.executorId = task.executorId; // добавляем ID исполнителя
+    } else if (confirmAction === 'reject' || confirmAction === 'refuse') {
+      bodyData.decision = 'reject';
+      bodyData.executorId = task.executorId; // тоже передаём, чтобы сервер знал кого очищать
+    } else if (confirmAction === 'done') {
+      return await updateStatus('Done');
+    }
+
+    await fetch(`/api/tasks/${taskId}`, {
+      method: 'PATCH',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(bodyData),
+    });
+
+    // после выполнения обновляем задачу
+    const response = await fetch(`/api/tasks/${taskId}`);
+    const data = await response.json();
+    setTask(data.task);
+    setConfirmDialogOpen(false);
   };
+
+
 
   const handleCloseSnackbar = () => setSnackbarOpen(false);
 
