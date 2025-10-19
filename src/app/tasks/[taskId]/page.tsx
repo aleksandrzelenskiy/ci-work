@@ -595,23 +595,23 @@ export default function TaskDetailPage() {
                                             const profit = total - (commission + sumToPay + tax);
 
                                             if (userRole === 'executor') {
-                                                return `${sumToPay.toFixed(2)} ₽`;
+                                                return `${sumToPay.toFixed(2)} rub`;
                                             } else {
                                                 return (
                                                     <Tooltip
                                                         title={
                                                             <Box sx={{ p: 1 }}>
                                                                 <Typography variant="body2">
-                                                                    <strong>Commission:</strong> {commission.toFixed(2)} ₽
+                                                                    <strong>Commission:</strong> {commission.toFixed(2)} rub
                                                                 </Typography>
                                                                 <Typography variant="body2">
-                                                                    <strong>Tax:</strong> {tax.toFixed(2)} ₽
+                                                                    <strong>Tax:</strong> {tax.toFixed(2)} rub
                                                                 </Typography>
                                                                 <Typography variant="body2">
-                                                                    <strong>Sum to Pay:</strong> {sumToPay.toFixed(2)} ₽
+                                                                    <strong>Sum to Pay:</strong> {sumToPay.toFixed(2)} rub
                                                                 </Typography>
                                                                 <Typography variant="body2">
-                                                                    <strong>Profit:</strong> {profit.toFixed(2)} ₽
+                                                                    <strong>Profit:</strong> {profit.toFixed(2)} rub
                                                                 </Typography>
                                                             </Box>
                                                         }
@@ -626,7 +626,7 @@ export default function TaskDetailPage() {
                                                                 '&:hover': { color: 'primary.main' },
                                                             }}
                                                         >
-                                                            {total.toFixed(2)} ₽
+                                                            {total.toFixed(2)} rub
                                                         </Typography>
                                                     </Tooltip>
                                                 );

@@ -192,10 +192,12 @@ export async function PATCH(
       if (updateData.executorId === '' || updateData.executorId === null) {
         // удалить исполнителя
         executorRemoved = true;
+        const hadDifferentStatus = task.status !== 'To do';
         task.executorId = '';
         task.executorName = '';
         task.executorEmail = '';
-        if (task.status !== 'To do') {
+
+        if (hadDifferentStatus) {
           task.status = 'To do';
           task.events.push({
             action: 'EXECUTOR_REMOVED',
@@ -215,23 +217,17 @@ export async function PATCH(
           task.executorEmail = executor.email;
 
           if (task.status === 'To do') {
+            // Только TASK_ASSIGNED, без STATUS_CHANGED/EXECUTOR_ASSIGNED
             task.status = 'Assigned';
             task.events.push({
-              action: 'STATUS_CHANGED',
+              action: 'TASK_ASSIGNED',
               author: user.fullName || user.username || 'Unknown',
               authorId: user.id,
               date: new Date(),
-              details: { comment: 'Status automatically changed to Assigned after executor assignment' },
+              details: { comment: `The task is assigned to the executor: ${executor.name}` },
             });
           }
-
-          task.events.push({
-            action: 'EXECUTOR_ASSIGNED',
-            author: user.fullName || user.username || 'Unknown',
-            authorId: user.id,
-            date: new Date(),
-            details: { comment: `Executor assigned: ${executor.name}` },
-          });
+          // Если статус уже не To do (например, пере-назначение) — не плодим события.
         }
       }
     }
@@ -250,8 +246,6 @@ export async function PATCH(
       if (d === 'accept' || d === 'reject') decision = d;
     } else if (toBool(updateData.accept)) decision = 'accept';
     else if (toBool(updateData.reject)) decision = 'reject';
-
-    // никаких «авто-фоллбеков» в reject по статусу To do — это ломало Done
 
     if (decision === 'accept') {
       if (!task.executorId) {
@@ -296,7 +290,7 @@ export async function PATCH(
       }
     }
 
-    // === ручная смена статуса (например, Done) — только если не менялся исполнитель и не было accept/reject ===
+    // === ручная смена статуса (например, Done/Agreed) — только если не менялся исполнитель и не было accept/reject
     if (updateData.status && !executorRemoved && !executorAssigned && !decision) {
       task.status = updateData.status;
       task.events.push({
