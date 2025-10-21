@@ -16,6 +16,7 @@ import Typography from '@mui/material/Typography';
 import Alert from '@mui/material/Alert';
 import EditIcon from '@mui/icons-material/Edit';
 import DeleteIcon from '@mui/icons-material/Delete';
+import Snackbar from '@mui/material/Snackbar';
 import {
   YMaps,
   Map,
@@ -73,16 +74,6 @@ export default function BaseStations() {
     void fetchStations();
   }, []);
 
-  useEffect(() => {
-    let timer: NodeJS.Timeout;
-    if (error || success) {
-      timer = setTimeout(() => {
-        setError('');
-        setSuccess('');
-      }, 4000);
-    }
-    return () => clearTimeout(timer);
-  }, [error, success]);
 
   const handleImportKmz = async (file: File) => {
     setError('');
@@ -470,16 +461,38 @@ export default function BaseStations() {
         </DialogActions>
       </Dialog>
 
-      {error && (
-        <Alert variant='filled' severity='error' sx={{ mb: 2 }}>
-          {error}
+      <Snackbar
+          open={Boolean(error)}
+          autoHideDuration={4000}
+          onClose={() => setError('')}
+          anchorOrigin={{ vertical: 'bottom', horizontal: 'left' }}
+      >
+        <Alert
+            onClose={() => setError('')}
+            severity="error"
+            variant="filled"
+            sx={{ width: '100%' }}
+        >
+          {error || ''}
         </Alert>
-      )}
-      {success && (
-        <Alert variant='filled' severity='success' sx={{ mb: 2 }}>
-          {success}
+      </Snackbar>
+
+      <Snackbar
+          open={Boolean(success)}
+          autoHideDuration={4000}
+          onClose={() => setSuccess('')}
+          anchorOrigin={{ vertical: 'bottom', horizontal: 'left' }}
+      >
+        <Alert
+            onClose={() => setSuccess('')}
+            severity="success"
+            variant="filled"
+            sx={{ width: '100%' }}
+        >
+          {success || ''}
         </Alert>
-      )}
+      </Snackbar>
+
 
 
       <form onSubmit={handleSubmit}>
