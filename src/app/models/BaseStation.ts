@@ -1,36 +1,48 @@
-import mongoose from 'mongoose';
+import mongoose, { Schema, model, models, Document } from 'mongoose';
 
-export interface IBaseStation extends mongoose.Document {
-  name: string;
-  coordinates: string;
+export interface IBaseStation extends Document {
+    name: string;
+    coordinates: string;   // "lat lon" (для UI/обратной совместимости)
+    address?: string;
+    lat?: number;
+    lon?: number;
+    coordKey?: string;     // "lat6|lon6" — уникальный ключ для upsert
+    source?: string;       // 'kmz' | 'manual' и т.п.
 }
 
-const BaseStationSchema = new mongoose.Schema(
-  {
-    name: {
-      type: String,
-      required: true,
-      // unique: true,
-      index: true,
+function to6(x: number) {
+    return Number(x.toFixed(6));
+}
+function makeCoordKey(lat: number, lon: number) {
+    return `${to6(lat)}|${to6(lon)}`;
+}
+
+const BaseStationSchema = new Schema<IBaseStation>(
+    {
+        name: { type: String, required: true, index: true },
+        coordinates: { type: String, required: true }, // "lat lon"
+        address: { type: String, default: '' },
+        lat: { type: Number },
+        lon: { type: Number },
+        coordKey: { type: String, index: true, unique: true, sparse: true },
+        source: { type: String, default: 'kmz' },
     },
-    coordinates: {
-      type: String,
-      required: true,
-    },
-  },
-  { collection: 'objects-t2-ir' }
+    { collection: 'objects-t2-ir', timestamps: true }
 );
 
-// Предварительная обработка для удаления дубликатов
-BaseStationSchema.pre('save', async function (next) {
-  const existing = await mongoose.models.BaseStation.findOne({
-    name: this.name,
-  });
-  if (existing) {
-    await mongoose.models.BaseStation.deleteOne({ name: this.name });
-  }
-  next();
+// синхронизация строки и ключа, если заданы lat/lon
+BaseStationSchema.pre('save', function (next) {
+    if (typeof this.lat === 'number' && typeof this.lon === 'number') {
+        const lat6 = to6(this.lat);
+        const lon6 = to6(this.lon);
+        this.coordinates = `${lat6} ${lon6}`;
+        this.coordKey = makeCoordKey(lat6, lon6);
+    }
+    next();
 });
 
-export default mongoose.models.BaseStation ||
-  mongoose.model<IBaseStation>('BaseStation', BaseStationSchema);
+const BaseStation =
+    (models.BaseStation as mongoose.Model<IBaseStation>) ||
+    model<IBaseStation>('BaseStation', BaseStationSchema);
+
+export default BaseStation;

@@ -2,7 +2,7 @@
 
 'use client';
 
-import { useEffect, useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import Autocomplete from '@mui/material/Autocomplete';
 import TextField from '@mui/material/TextField';
 import Dialog from '@mui/material/Dialog';
@@ -21,12 +21,15 @@ import {
   Map,
   Placemark,
   FullscreenControl,
+  TypeSelector,
+  ZoomControl,
 } from '@pbe/react-yandex-maps';
 
 export interface BaseStation {
   _id: string;
   name: string;
   coordinates: string;
+  address?: string;
 }
 
 export default function BaseStations() {
@@ -35,12 +38,26 @@ export default function BaseStations() {
     null
   );
   const [editStation, setEditStation] = useState<BaseStation | null>(null);
-  const [newStation, setNewStation] = useState({ name: '', coordinates: '' });
+  const [importResult, setImportResult] = useState<null | {
+    message: string;
+    inserted: number;
+    updated: number;
+    skipped: number;
+    duplicatesInFile: number;
+    notFound?: Array<{ lat: string; lon: string; name?: string }>; // теперь опционально
+  }>(null);
+
+  const [importing, setImporting] = useState(false);
+  const [newStation, setNewStation] = useState({ name: '', coordinates: '', address: '' });
   const [error, setError] = useState('');
   const [success, setSuccess] = useState('');
   const [isEditing, setIsEditing] = useState(false);
   const [openSaveDialog, setOpenSaveDialog] = useState(false);
   const [openDeleteDialog, setOpenDeleteDialog] = useState(false);
+  const [dragActive, setDragActive] = useState(false);
+  const fileInputRef = React.useRef<HTMLInputElement | null>(null);
+
+
 
   useEffect(() => {
     const fetchStations = async () => {
@@ -53,7 +70,7 @@ export default function BaseStations() {
         setError('Failed to load base stations');
       }
     };
-    fetchStations();
+    void fetchStations();
   }, []);
 
   useEffect(() => {
@@ -66,6 +83,71 @@ export default function BaseStations() {
     }
     return () => clearTimeout(timer);
   }, [error, success]);
+
+  const handleImportKmz = async (file: File) => {
+    setError('');
+    setSuccess('');
+    setImportResult(null);
+    setImporting(true);
+
+    try {
+      const fd = new FormData();
+      fd.append('file', file);
+
+      const res = await fetch('/api/bs/import', {
+        method: 'POST',
+        body: fd,
+      });
+
+      const json = await res.json();
+      if (!res.ok) {
+        setError(json?.message || 'Import failed');
+        setImporting(false);
+        return;
+      }
+
+      // единый сет с безопасным notFound
+      setImportResult({ ...json, notFound: json.notFound ?? [] });
+
+      // обновляем список БС
+      const refreshed = await fetch('/api/bs');
+      const data = await refreshed.json();
+      setBaseStations(data);
+
+      setSuccess('KMZ импортирован');
+    } catch (e: unknown) {
+      const msg = e instanceof Error ? e.message : 'KMZ import error';
+      setError(msg);
+    } finally {
+      setImporting(false);
+    }
+  };
+
+  const onDragOver = (e: React.DragEvent<HTMLDivElement>) => {
+    e.preventDefault();
+    e.stopPropagation();
+    if (!dragActive) setDragActive(true);
+  };
+
+  const onDragLeave = (e: React.DragEvent<HTMLDivElement>) => {
+    e.preventDefault();
+    e.stopPropagation();
+    setDragActive(false);
+  };
+
+  const onDrop = (e: React.DragEvent<HTMLDivElement>) => {
+    e.preventDefault();
+    e.stopPropagation();
+    setDragActive(false);
+    const f = e.dataTransfer.files?.[0];
+    if (f) void handleImportKmz(f);
+  };
+
+  const onPickFile = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const f = e.target.files?.[0];
+    if (f) void handleImportKmz(f);
+  };
+
 
   const handleOpenSaveDialog = () => {
     setOpenSaveDialog(true);
@@ -98,13 +180,15 @@ export default function BaseStations() {
       });
 
       if (!response.ok) {
-        const errorData = await response.json();
-        throw new Error(errorData.message);
+        const errorData = await response.json().catch(() => ({}));
+        setError(errorData?.message || 'Create error');
+        return;
       }
+
 
       const createdStation = await response.json();
       setBaseStations([...baseStations, createdStation]);
-      setNewStation({ name: '', coordinates: '' });
+      setNewStation({ name: '', coordinates: '', address: '' });
       setSuccess(`Base station ${createdStation.name} added successfully`);
     } catch (err) {
       console.error('Submission error:', err);
@@ -132,9 +216,11 @@ export default function BaseStations() {
       });
 
       if (!response.ok) {
-        const errorData = await response.json();
-        throw new Error(errorData.message);
+        const errorData = await response.json().catch(() => ({}));
+        setError(errorData?.message || 'Update error');
+        return;
       }
+
 
       const updatedStation = await response.json();
       setBaseStations(
@@ -167,9 +253,11 @@ export default function BaseStations() {
       });
 
       if (!response.ok) {
-        const errorData = await response.json();
-        throw new Error(errorData.message);
+        const errorData = await response.json().catch(() => ({}));
+        setError(errorData?.message || 'Update error');
+        return;
       }
+
 
       setBaseStations(
         baseStations.filter((st) => st._id !== selectedStation._id)
@@ -209,6 +297,12 @@ export default function BaseStations() {
             Coordinates: {selectedStation.coordinates}
           </Typography>
 
+          {selectedStation.address && (
+              <Typography variant='body1' sx={{ mt: -1, mb: 2 }}>
+                Address: {selectedStation.address}
+              </Typography>
+          )}
+
           <Box
             sx={{
               height: 300,
@@ -220,30 +314,42 @@ export default function BaseStations() {
             }}
           >
             <YMaps
-              query={{ apikey: process.env.NEXT_PUBLIC_YANDEX_MAPS_APIKEY }}
+                query={{ apikey: process.env.NEXT_PUBLIC_YANDEX_MAPS_APIKEY, lang: 'ru_RU' }}
             >
               <Map
-                state={{
-                  center: selectedStation.coordinates.split(' ').map(Number),
-                  zoom: 14,
-                  type: 'yandex#satellite',
-                }}
-                width='100%'
-                height='100%'
+                  state={{
+                    center: selectedStation.coordinates.split(' ').map(Number),
+                    zoom: 14,
+                    // было: 'yandex#satellite'
+                    type: 'yandex#hybrid',
+                  }}
+                  width="100%"
+                  height="100%"
+                  options={{
+                    suppressMapOpenBlock: true, // без «лишних» попапов
+                  }}
               >
                 <Placemark
-                  geometry={selectedStation.coordinates.split(' ').map(Number)}
-                  options={{
-                    preset: 'islands#blueStretchyIcon',
-                    iconColor: '#ff0000',
-                  }}
-                  properties={{
-                    balloonContent: selectedStation.name,
-                  }}
+                    geometry={selectedStation.coordinates.split(' ').map(Number)}
+                    options={{
+                      preset: 'islands#blueStretchyIcon',
+                      iconColor: '#ff0000',
+                    }}
+                    properties={{
+                      balloonContent: selectedStation.name,
+                    }}
                 />
+
+                {/* @pbe/react-yandex-maps */}
                 <FullscreenControl />
+                <TypeSelector />        {/* выбор «Схема / Спутник / Гибрид» */}
+                <ZoomControl />         {/* плюс/минус масштаб */}
+                {/* <TrafficControl />  // дорожная ситуация с подписями */}
+                {/* <SearchControl options={{ float: 'right' }} /> */}
+                {/* <GeolocationControl /> */}
               </Map>
             </YMaps>
+
           </Box>
 
           <Button
@@ -280,6 +386,17 @@ export default function BaseStations() {
             }}
             sx={{ mb: 2 }}
           />
+
+          <TextField
+              label='Address'
+              fullWidth
+              value={editStation.address || ''}
+              onChange={(e) =>
+                  setEditStation({ ...editStation, address: e.target.value })
+              }
+              sx={{ mb: 2 }}
+          />
+
 
           <Button
             variant='contained'
@@ -364,6 +481,7 @@ export default function BaseStations() {
         </Alert>
       )}
 
+
       <form onSubmit={handleSubmit}>
         <Typography variant='h6' sx={{ mb: 2 }}>
           Add new base station
@@ -389,12 +507,85 @@ export default function BaseStations() {
           sx={{ mb: 2 }}
         />
 
+        <TextField
+            label='Address'
+            fullWidth
+            value={newStation.address}
+            onChange={(e) =>
+                setNewStation({ ...newStation, address: e.target.value })
+            }
+            sx={{ mb: 2 }}
+        />
+
+
         <Box sx={{ textAlign: 'center' }}>
           <Button type='submit' variant='contained' color='primary'>
             Add BS
           </Button>
         </Box>
       </form>
+      {/* Drag & Drop KMZ */}
+      <Box
+          sx={{
+            mt: 3,
+            p: 3,
+            border: '2px dashed',
+            borderColor: dragActive ? 'primary.main' : 'divider',
+            borderRadius: 1.5,
+            textAlign: 'center',
+            bgcolor: dragActive ? 'action.hover' : 'background.paper',
+            cursor: 'pointer',
+            transition: 'all .15s ease-in-out',
+          }}
+          onDragOver={onDragOver}
+          onDragLeave={onDragLeave}
+          onDrop={onDrop}
+          onClick={() => fileInputRef.current?.click()}
+      >
+        <Typography variant="h6" sx={{ mb: 1 }}>
+          Import KMZ
+        </Typography>
+        <Typography variant="body2" sx={{ mb: 1 }}>
+          Drag & drop a <code>.kmz</code> file here, or click to select
+        </Typography>
+        <Typography variant="caption" color="text.secondary" display="block" sx={{ mb: 2 }}>
+          Drag & drop a <code>.kmz</code> file here, or click to select
+        </Typography>
+
+        <input
+            ref={fileInputRef}
+            type="file"
+            accept=".kmz"
+            hidden
+            onChange={onPickFile}
+        />
+
+        <Button disabled={importing} variant="outlined">
+          {importing ? 'Import…' : 'Select KMZ'}
+        </Button>
+
+        {importResult && (
+            <Box sx={{ mt: 2 }}>
+              <Alert severity="info" sx={{ mb: 1 }}>
+                {importResult.message}. Inserted: {importResult.inserted}. Updated: {importResult.updated}. Skipped: {importResult.skipped}. Duplicates in file: {importResult.duplicatesInFile}.
+              </Alert>
+
+              {(importResult.notFound?.length ?? 0) > 0 && (
+                  <Box sx={{ maxHeight: 180, overflow: 'auto', p: 1, border: '1px solid #eee', borderRadius: 1 }}>
+                    <Typography variant="subtitle2" sx={{ mb: 1 }}>
+                      Items not matched in DB (coordinates mismatch):
+                    </Typography>
+                    {(importResult.notFound ?? []).map((x, i) => (
+                        <Typography key={i} variant="caption" display="block">
+                          {x.name ? `${x.name} — ` : ''}{x.lat} {x.lon}
+                        </Typography>
+                    ))}
+                  </Box>
+              )}
+            </Box>
+        )}
+      </Box>
+
     </Box>
   );
 }

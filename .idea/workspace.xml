@@ -4,9 +4,16 @@
     <option name="autoReloadType" value="SELECTIVE" />
   </component>
   <component name="ChangeListManager">
-    <list default="true" id="b3c91f45-fbe1-4477-9fd9-38d0fcaf660d" name="Changes" comment="changed the display of maps on the task page">
+    <list default="true" id="b3c91f45-fbe1-4477-9fd9-38d0fcaf660d" name="Changes" comment="Change events: log only TASK_ASSIGNED on executor set; remove EXECUTOR_ASSIGNED and redundant STATUS_CHANGED; hide legacy EXECUTOR_ASSIGNED on timeline">
+      <change afterPath="$PROJECT_DIR$/src/app/api/bs/import/route.ts" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/.idea/workspace.xml" beforeDir="false" afterPath="$PROJECT_DIR$/.idea/workspace.xml" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/src/app/api/tasks/[taskId]/route.ts" beforeDir="false" afterPath="$PROJECT_DIR$/src/app/api/tasks/[taskId]/route.ts" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/package-lock.json" beforeDir="false" afterPath="$PROJECT_DIR$/package-lock.json" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/package.json" beforeDir="false" afterPath="$PROJECT_DIR$/package.json" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/src/app/ClientApp.tsx" beforeDir="false" afterPath="$PROJECT_DIR$/src/app/ClientApp.tsx" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/src/app/components/BaseStations.tsx" beforeDir="false" afterPath="$PROJECT_DIR$/src/app/components/BaseStations.tsx" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/src/app/components/dashboards/FinancialMetrics.tsx" beforeDir="false" afterPath="$PROJECT_DIR$/src/app/components/dashboards/FinancialMetrics.tsx" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/src/app/models/BaseStation.ts" beforeDir="false" afterPath="$PROJECT_DIR$/src/app/models/BaseStation.ts" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/src/app/types/baseStation.d.ts" beforeDir="false" afterPath="$PROJECT_DIR$/src/app/types/baseStation.d.ts" afterDir="false" />
     </list>
     <option name="SHOW_DIALOG" value="false" />
     <option name="HIGHLIGHT_CONFLICTS" value="true" />
@@ -108,7 +115,9 @@
       <workItem from="1760696024453" duration="1032000" />
       <workItem from="1760697711020" duration="397000" />
       <workItem from="1760706203085" duration="849000" />
-      <workItem from="1760709754356" duration="55595000" />
+      <workItem from="1760709754356" duration="57200000" />
+      <workItem from="1760916582067" duration="864000" />
+      <workItem from="1761024187633" duration="5895000" />
     </task>
     <task id="LOCAL-00001" summary="Dockerfile has been modified #2">
       <option name="closed" value="true" />
@@ -382,14 +391,21 @@
       <option name="project" value="LOCAL" />
       <updated>1760875203273</updated>
     </task>
-    <option name="localTasksCounter" value="35" />
+    <task id="LOCAL-00035" summary="Change events: log only TASK_ASSIGNED on executor set; remove EXECUTOR_ASSIGNED and redundant STATUS_CHANGED; hide legacy EXECUTOR_ASSIGNED on timeline">
+      <option name="closed" value="true" />
+      <created>1760879535764</created>
+      <option name="number" value="00035" />
+      <option name="presentableId" value="LOCAL-00035" />
+      <option name="project" value="LOCAL" />
+      <updated>1760879535764</updated>
+    </task>
+    <option name="localTasksCounter" value="36" />
     <servers />
   </component>
   <component name="TypeScriptGeneratedFilesManager">
     <option name="version" value="3" />
   </component>
   <component name="VcsManagerConfiguration">
-    <MESSAGE value="S3 settings  has been clear into docker-compose.yml" />
     <MESSAGE value="console.log has been added into upload route" />
     <MESSAGE value="switch to Busboy streaming, add adaptive SVG watermark &amp; fix type errors" />
     <MESSAGE value="fix(upload): support large files and prevent SVG overlay errors" />
@@ -414,6 +430,7 @@
     <MESSAGE value="Status changing logics bug has been fixed" />
     <MESSAGE value="Documents on the task page are hidden for the executor" />
     <MESSAGE value="changed the display of maps on the task page" />
-    <option name="LAST_COMMIT_MESSAGE" value="changed the display of maps on the task page" />
+    <MESSAGE value="Change events: log only TASK_ASSIGNED on executor set; remove EXECUTOR_ASSIGNED and redundant STATUS_CHANGED; hide legacy EXECUTOR_ASSIGNED on timeline" />
+    <option name="LAST_COMMIT_MESSAGE" value="Change events: log only TASK_ASSIGNED on executor set; remove EXECUTOR_ASSIGNED and redundant STATUS_CHANGED; hide legacy EXECUTOR_ASSIGNED on timeline" />
   </component>
 </project>

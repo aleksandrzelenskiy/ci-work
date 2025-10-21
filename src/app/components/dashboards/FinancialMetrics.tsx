@@ -83,9 +83,9 @@ export default function FinancialMetrics() {
 
   const COLORS = chartData.map((c) => c.color);
 
-  // Форматирование ₽
+  // Форматирование суммы
   const formatRuble = (value: number) =>
-      `${value.toLocaleString('ru-RU', { minimumFractionDigits: 2 })} ₽`;
+      `${value.toLocaleString('ru-RU', { minimumFractionDigits: 2 })} rub`;
 
   // Форматирование процента
   const formatPercent = (value: number) => ((value / totalAgreed) * 100).toFixed(1) + '%';

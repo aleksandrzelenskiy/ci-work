@@ -167,7 +167,7 @@ export default function ClientApp({ children }: { children: React.ReactNode }) {
           <ListItemIcon sx={{ minWidth: 30 }}>
             <StorageIcon sx={{ fontSize: 20 }} />
           </ListItemIcon>
-          <ListItemText primary='BS Catalog' />
+          <ListItemText primary='T2 IR Objects' />
         </ListItemButton>
 
         {userRole !== 'executor' && (
