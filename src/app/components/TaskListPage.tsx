@@ -101,6 +101,15 @@ function Row({
             </IconButton>
           </TableCell>
 
+          {columnVisibility.taskId && (
+              <TableCell align="center">
+                <Typography variant="body2">
+                  {task.taskId}
+                </Typography>
+              </TableCell>
+          )}
+
+
           {columnVisibility.task && (
               <TableCell>
                 <Box sx={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
@@ -152,9 +161,11 @@ function Row({
         </TableRow>
 
         <TableRow>
-          <TableCell colSpan={11} sx={{ p: 0 }}>
-            <Collapse in={open} timeout='auto' unmountOnExit>
-              <Chip label={task.taskId} size='small' color='primary' sx={{ mt: 1, ml: 2 }} />
+          <TableCell
+              colSpan={1 + Object.values(columnVisibility).filter(Boolean).length}
+              sx={{ p: 0 }}
+          >
+          <Collapse in={open} timeout='auto' unmountOnExit>
               <Box sx={{ ml: 3, mt: 2 }}>
                 <Typography variant='subtitle1'>BS Number</Typography>
                 <Typography variant='body2' color='text.secondary'>
@@ -230,6 +241,7 @@ export default function TaskListPage() {
 
   /* ----- видимость колонок ----- */
   const [columnVisibility, setColumnVisibility] = useState<Record<string, boolean>>({
+    taskId: true,
     task: true,
     author: true,
     initiator: true,
@@ -257,6 +269,9 @@ export default function TaskListPage() {
     if (rowsPerPage === -1) return 1;
     return Math.ceil(filteredTasks.length / rowsPerPage);
   }, [filteredTasks, rowsPerPage]);
+
+  const isDateString = (s: string) => !Number.isNaN(Date.parse(s));
+
 
   const activeFiltersCount = useMemo(
       () =>
@@ -299,7 +314,11 @@ export default function TaskListPage() {
       try {
         const response = await fetch('/api/tasks');
         const data = await response.json();
-        if (!response.ok) throw new Error(data.error || 'Failed to fetch tasks');
+        if (!response.ok) {
+          setError(data.error || 'Failed to fetch tasks');
+          return;
+        }
+
 
         const tasksWithId = data.tasks.map((task: Task) => ({
           ...task,
@@ -322,8 +341,9 @@ export default function TaskListPage() {
       }
     };
 
-    fetchTasks();
-    fetchUserRole();
+    void fetchTasks();
+    void fetchUserRole();
+
   }, []);
 
   /* ----- читаем статус из query-строки безопасно ----- */
@@ -439,12 +459,11 @@ export default function TaskListPage() {
                     <Chip
                       key={label}
                       label={`${label}: ${
-                        label !== 'BS Number' &&
-                        typeof value === 'string' &&
-                        !isNaN(Date.parse(value))
-                          ? new Date(value).toLocaleDateString()
-                          : value
+                          label !== 'BS Number' && isDateString(value as string)
+                              ? new Date(value as string).toLocaleDateString()
+                              : value
                       }`}
+
                       onDelete={reset}
                       color='primary'
                       size='small'
@@ -507,6 +526,19 @@ export default function TaskListPage() {
                     </IconButton>
                   </Tooltip>
                 </TableCell>
+
+                {columnVisibility.taskId && (
+                    <TableCell
+                        sx={{
+                          whiteSpace: 'nowrap',
+                          padding: '16px',
+                          textAlign: 'center',
+                        }}
+                    >
+                      <strong>ID</strong>
+                    </TableCell>
+                )}
+
 
                 {columnVisibility.task && (
                   <TableCell
@@ -721,7 +753,7 @@ export default function TaskListPage() {
           <Pagination
             count={totalPages}
             page={currentPage}
-            onChange={(event, page) => setCurrentPage(page)}
+            onChange={(_e, page) => setCurrentPage(page)}
             color='primary'
             showFirstButton
             showLastButton
