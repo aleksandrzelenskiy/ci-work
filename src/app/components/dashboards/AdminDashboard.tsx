@@ -59,7 +59,6 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({
         {/* Metrics */}
         <Grid item xs={12} md={6}>
           <Paper sx={{ p: 2 }}>
-            <Typography variant='h6'>Metrics</Typography>
             <Box sx={{ mb: 2 }}>
               <FinancialMetrics />
             </Box>

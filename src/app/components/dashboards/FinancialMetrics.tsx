@@ -84,8 +84,14 @@ export default function FinancialMetrics() {
   const COLORS = chartData.map((c) => c.color);
 
   // Форматирование суммы
-  const formatRuble = (value: number) =>
-      `${value.toLocaleString('ru-RU', { minimumFractionDigits: 2 })} rub`;
+  const formatRuble = (value: number) => {
+    const num = new Intl.NumberFormat('ru-RU', {
+      minimumFractionDigits: 2,
+      maximumFractionDigits: 2,
+    }).format(value);
+    return `${num}\u00A0\u20BD`; // неразрывный пробел + ₽
+  };
+
 
   // Форматирование процента
   const formatPercent = (value: number) => ((value / totalAgreed) * 100).toFixed(1) + '%';
@@ -96,19 +102,19 @@ export default function FinancialMetrics() {
           Financial Metrics
         </Typography>
 
-        <Box width='100%' height={400}>
+        <Box width="100%" height={400} sx={{ fontFamily: '"Roboto","Inter","Segoe UI",Arial,sans-serif' }}>
           <ResponsiveContainer>
             <PieChart>
               <Pie
                   data={chartData}
-                  dataKey='value'
-                  nameKey='name'
-                  cx='50%'
-                  cy='50%'
+                  dataKey="value"
+                  nameKey="name"
+                  cx="50%"
+                  cy="50%"
                   outerRadius={120}
                   innerRadius={90}
                   labelLine={false}
-                  label={({ name, value }) => `${name}: ${formatPercent(value)}`}
+                  label={({ name, value }) => `${name}: ${formatPercent(value)}`} // тут только проценты, без ₽
               >
                 {chartData.map((entry, index) => (
                     <Cell key={`cell-${index}`} fill={COLORS[index]} />
@@ -117,16 +123,19 @@ export default function FinancialMetrics() {
 
               {/* Текст в центре диаграммы */}
               <text
-                  x='50%'
-                  y='47.5%'
-                  textAnchor='middle'
-                  dominantBaseline='middle'
-                  style={{ fontSize: '18px', fontWeight: 'bold' }}
+                  x="50%"
+                  y="47.5%"
+                  textAnchor="middle"
+                  dominantBaseline="middle"
+                  style={{
+                    fontSize: '20px',
+                    fontWeight: 'bold',
+                    fontFamily: '"Roboto","Inter","Segoe UI",Arial,sans-serif',
+                  }}
               >
                 {formatRuble(totalAgreed)}
               </text>
 
-              {/* Всплывающая подсказка */}
               <Tooltip
                   formatter={(value: number, name: string) => [
                     `${formatRuble(value)} (${formatPercent(value)})`,
@@ -143,6 +152,7 @@ export default function FinancialMetrics() {
             </PieChart>
           </ResponsiveContainer>
         </Box>
+
       </Box>
   );
 }

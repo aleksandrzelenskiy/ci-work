@@ -2,7 +2,7 @@
 
 'use client';
 
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 import Autocomplete from '@mui/material/Autocomplete';
 import TextField from '@mui/material/TextField';
 import Dialog from '@mui/material/Dialog';
@@ -17,6 +17,7 @@ import Alert from '@mui/material/Alert';
 import EditIcon from '@mui/icons-material/Edit';
 import DeleteIcon from '@mui/icons-material/Delete';
 import Snackbar from '@mui/material/Snackbar';
+import NavigationIcon from '@mui/icons-material/Navigation';
 import {
   YMaps,
   Map,
@@ -24,7 +25,44 @@ import {
   FullscreenControl,
   TypeSelector,
   ZoomControl,
+  TrafficControl,
+  GeolocationControl,
+  SearchControl,
 } from '@pbe/react-yandex-maps';
+
+// Ссылка на построение маршрута в Яндекс.Картах
+const yandexRouteUrl = (lat: number, lon: number) =>
+    `https://yandex.ru/maps/?rtext=~${lat},${lon}&rtt=auto`;
+
+type RouteButtonInstance = {
+  routePanel: {
+    state: {
+      set: (opts: {
+        to?: [number, number] | string;
+        from?: [number, number] | string;
+        toEnabled?: boolean;
+        fromEnabled?: boolean;
+        type?: 'auto' | 'masstransit' | 'pedestrian' | 'bicycle' | string;
+      }) => void;
+    };
+  };
+};
+
+type RoutePanelControl = {
+  routePanel: RouteButtonInstance['routePanel'];
+};
+
+type YMapWithControls = {
+  controls: { add: (ctrl: unknown, opts?: unknown) => void };
+};
+
+type YMapsGlobal = {
+  control: {
+    RouteButton: new (opts?: unknown) => RouteButtonInstance;
+    RoutePanel: new (opts?: { options?: { showHeader?: boolean } }) => RoutePanelControl;
+  };
+};
+
 
 export interface BaseStation {
   _id: string;
@@ -45,7 +83,7 @@ export default function BaseStations() {
     updated: number;
     skipped: number;
     duplicatesInFile: number;
-    notFound?: Array<{ lat: string; lon: string; name?: string }>; // теперь опционально
+    notFound?: Array<{ lat: string; lon: string; name?: string }>;
   }>(null);
 
   const [importing, setImporting] = useState(false);
@@ -57,7 +95,10 @@ export default function BaseStations() {
   const [openDeleteDialog, setOpenDeleteDialog] = useState(false);
   const [dragActive, setDragActive] = useState(false);
   const fileInputRef = React.useRef<HTMLInputElement | null>(null);
-
+  // ссылка на инстанс карты и на кнопку маршрутов
+  const mapRef = useRef<YMapWithControls | null>(null);
+  const routeButtonRef = useRef<RouteButtonInstance | null>(null);
+  const routePanelRef = useRef<RoutePanelControl | null>(null);
 
 
   useEffect(() => {
@@ -73,6 +114,17 @@ export default function BaseStations() {
     };
     void fetchStations();
   }, []);
+
+  useEffect(() => {
+    if (!routeButtonRef.current || !selectedStation) return;
+    const [lat, lon] = selectedStation.coordinates.split(' ').map(Number);
+    routeButtonRef.current.routePanel.state.set({
+      to: [lat, lon],
+      toEnabled: true,
+      fromEnabled: true,
+      type: 'auto',
+    });
+  }, [selectedStation]);
 
 
   const handleImportKmz = async (file: File) => {
@@ -294,12 +346,33 @@ export default function BaseStations() {
               </Typography>
           )}
 
+          {selectedStation && (
+              <Box sx={{ mb: 1.5 }}>
+                {(() => {
+                  const [lat, lon] = selectedStation.coordinates.split(' ').map(Number);
+                  return (
+                      <Button
+                          component="a"
+                          href={yandexRouteUrl(lat, lon)}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          variant="contained"
+                          size="small"
+                          startIcon={<NavigationIcon />}
+                      >
+                        Navigation
+                      </Button>
+                  );
+                })()}
+              </Box>
+          )}
+
+
           <Box
             sx={{
               height: 300,
               width: '100%',
-              mb: 2,
-              borderRadius: 1,
+              mb: 1,
               overflow: 'hidden',
               boxShadow: 1,
             }}
@@ -307,38 +380,95 @@ export default function BaseStations() {
             <YMaps
                 query={{ apikey: process.env.NEXT_PUBLIC_YANDEX_MAPS_APIKEY, lang: 'ru_RU' }}
             >
-              <Map
-                  state={{
-                    center: selectedStation.coordinates.split(' ').map(Number),
-                    zoom: 14,
-                    // было: 'yandex#satellite'
-                    type: 'yandex#hybrid',
-                  }}
-                  width="100%"
-                  height="100%"
-                  options={{
-                    suppressMapOpenBlock: true, // без «лишних» попапов
-                  }}
-              >
-                <Placemark
-                    geometry={selectedStation.coordinates.split(' ').map(Number)}
-                    options={{
-                      preset: 'islands#blueStretchyIcon',
-                      iconColor: '#ff0000',
-                    }}
-                    properties={{
-                      balloonContent: selectedStation.name,
-                    }}
-                />
 
-                {/* @pbe/react-yandex-maps */}
-                <FullscreenControl />
-                <TypeSelector />        {/* выбор «Схема / Спутник / Гибрид» */}
-                <ZoomControl />         {/* плюс/минус масштаб */}
-                {/* <TrafficControl />  // дорожная ситуация с подписями */}
-                {/* <SearchControl options={{ float: 'right' }} /> */}
-                {/* <GeolocationControl /> */}
-              </Map>
+                <Map
+                    state={{
+                        center: selectedStation.coordinates.split(' ').map(Number),
+                        zoom: 14,
+                        type: 'yandex#hybrid',
+                    }}
+                    width="100%"
+                    height="100%"
+                    options={{ suppressMapOpenBlock: true }}
+                    modules={[
+                      'control.ZoomControl',
+                      'control.TypeSelector',
+                      'control.FullscreenControl',
+                      'control.TrafficControl',
+                      'control.GeolocationControl',
+                      'control.SearchControl',
+                      'control.RouteButton',
+                      'control.RoutePanel',
+                      'geoObject.addon.balloon',
+                    ]}
+
+                    instanceRef={(map) => {
+                      if (!map || !selectedStation) return;
+
+
+                      mapRef.current = map as unknown as YMapWithControls;
+
+
+                      const w = window as unknown as { ymaps?: YMapsGlobal };
+                      const ymaps = w.ymaps;
+                      if (!ymaps) return;
+
+
+                      if (!routeButtonRef.current) {
+                        const rb = new ymaps.control.RouteButton({});
+                        mapRef.current.controls.add(rb, { float: 'right' });
+                        routeButtonRef.current = rb;
+                      }
+
+
+                      if (!routePanelRef.current) {
+                        const rp = new ymaps.control.RoutePanel({ options: { showHeader: true } });
+                        mapRef.current.controls.add(rp, { float: 'right' });
+                        routePanelRef.current = rp;
+                      }
+
+
+                      const [lat, lon] = selectedStation.coordinates.split(' ').map(Number);
+
+                      routeButtonRef.current.routePanel.state.set({
+                        to: [lat, lon],
+                        toEnabled: true,
+                        fromEnabled: true,
+                        type: 'auto',
+                      });
+
+                      routePanelRef.current.routePanel.state.set({
+                        to: [lat, lon],
+                        toEnabled: true,
+                        fromEnabled: true,
+                        type: 'auto',
+                      });
+                    }}
+
+
+                >
+                  <Placemark
+                      geometry={selectedStation.coordinates.split(' ').map(Number)}
+                      options={{
+                        preset: 'islands#blueStretchyIcon',
+                        iconColor: '#1E90FF',
+                        hasBalloon: false,        // отключаем балун
+                      }}
+                      properties={{
+                        iconContent: `BS: ${selectedStation.name}`, // только BS:<номер>
+                      }}
+                  />
+
+
+
+                  <FullscreenControl />
+                    <TypeSelector />
+                    <ZoomControl />
+                    <TrafficControl />
+                    <SearchControl options={{ float: 'right' }} />
+                    <GeolocationControl />
+                </Map>
+
             </YMaps>
 
           </Box>

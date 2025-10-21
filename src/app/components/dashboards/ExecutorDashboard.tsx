@@ -53,7 +53,7 @@ const ExecutorDashboard: React.FC<ExecutorDashboardProps> = ({
         {/* Метрики */}
         <Grid item xs={12} md={6}>
           <Paper sx={{ p: 2 }}>
-            <Typography variant='h6'>Metrics</Typography>
+            <Typography variant='h6'>Payment Balance</Typography>
             <Box sx={{ mb: 2 }}>
               <ExecutorFinancialMetrics />
             </Box>

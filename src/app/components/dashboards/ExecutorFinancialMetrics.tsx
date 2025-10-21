@@ -52,7 +52,10 @@ export default function ExecutorFinancialMetrics() {
     const sumToPay = totalAgreed * SUM_TO_PAY_PERCENT;
 
     const formatRuble = (value: number) =>
-        `${value.toLocaleString('ru-RU', { minimumFractionDigits: 2 })} ₽`;
+        new Intl.NumberFormat('ru-RU', {
+            minimumFractionDigits: 2,
+            maximumFractionDigits: 2, // строго 2 цифры (округлит)
+        }).format(value);
 
     const handleClick = () => {
         router.push('/tasks?status=Agreed');
@@ -72,18 +75,32 @@ export default function ExecutorFinancialMetrics() {
                     </Typography>
 
                     <Typography
-                        variant="h2"
+                        variant="h3"
                         fontWeight={600}
-                        color="primary"
                         sx={{
                             cursor: 'pointer',
                             transition: 'color 0.2s ease',
                             '&:hover': { color: 'primary.dark' },
+
+                            fontFamily: '"Roboto","Inter","Segoe UI",Arial,sans-serif',
+
+                            fontVariantNumeric: 'tabular-nums',
                         }}
                         onClick={handleClick}
                     >
                         {formatRuble(sumToPay)}
+                        {'\u00A0'}
+                        <Box
+                            component="span"
+                            sx={{
+                                fontFamily: '"Roboto","Inter","Segoe UI",Arial,sans-serif',
+                                lineHeight: 1,
+                            }}
+                        >
+                            {'\u20BD'}
+                        </Box>
                     </Typography>
+
 
                     <Typography variant="caption" color="text.secondary">
                         Отображается общая стоимость согласованных и неоплаченных задач

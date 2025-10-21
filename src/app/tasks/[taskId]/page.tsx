@@ -64,7 +64,7 @@ import { LocalizationProvider } from '@mui/x-date-pickers/LocalizationProvider';
 import { AdapterDayjs } from '@mui/x-date-pickers/AdapterDayjs';
 import { DatePicker } from '@mui/x-date-pickers/DatePicker';
 import dayjs from 'dayjs';
-import { YMaps, Map, Placemark, FullscreenControl, TypeSelector, ZoomControl, GeolocationControl, SearchControl } from '@pbe/react-yandex-maps';
+import { YMaps, Map, Placemark, FullscreenControl, TypeSelector, ZoomControl, GeolocationControl, SearchControl, } from '@pbe/react-yandex-maps';
 
 import NextLink from 'next/link';
 import { useParams, useRouter } from 'next/navigation';
@@ -167,6 +167,13 @@ export default function TaskDetailPage() {
         },
     });
 
+    const formatRuble = (value: number) => {
+        const num = new Intl.NumberFormat('ru-RU', {
+            minimumFractionDigits: 2,
+            maximumFractionDigits: 2,
+        }).format(value);
+        return `${num}\u00A0\u20BD`; // неразрывный пробел + ₽
+    };
 
 // парсер координат вида "52.283056 104.303778" (любой разделитель: пробел, запятая, точка с запятой)
     const parseCoords = (s?: string): [number, number] | null => {
@@ -482,8 +489,9 @@ export default function TaskDetailPage() {
     const otherAttachments = allAttachments.filter((url) => !isEstimateUrl(url, task.taskId));
 
     return (
-        <Box sx={{ maxWidth: 1200, margin: '0 auto' }}>
-            <Box mb={2}>
+        <Box sx={{ maxWidth: 1200, margin: '0 auto', fontFamily: '"Roboto","Inter","Segoe UI",Arial,sans-serif' }}>
+
+        <Box mb={2}>
                 <Button
                     component={NextLink}
                     href="/tasks"
@@ -569,13 +577,13 @@ export default function TaskDetailPage() {
                                 </Typography>
                             </AccordionSummary>
                             <AccordionDetails>
-                                {/* estimate link removed from Basic Information */}
                                 <Typography>
                                     <strong>BS:</strong> {task.bsNumber}
                                 </Typography>
                                 <Typography>
                                     <strong>Address:</strong> {task.bsAddress}
                                 </Typography>
+
                                 <Typography>
                                     <strong>
                                         {userRole
@@ -595,23 +603,23 @@ export default function TaskDetailPage() {
                                             const profit = total - (commission + sumToPay + tax);
 
                                             if (userRole === 'executor') {
-                                                return `${sumToPay.toFixed(2)} rub`;
+                                                return formatRuble(sumToPay);
                                             } else {
                                                 return (
                                                     <Tooltip
                                                         title={
                                                             <Box sx={{ p: 1 }}>
                                                                 <Typography variant="body2">
-                                                                    <strong>Commission:</strong> {commission.toFixed(2)} rub
+                                                                    <strong>Commission:</strong> {formatRuble(commission)}
                                                                 </Typography>
                                                                 <Typography variant="body2">
-                                                                    <strong>Tax:</strong> {tax.toFixed(2)} rub
+                                                                    <strong>Tax:</strong> {formatRuble(tax)}
                                                                 </Typography>
                                                                 <Typography variant="body2">
-                                                                    <strong>Sum to Pay:</strong> {sumToPay.toFixed(2)} rub
+                                                                    <strong>Sum to Pay:</strong> {formatRuble(sumToPay)}
                                                                 </Typography>
                                                                 <Typography variant="body2">
-                                                                    <strong>Profit:</strong> {profit.toFixed(2)} rub
+                                                                    <strong>Profit:</strong> {formatRuble(profit)}
                                                                 </Typography>
                                                             </Box>
                                                         }
@@ -626,7 +634,7 @@ export default function TaskDetailPage() {
                                                                 '&:hover': { color: 'primary.main' },
                                                             }}
                                                         >
-                                                            {total.toFixed(2)} rub
+                                                            {formatRuble(total)}
                                                         </Typography>
                                                     </Tooltip>
                                                 );
@@ -636,6 +644,7 @@ export default function TaskDetailPage() {
                                         <Skeleton variant="text" width={100} />
                                     )}
                                 </Typography>
+
 
                                 <Typography>
                                     <strong>Priority:</strong> {task.priority}
