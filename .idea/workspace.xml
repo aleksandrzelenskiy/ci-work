@@ -5,15 +5,11 @@
   </component>
   <component name="ChangeListManager">
     <list default="true" id="b3c91f45-fbe1-4477-9fd9-38d0fcaf660d" name="Changes" comment="Change events: log only TASK_ASSIGNED on executor set; remove EXECUTOR_ASSIGNED and redundant STATUS_CHANGED; hide legacy EXECUTOR_ASSIGNED on timeline">
-      <change afterPath="$PROJECT_DIR$/src/app/api/bs/import/route.ts" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/src/app/models/OrganizationModel.ts" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/src/app/models/ProjectModel.ts" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/src/utils/orgContext.ts" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/.idea/workspace.xml" beforeDir="false" afterPath="$PROJECT_DIR$/.idea/workspace.xml" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/package-lock.json" beforeDir="false" afterPath="$PROJECT_DIR$/package-lock.json" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/package.json" beforeDir="false" afterPath="$PROJECT_DIR$/package.json" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/src/app/ClientApp.tsx" beforeDir="false" afterPath="$PROJECT_DIR$/src/app/ClientApp.tsx" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/src/app/components/BaseStations.tsx" beforeDir="false" afterPath="$PROJECT_DIR$/src/app/components/BaseStations.tsx" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/src/app/components/dashboards/FinancialMetrics.tsx" beforeDir="false" afterPath="$PROJECT_DIR$/src/app/components/dashboards/FinancialMetrics.tsx" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/src/app/models/BaseStation.ts" beforeDir="false" afterPath="$PROJECT_DIR$/src/app/models/BaseStation.ts" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/src/app/types/baseStation.d.ts" beforeDir="false" afterPath="$PROJECT_DIR$/src/app/types/baseStation.d.ts" afterDir="false" />
     </list>
     <option name="SHOW_DIALOG" value="false" />
     <option name="HIGHLIGHT_CONFLICTS" value="true" />
@@ -49,21 +45,22 @@
     <option name="hideEmptyMiddlePackages" value="true" />
     <option name="showLibraryContents" value="true" />
   </component>
-  <component name="PropertiesComponent">{
-  &quot;keyToString&quot;: {
-    &quot;RunOnceActivity.ShowReadmeOnStart&quot;: &quot;true&quot;,
-    &quot;RunOnceActivity.git.unshallow&quot;: &quot;true&quot;,
-    &quot;git-widget-placeholder&quot;: &quot;main&quot;,
-    &quot;last_opened_file_path&quot;: &quot;/Users/macbook/Desktop/Projects/ci-work&quot;,
-    &quot;node.js.detected.package.eslint&quot;: &quot;true&quot;,
-    &quot;node.js.detected.package.tslint&quot;: &quot;true&quot;,
-    &quot;node.js.selected.package.eslint&quot;: &quot;(autodetect)&quot;,
-    &quot;node.js.selected.package.tslint&quot;: &quot;(autodetect)&quot;,
-    &quot;nodejs_package_manager_path&quot;: &quot;npm&quot;,
-    &quot;ts.external.directory.path&quot;: &quot;/Users/macbook/Desktop/Projects/ci-work/node_modules/typescript/lib&quot;,
-    &quot;vue.rearranger.settings.migration&quot;: &quot;true&quot;
+  <component name="PropertiesComponent"><![CDATA[{
+  "keyToString": {
+    "RunOnceActivity.ShowReadmeOnStart": "true",
+    "RunOnceActivity.git.unshallow": "true",
+    "git-widget-placeholder": "main",
+    "last_opened_file_path": "/Users/macbook/Desktop/Projects/ci-work",
+    "node.js.detected.package.eslint": "true",
+    "node.js.detected.package.tslint": "true",
+    "node.js.selected.package.eslint": "(autodetect)",
+    "node.js.selected.package.tslint": "(autodetect)",
+    "nodejs_package_manager_path": "npm",
+    "settings.editor.selected.configurable": "preferences.pluginManager",
+    "ts.external.directory.path": "/Users/macbook/Desktop/Projects/ci-work/node_modules/typescript/lib",
+    "vue.rearranger.settings.migration": "true"
   }
-}</component>
+}]]></component>
   <component name="RecentsManager">
     <key name="MoveFile.RECENT_KEYS">
       <recent name="$PROJECT_DIR$/.next/server/vendor-chunks/data" />
@@ -118,6 +115,8 @@
       <workItem from="1760709754356" duration="57200000" />
       <workItem from="1760916582067" duration="864000" />
       <workItem from="1761024187633" duration="5895000" />
+      <workItem from="1761146110031" duration="404000" />
+      <workItem from="1761366294067" duration="1487000" />
     </task>
     <task id="LOCAL-00001" summary="Dockerfile has been modified #2">
       <option name="closed" value="true" />

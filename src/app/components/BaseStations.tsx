@@ -345,7 +345,16 @@ export default function BaseStations() {
                 Address: {selectedStation.address}
               </Typography>
           )}
-
+          <Box sx={{ mb: 1.5 }}>
+          <Button
+              startIcon={<EditIcon />}
+              variant='outlined'
+              onClick={startEditing}
+              size="small"
+          >
+            Edit
+          </Button>
+          </Box>
           {selectedStation && (
               <Box sx={{ mb: 1.5 }}>
                 {(() => {
@@ -357,7 +366,7 @@ export default function BaseStations() {
                           target="_blank"
                           rel="noopener noreferrer"
                           variant="contained"
-                          size="small"
+
                           startIcon={<NavigationIcon />}
                       >
                         Navigation
@@ -366,6 +375,7 @@ export default function BaseStations() {
                 })()}
               </Box>
           )}
+
 
 
           <Box
@@ -472,14 +482,6 @@ export default function BaseStations() {
             </YMaps>
 
           </Box>
-
-          <Button
-            startIcon={<EditIcon />}
-            variant='outlined'
-            onClick={startEditing}
-          >
-            Edit
-          </Button>
         </Box>
       )}
 

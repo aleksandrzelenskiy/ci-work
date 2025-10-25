@@ -1,16 +1,14 @@
-import { clerkMiddleware, createRouteMatcher } from '@clerk/nextjs/server';
+import { clerkMiddleware } from '@clerk/nextjs/server';
+import { NextResponse } from 'next/server';
 
-const isPublicRoute = createRouteMatcher(['/sign-in(.*)', '/sign-up(.*)']);
-
-export default clerkMiddleware(async (auth, request) => {
-  if (!isPublicRoute(request)) {
-    await auth.protect();
+export default clerkMiddleware(async (auth, req) => {
+  await auth.protect();
+  const url = new URL(req.url);
+  const m = url.pathname.match(/^\/org\/([^/]+)/);
+  if (m) {
+    const res = NextResponse.next();
+    res.headers.set('x-org-slug', m[1]);
+    return res;
   }
 });
-
-export const config = {
-  matcher: [
-    '/((?!_next|[^?]*\\.(?:html?|css|js(?!on)|jpe?g|webp|png|gif|svg|ttf|woff2?|ico|csv|docx?|xlsx?|zip|webmanifest)).*)',
-    '/(api|trpc)(.*)',
-  ],
-};
+export const config = { matcher: ['/((?!_next|.*\\..*|api/webhooks).*)'] };
