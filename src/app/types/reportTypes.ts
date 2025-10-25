@@ -17,6 +17,8 @@ export interface IEvent {
 // Серверный формат IReport
 export interface IReport {
   _id: string;
+  orgId?: string;
+  projectId?: string;
   reportId: string;
   task: string;
   baseId: string;

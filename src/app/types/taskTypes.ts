@@ -20,6 +20,8 @@ export type RequiredAttachmentType = 'photo' | 'pdf' | 'doc' | 'dwg';
 
 export interface BsLocation {
   id?: string;
+  orgId?: string;
+  projectId?: string;
   name: string;
   coordinates: string;
 }
@@ -69,6 +71,8 @@ export interface Comment {
 
 export interface Task {
   _id?: string;
+  orgId?: string;
+  projectId?: string;
   taskId: string;
   taskName: string;
 

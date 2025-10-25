@@ -1,9 +1,12 @@
 // app/models/TaskModel.ts
 
 import { Schema, Document, model, models } from 'mongoose';
-import { Task, PriorityLevel, CurrentStatus } from '../types/taskTypes';
+import {  Task, PriorityLevel, CurrentStatus } from '../types/taskTypes';
 
 const TaskSchema = new Schema<Task & Document>({
+  orgId: { type: Schema.Types.ObjectId, ref: 'Organization', index: true, required: false },
+  projectId: { type: Schema.Types.ObjectId, ref: 'Project', index: true, required: false },
+
   taskId: { type: String, required: true },
   taskName: { type: String, required: true },
   bsNumber: { type: String, required: true },

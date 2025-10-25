@@ -16,7 +16,10 @@ const EventSchema = new Schema<IEvent>(
 
 // Main report schema
 const ReportSchema = new Schema<IReport>({
-  reportId: { type: String, required: true },
+    orgId: { type: Schema.Types.ObjectId, ref: 'Organization', index: true, required: false },
+projectId: { type: Schema.Types.ObjectId, ref: 'Project', index: true, required: false },
+
+reportId: { type: String, required: true },
   task: { type: String, required: true },
   baseId: { type: String, required: true },
   files: { type: [String], default: [] },
