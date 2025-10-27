@@ -4,6 +4,8 @@ import { Schema, Document, model, models } from 'mongoose';
 import { Task, PriorityLevel, CurrentStatus } from '../types/taskTypes';
 
 const TaskSchema = new Schema<Task & Document>({
+  orgId: { type: Schema.Types.ObjectId, ref: 'Organization', required: false, index: true },
+  projectId: { type: Schema.Types.ObjectId, ref: 'Project', required: false, index: true },
   taskId: { type: String, required: true },
   taskName: { type: String, required: true },
   bsNumber: { type: String, required: true },

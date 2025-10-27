@@ -4,16 +4,24 @@
     <option name="autoReloadType" value="SELECTIVE" />
   </component>
   <component name="ChangeListManager">
-    <list default="true" id="b3c91f45-fbe1-4477-9fd9-38d0fcaf660d" name="Changes" comment="Change events: log only TASK_ASSIGNED on executor set; remove EXECUTOR_ASSIGNED and redundant STATUS_CHANGED; hide legacy EXECUTOR_ASSIGNED on timeline">
-      <change afterPath="$PROJECT_DIR$/src/app/api/bs/import/route.ts" afterDir="false" />
+    <list default="true" id="b3c91f45-fbe1-4477-9fd9-38d0fcaf660d" name="Changes" comment="Creation Workspace conception was started.">
+      <change afterPath="$PROJECT_DIR$/src/app/api/org/[org]/members/route.ts" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/src/app/api/org/[org]/projects/[projectId]/route.ts" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/src/app/api/org/[org]/projects/route.ts" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/src/app/api/org/[org]/subscription/route.ts" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/src/app/api/org/route.ts" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/src/app/models/MembershipModel.ts" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/src/app/models/OrganizationModel.ts" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/src/app/models/ProjectModel.ts" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/src/app/models/SubscriptionModel.ts" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/src/app/org/[org]/projects/page.tsx" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/src/app/org/new/page.tsx" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/src/app/utils/permissions.ts" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/src/app/utils/slugify.ts" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/.idea/workspace.xml" beforeDir="false" afterPath="$PROJECT_DIR$/.idea/workspace.xml" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/package-lock.json" beforeDir="false" afterPath="$PROJECT_DIR$/package-lock.json" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/package.json" beforeDir="false" afterPath="$PROJECT_DIR$/package.json" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/src/app/ClientApp.tsx" beforeDir="false" afterPath="$PROJECT_DIR$/src/app/ClientApp.tsx" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/src/app/components/BaseStations.tsx" beforeDir="false" afterPath="$PROJECT_DIR$/src/app/components/BaseStations.tsx" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/src/app/components/dashboards/FinancialMetrics.tsx" beforeDir="false" afterPath="$PROJECT_DIR$/src/app/components/dashboards/FinancialMetrics.tsx" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/src/app/models/BaseStation.ts" beforeDir="false" afterPath="$PROJECT_DIR$/src/app/models/BaseStation.ts" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/src/app/types/baseStation.d.ts" beforeDir="false" afterPath="$PROJECT_DIR$/src/app/types/baseStation.d.ts" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/src/app/models/TaskModel.ts" beforeDir="false" afterPath="$PROJECT_DIR$/src/app/models/TaskModel.ts" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/src/app/types/taskTypes.ts" beforeDir="false" afterPath="$PROJECT_DIR$/src/app/types/taskTypes.ts" afterDir="false" />
     </list>
     <option name="SHOW_DIALOG" value="false" />
     <option name="HIGHLIGHT_CONFLICTS" value="true" />
@@ -406,7 +414,6 @@
     <option name="version" value="3" />
   </component>
   <component name="VcsManagerConfiguration">
-    <MESSAGE value="console.log has been added into upload route" />
     <MESSAGE value="switch to Busboy streaming, add adaptive SVG watermark &amp; fix type errors" />
     <MESSAGE value="fix(upload): support large files and prevent SVG overlay errors" />
     <MESSAGE value="back to app route api for upload" />
@@ -431,6 +438,7 @@
     <MESSAGE value="Documents on the task page are hidden for the executor" />
     <MESSAGE value="changed the display of maps on the task page" />
     <MESSAGE value="Change events: log only TASK_ASSIGNED on executor set; remove EXECUTOR_ASSIGNED and redundant STATUS_CHANGED; hide legacy EXECUTOR_ASSIGNED on timeline" />
-    <option name="LAST_COMMIT_MESSAGE" value="Change events: log only TASK_ASSIGNED on executor set; remove EXECUTOR_ASSIGNED and redundant STATUS_CHANGED; hide legacy EXECUTOR_ASSIGNED on timeline" />
+    <MESSAGE value="Creation Workspace conception was started." />
+    <option name="LAST_COMMIT_MESSAGE" value="Creation Workspace conception was started." />
   </component>
 </project>
