@@ -1,3 +1,4 @@
+/* cspell:ignore Segoe */
 'use client';
 
 import React, { useEffect, useState } from 'react';
@@ -18,7 +19,11 @@ export default function ExecutorFinancialMetrics() {
         async function fetchTasks() {
             try {
                 const res = await fetch('/api/tasks');
-                if (!res.ok) throw new Error('Error fetching tasks');
+                // Если ответ не ок — не бросаем исключение, а выставляем ошибку и выходим
+                if (!res.ok) {
+                    setError('Error fetching tasks');
+                    return; // ← ранний выход вместо throw
+                }
                 const data = await res.json();
                 setTasks(data.tasks);
             } catch (err: unknown) {
@@ -27,7 +32,7 @@ export default function ExecutorFinancialMetrics() {
                 setLoading(false);
             }
         }
-        fetchTasks();
+        void fetchTasks(); // ← явно игнорируем промис (устраняет предупреждение линтера)
     }, []);
 
     if (loading) {
@@ -51,6 +56,7 @@ export default function ExecutorFinancialMetrics() {
     const totalAgreed = agreedTasks.reduce((acc, t) => acc + (t.totalCost || 0), 0);
     const sumToPay = totalAgreed * SUM_TO_PAY_PERCENT;
 
+    // Форматируем число как рубли (два знака после запятой), символ рубля выводим отдельно
     const formatRuble = (value: number) =>
         new Intl.NumberFormat('ru-RU', {
             minimumFractionDigits: 2,
@@ -71,7 +77,7 @@ export default function ExecutorFinancialMetrics() {
                         sx={{ mb: 1, cursor: 'pointer' }}
                         onClick={handleClick}
                     >
-                        {`${agreedCount} ${getTaskWord(agreedCount)} к оплате на сумму:`}
+                        {`${agreedCount} ${getTaskWord(agreedCount)} pending payment for a total of:`}
                     </Typography>
 
                     <Typography
@@ -82,17 +88,21 @@ export default function ExecutorFinancialMetrics() {
                             transition: 'color 0.2s ease',
                             '&:hover': { color: 'primary.dark' },
 
+                            // Кастомный стек шрифтов
                             fontFamily: '"Roboto","Inter","Segoe UI",Arial,sans-serif',
 
                             fontVariantNumeric: 'tabular-nums',
                         }}
                         onClick={handleClick}
+                        aria-label="Total amount to pay"
+                        title="Open the list of agreed tasks"
                     >
                         {formatRuble(sumToPay)}
                         {'\u00A0'}
                         <Box
                             component="span"
                             sx={{
+                                // Кастомный стек шрифтов
                                 fontFamily: '"Roboto","Inter","Segoe UI",Arial,sans-serif',
                                 lineHeight: 1,
                             }}
@@ -101,28 +111,20 @@ export default function ExecutorFinancialMetrics() {
                         </Box>
                     </Typography>
 
-
                     <Typography variant="caption" color="text.secondary">
-                        Отображается общая стоимость согласованных и неоплаченных задач
+                        Shows the total cost of agreed but unpaid tasks.
                     </Typography>
                 </>
             ) : (
                 <Typography variant="h6" color="text.secondary">
-                    Нет задач к оплате
+                    No payable tasks
                 </Typography>
             )}
         </Box>
-
-
-
     );
 }
 
-// Функция для корректного склонения слова "задача"
+// Функция для корректного склонения "task" в английском (простая логика)
 function getTaskWord(count: number): string {
-    const mod10 = count % 10;
-    const mod100 = count % 100;
-    if (mod10 === 1 && mod100 !== 11) return 'задача';
-    if (mod10 >= 2 && mod10 <= 4 && (mod100 < 10 || mod100 >= 20)) return 'задачи';
-    return 'задач';
+    return count === 1 ? 'task' : 'tasks';
 }

@@ -6,7 +6,7 @@
   <component name="ChangeListManager">
     <list default="true" id="b3c91f45-fbe1-4477-9fd9-38d0fcaf660d" name="Changes" comment="Add Complete column after Due Date and render workCompletionDate as dd.mm.yyyy">
       <change beforePath="$PROJECT_DIR$/.idea/workspace.xml" beforeDir="false" afterPath="$PROJECT_DIR$/.idea/workspace.xml" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/src/app/components/TaskListPage.tsx" beforeDir="false" afterPath="$PROJECT_DIR$/src/app/components/TaskListPage.tsx" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/src/app/components/TaskColumnPage.tsx" beforeDir="false" afterPath="$PROJECT_DIR$/src/app/components/TaskColumnPage.tsx" afterDir="false" />
     </list>
     <option name="SHOW_DIALOG" value="false" />
     <option name="HIGHLIGHT_CONFLICTS" value="true" />
@@ -112,7 +112,7 @@
       <workItem from="1760916582067" duration="864000" />
       <workItem from="1761024187633" duration="5895000" />
       <workItem from="1761720378244" duration="633000" />
-      <workItem from="1761887562972" duration="12438000" />
+      <workItem from="1761887562972" duration="14447000" />
     </task>
     <task id="LOCAL-00001" summary="Dockerfile has been modified #2">
       <option name="closed" value="true" />
@@ -418,7 +418,15 @@
       <option name="project" value="LOCAL" />
       <updated>1761903290282</updated>
     </task>
-    <option name="localTasksCounter" value="39" />
+    <task id="LOCAL-00039" summary="Add Complete column after Due Date and render workCompletionDate as dd.mm.yyyy">
+      <option name="closed" value="true" />
+      <created>1761906293989</created>
+      <option name="number" value="00039" />
+      <option name="presentableId" value="LOCAL-00039" />
+      <option name="project" value="LOCAL" />
+      <updated>1761906293989</updated>
+    </task>
+    <option name="localTasksCounter" value="40" />
     <servers />
   </component>
   <component name="TypeScriptGeneratedFilesManager">

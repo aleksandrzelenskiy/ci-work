@@ -30,6 +30,15 @@ import Tooltip from '@mui/material/Tooltip';
 import { getStatusColor } from '@/utils/statusColors';
 import { GetCurrentUserFromMongoDB } from '@/server-actions/users';
 
+// Формат dd.mm.yyyy (ru-RU)
+const formatDateRU = (value?: Date | string) => {
+  if (!value) return '';
+  const d = new Date(value);
+  if (Number.isNaN(d.getTime())) return '';
+  return d.toLocaleDateString('ru-RU');
+};
+
+
 const statusOrder: CurrentStatus[] = [
   'To do',
   'Assigned',
@@ -108,11 +117,15 @@ function DraggableTask({ task, role }: { task: Task; role: string }) {
             {task.taskName}
           </Typography>
           <Box sx={{ display: 'flex', justifyContent: 'space-between', mb: 1 }}>
-            <Typography variant='caption'>BS: {task.bsNumber}</Typography>
+            <Typography variant='body2'>BS: {task.bsNumber}</Typography>
           </Box>
-          <Typography variant='body2' color='text.primary'>
-            Due: {new Date(task.dueDate).toLocaleDateString()}
+          <Typography variant='caption' color='text.primary'>
+            Due date: {formatDateRU(task.dueDate) || '—'}
           </Typography>
+          <Typography variant='caption' color='text.primary'>
+            Complete: {formatDateRU(task.workCompletionDate) || '—'}
+          </Typography>
+
         </CardContent>
         <Box
           sx={{
@@ -173,7 +186,7 @@ function DroppableColumn({
       sx={{
         minWidth: 200,
         minHeight: '60vh',
-        bgcolor: isDraggingOver ? 'action.hover' : 'background.paper',
+        backgroundColor: isDraggingOver ? 'action.hover' : 'background.paper',
         p: 2,
         borderRadius: 2,
         border: '1px solid',
@@ -204,11 +217,15 @@ export default function TaskColumnPage() {
         const response = await fetch('/api/tasks');
         const data = await response.json();
 
-        if (!response.ok)
-          throw new Error(data.error || 'Failed to fetch tasks');
+        if (!response.ok) {
+          setError(data.error || 'Failed to fetch tasks');
+          setLoading(false);
+          return;
+        }
 
         setTasks(data.tasks);
         setLoading(false);
+
       } catch (error) {
         setError(error instanceof Error ? error.message : 'Unknown error');
         setLoading(false);
@@ -226,8 +243,9 @@ export default function TaskColumnPage() {
       }
     };
 
-    fetchTasks();
-    fetchUserRole();
+    void fetchTasks();
+    void fetchUserRole();
+
   }, []);
 
   useEffect(() => {
