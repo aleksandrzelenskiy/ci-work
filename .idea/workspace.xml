@@ -4,9 +4,9 @@
     <option name="autoReloadType" value="SELECTIVE" />
   </component>
   <component name="ChangeListManager">
-    <list default="true" id="b3c91f45-fbe1-4477-9fd9-38d0fcaf660d" name="Changes" comment="Creation Org/Project logic for project-managment workspace.&#10;Creation Workspace conNCW/Order: add confirm delete; unset DB fields on delete;.">
+    <list default="true" id="b3c91f45-fbe1-4477-9fd9-38d0fcaf660d" name="Changes" comment="Add Complete column after Due Date and render workCompletionDate as dd.mm.yyyy">
       <change beforePath="$PROJECT_DIR$/.idea/workspace.xml" beforeDir="false" afterPath="$PROJECT_DIR$/.idea/workspace.xml" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/src/app/tasks/[taskId]/page.tsx" beforeDir="false" afterPath="$PROJECT_DIR$/src/app/tasks/[taskId]/page.tsx" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/src/app/components/TaskListPage.tsx" beforeDir="false" afterPath="$PROJECT_DIR$/src/app/components/TaskListPage.tsx" afterDir="false" />
     </list>
     <option name="SHOW_DIALOG" value="false" />
     <option name="HIGHLIGHT_CONFLICTS" value="true" />
@@ -112,7 +112,7 @@
       <workItem from="1760916582067" duration="864000" />
       <workItem from="1761024187633" duration="5895000" />
       <workItem from="1761720378244" duration="633000" />
-      <workItem from="1761887562972" duration="9632000" />
+      <workItem from="1761887562972" duration="12438000" />
     </task>
     <task id="LOCAL-00001" summary="Dockerfile has been modified #2">
       <option name="closed" value="true" />
@@ -410,15 +410,21 @@
       <option name="project" value="LOCAL" />
       <updated>1761900922847</updated>
     </task>
-    <option name="localTasksCounter" value="38" />
+    <task id="LOCAL-00038" summary="NCW Button hiden for all status before Done">
+      <option name="closed" value="true" />
+      <created>1761903290282</created>
+      <option name="number" value="00038" />
+      <option name="presentableId" value="LOCAL-00038" />
+      <option name="project" value="LOCAL" />
+      <updated>1761903290282</updated>
+    </task>
+    <option name="localTasksCounter" value="39" />
     <servers />
   </component>
   <component name="TypeScriptGeneratedFilesManager">
     <option name="version" value="3" />
   </component>
   <component name="VcsManagerConfiguration">
-    <MESSAGE value="fix(upload): support large files and prevent SVG overlay errors" />
-    <MESSAGE value="back to app route api for upload" />
     <MESSAGE value="upload route has been modified" />
     <MESSAGE value="change .pro to .ru" />
     <MESSAGE value="upload page has been modified" />
@@ -442,6 +448,8 @@
     <MESSAGE value="Change events: log only TASK_ASSIGNED on executor set; remove EXECUTOR_ASSIGNED and redundant STATUS_CHANGED; hide legacy EXECUTOR_ASSIGNED on timeline" />
     <MESSAGE value="Creation Workspace conception was started." />
     <MESSAGE value="Creation Org/Project logic for project-managment workspace.&#10;Creation Workspace conNCW/Order: add confirm delete; unset DB fields on delete;." />
-    <option name="LAST_COMMIT_MESSAGE" value="Creation Org/Project logic for project-managment workspace.&#10;Creation Workspace conNCW/Order: add confirm delete; unset DB fields on delete;." />
+    <MESSAGE value="NCW Button hiden for all status before Done" />
+    <MESSAGE value="Add Complete column after Due Date and render workCompletionDate as dd.mm.yyyy" />
+    <option name="LAST_COMMIT_MESSAGE" value="Add Complete column after Due Date and render workCompletionDate as dd.mm.yyyy" />
   </component>
 </project>

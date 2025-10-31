@@ -47,6 +47,7 @@ import {
   FilterList as FilterListIcon,
   Search as SearchIcon,
   KeyboardArrowDown as KeyboardArrowDownIcon,
+  Task as TaskIcon
 } from '@mui/icons-material';
 import { LocalizationProvider } from '@mui/x-date-pickers/LocalizationProvider';
 import { AdapterDateFns } from '@mui/x-date-pickers/AdapterDateFns';
@@ -70,6 +71,54 @@ const getPriorityIcon = (priority: string) => {
   }
 };
 
+/* ───────────── формат даты dd.mm.yyyy ───────────── */
+const formatDateRU = (value?: Date | string) => {
+  if (!value) return '';
+  const d = new Date(value);
+  if (Number.isNaN(d.getTime())) return '';
+  return d.toLocaleDateString('ru-RU'); // dd.mm.yyyy
+};
+
+
+/* ───────────── утилита скачивания order и ncw ───────────── */
+async function downloadFile(url: string, fallbackName: string) {
+  // 1) fetch без throw
+  const res = await fetch(url, { credentials: 'include' }).catch((e) => {
+    console.error('Download failed: fetch error', e);
+    return null;
+  });
+
+  if (!res || !res.ok) {
+    console.error(`Download failed: ${res ? `HTTP ${res.status}` : 'no response'}`);
+    return;
+  }
+
+  // 2) получаем blob
+  const blob = await res.blob();
+
+  // 3) безопасно достаём имя файла из URL
+  let nameFromUrl = fallbackName;
+  try {
+    const u = new URL(url);
+    const last = u.pathname.split('/').filter(Boolean).pop();
+    if (last) nameFromUrl = last;
+  } catch {
+    /* ignore bad URL, keep fallback */
+  }
+
+  // 4) скачивание
+  const a = document.createElement('a');
+  const objUrl = URL.createObjectURL(blob);
+  a.href = objUrl;
+  a.download = nameFromUrl;
+  document.body.appendChild(a);
+  a.click();
+  URL.revokeObjectURL(objUrl);
+  a.remove();
+}
+
+
+
 /* ───────────── строка задачи ───────────── */
 function Row({
                task,
@@ -91,6 +140,16 @@ function Row({
       email: parts[1] || 'N/A',
     };
   };
+
+  // Считаем видимые колонки с учётом роли (executor не видит order/ncw,
+  // роль author не видит author-колонку; роль executor не видит executor-колонку — уже учтено в разметке)
+  const visibleColsCount = Object.entries(columnVisibility).filter(([key, val]) =>
+      val &&
+      !(role === 'executor' && (key === 'order' || key === 'ncw' || key === 'executor')) &&
+      !(role === 'author' && key === 'author')
+  ).length;
+
+
 
   return (
       <>
@@ -143,14 +202,53 @@ function Row({
           )}
 
           {columnVisibility.due && (
-              <TableCell align='center'>{new Date(task.dueDate).toLocaleDateString()}</TableCell>
+              <TableCell align='center'>{formatDateRU(task.dueDate)}</TableCell>
           )}
+
+          {columnVisibility.complete && (
+              <TableCell align='center'>
+                {formatDateRU(task.workCompletionDate)}
+              </TableCell>
+          )}
+
 
           {columnVisibility.status && (
               <TableCell align='center'>
                 <Chip label={task.status} sx={{ backgroundColor: getStatusColor(task.status), color: '#fff' }} />
               </TableCell>
           )}
+
+          {role !== 'executor' && columnVisibility.order && (
+              <TableCell align="center">
+                {!!task.orderUrl && (
+                    <Tooltip title="Download Order">
+                      <IconButton
+                          size="small"
+                          onClick={() => downloadFile(task.orderUrl!, `${task.taskId}_order.pdf`)}
+                      >
+                        <TaskIcon sx={{ color: 'success.main' }} />
+                      </IconButton>
+                    </Tooltip>
+                )}
+              </TableCell>
+          )}
+
+
+          {role !== 'executor' && columnVisibility.ncw && (
+              <TableCell align="center">
+                {!!task.ncwUrl && (
+                    <Tooltip title="Download NCW">
+                      <IconButton
+                          size="small"
+                          onClick={() => downloadFile(task.ncwUrl!, `${task.taskId}_ncw.pdf`)}
+                      >
+                        <TaskIcon sx={{ color: 'success.main' }} />
+                      </IconButton>
+                    </Tooltip>
+                )}
+              </TableCell>
+          )}
+
 
           {columnVisibility.priority && (
               <TableCell align='center'>
@@ -162,7 +260,7 @@ function Row({
 
         <TableRow>
           <TableCell
-              colSpan={1 + Object.values(columnVisibility).filter(Boolean).length}
+              colSpan={1 + visibleColsCount}
               sx={{ p: 0 }}
           >
           <Collapse in={open} timeout='auto' unmountOnExit>
@@ -248,8 +346,11 @@ export default function TaskListPage() {
     executor: true,
     created: true,
     due: true,
+    complete: true,
     status: true,
     priority: true,
+    order: true,
+    ncw: true,
   });
 
   /* ----- popover / пагинация ----- */
@@ -670,6 +771,14 @@ export default function TaskListPage() {
                   </TableCell>
                 )}
 
+                {columnVisibility.complete && (
+                    <TableCell
+                        sx={{ whiteSpace: 'nowrap', padding: '16px', textAlign: 'center' }}
+                    >
+                      <strong>Complete</strong>
+                    </TableCell>
+                )}
+
                 {columnVisibility.status && (
                   <TableCell
                     sx={{
@@ -689,6 +798,19 @@ export default function TaskListPage() {
                     </Tooltip>
                   </TableCell>
                 )}
+
+                {role !== 'executor' && columnVisibility.order && (
+                    <TableCell sx={{ whiteSpace: 'nowrap', padding: '16px', textAlign: 'center' }}>
+                      <strong>Order</strong>
+                    </TableCell>
+                )}
+                {role !== 'executor' && columnVisibility.ncw && (
+                    <TableCell sx={{ whiteSpace: 'nowrap', padding: '16px', textAlign: 'center' }}>
+                      <strong>NCW</strong>
+                    </TableCell>
+                )}
+
+
 
                 {columnVisibility.priority && (
                   <TableCell
@@ -891,24 +1013,25 @@ export default function TaskListPage() {
             {currentFilter === 'columns' && (
               <>
                 <List>
-                  {Object.keys(columnVisibility).map((column) => (
-                    <ListItem key={column} dense component='button'>
-                      <ListItemIcon>
-                        <Checkbox
-                          edge='start'
-                          checked={columnVisibility[column]}
-                          onChange={handleColumnVisibilityChange(column)}
-                          tabIndex={-1}
-                          disableRipple
-                        />
-                      </ListItemIcon>
-                      <ListItemText
-                        primary={
-                          column.charAt(0).toUpperCase() + column.slice(1)
-                        }
-                      />
-                    </ListItem>
-                  ))}
+                  {Object.keys(columnVisibility)
+                      .filter((column) => !(role === 'executor' && (column === 'order' || column === 'ncw')))
+                      .map((column) => (
+                          <ListItem key={column} dense component='button'>
+                            <ListItemIcon>
+                              <Checkbox
+                                  edge='start'
+                                  checked={columnVisibility[column]}
+                                  onChange={handleColumnVisibilityChange(column)}
+                                  tabIndex={-1}
+                                  disableRipple
+                              />
+                            </ListItemIcon>
+                            <ListItemText
+                                primary={column.charAt(0).toUpperCase() + column.slice(1)}
+                            />
+                          </ListItem>
+                      ))}
+
                 </List>
                 <Box
                   sx={{
