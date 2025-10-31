@@ -17,6 +17,7 @@ import {
     Snackbar,
     Stack,
     CircularProgress,
+    Tooltip,
 } from '@mui/material';
 import Grid from '@mui/material/Grid';
 import EditIcon from '@mui/icons-material/Edit';
@@ -269,6 +270,7 @@ export default function OrgProjectsPage() {
                                 >
                                     {/* Action icons */}
                                     <Stack direction="row" spacing={1} sx={{ position: 'absolute', top: 8, right: 8 }}>
+                                        <Tooltip title="Редактировать">
                                         <IconButton
                                             size="small"
                                             aria-label="Редактировать"
@@ -279,9 +281,10 @@ export default function OrgProjectsPage() {
                                         >
                                             <EditIcon fontSize="small" />
                                         </IconButton>
+                                        </Tooltip>
+                                        <Tooltip title="Удалить">
                                         <IconButton
                                             size="small"
-                                            color="error"
                                             aria-label="Удалить"
                                             onClick={(e) => {
                                                 e.stopPropagation();
@@ -289,7 +292,7 @@ export default function OrgProjectsPage() {
                                             }}
                                         >
                                             <DeleteIcon fontSize="small" />
-                                        </IconButton>
+                                        </IconButton></Tooltip>
                                     </Stack>
 
                                     <Typography variant="subtitle2" color="text.secondary">

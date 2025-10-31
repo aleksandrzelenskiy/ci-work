@@ -16,7 +16,7 @@ const TaskSchema = new Schema<Task & Document>({
     },
   ],
   bsAddress: { type: String, required: true },
-  totalCost: { type: Number, required: true },
+  totalCost: { type: Number, required: false },
   workItems: [
     {
       workType: String,
@@ -65,7 +65,7 @@ const TaskSchema = new Schema<Task & Document>({
     default: 'construction',
   },
 
-  // Какие вложения обязательны (например: ['photo'] или ['pdf','dwg'])
+  // Какие вложения обязательны
   requiredAttachments: [
     {
       type: String,
@@ -93,6 +93,9 @@ const TaskSchema = new Schema<Task & Document>({
   orderNumber: { type: String },
   orderDate: { type: Date },
   orderSignDate: { type: Date },
+  ncwUrl: { type: String, required: false, default: '' },        // ссылка на PDF в S3
+  workCompletionDate: { type: Date, required: false },           // дата окончания работ (= дата уведомления)
+
   closingDocumentsUrl: { type: String },
 
   // История событий

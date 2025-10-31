@@ -111,6 +111,8 @@ export interface Task {
   orderNumber?: string;
   orderDate?: Date;
   orderSignDate?: Date;
+  ncwUrl?: string;
+  workCompletionDate?:  Date | string;
   closingDocumentsUrl?: string;
 
   objectDetails: {

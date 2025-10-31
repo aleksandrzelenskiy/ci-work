@@ -59,7 +59,7 @@ export async function GET(
         const { org } = await requireOrgRole(orgSlug, email, ['owner', 'org_admin', 'manager', 'executor', 'viewer']);
 
         const membersRaw = await Membership.find({ orgId: org._id }).lean<MembershipLean[]>();
-        const members = membersRaw.map((m) => toMemberDTO(m, org.slug));
+        const members = membersRaw.map((m) => toMemberDTO(m, org.orgSlug));
 
         return NextResponse.json({ members });
     } catch (e: unknown) {
@@ -105,7 +105,7 @@ export async function POST(
             return NextResponse.json({ error: 'Не удалось сохранить участника' }, { status: 500 });
         }
 
-        const member = toMemberDTO(saved, org.slug);
+        const member = toMemberDTO(saved, org.orgSlug);
         return NextResponse.json({ ok: true, member });
     } catch (e: unknown) {
         return NextResponse.json({ error: errorMessage(e) }, { status: 500 });

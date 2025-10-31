@@ -110,9 +110,9 @@ export async function GET(
         const { org } = await requireOrgRole(orgSlug, email, ['owner', 'org_admin', 'manager', 'executor', 'viewer']);
 
         const sub = await Subscription.findOne({ orgId: org._id }).lean<SubscriptionLean>();
-        if (!sub) return NextResponse.json({ subscription: fallbackDTO(org.slug) });
+        if (!sub) return NextResponse.json({ subscription: fallbackDTO(org.orgSlug) });
 
-        return NextResponse.json({ subscription: toSubscriptionDTO(sub, org.slug) });
+        return NextResponse.json({ subscription: toSubscriptionDTO(sub, org.orgSlug) });
     } catch (e: unknown) {
         return NextResponse.json({ error: errorMessage(e) }, { status: 500 });
     }

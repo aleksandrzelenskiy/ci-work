@@ -5,23 +5,21 @@
   </component>
   <component name="ChangeListManager">
     <list default="true" id="b3c91f45-fbe1-4477-9fd9-38d0fcaf660d" name="Changes" comment="Creation Workspace conception was started.">
-      <change afterPath="$PROJECT_DIR$/src/app/api/org/[org]/members/route.ts" afterDir="false" />
-      <change afterPath="$PROJECT_DIR$/src/app/api/org/[org]/projects/[projectId]/route.ts" afterDir="false" />
-      <change afterPath="$PROJECT_DIR$/src/app/api/org/[org]/projects/route.ts" afterDir="false" />
-      <change afterPath="$PROJECT_DIR$/src/app/api/org/[org]/subscription/route.ts" afterDir="false" />
-      <change afterPath="$PROJECT_DIR$/src/app/api/org/route.ts" afterDir="false" />
-      <change afterPath="$PROJECT_DIR$/src/app/models/MembershipModel.ts" afterDir="false" />
-      <change afterPath="$PROJECT_DIR$/src/app/models/OrganizationModel.ts" afterDir="false" />
-      <change afterPath="$PROJECT_DIR$/src/app/models/ProjectModel.ts" afterDir="false" />
-      <change afterPath="$PROJECT_DIR$/src/app/models/SubscriptionModel.ts" afterDir="false" />
-      <change afterPath="$PROJECT_DIR$/src/app/org/[org]/projects/page.tsx" afterDir="false" />
-      <change afterPath="$PROJECT_DIR$/src/app/org/new/page.tsx" afterDir="false" />
-      <change afterPath="$PROJECT_DIR$/src/app/utils/permissions.ts" afterDir="false" />
-      <change afterPath="$PROJECT_DIR$/src/app/utils/slugify.ts" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/src/app/api/org/[org]/projects/[projectId]/tasks/route.ts" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/src/app/org/[org]/projects/[projectId]/tasks/page.tsx" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/src/app/workspace/components/WorkspaceTaskDialog.tsx" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/.idea/workspace.xml" beforeDir="false" afterPath="$PROJECT_DIR$/.idea/workspace.xml" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/package-lock.json" beforeDir="false" afterPath="$PROJECT_DIR$/package-lock.json" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/src/app/api/org/[org]/members/route.ts" beforeDir="false" afterPath="$PROJECT_DIR$/src/app/api/org/[org]/members/route.ts" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/src/app/api/org/[org]/subscription/route.ts" beforeDir="false" afterPath="$PROJECT_DIR$/src/app/api/org/[org]/subscription/route.ts" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/src/app/api/org/route.ts" beforeDir="false" afterPath="$PROJECT_DIR$/src/app/api/org/route.ts" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/src/app/api/tasks/[taskId]/route.ts" beforeDir="false" afterPath="$PROJECT_DIR$/src/app/api/tasks/[taskId]/route.ts" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/src/app/components/NcwGenerator.tsx" beforeDir="false" afterPath="$PROJECT_DIR$/src/app/components/NcwGenerator.tsx" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/src/app/models/OrganizationModel.ts" beforeDir="false" afterPath="$PROJECT_DIR$/src/app/models/OrganizationModel.ts" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/src/app/models/TaskModel.ts" beforeDir="false" afterPath="$PROJECT_DIR$/src/app/models/TaskModel.ts" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/src/app/org/[org]/projects/page.tsx" beforeDir="false" afterPath="$PROJECT_DIR$/src/app/org/[org]/projects/page.tsx" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/src/app/tasks/[taskId]/page.tsx" beforeDir="false" afterPath="$PROJECT_DIR$/src/app/tasks/[taskId]/page.tsx" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/src/app/types/taskTypes.ts" beforeDir="false" afterPath="$PROJECT_DIR$/src/app/types/taskTypes.ts" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/src/utils/s3.ts" beforeDir="false" afterPath="$PROJECT_DIR$/src/utils/s3.ts" afterDir="false" />
     </list>
     <option name="SHOW_DIALOG" value="false" />
     <option name="HIGHLIGHT_CONFLICTS" value="true" />
@@ -126,6 +124,8 @@
       <workItem from="1760709754356" duration="57200000" />
       <workItem from="1760916582067" duration="864000" />
       <workItem from="1761024187633" duration="5895000" />
+      <workItem from="1761720378244" duration="633000" />
+      <workItem from="1761887562972" duration="8547000" />
     </task>
     <task id="LOCAL-00001" summary="Dockerfile has been modified #2">
       <option name="closed" value="true" />
@@ -407,7 +407,15 @@
       <option name="project" value="LOCAL" />
       <updated>1760879535764</updated>
     </task>
-    <option name="localTasksCounter" value="36" />
+    <task id="LOCAL-00036" summary="Creation Workspace conception was started.">
+      <option name="closed" value="true" />
+      <created>1761571979278</created>
+      <option name="number" value="00036" />
+      <option name="presentableId" value="LOCAL-00036" />
+      <option name="project" value="LOCAL" />
+      <updated>1761571979278</updated>
+    </task>
+    <option name="localTasksCounter" value="37" />
     <servers />
   </component>
   <component name="TypeScriptGeneratedFilesManager">

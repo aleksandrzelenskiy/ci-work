@@ -4,7 +4,7 @@ import mongoose, { Schema, Document, models, model } from 'mongoose';
 
 export interface Organization extends Document {
     name: string;
-    slug: string;
+    orgSlug: string;
     ownerEmail: string;
     createdByEmail: string;
     createdAt: Date;
@@ -13,7 +13,7 @@ export interface Organization extends Document {
 const OrganizationSchema = new Schema<Organization>(
     {
         name: { type: String, required: true },
-        slug: { type: String, required: true, unique: true, index: true },
+        orgSlug: { type: String, required: true, unique: true, index: true },
         ownerEmail: { type: String, required: true, index: true },
         createdByEmail: { type: String, required: true },
         createdAt: { type: Date, default: Date.now },

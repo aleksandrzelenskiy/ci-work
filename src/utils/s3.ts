@@ -77,19 +77,22 @@ export async function uploadBuffer(
   return url;
 }
 
-/**
- * Ваши функции — оставлены без изменений (пригодятся в других местах)
- */
+/** Сборка ключа вида: uploads/<TASKID>/<TASKID>-<subfolder>/<filename> */
 function buildFileKey(taskId: string, subfolder: string, filename: string): string {
   const safeTaskId = taskId.replace(/[^a-zA-Z0-9_-]/g, '');
   const safeName = path.basename(filename);
   return path.posix.join('uploads', `${safeTaskId}`, `${safeTaskId}-${subfolder}`, safeName);
 }
 
+/**
+ * Загрузка файла задачи в S3/локально.
+ * subfolder — один из предопределённых подкаталогов;
+ * ключ остаётся в формате uploads/<TASKID>/<TASKID>-<subfolder>/<filename>.
+ */
 export async function uploadTaskFile(
     fileBuffer: Buffer,
     taskId: string,
-    subfolder: 'estimate' | 'attachments' | 'order' | 'comments',
+    subfolder: 'estimate' | 'attachments' | 'order' | 'comments' | 'ncw',
     filename: string,
     contentType: string
 ): Promise<string> {
@@ -109,6 +112,7 @@ export async function uploadTaskFile(
     return url;
   }
 
+  // Локальный режим
   const fullPath = ensureLocalDirForKey(key);
   await fs.promises.writeFile(fullPath, fileBuffer);
   const url = publicUrlForKey(key);
@@ -116,6 +120,7 @@ export async function uploadTaskFile(
   return url;
 }
 
+/** Удаление файла по публичному URL (S3 или локально) */
 export async function deleteTaskFile(publicUrl: string): Promise<void> {
   try {
     if (s3 && BUCKET && ENDPOINT) {

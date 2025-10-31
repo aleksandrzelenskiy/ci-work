@@ -25,6 +25,7 @@ interface UpdateData {
   orderNumber?: string;
   orderDate?: string;      // ISO
   orderSignDate?: string;  // ISO
+  workCompletionDate?: string; // ISO — дата окончания работ (= дата уведомления)
   event?: { details?: { comment?: string } };
   existingAttachments?: string[];
   // решения исполнителя
@@ -101,12 +102,15 @@ export async function PATCH(
 
       const otherData: Record<string, FormDataEntryValue> = {};
       let orderFile: File | null = null;
+      let ncwFile: File | null = null; // <— НОВОЕ
 
       for (const [key, value] of entries) {
         if (key.startsWith('attachments_') && value instanceof Blob) {
           attachments.push(value as File);
         } else if (key === 'orderFile' && value instanceof Blob) {
           orderFile = value as File;
+        } else if (key === 'ncwFile' && value instanceof Blob) {
+          ncwFile = value as File; // <— НОВОЕ
         } else {
           otherData[key] = value;
         }
@@ -164,6 +168,26 @@ export async function PATCH(
             mime
         );
       }
+
+      // === NCW (уведомление) ===
+      if (ncwFile) {
+        const mime = ncwFile.type || 'application/pdf';
+        if (mime !== 'application/pdf') {
+          return NextResponse.json({ error: 'Unsupported file type for ncwFile (PDF only)' }, { status: 400 });
+        }
+        if (ncwFile.size > 20 * 1024 * 1024) {
+          return NextResponse.json({ error: 'NCW file too large (max 20 MB)' }, { status: 413 });
+        }
+
+        const buffer = Buffer.from(await ncwFile.arrayBuffer());
+        task.ncwUrl = await uploadTaskFile(
+            buffer,
+            taskIdUpper,
+            'ncw', // uploads/TASKID/TASKID-ncw/<filename>
+            `${Date.now()}-${ncwFile.name}`,
+            mime
+        );
+      }
     } else if (contentType?.includes('application/json')) {
       updateData = (await request.json()) as UpdateData;
     } else {
@@ -190,7 +214,6 @@ export async function PATCH(
 
     if (Object.prototype.hasOwnProperty.call(updateData, 'executorId')) {
       if (updateData.executorId === '' || updateData.executorId === null) {
-        // удалить исполнителя
         executorRemoved = true;
         const hadDifferentStatus = task.status !== 'To do';
         task.executorId = '';
@@ -313,6 +336,12 @@ export async function PATCH(
       if (!isNaN(d.getTime())) task.orderSignDate = d;
     }
 
+    // === дата окончания работ (= дата уведомления) ===
+    if (updateData.workCompletionDate) {
+      const d = new Date(updateData.workCompletionDate);
+      if (!isNaN(d.getTime())) task.workCompletionDate = d;
+    }
+
     // === Excel при Agreed ===
     if (updateData.status?.toLowerCase() === 'agreed' && !decision) {
       task.closingDocumentsUrl = await generateClosingDocumentsExcel(task);
@@ -327,7 +356,7 @@ export async function PATCH(
 }
 
 export async function DELETE(
-    _request: NextRequest,
+    request: NextRequest,
     context: { params: Promise<{ taskId: string }> }
 ) {
   try {
@@ -342,19 +371,51 @@ export async function DELETE(
     const task = await TaskModel.findOne({ taskId: taskIdUpper });
     if (!task) return NextResponse.json({ error: 'Task not found' }, { status: 404 });
 
-    if (!task.orderUrl) return NextResponse.json({ error: 'No order file to delete' }, { status: 400 });
+    // ?file=order | ncw (по умолчанию — order)
+    const url = new URL(request.url);
+    const fileType = (url.searchParams.get('file') || 'order').toLowerCase();
 
-    await deleteTaskFile(task.orderUrl);
+    if (fileType === 'ncw') {
+      if (task.ncwUrl) {
+        await deleteTaskFile(task.ncwUrl);
+      }
 
+      const updatedTask = await TaskModel.findOneAndUpdate(
+          { taskId: taskIdUpper },
+          { $unset: { ncwUrl: "", workCompletionDate: "" } },
+          { new: true, runValidators: false }
+      );
+
+      return NextResponse.json({ task: updatedTask });
+    }
+
+
+    // --- default: order ---
+    const hasOrderFile = !!task.orderUrl;
+
+    if (hasOrderFile) {
+      await deleteTaskFile(task.orderUrl);
+    }
+
+// Даже если файла нет, всё равно чистим связанные поля заказа
     const updatedTask = await TaskModel.findOneAndUpdate(
         { taskId: taskIdUpper },
-        { $unset: { orderUrl: 1 } },
+        {
+          $unset: {
+            orderUrl: "",
+            orderNumber: "",
+            orderDate: "",
+            orderSignDate: ""
+          }
+        },
         { new: true, runValidators: false }
     );
 
     return NextResponse.json({ task: updatedTask });
+
+
   } catch (err) {
-    console.error('Error deleting order file:', err);
+    console.error('Error deleting order/ncw file:', err);
     return NextResponse.json({ error: 'Internal server error' }, { status: 500 });
   }
 }

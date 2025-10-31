@@ -57,6 +57,7 @@ import ExpandLessIcon from '@mui/icons-material/ExpandLess';
 import CloudUploadIcon from '@mui/icons-material/CloudUpload';
 import CloudDownloadIcon from '@mui/icons-material/CloudDownload';
 import EditIcon from '@mui/icons-material/Edit';
+import DeleteIcon from '@mui/icons-material/Delete';
 import AttachFileIcon from '@mui/icons-material/AttachFile';
 import CommentOutlinedIcon from '@mui/icons-material/CommentOutlined';
 import Skeleton from '@mui/material/Skeleton';
@@ -150,6 +151,9 @@ export default function TaskDetailPage() {
 
     const [confirmDeleteOrderOpen, setConfirmDeleteOrderOpen] = useState(false);
     const [deletingOrder, setDeletingOrder] = useState(false);
+
+    const [confirmDeleteNcwOpen, setConfirmDeleteNcwOpen] = useState(false);
+    const [deletingNcw, setDeletingNcw] = useState(false);
 
     const [newCommentText, setNewCommentText] = useState('');
     const [newCommentPhoto, setNewCommentPhoto] = useState<File | null>(null);
@@ -357,7 +361,7 @@ export default function TaskDetailPage() {
     const handleDeleteOrder = async () => {
         setDeletingOrder(true);
         try {
-            const res = await fetch(`/api/tasks/${taskId}`, { method: 'DELETE' });
+            const res = await fetch(`/api/tasks/${encodeURIComponent(taskId)}?file=order`, { method: 'DELETE' });
             const data = (await res.json().catch(() => ({}))) as { task?: Task; error?: string };
             if (!res.ok) {
                 setSnackbarMessage(data.error || 'Failed to delete order file');
@@ -379,6 +383,34 @@ export default function TaskDetailPage() {
             setConfirmDeleteOrderOpen(false);
         }
     };
+
+    const handleDeleteNcw = async () => {
+        setDeletingNcw(true);
+        try {
+            const res = await fetch(`/api/tasks/${encodeURIComponent(taskId)}?file=ncw`, { method: 'DELETE' });
+            const data = await res.json().catch(() => ({}));
+            if (!res.ok) {
+                setSnackbarMessage(data.error || 'Failed to delete NCW file');
+                setSnackbarSeverity('error');
+                setSnackbarOpen(true);
+                return;
+            }
+            const refreshed = await fetch(`/api/tasks/${encodeURIComponent(taskId)}`).then(r => r.json());
+            setTask(refreshed.task);
+            setSnackbarMessage('NCW file deleted');
+            setSnackbarSeverity('success');
+            setSnackbarOpen(true);
+        } catch (e) {
+            console.error(e);
+            setSnackbarMessage('Failed to delete NCW file');
+            setSnackbarSeverity('error');
+            setSnackbarOpen(true);
+        } finally {
+            setDeletingNcw(false);
+            setConfirmDeleteNcwOpen(false);
+        }
+    };
+
 
     const handlePostComment = async () => {
         if (!newCommentText) return;
@@ -534,13 +566,14 @@ export default function TaskDetailPage() {
                         Edit
                     </Button>
                 )}
-                {userRole !== 'executor' && task.status === 'Agreed' && (
+                {userRole !== 'executor' && task.status === 'Done' && !task.ncwUrl && (
                     <Button
                         size="small"
                         variant="outlined"
                         onClick={() => {
                             router.push(
-                                `/ncw?orderNumber=${encodeURIComponent(task.orderNumber || '')}` +
+                                `/ncw?taskId=${encodeURIComponent(task.taskId)}` + // ВАЖНО
+                                `&orderNumber=${encodeURIComponent(task.orderNumber || '')}` +
                                 `&orderDate=${encodeURIComponent(
                                     task.orderDate ? dayjs(task.orderDate).format('YYYY-MM-DD') : ''
                                 )}` +
@@ -655,6 +688,13 @@ export default function TaskDetailPage() {
                                 <Typography>
                                     <strong>Due Date:</strong> {new Date(task.dueDate).toLocaleDateString()}
                                 </Typography>
+
+                                {task.workCompletionDate && (
+                                    <Typography>
+                                        <strong>Work completion date (NCW):</strong>{' '}
+                                        {dayjs(task.workCompletionDate).format('DD.MM.YYYY')}
+                                    </Typography>
+                                )}
 
                                 {task.orderNumber && task.orderDate && (
                                     <>
@@ -785,7 +825,15 @@ export default function TaskDetailPage() {
                                     {/* Order */}
                                     {task.orderUrl ? (
                                         <Box sx={{ mb: 2 }}>
-                                            <Typography variant="subtitle2">Order</Typography>
+                                            <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+                                                <Typography variant="subtitle2" component="div">Order</Typography>
+                                                <Tooltip title="Delete Order">
+                                                    <IconButton size="small" aria-label="Delete Order" onClick={() => setConfirmDeleteOrderOpen(true)}>
+                                                        <DeleteIcon fontSize="small" />
+                                                    </IconButton>
+                                                </Tooltip>
+                                            </Box>
+
                                             <Button
                                                 component="a"
                                                 href={task.orderUrl}
@@ -803,6 +851,42 @@ export default function TaskDetailPage() {
                                             No order file
                                         </Typography>
                                     )}
+
+                                    {/* NCW (уведомление о завершении работ) */}
+                                    {task.ncwUrl ? (
+                                        <Box sx={{ mb: 2 }}>
+                                            <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+                                                <Typography variant="subtitle2" component="div">NCW (уведомление)</Typography>
+                                                <Tooltip title="Delete NCW">
+                                                    <IconButton
+                                                        size="small"
+                                                        aria-label="Delete NCW"
+                                                        onClick={() => setConfirmDeleteNcwOpen(true)}
+                                                    >
+                                                        <DeleteIcon fontSize="small" />
+                                                    </IconButton>
+                                                </Tooltip>
+                                            </Box>
+
+
+                                            <Box sx={{ display: 'flex', gap: 1, flexWrap: 'wrap', mt: 1 }}>
+                                                <Button
+                                                    component="a"
+                                                    href={task.ncwUrl}
+                                                    download
+                                                    startIcon={<CloudDownloadIcon />}
+                                                >
+                                                    {decodeURIComponent(task.ncwUrl.split('/').pop() || 'ncw.pdf')}
+                                                </Button>
+
+                                            </Box>
+                                        </Box>
+                                    ) : (
+                                        <Typography variant="body2" color="text.secondary" sx={{ mb: 2 }}>
+                                            No NCW uploaded
+                                        </Typography>
+                                    )}
+
 
                                     {/* Closing Documents */}
                                     {task.closingDocumentsUrl ? (
@@ -1490,6 +1574,27 @@ export default function TaskDetailPage() {
                     </Button>
                 </DialogActions>
             </Dialog>
+
+            {/* Подтверждение удаления файла уведомления */}
+            <Dialog open={confirmDeleteNcwOpen} onClose={() => setConfirmDeleteNcwOpen(false)}>
+                <DialogTitle>Delete NCW file?</DialogTitle>
+                <DialogContent>
+                    <Typography>NCW file will be permanently removed.</Typography>
+                </DialogContent>
+                <DialogActions>
+                    <Button onClick={() => setConfirmDeleteNcwOpen(false)}>Cancel</Button>
+                    <Button
+                        onClick={handleDeleteNcw}
+                        color="error"
+                        variant="contained"
+                        disabled={deletingNcw}
+                        startIcon={deletingNcw ? <CircularProgress size={20} color="inherit" /> : null}
+                    >
+                        {deletingNcw ? 'Deleting…' : 'Delete'}
+                    </Button>
+                </DialogActions>
+            </Dialog>
+
 
             <Snackbar open={snackbarOpen} autoHideDuration={6000} onClose={handleCloseSnackbar}>
                 <Alert onClose={handleCloseSnackbar} severity={snackbarSeverity} sx={{ width: '100%' }}>
