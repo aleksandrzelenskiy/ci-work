@@ -519,6 +519,7 @@ export default function TaskDetailPage() {
     const estimateFiles = allAttachments.filter((url) => isEstimateUrl(url, task.taskId));
     // remove all estimate files from visible attachments
     const otherAttachments = allAttachments.filter((url) => !isEstimateUrl(url, task.taskId));
+    const disallowedStatuses: CurrentStatus[] = ['To do', 'Assigned', 'At work'];
 
     return (
         <Box sx={{ maxWidth: 1200, margin: '0 auto', fontFamily: '"Roboto","Inter","Segoe UI",Arial,sans-serif' }}>
@@ -566,26 +567,31 @@ export default function TaskDetailPage() {
                         Edit
                     </Button>
                 )}
-                {userRole !== 'executor' && task.status === 'Done' && !task.ncwUrl && (
-                    <Button
-                        size="small"
-                        variant="outlined"
-                        onClick={() => {
-                            router.push(
-                                `/ncw?taskId=${encodeURIComponent(task.taskId)}` + // ВАЖНО
-                                `&orderNumber=${encodeURIComponent(task.orderNumber || '')}` +
-                                `&orderDate=${encodeURIComponent(
-                                    task.orderDate ? dayjs(task.orderDate).format('YYYY-MM-DD') : ''
-                                )}` +
-                                `&completionDate=${encodeURIComponent(completionDate)}` +
-                                `&objectNumber=${encodeURIComponent(task.bsNumber)}` +
-                                `&objectAddress=${encodeURIComponent(task.bsAddress)}`
-                            );
-                        }}
-                    >
-                        NCW
-                    </Button>
-                )}
+
+
+                {userRole !== 'executor' &&
+                    !task.ncwUrl &&
+                    !disallowedStatuses.includes(task.status) && (
+                        <Button
+                            size="small"
+                            variant="outlined"
+                            onClick={() => {
+                                router.push(
+                                    `/ncw?taskId=${encodeURIComponent(task.taskId)}` +
+                                    `&orderNumber=${encodeURIComponent(task.orderNumber || '')}` +
+                                    `&orderDate=${encodeURIComponent(
+                                        task.orderDate ? dayjs(task.orderDate).format('YYYY-MM-DD') : ''
+                                    )}` +
+                                    `&completionDate=${encodeURIComponent(completionDate)}` +
+                                    `&objectNumber=${encodeURIComponent(task.bsNumber)}` +
+                                    `&objectAddress=${encodeURIComponent(task.bsAddress)}`
+                                );
+                            }}
+                        >
+                            NCW
+                        </Button>
+                    )}
+
 
                 <Typography variant="body2" component="span">
                     Created by{' '}
