@@ -30,6 +30,8 @@ import {
   SearchControl,
 } from '@pbe/react-yandex-maps';
 
+
+
 // Ссылка на построение маршрута в Яндекс.Картах
 const yandexRouteUrl = (lat: number, lon: number) =>
     `https://yandex.ru/maps/?rtext=~${lat},${lon}&rtt=auto`;

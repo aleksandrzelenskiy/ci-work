@@ -81,7 +81,7 @@ export default function ExecutorFinancialMetrics() {
                     </Typography>
 
                     <Typography
-                        variant="h3"
+                        variant="h4"
                         fontWeight={600}
                         sx={{
                             cursor: 'pointer',

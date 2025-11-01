@@ -54,8 +54,10 @@ import ArrowBackIcon from '@mui/icons-material/ArrowBack';
 import CheckIcon from '@mui/icons-material/Check';
 import ExpandMoreIcon from '@mui/icons-material/ExpandMore';
 import ExpandLessIcon from '@mui/icons-material/ExpandLess';
-import CloudUploadIcon from '@mui/icons-material/CloudUpload';
+// import CloudUploadIcon from '@mui/icons-material/CloudUpload';
+import OpenInNewIcon from '@mui/icons-material/OpenInNew';
 import CloudDownloadIcon from '@mui/icons-material/CloudDownload';
+import AddLinkIcon from '@mui/icons-material/AddLink';
 import EditIcon from '@mui/icons-material/Edit';
 import DeleteIcon from '@mui/icons-material/Delete';
 import AttachFileIcon from '@mui/icons-material/AttachFile';
@@ -137,6 +139,11 @@ export default function TaskDetailPage() {
     const [isEditFormOpen, setIsEditFormOpen] = useState(false);
     const [selectedMapPoint, setSelectedMapPoint] = useState<{ coords: [number, number]; title: string } | null>(null);
     const [mapOpen, setMapOpen] = useState(false);
+
+    const [reportLinkDialogOpen, setReportLinkDialogOpen] = useState(false);
+    const [reportLinkValue, setReportLinkValue] = useState('');
+    const [savingReportLink, setSavingReportLink] = useState(false);
+
 
     const [openOrderDialog, setOpenOrderDialog] = useState(false);
     const [orderData, setOrderData] = useState({
@@ -268,6 +275,37 @@ export default function TaskDetailPage() {
             setConfirmDialogOpen(false);
         }
     };
+
+    const handleSaveReportLink = async () => {
+        try {
+            setSavingReportLink(true);
+            const res = await fetch(`/api/tasks/${encodeURIComponent(taskId)}`, {
+                method: 'PATCH',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ reportLink: reportLinkValue }),
+            });
+            const data = await res.json();
+            if (!res.ok) {
+                setSnackbarMessage(data?.error || 'Failed to save report link');
+                setSnackbarSeverity('error');
+                setSnackbarOpen(true);
+                return;
+            }
+            setTask(data.task);
+            setSnackbarMessage('Report link saved');
+            setSnackbarSeverity('success');
+            setSnackbarOpen(true);
+            setReportLinkDialogOpen(false);
+        } catch (e) {
+            console.error(e);
+            setSnackbarMessage('Failed to save report link');
+            setSnackbarSeverity('error');
+            setSnackbarOpen(true);
+        } finally {
+            setSavingReportLink(false);
+        }
+    };
+
 
     const handleConfirmAction = async () => {
         if (!task) return;
@@ -567,6 +605,21 @@ export default function TaskDetailPage() {
                         Edit
                     </Button>
                 )}
+
+                {task.reportLink && (
+                    <Button
+                        size="small"
+                        variant="outlined"
+                        component="a"
+                        href={task.reportLink}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        startIcon={<OpenInNewIcon />}
+                    >
+                        View report
+                    </Button>
+                )}
+
 
 
                 {userRole !== 'executor' &&
@@ -1079,24 +1132,44 @@ export default function TaskDetailPage() {
                                 task.status === 'Issues' ||
                                 task.status === 'Fixed' ||
                                 task.status === 'Agreed') && (
-                                <Box>
-                                    <Button
-                                        component={NextLink}
-                                        href={`/upload?taskId=${
-                                            task.taskId
-                                        }&taskName=${encodeURIComponent(task.taskName)}&bsNumber=${encodeURIComponent(
-                                            task.bsNumber
-                                        )}&executorName=${encodeURIComponent(
-                                            task.executorName
-                                        )}&executorId=${task.executorId}&initiatorName=${encodeURIComponent(
-                                            task.initiatorName
-                                        )}&initiatorId=${task.initiatorId}`}
-                                        variant="outlined"
-                                        startIcon={<CloudUploadIcon />}
-                                    >
-                                        Upload reports
-                                    </Button>
+                                <Box sx={{ display: 'flex', gap: 1, justifyContent: 'center', flexWrap: 'wrap' }}>
+                                    {/*<Button*/}
+                                    {/*    component={NextLink}*/}
+                                    {/*    href={`/upload?taskId=${task.taskId}&taskName=${encodeURIComponent(task.taskName)}&bsNumber=${encodeURIComponent(task.bsNumber)}&executorName=${encodeURIComponent(task.executorName)}&executorId=${task.executorId}&initiatorName=${encodeURIComponent(task.initiatorName)}&initiatorId=${task.initiatorId}`}*/}
+                                    {/*    variant="outlined"*/}
+                                    {/*    startIcon={<CloudUploadIcon />}*/}
+                                    {/*>*/}
+                                    {/*    Upload reports*/}
+                                    {/*</Button>*/}
+
+                                    {task.reportLink ? (
+                                        // если ссылка уже есть — показываем View report (видно и исполнителю, и менеджеру, но тут блок только для исполнителя;
+                                        // общий View report мы уже добавили в верхней панели)
+                                        <Button
+                                            variant="contained"
+                                            component="a"
+                                            href={task.reportLink}
+                                            target="_blank"
+                                            rel="noopener noreferrer"
+                                            startIcon={<OpenInNewIcon />}
+                                        >
+                                            View report
+                                        </Button>
+                                    ) : (
+                                        // если ссылки нет — только исполнитель видит Send link
+                                        <Button
+                                            variant="contained"
+                                            startIcon={<AddLinkIcon />}
+                                            onClick={() => {
+                                                setReportLinkValue(task.reportLink || '');
+                                                setReportLinkDialogOpen(true);
+                                            }}
+                                        >
+                                            Send link
+                                        </Button>
+                                    )}
                                 </Box>
+
                             )}
                     </Box>
                 </Grid>
@@ -1440,6 +1513,40 @@ export default function TaskDetailPage() {
                     </Button>
                 </DialogActions>
             </Dialog>
+
+            {/* Диалог добваления внешней ссылки фотоотчета */}
+            <Dialog
+                open={reportLinkDialogOpen}
+                onClose={() => setReportLinkDialogOpen(false)}
+                fullWidth
+                maxWidth="sm"
+            >
+                <DialogTitle>Send link</DialogTitle>
+                <DialogContent>
+                    <TextField
+                        label="Report link (Google Drive / Dropbox / S3 / др.)"
+                        fullWidth
+                        sx={{ mt: 1 }}
+                        value={reportLinkValue}
+                        onChange={(e) => setReportLinkValue(e.target.value)}
+                        placeholder="https://…"
+                    />
+                    <Typography variant="caption" color="text.secondary">
+                        Вставь ссылку на папку/архив с фотоотчётом (дайте доступ по ссылке).
+                    </Typography>
+                </DialogContent>
+                <DialogActions>
+                    <Button onClick={() => setReportLinkDialogOpen(false)}>Cancel</Button>
+                    <Button
+                        onClick={handleSaveReportLink}
+                        variant="contained"
+                        disabled={savingReportLink}
+                    >
+                        {savingReportLink ? <CircularProgress size={20} /> : 'Save'}
+                    </Button>
+                </DialogActions>
+            </Dialog>
+
 
             {/* Диалог заказа (admin) */}
             {userRole === 'admin' && (

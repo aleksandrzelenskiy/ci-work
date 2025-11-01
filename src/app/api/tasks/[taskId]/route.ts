@@ -26,6 +26,7 @@ interface UpdateData {
   orderDate?: string;      // ISO
   orderSignDate?: string;  // ISO
   workCompletionDate?: string; // ISO — дата окончания работ (= дата уведомления)
+  reportLink?: string;
   event?: { details?: { comment?: string } };
   existingAttachments?: string[];
   // решения исполнителя
@@ -33,6 +34,7 @@ interface UpdateData {
   accept?: boolean | string;
   reject?: boolean | string;
 }
+
 
 function toBool(x: unknown): boolean {
   if (typeof x === 'boolean') return x;
@@ -341,6 +343,38 @@ export async function PATCH(
       const d = new Date(updateData.workCompletionDate);
       if (!isNaN(d.getTime())) task.workCompletionDate = d;
     }
+
+    // === внешняя ссылка на отчёт ===
+    if (updateData.reportLink !== undefined) {
+      const v = (updateData.reportLink ?? '').trim();
+
+      if (v) {
+        // 1) сохраняем ссылку
+        task.reportLink = v;
+
+        // 2) если статус ещё не Pending — меняем и пишем событие
+        if (task.status !== 'Pending') {
+          task.events.push({
+            action: 'STATUS_CHANGED',
+            author: user.fullName || user.username || 'Unknown',
+            authorId: user.id,
+            date: new Date(),
+            details: {
+              oldStatus: task.status,
+              newStatus: 'Pending',
+              comment: 'Статус изменен после добавления ссылки на фотоотчет',
+            },
+          });
+          task.status = 'Pending';
+        }
+      } else {
+        // Пустая строка — очищаем значение
+        task.reportLink = '';
+      }
+    }
+
+
+
 
     // === Excel при Agreed ===
     if (updateData.status?.toLowerCase() === 'agreed' && !decision) {

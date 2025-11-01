@@ -113,6 +113,7 @@ export interface Task {
   orderSignDate?: Date;
   ncwUrl?: string;
   workCompletionDate?:  Date | string;
+  reportLink?: string;
   closingDocumentsUrl?: string;
 
   objectDetails: {

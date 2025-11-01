@@ -20,7 +20,7 @@ function createTransporter() {
   const user = process.env.EMAIL_USER || '';
   const pass = process.env.EMAIL_PASS || '';
 
-  // Если переменная не задана, то secure по умолчанию = true для 465, иначе false
+  // если переменная не задана, то secure по умолчанию = true для 465, иначе false
   const secureEnv = process.env.EMAIL_SECURE;
   const secure =
       typeof secureEnv === 'string'
@@ -33,28 +33,28 @@ function createTransporter() {
     secure,
     auth: user && pass ? { user, pass } : undefined,
 
-    // Пул соединений снижает шанс подвисаний/повторных коннектов
+    // снижает шанс подвисаний/повторных коннектов
     pool: true,
     maxConnections: 3,
     maxMessages: 50,
 
-    // Таймауты, чтобы не ждать бесконечно "Greeting"
-    // (значения можно подстроить под ваш хостинг)
+    // таймауты
+
     connectionTimeout: 10_000, // до установления TCP/TLS
     greetingTimeout: 10_000,   // ожидание SMTP greeting
     socketTimeout: 20_000,     // неактивность сокета
 
-    // Для некоторых хостингов полезно отключить строгую проверку сертификата
+    // отключить строгую проверку сертификата
     tls: {
       rejectUnauthorized: false,
     },
 
-    // Включите лог только на dev; на проде лучше выключить
+    // лог только на dev
     logger: true,
     debug: true,
   } as TransportOptions);
 
-  // Можно попытаться в фоне верифицировать соединение (не блокирует send)
+  // в фоне верифицировать соединение (не блокирует send)
   transporter.verify().then(
       () => {
         console.log(

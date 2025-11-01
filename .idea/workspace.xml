@@ -4,9 +4,9 @@
     <option name="autoReloadType" value="SELECTIVE" />
   </component>
   <component name="ChangeListManager">
-    <list default="true" id="b3c91f45-fbe1-4477-9fd9-38d0fcaf660d" name="Changes" comment="Add Complete column after Due Date and render workCompletionDate as dd.mm.yyyy">
+    <list default="true" id="b3c91f45-fbe1-4477-9fd9-38d0fcaf660d" name="Changes" comment="Add Complete date to TaskColumnPage ExecutorFinancialMetrics UI to English">
       <change beforePath="$PROJECT_DIR$/.idea/workspace.xml" beforeDir="false" afterPath="$PROJECT_DIR$/.idea/workspace.xml" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/src/app/components/TaskColumnPage.tsx" beforeDir="false" afterPath="$PROJECT_DIR$/src/app/components/TaskColumnPage.tsx" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/src/app/components/dashboards/ExecutorFinancialMetrics.tsx" beforeDir="false" afterPath="$PROJECT_DIR$/src/app/components/dashboards/ExecutorFinancialMetrics.tsx" afterDir="false" />
     </list>
     <option name="SHOW_DIALOG" value="false" />
     <option name="HIGHLIGHT_CONFLICTS" value="true" />
@@ -112,7 +112,7 @@
       <workItem from="1760916582067" duration="864000" />
       <workItem from="1761024187633" duration="5895000" />
       <workItem from="1761720378244" duration="633000" />
-      <workItem from="1761887562972" duration="14447000" />
+      <workItem from="1761887562972" duration="15306000" />
     </task>
     <task id="LOCAL-00001" summary="Dockerfile has been modified #2">
       <option name="closed" value="true" />
@@ -426,14 +426,21 @@
       <option name="project" value="LOCAL" />
       <updated>1761906293989</updated>
     </task>
-    <option name="localTasksCounter" value="40" />
+    <task id="LOCAL-00040" summary="Add Complete date to TaskColumnPage ExecutorFinancialMetrics UI to English">
+      <option name="closed" value="true" />
+      <created>1761909429818</created>
+      <option name="number" value="00040" />
+      <option name="presentableId" value="LOCAL-00040" />
+      <option name="project" value="LOCAL" />
+      <updated>1761909429818</updated>
+    </task>
+    <option name="localTasksCounter" value="41" />
     <servers />
   </component>
   <component name="TypeScriptGeneratedFilesManager">
     <option name="version" value="3" />
   </component>
   <component name="VcsManagerConfiguration">
-    <MESSAGE value="upload route has been modified" />
     <MESSAGE value="change .pro to .ru" />
     <MESSAGE value="upload page has been modified" />
     <MESSAGE value="Fix body parsing: pass req directly to Busboy" />
@@ -458,6 +465,7 @@
     <MESSAGE value="Creation Org/Project logic for project-managment workspace.&#10;Creation Workspace conNCW/Order: add confirm delete; unset DB fields on delete;." />
     <MESSAGE value="NCW Button hiden for all status before Done" />
     <MESSAGE value="Add Complete column after Due Date and render workCompletionDate as dd.mm.yyyy" />
-    <option name="LAST_COMMIT_MESSAGE" value="Add Complete column after Due Date and render workCompletionDate as dd.mm.yyyy" />
+    <MESSAGE value="Add Complete date to TaskColumnPage ExecutorFinancialMetrics UI to English" />
+    <option name="LAST_COMMIT_MESSAGE" value="Add Complete date to TaskColumnPage ExecutorFinancialMetrics UI to English" />
   </component>
 </project>
