@@ -362,7 +362,7 @@ export async function PATCH(
             details: {
               oldStatus: task.status,
               newStatus: 'Pending',
-              comment: 'Статус изменен после добавления ссылки на фотоотчет',
+              comment: 'Status changed after adding the photo report link',
             },
           });
           task.status = 'Pending';

@@ -85,6 +85,8 @@ import { getStatusColor } from '@/utils/statusColors';
 import { useDropzone } from 'react-dropzone';
 import LinearProgress from '@mui/material/LinearProgress';
 
+type UserRole = 'admin' | 'author' | 'executor' | 'initiator';
+
 type TaskComment = Task['comments'] extends Array<infer T> ? T : never;
 
 const parseUserInfo = (userString?: string) => {
@@ -123,13 +125,14 @@ export default function TaskDetailPage() {
     const { taskId } = params;
     const router = useRouter();
 
+    const [userRole, setUserRole] = useState<UserRole | null>(null);
+
     const [task, setTask] = useState<Task | null>(null);
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState<string | null>(null);
 
     const [workItemsExpanded, setWorkItemsExpanded] = useState(false);
     const [loadingStatus, setLoadingStatus] = useState(false);
-    const [userRole, setUserRole] = useState<string | null>(null);
     const [confirmDialogOpen, setConfirmDialogOpen] = useState(false);
     const [confirmAction, setConfirmAction] =
         useState<'accept' | 'reject' | 'done' | 'refuse' | null>(null);
@@ -207,13 +210,15 @@ export default function TaskDetailPage() {
     };
 
 
+
     useEffect(() => {
         const fetchUserRole = async () => {
             const user = await GetCurrentUserFromMongoDB();
-            if (user.success) setUserRole(user.data.role);
+            if (user.success) setUserRole(user.data.role as UserRole);
         };
         void fetchUserRole();
     }, []);
+
 
     const agreedEvent = task?.events?.find(
         (e) => e.action === 'STATUS_CHANGED' && e.details?.newStatus === 'Agreed'
@@ -595,7 +600,7 @@ export default function TaskDetailPage() {
 
             <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, mb: 3, flexWrap: 'wrap' }}>
                 <Chip label={String(task.taskId)} color="default" />
-                {userRole !== 'executor' && (
+                {!isExecutor && (
                     <Button
                         size="small"
                         variant="outlined"
@@ -619,32 +624,6 @@ export default function TaskDetailPage() {
                         View report
                     </Button>
                 )}
-
-
-
-                {userRole !== 'executor' &&
-                    !task.ncwUrl &&
-                    !disallowedStatuses.includes(task.status) && (
-                        <Button
-                            size="small"
-                            variant="outlined"
-                            onClick={() => {
-                                router.push(
-                                    `/ncw?taskId=${encodeURIComponent(task.taskId)}` +
-                                    `&orderNumber=${encodeURIComponent(task.orderNumber || '')}` +
-                                    `&orderDate=${encodeURIComponent(
-                                        task.orderDate ? dayjs(task.orderDate).format('YYYY-MM-DD') : ''
-                                    )}` +
-                                    `&completionDate=${encodeURIComponent(completionDate)}` +
-                                    `&objectNumber=${encodeURIComponent(task.bsNumber)}` +
-                                    `&objectAddress=${encodeURIComponent(task.bsAddress)}`
-                                );
-                            }}
-                        >
-                            NCW
-                        </Button>
-                    )}
-
 
                 <Typography variant="body2" component="span">
                     Created by{' '}
@@ -755,7 +734,7 @@ export default function TaskDetailPage() {
                                     </Typography>
                                 )}
 
-                                {task.orderNumber && task.orderDate && (
+                                {userRole !== 'executor' && task.orderNumber && task.orderDate && (
                                     <>
                                         <Typography>
                                             <strong>Order Number:</strong> {task.orderNumber}
@@ -941,9 +920,34 @@ export default function TaskDetailPage() {
                                             </Box>
                                         </Box>
                                     ) : (
-                                        <Typography variant="body2" color="text.secondary" sx={{ mb: 2 }}>
-                                            No NCW uploaded
-                                        </Typography>
+                                        <>
+                                            {!isExecutor && !disallowedStatuses.includes(task.status) ? (
+                                                <Box sx={{ mb: 2 }}>
+                                                <Button
+                                                    size="small"
+                                                    variant="outlined"
+                                                    onClick={() => {
+                                                        router.push(
+                                                            `/ncw?taskId=${encodeURIComponent(task.taskId)}` +
+                                                            `&orderNumber=${encodeURIComponent(task.orderNumber || '')}` +
+                                                            `&orderDate=${encodeURIComponent(
+                                                                task.orderDate ? dayjs(task.orderDate).format('YYYY-MM-DD') : ''
+                                                            )}` +
+                                                            `&completionDate=${encodeURIComponent(completionDate)}` +
+                                                            `&objectNumber=${encodeURIComponent(task.bsNumber)}` +
+                                                            `&objectAddress=${encodeURIComponent(task.bsAddress)}`
+                                                        );
+                                                    }}
+                                                >
+                                                    Add NCW
+                                                </Button>
+                                                </Box>
+                                            ) : (
+                                                <Typography variant="body2" color="text.secondary" sx={{ mb: 2 }}>
+                                                    No NCW uploaded
+                                                </Typography>
+                                            )}
+                                        </>
                                     )}
 
 
