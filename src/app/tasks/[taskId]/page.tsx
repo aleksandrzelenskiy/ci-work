@@ -86,6 +86,7 @@ import { useDropzone } from 'react-dropzone';
 import LinearProgress from '@mui/material/LinearProgress';
 
 type UserRole = 'admin' | 'author' | 'executor' | 'initiator';
+type LoadedRole = UserRole | 'unknown';
 
 type TaskComment = Task['comments'] extends Array<infer T> ? T : never;
 
@@ -125,7 +126,7 @@ export default function TaskDetailPage() {
     const { taskId } = params;
     const router = useRouter();
 
-    const [userRole, setUserRole] = useState<UserRole | null>(null);
+    const [userRole, setUserRole] = useState<LoadedRole>('unknown');
 
     const [task, setTask] = useState<Task | null>(null);
     const [loading, setLoading] = useState(true);
@@ -215,6 +216,7 @@ export default function TaskDetailPage() {
         const fetchUserRole = async () => {
             const user = await GetCurrentUserFromMongoDB();
             if (user.success) setUserRole(user.data.role as UserRole);
+            else setUserRole('executor'); // безопасный дефолт
         };
         void fetchUserRole();
     }, []);
@@ -553,7 +555,8 @@ export default function TaskDetailPage() {
         );
     }
 
-    const isExecutor = userRole === 'executor';
+    const isExecutor  = userRole === 'executor';
+
     const isTaskAssigned = task.status === 'Assigned';
     const isTaskAtWork = task.status === 'At work';
 
