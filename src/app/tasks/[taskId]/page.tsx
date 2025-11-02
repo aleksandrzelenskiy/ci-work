@@ -86,7 +86,7 @@ import { useDropzone } from 'react-dropzone';
 import LinearProgress from '@mui/material/LinearProgress';
 
 type UserRole = 'admin' | 'author' | 'executor' | 'initiator';
-type LoadedRole = UserRole | 'unknown';
+type LoadedRole = UserRole | null;
 
 type TaskComment = Task['comments'] extends Array<infer T> ? T : never;
 
@@ -126,7 +126,7 @@ export default function TaskDetailPage() {
     const { taskId } = params;
     const router = useRouter();
 
-    const [userRole, setUserRole] = useState<LoadedRole>('unknown');
+    const [userRole, setUserRole] = useState<LoadedRole>(null);
 
     const [task, setTask] = useState<Task | null>(null);
     const [loading, setLoading] = useState(true);
@@ -211,6 +211,8 @@ export default function TaskDetailPage() {
     };
 
 
+
+    const roleLoaded = userRole !== null;
 
     useEffect(() => {
         const fetchUserRole = async () => {
@@ -603,7 +605,7 @@ export default function TaskDetailPage() {
 
             <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, mb: 3, flexWrap: 'wrap' }}>
                 <Chip label={String(task.taskId)} color="default" />
-                {!isExecutor && (
+                {roleLoaded && userRole !== 'executor' && (
                     <Button
                         size="small"
                         variant="outlined"
@@ -660,13 +662,11 @@ export default function TaskDetailPage() {
 
                                 <Typography>
                                     <strong>
-                                        {userRole
-                                            ? userRole === 'executor'
-                                                ? 'Cost:'
-                                                : 'Total Cost:'
-                                            : 'Loading...'}
+                                          {!roleLoaded ? ' ' : userRole === 'executor' ? 'Cost:' : 'Total Cost:'}
                                     </strong>{' '}
-                                    {userRole ? (
+                                     {!roleLoaded ? (
+                                       <Skeleton variant="text" width={100} sx={{ display: 'inline-block' }} />
+                                     ) : (
                                         (() => {
                                             const total = task.totalCost;
                                             const commission = total * FINANCE_CONFIG.COMMISSION_PERCENT;
@@ -714,8 +714,6 @@ export default function TaskDetailPage() {
                                                 );
                                             }
                                         })()
-                                    ) : (
-                                        <Skeleton variant="text" width={100} />
                                     )}
                                 </Typography>
 
@@ -737,7 +735,7 @@ export default function TaskDetailPage() {
                                     </Typography>
                                 )}
 
-                                {userRole !== 'executor' && task.orderNumber && task.orderDate && (
+                                {roleLoaded && userRole !== 'executor' && task.orderNumber && task.orderDate && (
                                     <>
                                         <Typography>
                                             <strong>Order Number:</strong> {task.orderNumber}
@@ -924,26 +922,24 @@ export default function TaskDetailPage() {
                                         </Box>
                                     ) : (
                                         <>
-                                            {!isExecutor && !disallowedStatuses.includes(task.status) ? (
+                                            {!disallowedStatuses.includes(task.status) ? (
                                                 <Box sx={{ mb: 2 }}>
-                                                <Button
-                                                    size="small"
-                                                    variant="outlined"
-                                                    onClick={() => {
-                                                        router.push(
-                                                            `/ncw?taskId=${encodeURIComponent(task.taskId)}` +
-                                                            `&orderNumber=${encodeURIComponent(task.orderNumber || '')}` +
-                                                            `&orderDate=${encodeURIComponent(
-                                                                task.orderDate ? dayjs(task.orderDate).format('YYYY-MM-DD') : ''
-                                                            )}` +
-                                                            `&completionDate=${encodeURIComponent(completionDate)}` +
-                                                            `&objectNumber=${encodeURIComponent(task.bsNumber)}` +
-                                                            `&objectAddress=${encodeURIComponent(task.bsAddress)}`
-                                                        );
-                                                    }}
-                                                >
-                                                    Add NCW
-                                                </Button>
+                                                    <Button
+                                                        size="small"
+                                                        variant="outlined"
+                                                        onClick={() => {
+                                                            router.push(
+                                                                `/ncw?taskId=${encodeURIComponent(task.taskId)}` +
+                                                                `&orderNumber=${encodeURIComponent(task.orderNumber || '')}` +
+                                                                `&orderDate=${encodeURIComponent(task.orderDate ? dayjs(task.orderDate).format('YYYY-MM-DD') : '')}` +
+                                                                `&completionDate=${encodeURIComponent(completionDate)}` +
+                                                                `&objectNumber=${encodeURIComponent(task.bsNumber)}` +
+                                                                `&objectAddress=${encodeURIComponent(task.bsAddress)}`
+                                                            );
+                                                        }}
+                                                    >
+                                                        Add NCW
+                                                    </Button>
                                                 </Box>
                                             ) : (
                                                 <Typography variant="body2" color="text.secondary" sx={{ mb: 2 }}>
@@ -952,7 +948,6 @@ export default function TaskDetailPage() {
                                             )}
                                         </>
                                     )}
-
 
                                     {/* Closing Documents */}
                                     {task.closingDocumentsUrl ? (
@@ -1500,8 +1495,8 @@ export default function TaskDetailPage() {
                         `Are you sure you want to refuse the task ${task.taskName} | ${task.bsNumber}?`}
                 </DialogTitle>
                 <DialogContent>
-                    {(confirmAction === 'accept' || confirmAction === 'done') && (
-                        <Typography>The due date is {dayjs(task.dueDate).format('DD.MM.YYYY')}.</Typography>
+                    {confirmAction === 'accept' && (
+                        <Typography variant="button">The due date is {dayjs(task.dueDate).format('DD.MM.YYYY')}.</Typography>
                     )}
                 </DialogContent>
                 <DialogActions>
