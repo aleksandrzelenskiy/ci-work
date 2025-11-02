@@ -1496,7 +1496,7 @@ export default function TaskDetailPage() {
                 </DialogTitle>
                 <DialogContent>
                     {confirmAction === 'accept' && (
-                        <Typography variant="button">The due date is {dayjs(task.dueDate).format('DD.MM.YYYY')}.</Typography>
+                        <Typography variant="button">DUE DATE IS {dayjs(task.dueDate).format('DD.MM.YYYY')}.</Typography>
                     )}
                 </DialogContent>
                 <DialogActions>
