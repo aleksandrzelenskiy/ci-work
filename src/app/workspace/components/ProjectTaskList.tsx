@@ -5,11 +5,11 @@ import React, { useMemo, useState } from 'react';
 import {
     Box, Table, TableBody, TableCell, TableContainer, TableHead, TableRow, Typography,
     IconButton, Tooltip, Chip, Popover, FormControl, InputLabel, Select, MenuItem,
-    TextField, Checkbox, List, ListItem, ListItemIcon, ListItemText, Pagination, Alert, Avatar, Stack
+    Checkbox, List, ListItem, ListItemIcon, ListItemText, Pagination, Alert, Avatar, Stack
 } from '@mui/material';
 import ViewColumnIcon from '@mui/icons-material/ViewColumn';
 import FilterListIcon from '@mui/icons-material/FilterList';
-import SearchIcon from '@mui/icons-material/Search';
+import { getStatusColor } from '@/utils/statusColors';
 
 /* ───────────── типы ───────────── */
 type Status = 'TO DO' | 'IN PROGRESS' | 'DONE';
@@ -28,13 +28,7 @@ type Task = {
     priority?: Priority | string;
 };
 
-/* ───────────── константы ───────────── */
-const STATUS_COLOR: Record<Status, 'default' | 'primary' | 'success' | 'warning' | 'info' | 'error'> = {
-    'TO DO': 'default',
-    'IN PROGRESS': 'info',
-    'DONE': 'success',
-};
-
+/* ───────────── формат даты ───────────── */
 const formatDate = (iso?: string) => {
     if (!iso) return '—';
     const d = new Date(iso);
@@ -42,12 +36,28 @@ const formatDate = (iso?: string) => {
     return d.toLocaleDateString('ru-RU');
 };
 
-/* нормализаторы */
+/* нормализация для фильтра (оставляем вашу схему фильтров) */
 const normStatus = (s?: string): Status =>
     (s ? s.toString() : 'TO DO').toUpperCase() as Status;
 
 const normPriority = (p?: string): Priority | '' =>
     p ? (p.toString().toLowerCase() as Priority) : '';
+
+/* маппинг статусов к утилите цветов (Title Case из вашей color-утилиты) */
+const mapToColorUtilStatus = (s?: string): string => {
+    if (!s) return 'To do';
+    const u = s.toString().trim().toUpperCase();
+    switch (u) {
+        case 'TO DO':
+            return 'To do';
+        case 'IN PROGRESS':
+            return 'At work';
+        case 'DONE':
+            return 'Done';
+        default:
+            return s;
+    }
+};
 
 /* ───────────── компонент ───────────── */
 export default function ProjectTaskList({
@@ -59,12 +69,11 @@ export default function ProjectTaskList({
     loading: boolean;
     error: string | null;
 }) {
-    // ── фильтры ─────────────────────────────────────────────────────────
+    // ── фильтры (оставляем только статус/приоритет) ─────────────────────
     const [status, setStatus] = useState<'' | Status>('');
     const [priority, setPriority] = useState<'' | Priority>('');
-    const [bsQuery, setBsQuery] = useState('');
 
-    // ── колонки ────────────────────────────────────────────────────────
+    // ── колонки ─────────────────────────────────────────────────────────
     const [columnVisibility, setColumnVisibility] = useState<Record<string, boolean>>({
         taskId: true,
         task: true,
@@ -76,38 +85,22 @@ export default function ProjectTaskList({
     const toggleColumn = (key: string) =>
         setColumnVisibility((v) => ({ ...v, [key]: !v[key] }));
 
-    // ── поповер ────────────────────────────────────────────────────────
+    // ── поповер (только для колонок) ────────────────────────────────────
     const [anchorEl, setAnchorEl] = useState<HTMLElement | null>(null);
-    const [currentFilter, setCurrentFilter] = useState<string>('');
-    const openPopover = (e: React.MouseEvent<HTMLElement>, type: string) => {
-        setAnchorEl(e.currentTarget);
-        setCurrentFilter(type);
-    };
-    const closePopover = () => {
-        setAnchorEl(null);
-        setCurrentFilter('');
-    };
+    const openColumnsPopover = (e: React.MouseEvent<HTMLElement>) => setAnchorEl(e.currentTarget);
+    const closePopover = () => setAnchorEl(null);
 
-    // ── пагинация ──────────────────────────────────────────────────────
+    // ── пагинация ───────────────────────────────────────────────────────
     const [page, setPage] = useState(1);
     const [rowsPerPage, setRowsPerPage] = useState<number>(10);
 
-    // ── применяем фильтры к props.items ────────────────────────────────
+    // ── применяем только локальные фильтры статуса/приоритета ──────────
     const filtered = useMemo(() => {
         let res = [...items];
-
-        if (status) {
-            res = res.filter((t) => normStatus(t.status as string) === status);
-        }
-        if (priority) {
-            res = res.filter((t) => normPriority(t.priority as string) === priority);
-        }
-        if (bsQuery) {
-            const q = bsQuery.toLowerCase();
-            res = res.filter((t) => (t.bsNumber || '').toLowerCase().includes(q));
-        }
+        if (status) res = res.filter((t) => normStatus(t.status as string) === status);
+        if (priority) res = res.filter((t) => normPriority(t.priority as string) === priority);
         return res;
-    }, [items, status, priority, bsQuery]);
+    }, [items, status, priority]);
 
     const totalPages = rowsPerPage === -1 ? 1 : Math.max(1, Math.ceil(filtered.length / rowsPerPage));
     const pageSlice =
@@ -115,7 +108,7 @@ export default function ProjectTaskList({
             ? filtered
             : filtered.slice((page - 1) * rowsPerPage, (page - 1) * rowsPerPage + rowsPerPage);
 
-    // ── UI ─────────────────────────────────────────────────────────────
+    // ── UI ──────────────────────────────────────────────────────────────
     if (loading) {
         return (
             <Box sx={{ p: 3, textAlign: 'center' }}>
@@ -127,16 +120,16 @@ export default function ProjectTaskList({
 
     return (
         <Box>
-            {/* верхняя панель фильтров */}
+            {/* верхняя панель (колонки + локальные фильтры статуса/приоритета) */}
             <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.5, px: 1, pb: 1 }}>
                 <Tooltip title="Управление колонками">
-                    <IconButton onClick={(e) => openPopover(e, 'columns')}>
+                    <IconButton onClick={openColumnsPopover}>
                         <ViewColumnIcon />
                     </IconButton>
                 </Tooltip>
 
                 <FormControl size="small" sx={{ minWidth: 160 }}>
-                    <InputLabel>Status</InputLabel>
+                    <InputLabel>Статус</InputLabel>
                     <Select
                         label="Status"
                         value={status}
@@ -153,7 +146,7 @@ export default function ProjectTaskList({
                 </FormControl>
 
                 <FormControl size="small" sx={{ minWidth: 160 }}>
-                    <InputLabel>Priority</InputLabel>
+                    <InputLabel>Приоритет</InputLabel>
                     <Select
                         label="Priority"
                         value={priority}
@@ -170,17 +163,10 @@ export default function ProjectTaskList({
                     </Select>
                 </FormControl>
 
-                <Tooltip title="Search BS">
-                    <IconButton onClick={(e) => openPopover(e, 'bs')} color={bsQuery ? 'primary' : 'default'}>
-                        <SearchIcon />
-                    </IconButton>
-                </Tooltip>
-
-                {/* чипы активных фильтров */}
+                {/* чипы активных локальных фильтров */}
                 <Box sx={{ display: 'flex', gap: 1, flexWrap: 'wrap', ml: 'auto' }}>
                     {status && <Chip size="small" color="primary" label={`Status: ${status}`} onDelete={() => setStatus('')} />}
                     {priority && <Chip size="small" color="primary" label={`Priority: ${priority}`} onDelete={() => setPriority('')} />}
-                    {bsQuery && <Chip size="small" color="primary" label={`BS: ${bsQuery}`} onDelete={() => setBsQuery('')} />}
                 </Box>
             </Box>
 
@@ -189,11 +175,11 @@ export default function ProjectTaskList({
                     <TableHead>
                         <TableRow>
                             {columnVisibility.taskId && <TableCell width={100} align="center"><strong>ID</strong></TableCell>}
-                            {columnVisibility.task && <TableCell><strong>Task</strong></TableCell>}
-                            {columnVisibility.status && <TableCell width={160} align="center"><strong>Status</strong></TableCell>}
-                            {columnVisibility.priority && <TableCell width={140} align="center"><strong>Priority</strong></TableCell>}
-                            {columnVisibility.assignees && <TableCell width={240}><strong>Assignees</strong></TableCell>}
-                            {columnVisibility.due && <TableCell width={140} align="center"><strong>Due date</strong></TableCell>}
+                            {columnVisibility.task && <TableCell><strong>Задача</strong></TableCell>}
+                            {columnVisibility.status && <TableCell width={160} align="center"><strong>Статус</strong></TableCell>}
+                            {columnVisibility.priority && <TableCell width={140} align="center"><strong>Приоритет</strong></TableCell>}
+                            {columnVisibility.assignees && <TableCell width={240}><strong>Исполнитель</strong></TableCell>}
+                            {columnVisibility.due && <TableCell width={140} align="center"><strong>Срок</strong></TableCell>}
                         </TableRow>
                     </TableHead>
                     <TableBody>
@@ -206,8 +192,9 @@ export default function ProjectTaskList({
                         )}
 
                         {pageSlice.map((t) => {
-                            const safeStatus = normStatus(t.status as string);
+                            const safeStatusForFilter = normStatus(t.status as string);
                             const safePriority = (normPriority(t.priority as string) || 'medium') as Priority;
+                            const statusForColor = mapToColorUtilStatus(t.status as string);
 
                             return (
                                 <TableRow key={t._id}>
@@ -230,9 +217,13 @@ export default function ProjectTaskList({
                                         <TableCell align="center">
                                             <Chip
                                                 size="small"
+                                                label={safeStatusForFilter}
                                                 variant="outlined"
-                                                label={safeStatus}
-                                                color={STATUS_COLOR[safeStatus] ?? 'default'}
+                                                sx={{
+                                                    bgcolor: getStatusColor(statusForColor),
+                                                    color: '#fff',
+                                                    borderColor: 'transparent',
+                                                }}
                                             />
                                         </TableCell>
                                     )}
@@ -306,7 +297,7 @@ export default function ProjectTaskList({
                 />
             </Box>
 
-            {/* Popover: колонки / BS-поиск */}
+            {/* Popover: только колонки */}
             <Popover
                 open={Boolean(anchorEl)}
                 anchorEl={anchorEl}
@@ -314,54 +305,37 @@ export default function ProjectTaskList({
                 anchorOrigin={{ vertical: 'bottom', horizontal: 'left' }}
             >
                 <Box sx={{ p: 2, minWidth: 240 }}>
-                    {currentFilter === 'columns' && (
-                        <>
-                            <List dense>
-                                {Object.keys(columnVisibility).map((key) => (
-                                    <ListItem key={key} component="button">
-                                        <ListItemIcon>
-                                            <Checkbox
-                                                checked={columnVisibility[key]}
-                                                onChange={() => toggleColumn(key)}
-                                            />
-                                        </ListItemIcon>
-                                        <ListItemText primary={key[0].toUpperCase() + key.slice(1)} />
-                                    </ListItem>
-                                ))}
-                            </List>
-                            <Box sx={{ display: 'flex', justifyContent: 'space-between', mt: 1 }}>
-                                <IconButton
-                                    aria-label="show all"
-                                    onClick={() =>
-                                        setColumnVisibility(Object.fromEntries(Object.keys(columnVisibility).map(k => [k, true])))
-                                    }
-                                >
-                                    <FilterListIcon />
-                                </IconButton>
-                                <IconButton
-                                    aria-label="hide all"
-                                    onClick={() =>
-                                        setColumnVisibility(Object.fromEntries(Object.keys(columnVisibility).map(k => [k, false])))
-                                    }
-                                >
-                                    <FilterListIcon color="disabled" />
-                                </IconButton>
-                            </Box>
-                        </>
-                    )}
-
-                    {currentFilter === 'bs' && (
-                        <TextField
-                            label="Search BS"
-                            value={bsQuery}
-                            onChange={(e) => {
-                                setBsQuery(e.target.value);
-                                setPage(1);
-                            }}
-                            fullWidth
-                            autoFocus
-                        />
-                    )}
+                    <List dense>
+                        {Object.keys(columnVisibility).map((key) => (
+                            <ListItem key={key}>
+                                <ListItemIcon>
+                                    <Checkbox
+                                        checked={columnVisibility[key]}
+                                        onChange={() => toggleColumn(key)}
+                                    />
+                                </ListItemIcon>
+                                <ListItemText primary={key[0].toUpperCase() + key.slice(1)} />
+                            </ListItem>
+                        ))}
+                    </List>
+                    <Box sx={{ display: 'flex', justifyContent: 'space-between', mt: 1 }}>
+                        <IconButton
+                            aria-label="show all"
+                            onClick={() =>
+                                setColumnVisibility(Object.fromEntries(Object.keys(columnVisibility).map(k => [k, true])))
+                            }
+                        >
+                            <FilterListIcon />
+                        </IconButton>
+                        <IconButton
+                            aria-label="hide all"
+                            onClick={() =>
+                                setColumnVisibility(Object.fromEntries(Object.keys(columnVisibility).map(k => [k, false])))
+                            }
+                        >
+                            <FilterListIcon color="disabled" />
+                        </IconButton>
+                    </Box>
                 </Box>
             </Popover>
         </Box>

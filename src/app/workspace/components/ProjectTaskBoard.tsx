@@ -1,8 +1,8 @@
 // src/app/workspace/components/ProjectTaskBoard.tsx
 'use client';
 
-import React, { useMemo, useState } from 'react';
-import { Box, Typography, Card, CardContent, Chip, TextField } from '@mui/material';
+import React, { useMemo } from 'react';
+import { Box, Typography, Card, CardContent, Chip } from '@mui/material';
 import Tooltip from '@mui/material/Tooltip';
 import TaskOutlinedIcon from '@mui/icons-material/TaskOutlined';
 
@@ -22,7 +22,7 @@ const statusOrder = ['TO DO', 'IN PROGRESS', 'DONE'] as const;
 const statusChipColor: Record<string, string> = {
     'TO DO': '#9e9e9e',
     'IN PROGRESS': '#0288d1',
-    'DONE': '#2e7d32',
+    DONE: '#2e7d32',
 };
 
 const prColor: Record<NonNullable<Task['priority']>, string> = {
@@ -32,7 +32,7 @@ const prColor: Record<NonNullable<Task['priority']>, string> = {
     low: '#388e3c',
 };
 
-const formatDateRU = (v?: string) => v ? new Date(v).toLocaleDateString('ru-RU') : '—';
+const formatDateRU = (v?: string) => (v ? new Date(v).toLocaleDateString('ru-RU') : '—');
 
 function TaskCard({ t }: { t: Task }) {
     return (
@@ -44,7 +44,9 @@ function TaskCard({ t }: { t: Task }) {
                 </Typography>
             </Box>
             <CardContent>
-                <Typography variant="subtitle1" gutterBottom>{t.taskName}</Typography>
+                <Typography variant="subtitle1" gutterBottom>
+                    {t.taskName}
+                </Typography>
                 <Typography variant="body2">BS: {t.bsNumber || '—'}</Typography>
                 <Typography variant="caption">Due date: {formatDateRU(t.dueDate)}</Typography>
             </CardContent>
@@ -73,57 +75,49 @@ export default function ProjectTaskBoard({
     loading: boolean;
     error: string | null;
 }) {
-    const [query, setQuery] = useState('');
-
-    const filtered = useMemo(() => {
-        if (!query) return items;
-        const q = query.toLowerCase();
-        return items.filter(t =>
-            (t.bsNumber || '').toLowerCase().includes(q) ||
-            (t.taskName || '').toLowerCase().includes(q) ||
-            (t.taskId || '').toLowerCase().includes(q)
-        );
-    }, [items, query]);
-
     const grouped = useMemo(() => {
-        const m: Record<string, Task[]> = { 'TO DO': [], 'IN PROGRESS': [], 'DONE': [] };
-        for (const t of filtered) {
+        const m: Record<string, Task[]> = { 'TO DO': [], 'IN PROGRESS': [], DONE: [] };
+        for (const t of items) {
             const s = (t.status || 'TO DO').toUpperCase();
             (m[s] || m['TO DO']).push(t);
         }
         return m;
-    }, [filtered]);
+    }, [items]);
 
-    if (loading) return <Box sx={{ p: 3, textAlign: 'center' }}><Typography color="text.secondary">Загрузка…</Typography></Box>;
-    if (error) return <Box sx={{ p: 2 }}><Typography color="error">{error}</Typography></Box>;
+    if (loading)
+        return (
+            <Box sx={{ p: 3, textAlign: 'center' }}>
+                <Typography color="text.secondary">Загрузка…</Typography>
+            </Box>
+        );
+    if (error)
+        return (
+            <Box sx={{ p: 2 }}>
+                <Typography color="error">{error}</Typography>
+            </Box>
+        );
 
     return (
         <Box>
-            <Box sx={{ p: 2 }}>
-                <TextField
-                    label="Search by BS or task"
-                    size="small"
-                    fullWidth
-                    value={query}
-                    onChange={(e) => setQuery(e.target.value)}
-                />
-            </Box>
-
             <Box sx={{ display: 'flex', gap: 3, p: 3, overflowX: 'auto', minHeight: '60vh' }}>
                 {statusOrder.map((status) => (
-                    <Box key={status}
-                         sx={{
-                             minWidth: 260,
-                             backgroundColor: 'background.paper',
-                             p: 2,
-                             borderRadius: 2,
-                             border: '1px solid',
-                             borderColor: 'divider'
-                         }}>
+                    <Box
+                        key={status}
+                        sx={{
+                            minWidth: 260,
+                            backgroundColor: 'background.paper',
+                            p: 2,
+                            borderRadius: 2,
+                            border: '1px solid',
+                            borderColor: 'divider',
+                        }}
+                    >
                         <Typography variant="h6" sx={{ mb: 2, textTransform: 'none' }}>
                             {status} ({grouped[status]?.length || 0})
                         </Typography>
-                        {(grouped[status] || []).map((t) => <TaskCard key={t._id} t={t} />)}
+                        {(grouped[status] || []).map((t) => (
+                            <TaskCard key={t._id} t={t} />
+                        ))}
                     </Box>
                 ))}
             </Box>

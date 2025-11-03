@@ -4,8 +4,16 @@
 import * as React from 'react';
 import { useParams } from 'next/navigation';
 import {
-    Box, Stack, Typography, Button, Tabs, Tab, Paper,
-    TextField, IconButton, Tooltip
+    Box,
+    Stack,
+    Typography,
+    Button,
+    Tabs,
+    Tab,
+    Paper,
+    TextField,
+    IconButton,
+    Tooltip,
 } from '@mui/material';
 import AddIcon from '@mui/icons-material/Add';
 import RefreshIcon from '@mui/icons-material/Refresh';
@@ -28,12 +36,17 @@ type Task = {
     priority?: 'urgent' | 'high' | 'medium' | 'low';
 };
 
+type OrgInfo = { _id: string; name: string; orgSlug: string };
+
 type ApiListResponse =
     | { ok: true; page: number; limit: number; total: number; items: Task[] }
     | { error: string };
 
 export default function ProjectTasksPage() {
-    const params = useParams<{ org: string; project: string }>() as { org: string; project: string };
+    const params = useParams<{ org: string; project: string }>() as {
+        org: string;
+        project: string;
+    };
     const org = params.org;
     const project = params.project;
 
@@ -44,15 +57,49 @@ export default function ProjectTasksPage() {
     const [items, setItems] = React.useState<Task[]>([]);
     const [error, setError] = React.useState<string | null>(null);
 
+    // ─────────────── org info (чтобы показывать имя вместо slug) ───────────────
+    const [orgInfo, setOrgInfo] = React.useState<OrgInfo | null>(null);
+    const [orgInfoError, setOrgInfoError] = React.useState<string | null>(null);
+
+    React.useEffect(() => {
+        const ctrl = new AbortController();
+        async function fetchOrg() {
+            try {
+                setOrgInfoError(null);
+                const res = await fetch(`/api/org/${org}`, {
+                    signal: ctrl.signal,
+                    cache: 'no-store',
+                });
+                if (!res.ok) {
+                    throw new Error(`Failed to load org: ${res.status}`);
+                }
+                const data = (await res.json()) as { org: OrgInfo; role: string };
+                setOrgInfo(data.org);
+            } catch (e) {
+                if ((e as { name?: string })?.name !== 'AbortError') {
+                    setOrgInfoError(e instanceof Error ? e.message : 'Org load error');
+                }
+            }
+        }
+        fetchOrg();
+        return () => ctrl.abort();
+    }, [org]);
+
+    // ─────────────── загрузка задач ───────────────
     const load = React.useCallback(async () => {
         try {
             setLoading(true);
             setError(null);
-            const url = new URL(`/api/org/${org}/projects/${project}/tasks`, window.location.origin);
+            const url = new URL(
+                `/api/org/${org}/projects/${project}/tasks`,
+                window.location.origin
+            );
             if (q) url.searchParams.set('q', q);
             url.searchParams.set('limit', '200');
+
             const res = await fetch(url.toString(), { cache: 'no-store' });
             const data: ApiListResponse = await res.json();
+
             if (!('ok' in data)) {
                 setError(data.error || 'Failed to load');
                 setItems([]);
@@ -73,12 +120,24 @@ export default function ProjectTasksPage() {
 
     return (
         <Box sx={{ p: 2 }}>
-            <Stack direction="row" alignItems="center" justifyContent="space-between" sx={{ mb: 2 }}>
+            <Stack
+                direction="row"
+                alignItems="center"
+                justifyContent="space-between"
+                sx={{ mb: 2 }}
+            >
                 <Box>
-                    <Typography variant="h5" fontWeight={700}>Задачи проекта</Typography>
-                    <Typography variant="body2" color="text.secondary">
-                        Организация: {org} · Проект: {project}
+                    <Typography variant="h5" fontWeight={700}>
+                        Задачи проекта
                     </Typography>
+                    <Typography variant="body2" color="text.secondary">
+                        Организация: {orgInfo?.name ?? org} · Проект: {project}
+                    </Typography>
+                    {orgInfoError && (
+                        <Typography variant="caption" color="error">
+                            Не удалось загрузить организацию: {orgInfoError}
+                        </Typography>
+                    )}
                 </Box>
                 <Stack direction="row" spacing={1}>
                     <Tooltip title="Обновить">
@@ -88,7 +147,11 @@ export default function ProjectTasksPage() {
               </IconButton>
             </span>
                     </Tooltip>
-                    <Button onClick={() => setOpen(true)} variant="contained" startIcon={<AddIcon />}>
+                    <Button
+                        onClick={() => setOpen(true)}
+                        variant="contained"
+                        startIcon={<AddIcon />}
+                    >
                         Создать задачу
                     </Button>
                 </Stack>
@@ -101,39 +164,45 @@ export default function ProjectTasksPage() {
                         label="Поиск (id, имя, BS…)"
                         value={q}
                         onChange={(e) => setQ(e.target.value)}
-                        onKeyDown={(e) => { if (e.key === 'Enter') void load(); }}
+                        onKeyDown={(e) => {
+                            if (e.key === 'Enter') void load();
+                        }}
                         sx={{ width: 360, maxWidth: '100%' }}
                     />
-                    <Button onClick={() => void load()} variant="outlined">Искать</Button>
+                    <Button onClick={() => void load()} variant="outlined">
+                        Искать
+                    </Button>
                 </Stack>
             </Paper>
 
-            <Tabs value={tab} onChange={(_, v) => setTab(v)} sx={{ mb: 2 }}>
-                <Tab value="list" label="Список" />
-                <Tab value="board" label="Доска" />
-                <Tab value="calendar" label="Календарь" />
-            </Tabs>
+            <Paper variant="outlined" sx={{ p: 1, mb: 2 }}>
+                <Tabs value={tab} onChange={(_, v) => setTab(v)} sx={{ mb: 2 }}>
+                    <Tab value="list" label="Список" />
+                    <Tab value="board" label="Доска" />
+                    <Tab value="calendar" label="Календарь" />
+                </Tabs>
 
-            {tab === 'list' && (
-                <ProjectTaskList items={items} loading={loading} error={error} />
-            )}
-            {tab === 'board' && (
-                <ProjectTaskBoard items={items} loading={loading} error={error} />
-            )}
-            {tab === 'calendar' && (
-                <ProjectTaskCalendar items={items} loading={loading} error={error} />
-            )}
+                {tab === 'list' && (
+                    <ProjectTaskList items={items} loading={loading} error={error} />
+                )}
+                {tab === 'board' && (
+                    <ProjectTaskBoard items={items} loading={loading} error={error} />
+                )}
+                {tab === 'calendar' && (
+                    <ProjectTaskCalendar items={items} loading={loading} error={error} />
+                )}
 
-            <WorkspaceTaskDialog
-                open={open}
-                org={org}
-                project={project}
-                onCloseAction={() => setOpen(false)}
-                onCreatedAction={() => {
-                    setOpen(false);
-                    void load();
-                }}
-            />
+                <WorkspaceTaskDialog
+                    open={open}
+                    org={org}
+                    project={project}
+                    onCloseAction={() => setOpen(false)}
+                    onCreatedAction={() => {
+                        setOpen(false);
+                        void load();
+                    }}
+                />
+            </Paper>
         </Box>
     );
 }
