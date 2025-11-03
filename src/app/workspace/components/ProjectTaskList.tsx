@@ -19,13 +19,13 @@ type Task = {
     _id: string;
     taskId: string;
     taskName: string;
-    status?: Status | string; // вход может быть «грязным», нормализуем при рендере
+    status?: Status | string;
     assignees?: Array<{ name?: string; email?: string; avatarUrl?: string }>;
     dueDate?: string;
     createdAt?: string;
     bsNumber?: string;
     totalCost?: number;
-    priority?: Priority | string; // вход может быть «грязным»
+    priority?: Priority | string;
 };
 
 /* ───────────── константы ───────────── */
@@ -41,6 +41,13 @@ const formatDate = (iso?: string) => {
     if (Number.isNaN(d.getTime())) return '—';
     return d.toLocaleDateString('ru-RU');
 };
+
+/* нормализаторы */
+const normStatus = (s?: string): Status =>
+    (s ? s.toString() : 'TO DO').toUpperCase() as Status;
+
+const normPriority = (p?: string): Priority | '' =>
+    p ? (p.toString().toLowerCase() as Priority) : '';
 
 /* ───────────── компонент ───────────── */
 export default function ProjectTaskList({
@@ -90,10 +97,10 @@ export default function ProjectTaskList({
         let res = [...items];
 
         if (status) {
-            res = res.filter((t) => ((t.status as Status) || 'TO DO') === status);
+            res = res.filter((t) => normStatus(t.status as string) === status);
         }
         if (priority) {
-            res = res.filter((t) => (t.priority as Priority) === priority);
+            res = res.filter((t) => normPriority(t.priority as string) === priority);
         }
         if (bsQuery) {
             const q = bsQuery.toLowerCase();
@@ -199,8 +206,8 @@ export default function ProjectTaskList({
                         )}
 
                         {pageSlice.map((t) => {
-                            const safeStatus = ((t.status || 'TO DO') as string).toUpperCase() as Status;
-                            const safePriority = (t.priority as Priority) || 'medium';
+                            const safeStatus = normStatus(t.status as string);
+                            const safePriority = (normPriority(t.priority as string) || 'medium') as Priority;
 
                             return (
                                 <TableRow key={t._id}>

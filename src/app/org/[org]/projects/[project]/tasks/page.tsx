@@ -110,7 +110,7 @@ export default function ProjectTasksPage() {
 
             <Tabs value={tab} onChange={(_, v) => setTab(v)} sx={{ mb: 2 }}>
                 <Tab value="list" label="Список" />
-                <Tab value="board" label="Канбан" />
+                <Tab value="board" label="Доска" />
                 <Tab value="calendar" label="Календарь" />
             </Tabs>
 
