@@ -13,7 +13,7 @@ function errorMessage(err: unknown): string {
     return err instanceof Error ? err.message : 'Server error';
 }
 
-// noinspection SpellCheckingInspection
+// ─────────────── utils ───────────────
 const TASK_ID_ALPHABET = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789';
 function genTaskId(len = 5) {
     let s = '';
@@ -21,6 +21,39 @@ function genTaskId(len = 5) {
     return s;
 }
 
+/** Приводим входной статус (UI/разные варианты) к enum из схемы */
+function normalizeStatus(input?: string) {
+    if (!input) return 'To do';
+    const s = input.trim().toLowerCase();
+    if (['to do', 'todo', 'to_do', 'to-do'].includes(s)) return 'To do';
+    if (s === 'assigned') return 'Assigned';
+    if (['in progress', 'in_progress', 'at work'].includes(s)) return 'At work';
+    if (s === 'done') return 'Done';
+    if (s === 'pending') return 'Pending';
+    if (['issues', 'blocked', 'problem'].includes(s)) return 'Issues';
+    if (s === 'fixed') return 'Fixed';
+    if (['agreed', 'approved'].includes(s)) return 'Agreed';
+    return 'To do';
+}
+
+/** Белый список сортировок */
+const SAFE_SORT_FIELDS = new Set([
+    'createdAt',
+    'updatedAt',
+    'dueDate',
+    'priority',
+    'status',
+    'taskId',
+    'taskName',
+]);
+
+function sanitizeSortParam(raw: string) {
+    const field = raw.replace(/^-/, '');
+    if (!SAFE_SORT_FIELDS.has(field)) return '-createdAt';
+    return raw.startsWith('-') ? `-${field}` : field;
+}
+
+// ─────────────── types ───────────────
 type TaskFilter = {
     orgId: Types.ObjectId;
     projectId: Types.ObjectId;
@@ -42,15 +75,19 @@ type CreateTaskBody = {
     totalCost?: number;
     workItems?: unknown[];
     status?: string;
-    assignees?: unknown[];
+    // assignees?: unknown[]; // в схеме нет — не используем
     priority?: 'urgent' | 'high' | 'medium' | 'low';
     dueDate?: string; // ISO
+    taskType?: 'construction' | 'installation' | 'document';
+    requiredAttachments?: Array<'photo' | 'pdf' | 'doc' | 'xlsm' | 'xlsx' | 'dwg'>;
+    orderUrl?: string;
+    orderNumber?: string;
+    orderDate?: string;
+    orderSignDate?: string;
     [extra: string]: unknown;
 };
 
-/**
- * GET /api/org/[org]/projects/[project]/tasks
- */
+// ─────────────── GET /api/org/[org]/projects/[project]/tasks ───────────────
 export async function GET(
     req: NextRequest,
     ctx: { params: Promise<{ org: string; project: string }> }
@@ -62,10 +99,9 @@ export async function GET(
 
         const { org, project } = await ctx.params;
 
-        // ⬇ ключевая часть: ищем проект по key ИЛИ по _id
+        // ищем проект по key ИЛИ по _id
         const rel = await getOrgAndProjectByRef(org, project);
         if ('error' in rel) {
-            // временное логирование, чтобы увидеть причину в консоли
             console.warn('[GET tasks] not found:', { org, project, reason: rel.error });
             return NextResponse.json({ error: rel.error }, { status: 404 });
         }
@@ -77,10 +113,10 @@ export async function GET(
         const page = Math.max(parseInt(searchParams.get('page') || '1', 10), 1);
         const limit = Math.min(Math.max(parseInt(searchParams.get('limit') || '20', 10), 1), 100);
         const q = (searchParams.get('q') || '').trim();
-        const status = (searchParams.get('status') || '').trim();
+        const statusRaw = (searchParams.get('status') || '').trim();
         const from = searchParams.get('from');
         const to = searchParams.get('to');
-        const sortParam = (searchParams.get('sort') || '-createdAt').trim();
+        const sortParam = sanitizeSortParam((searchParams.get('sort') || '-createdAt').trim());
 
         const filter: TaskFilter = { orgId: orgObjId, projectId: projectObjId };
 
@@ -91,7 +127,10 @@ export async function GET(
                 { taskId: { $regex: q, $options: 'i' } },
             ];
         }
-        if (status) filter.status = status;
+        if (statusRaw) {
+            // позволяем передавать статус из UI — нормализуем к БД-значению
+            filter.status = normalizeStatus(statusRaw);
+        }
         if (from || to) {
             filter.createdAt = {};
             if (from) filter.createdAt.$gte = new Date(from);
@@ -111,9 +150,7 @@ export async function GET(
     }
 }
 
-/**
- * POST /api/org/[org]/projects/[project]/tasks
- */
+// ─────────────── POST /api/org/[org]/projects/[project]/tasks ───────────────
 export async function POST(
     req: NextRequest,
     ctx: { params: Promise<{ org: string; project: string }> }
@@ -150,15 +187,22 @@ export async function POST(
             totalCost,
             workItems,
             status,
-            assignees,
             priority,
             dueDate,
+            taskType,
+            requiredAttachments,
+            orderUrl,
+            orderNumber,
+            orderDate,
+            orderSignDate,
+            // assignees, // в схеме нет — игнорируем
             ...rest
         } = body;
 
-        if (!taskName) {
-            return NextResponse.json({ error: 'taskName is required' }, { status: 400 });
-        }
+        // обязательные по схеме
+        if (!taskName) return NextResponse.json({ error: 'taskName is required' }, { status: 400 });
+        if (!bsNumber) return NextResponse.json({ error: 'bsNumber is required' }, { status: 400 });
+        if (!bsAddress) return NextResponse.json({ error: 'bsAddress is required' }, { status: 400 });
 
         const created = await TaskModel.create({
             orgId: orgObjId,
@@ -171,16 +215,21 @@ export async function POST(
             bsLocation,
             totalCost,
             workItems,
-            status,
-            assignees,
+            status: normalizeStatus(status),
             priority,
-            dueDate,
+            dueDate: dueDate ? new Date(dueDate) : undefined,
 
-            createdBy: {
-                clerkId: user.id,
-                email: user.emailAddresses?.[0]?.emailAddress,
-                name: user.fullName || user.username || 'User',
-            },
+            taskType,
+            requiredAttachments,
+            orderUrl,
+            orderNumber,
+            orderDate: orderDate ? new Date(orderDate) : undefined,
+            orderSignDate: orderSignDate ? new Date(orderSignDate) : undefined,
+
+            // автор — поля, существующие в схеме
+            authorId: user.id,
+            authorEmail: user.emailAddresses?.[0]?.emailAddress,
+            authorName: user.fullName || user.username || 'User',
 
             ...rest,
         });
