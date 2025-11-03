@@ -167,7 +167,7 @@ export async function PATCH(
 
         if (!saved) return NextResponse.json({ error: 'Не удалось обновить подписку' }, { status: 500 });
 
-        return NextResponse.json({ ok: true, subscription: toSubscriptionDTO(saved, org.slug) });
+        return NextResponse.json({ ok: true, subscription: toSubscriptionDTO(saved, org.orgSlug) });
     } catch (e: unknown) {
         return NextResponse.json({ error: errorMessage(e) }, { status: 500 });
     }
