@@ -1,10 +1,31 @@
-// src/app/workspace/components/ProjectTaskBoard.tsx
 'use client';
 
 import React, { useMemo } from 'react';
 import { Box, Typography, Card, CardContent, Chip } from '@mui/material';
 import Tooltip from '@mui/material/Tooltip';
 import TaskOutlinedIcon from '@mui/icons-material/TaskOutlined';
+import { getStatusColor } from '@/utils/statusColors';
+
+type StatusTitle =
+    | 'To do'
+    | 'Assigned'
+    | 'At work'
+    | 'Done'
+    | 'Pending'
+    | 'Issues'
+    | 'Fixed'
+    | 'Agreed';
+
+const STATUS_ORDER: StatusTitle[] = [
+    'To do',
+    'Assigned',
+    'At work',
+    'Done',
+    'Pending',
+    'Issues',
+    'Fixed',
+    'Agreed',
+];
 
 type Task = {
     _id: string;
@@ -13,16 +34,8 @@ type Task = {
     bsNumber?: string;
     createdAt?: string;
     dueDate?: string;
-    status?: string;
+    status?: string; // нормализуем в Title Case
     priority?: 'urgent' | 'high' | 'medium' | 'low';
-};
-
-const statusOrder = ['TO DO', 'IN PROGRESS', 'DONE'] as const;
-
-const statusChipColor: Record<string, string> = {
-    'TO DO': '#9e9e9e',
-    'IN PROGRESS': '#0288d1',
-    DONE: '#2e7d32',
 };
 
 const prColor: Record<NonNullable<Task['priority']>, string> = {
@@ -34,7 +47,28 @@ const prColor: Record<NonNullable<Task['priority']>, string> = {
 
 const formatDateRU = (v?: string) => (v ? new Date(v).toLocaleDateString('ru-RU') : '—');
 
-function TaskCard({ t }: { t: Task }) {
+const TITLE_CASE_MAP: Record<string, StatusTitle> = {
+    'TO DO': 'To do',
+    'TODO': 'To do',
+    'TO-DO': 'To do',
+    'ASSIGNED': 'Assigned',
+    'IN PROGRESS': 'At work',
+    'IN-PROGRESS': 'At work',
+    'AT WORK': 'At work',
+    'DONE': 'Done',
+    'PENDING': 'Pending',
+    'ISSUES': 'Issues',
+    'FIXED': 'Fixed',
+    'AGREED': 'Agreed',
+};
+
+function normalizeStatusTitle(s?: string): StatusTitle {
+    if (!s) return 'To do';
+    const key = s.trim().toUpperCase();
+    return TITLE_CASE_MAP[key] ?? (s as StatusTitle);
+}
+
+function TaskCard({ t, statusTitle }: { t: Task; statusTitle: StatusTitle }) {
     return (
         <Card sx={{ mb: 2, boxShadow: 2 }}>
             <Box sx={{ mt: '5px', ml: '5px' }}>
@@ -44,17 +78,15 @@ function TaskCard({ t }: { t: Task }) {
                 </Typography>
             </Box>
             <CardContent>
-                <Typography variant="subtitle1" gutterBottom>
-                    {t.taskName}
-                </Typography>
+                <Typography variant="subtitle1" gutterBottom>{t.taskName}</Typography>
                 <Typography variant="body2">BS: {t.bsNumber || '—'}</Typography>
                 <Typography variant="caption">Due date: {formatDateRU(t.dueDate)}</Typography>
             </CardContent>
             <Box sx={{ m: 1.5, display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
                 <Chip
-                    label={t.status || 'TO DO'}
+                    label={statusTitle}
                     size="small"
-                    sx={{ bgcolor: statusChipColor[t.status || 'TO DO'] ?? '#9e9e9e', color: '#fff' }}
+                    sx={{ bgcolor: getStatusColor(statusTitle), color: '#fff' }}
                 />
                 {t.priority && (
                     <Tooltip title={t.priority}>
@@ -76,12 +108,21 @@ export default function ProjectTaskBoard({
     error: string | null;
 }) {
     const grouped = useMemo(() => {
-        const m: Record<string, Task[]> = { 'TO DO': [], 'IN PROGRESS': [], DONE: [] };
+        const base: Record<StatusTitle, Task[]> = {
+            'To do': [],
+            'Assigned': [],
+            'At work': [],
+            'Done': [],
+            'Pending': [],
+            'Issues': [],
+            'Fixed': [],
+            'Agreed': [],
+        };
         for (const t of items) {
-            const s = (t.status || 'TO DO').toUpperCase();
-            (m[s] || m['TO DO']).push(t);
+            const s = normalizeStatusTitle(t.status);
+            base[s].push(t);
         }
-        return m;
+        return base;
     }, [items]);
 
     if (loading)
@@ -100,7 +141,7 @@ export default function ProjectTaskBoard({
     return (
         <Box>
             <Box sx={{ display: 'flex', gap: 3, p: 3, overflowX: 'auto', minHeight: '60vh' }}>
-                {statusOrder.map((status) => (
+                {STATUS_ORDER.map((status) => (
                     <Box
                         key={status}
                         sx={{
@@ -116,7 +157,7 @@ export default function ProjectTaskBoard({
                             {status} ({grouped[status]?.length || 0})
                         </Typography>
                         {(grouped[status] || []).map((t) => (
-                            <TaskCard key={t._id} t={t} />
+                            <TaskCard key={t._id} t={t} statusTitle={status} />
                         ))}
                     </Box>
                 ))}
