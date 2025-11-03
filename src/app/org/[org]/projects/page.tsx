@@ -29,9 +29,8 @@ type Project = {
     name: string;
     key: string;
     description?: string;
-    // ожидаем, что бэкенд начнет отдавать менеджеров
-    managers?: string[];          // первый элемент — текущий менеджер
-    managerEmail?: string;        // на случай, если поле одно
+    managers?: string[];
+    managerEmail?: string;
 };
 
 type GetProjectsSuccess = { projects: Project[] };
@@ -40,11 +39,10 @@ type ApiError = { error: string };
 export default function OrgProjectsPage() {
     const router = useRouter();
 
-    // получаем slug из URL
     const params = useParams() as { org: string | string[] };
     const orgSlug = Array.isArray(params.org) ? params.org[0] : params.org;
 
-    const [orgName, setOrgName] = useState<string>(orgSlug); // показываем slug, пока не загрузим имя
+    const [orgName, setOrgName] = useState<string>(orgSlug);
     const [projects, setProjects] = useState<Project[]>([]);
     const [loading, setLoading] = useState(true);
     const [err, setErr] = useState<string | null>(null);
@@ -77,7 +75,6 @@ export default function OrgProjectsPage() {
         setSnackOpen(true);
     };
 
-    // загрузка имени организации (fallback — slug)
     const loadOrgName = useCallback(async () => {
         try {
             const res = await fetch(`/api/org/${encodeURIComponent(orgSlug)}`);
@@ -218,8 +215,9 @@ export default function OrgProjectsPage() {
         }
     };
 
-    const handleCardClick = (projectId: string) => {
-        router.push(`/org/${encodeURIComponent(orgSlug)}/projects/${projectId}/tasks`);
+    // ⬇⬇⬇ ВАЖНО: переходим по KEY, а не по _id
+    const handleCardClick = (projectKey: string) => {
+        router.push(`/org/${encodeURIComponent(orgSlug)}/projects/${encodeURIComponent(projectKey)}/tasks`);
     };
 
     const isCreateDisabled = useMemo(() => !name || !key, [name, key]);
@@ -263,7 +261,7 @@ export default function OrgProjectsPage() {
                                         transition: 'transform 0.08s ease',
                                         '&:hover': { transform: 'translateY(-2px)' },
                                     }}
-                                    onClick={() => handleCardClick(p._id)}
+                                    onClick={() => handleCardClick(p.key)} // <-- тут был p._id
                                     role="button"
                                     aria-label={`Открыть задачи проекта ${p.name}`}
                                     elevation={2}
@@ -271,28 +269,29 @@ export default function OrgProjectsPage() {
                                     {/* Action icons */}
                                     <Stack direction="row" spacing={1} sx={{ position: 'absolute', top: 8, right: 8 }}>
                                         <Tooltip title="Редактировать">
-                                        <IconButton
-                                            size="small"
-                                            aria-label="Редактировать"
-                                            onClick={(e) => {
-                                                e.stopPropagation();
-                                                openEditDialog(p);
-                                            }}
-                                        >
-                                            <EditIcon fontSize="small" />
-                                        </IconButton>
+                                            <IconButton
+                                                size="small"
+                                                aria-label="Редактировать"
+                                                onClick={(e) => {
+                                                    e.stopPropagation();
+                                                    openEditDialog(p);
+                                                }}
+                                            >
+                                                <EditIcon fontSize="small" />
+                                            </IconButton>
                                         </Tooltip>
                                         <Tooltip title="Удалить">
-                                        <IconButton
-                                            size="small"
-                                            aria-label="Удалить"
-                                            onClick={(e) => {
-                                                e.stopPropagation();
-                                                askDelete(p);
-                                            }}
-                                        >
-                                            <DeleteIcon fontSize="small" />
-                                        </IconButton></Tooltip>
+                                            <IconButton
+                                                size="small"
+                                                aria-label="Удалить"
+                                                onClick={(e) => {
+                                                    e.stopPropagation();
+                                                    askDelete(p);
+                                                }}
+                                            >
+                                                <DeleteIcon fontSize="small" />
+                                            </IconButton>
+                                        </Tooltip>
                                     </Stack>
 
                                     <Typography variant="subtitle2" color="text.secondary">
@@ -408,7 +407,6 @@ export default function OrgProjectsPage() {
                 </DialogActions>
             </Dialog>
 
-            {/* Snackbar (нижний левый угол) */}
             <Snackbar
                 open={snackOpen}
                 autoHideDuration={4000}

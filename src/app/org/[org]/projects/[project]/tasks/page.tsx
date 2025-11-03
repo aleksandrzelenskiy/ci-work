@@ -1,4 +1,4 @@
-// src/app/org/[org]/projects/[projectId]/tasks/page.tsx
+// src/app/org/[org]/projects/[project]/tasks/page.tsx
 'use client';
 
 import * as React from 'react';
@@ -6,7 +6,7 @@ import { useParams } from 'next/navigation';
 import {
     Box, Stack, Typography, Button, Tabs, Tab, Paper, Table, TableHead, TableRow,
     TableCell, TableBody, Chip, Avatar, TextField, IconButton, Tooltip, Divider,
-    Grid, // стандартный Grid из @mui/material
+    Grid,
 } from '@mui/material';
 import AddIcon from '@mui/icons-material/Add';
 import RefreshIcon from '@mui/icons-material/Refresh';
@@ -40,9 +40,9 @@ const STATUS_COLOR: Record<string, 'default' | 'primary' | 'success' | 'warning'
 };
 
 export default function ProjectTasksPage() {
-    const params = useParams<{ org: string; projectId: string }>() as { org: string; projectId: string };
+    const params = useParams<{ org: string; project: string }>() as { org: string; project: string };
     const org = params.org;
-    const projectId = params.projectId;
+    const project = params.project;
 
     const [tab, setTab] = React.useState<'list' | 'board' | 'calendar'>('list');
     const [open, setOpen] = React.useState(false);
@@ -55,7 +55,7 @@ export default function ProjectTasksPage() {
         try {
             setLoading(true);
             setError(null);
-            const url = new URL(`/api/org/${org}/projects/${projectId}/tasks`, window.location.origin);
+            const url = new URL(`/api/org/${org}/projects/${project}/tasks`, window.location.origin);
             if (q) url.searchParams.set('q', q);
             url.searchParams.set('limit', '200');
             const res = await fetch(url.toString(), { cache: 'no-store' });
@@ -72,7 +72,7 @@ export default function ProjectTasksPage() {
         } finally {
             setLoading(false);
         }
-    }, [org, projectId, q]);
+    }, [org, project, q]);
 
     React.useEffect(() => {
         void load();
@@ -84,16 +84,16 @@ export default function ProjectTasksPage() {
                 <Box>
                     <Typography variant="h5" fontWeight={700}>Задачи проекта</Typography>
                     <Typography variant="body2" color="text.secondary">
-                        Организация: {org} · Проект: {projectId}
+                        Организация: {org} · Проект: {project}
                     </Typography>
                 </Box>
                 <Stack direction="row" spacing={1}>
                     <Tooltip title="Обновить">
-            <span>
-              <IconButton onClick={() => void load()} disabled={loading}>
-                <RefreshIcon />
-              </IconButton>
-            </span>
+                        <span>
+                            <IconButton onClick={() => void load()} disabled={loading}>
+                                <RefreshIcon />
+                            </IconButton>
+                        </span>
                     </Tooltip>
                     <Button onClick={() => setOpen(true)} variant="contained" startIcon={<AddIcon />}>
                         Создать задачу
@@ -128,7 +128,8 @@ export default function ProjectTasksPage() {
             <WorkspaceTaskDialog
                 open={open}
                 org={org}
-                projectId={projectId}
+                // сюда передаем KEY проекта; диалог сформирует URL с этим значением
+                project={project}
                 onCloseAction={() => setOpen(false)}
                 onCreatedAction={() => {
                     setOpen(false);
@@ -385,7 +386,6 @@ function toYMD(d: Date) {
     return `${y}-${m}-${day}`;
 }
 function buildMonthGrid(cursor: Date) {
-    // 6 недель / 42 дня, начиная с понедельника
     const first = startOfMonth(cursor);
     const weekday = (first.getDay() + 6) % 7; // 0=Mon
     const start = new Date(first);

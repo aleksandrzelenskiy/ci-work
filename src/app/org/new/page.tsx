@@ -5,7 +5,7 @@ import { useEffect, useMemo, useState } from 'react';
 import { Box, Button, Paper, TextField, Typography, Alert, Stack } from '@mui/material';
 import { useRouter } from 'next/navigation';
 
-type CreateOrgSuccess = { ok: true; org: { slug: string } };
+type CreateOrgSuccess = { ok: true; org: { orgSlug: string } };
 type CreateOrgError = { error: string };
 
 // простая клиентская slugify (латиница/цифры/дефис, минимум 3 символа)
@@ -51,7 +51,7 @@ export default function NewOrgPage() {
             const res = await fetch('/api/org', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ name, slug: slug || undefined }),
+                body: JSON.stringify({ name, orgSlug: slug || undefined }),
             });
 
             const data: CreateOrgSuccess | CreateOrgError = await res.json();
@@ -61,7 +61,7 @@ export default function NewOrgPage() {
                 return;
             }
 
-            router.push(`/org/${data.org.slug}/projects`);
+            router.push(`/org/${data.org.orgSlug}/projects`);
         } catch (e: unknown) {
             const msg = e instanceof Error ? e.message : 'Ошибка сети';
             setError(msg);
@@ -90,7 +90,7 @@ export default function NewOrgPage() {
                             setTouchedSlug(true);
                             setSlug(makeSlug(e.target.value));
                         }}
-                        helperText={slugError ?? 'Например: alpcenter'}
+                        helperText={slugError ?? 'Индетификатор назанвания на латинице'}
                         error={Boolean(slugError)}
                         fullWidth
                     />

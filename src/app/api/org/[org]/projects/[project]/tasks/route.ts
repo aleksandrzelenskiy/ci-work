@@ -1,11 +1,10 @@
-// src/app/api/org/[org]/projects/[projectId]/tasks/route.ts
+// src/app/api/org/[org]/projects/[project]/tasks/route.ts
 import { NextRequest, NextResponse } from 'next/server';
 import { currentUser } from '@clerk/nextjs/server';
 import dbConnect from '@/utils/mongoose';
-import Organization from '@/app/models/OrganizationModel';
-import Project from '@/app/models/ProjectModel';
 import TaskModel from '@/app/models/TaskModel';
 import { Types } from 'mongoose';
+import { getOrgAndProjectByRef } from '../_helpers';
 
 export const runtime = 'nodejs';
 export const dynamic = 'force-dynamic';
@@ -16,19 +15,10 @@ function errorMessage(err: unknown): string {
 
 // noinspection SpellCheckingInspection
 const TASK_ID_ALPHABET = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789';
-
 function genTaskId(len = 5) {
     let s = '';
     for (let i = 0; i < len; i++) s += TASK_ID_ALPHABET[Math.floor(Math.random() * TASK_ID_ALPHABET.length)];
     return s;
-}
-
-async function getOrgAndProject(orgSlug: string, projectId: string) {
-    const orgDoc = await Organization.findOne({ slug: orgSlug }).select('_id slug name');
-    if (!orgDoc) return { error: 'Org not found' as const };
-    const projectDoc = await Project.findOne({ _id: projectId, orgId: orgDoc._id }).select('_id name orgId');
-    if (!projectDoc) return { error: 'Project not found' as const };
-    return { orgDoc, projectDoc };
 }
 
 type TaskFilter = {
@@ -59,19 +49,29 @@ type CreateTaskBody = {
 };
 
 /**
- * GET /api/org/[org]/projects/[projectId]/tasks
- * ?page=&limit=&q=&status=&from=&to=&sort=
+ * GET /api/org/[org]/projects/[project]/tasks
  */
 export async function GET(
     req: NextRequest,
-    ctx: { params: Promise<{ org: string; projectId: string }> }
+    ctx: { params: Promise<{ org: string; project: string }> }
 ) {
     try {
         await dbConnect();
         const user = await currentUser();
         if (!user) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
 
-        const { org, projectId } = await ctx.params;
+        const { org, project } = await ctx.params;
+
+        // ⬇ ключевая часть: ищем проект по key ИЛИ по _id
+        const rel = await getOrgAndProjectByRef(org, project);
+        if ('error' in rel) {
+            // временное логирование, чтобы увидеть причину в консоли
+            console.warn('[GET tasks] not found:', { org, project, reason: rel.error });
+            return NextResponse.json({ error: rel.error }, { status: 404 });
+        }
+
+        const orgObjId = new Types.ObjectId(String(rel.orgDoc!._id));
+        const projectObjId = new Types.ObjectId(String(rel.projectDoc!._id));
 
         const { searchParams } = new URL(req.url);
         const page = Math.max(parseInt(searchParams.get('page') || '1', 10), 1);
@@ -81,13 +81,6 @@ export async function GET(
         const from = searchParams.get('from');
         const to = searchParams.get('to');
         const sortParam = (searchParams.get('sort') || '-createdAt').trim();
-
-        const rel = await getOrgAndProject(org, projectId);
-        if ('error' in rel) return NextResponse.json({ error: rel.error }, { status: 404 });
-
-        // Явно формируем ObjectId
-        const orgObjId = new Types.ObjectId(String(rel.orgDoc!._id));
-        const projectObjId = new Types.ObjectId(String(rel.projectDoc!._id));
 
         const filter: TaskFilter = { orgId: orgObjId, projectId: projectObjId };
 
@@ -119,19 +112,18 @@ export async function GET(
 }
 
 /**
- * POST /api/org/[org]/projects/[projectId]/tasks
- * Body: CreateTaskBody (см. тип выше)
+ * POST /api/org/[org]/projects/[project]/tasks
  */
 export async function POST(
     req: NextRequest,
-    ctx: { params: Promise<{ org: string; projectId: string }> }
+    ctx: { params: Promise<{ org: string; project: string }> }
 ) {
     try {
         await dbConnect();
         const user = await currentUser();
         if (!user) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
 
-        const { org, projectId } = await ctx.params;
+        const { org, project } = await ctx.params;
 
         let body: CreateTaskBody;
         try {
@@ -140,8 +132,11 @@ export async function POST(
             return NextResponse.json({ error: 'Invalid JSON body' }, { status: 400 });
         }
 
-        const rel = await getOrgAndProject(org, projectId);
-        if ('error' in rel) return NextResponse.json({ error: rel.error }, { status: 404 });
+        const rel = await getOrgAndProjectByRef(org, project);
+        if ('error' in rel) {
+            console.warn('[POST tasks] not found:', { org, project, reason: rel.error });
+            return NextResponse.json({ error: rel.error }, { status: 404 });
+        }
 
         const orgObjId = new Types.ObjectId(String(rel.orgDoc!._id));
         const projectObjId = new Types.ObjectId(String(rel.projectDoc!._id));
@@ -179,7 +174,7 @@ export async function POST(
             status,
             assignees,
             priority,
-            dueDate, // сохраняем ISO-дату, если модель это поддерживает
+            dueDate,
 
             createdBy: {
                 clerkId: user.id,

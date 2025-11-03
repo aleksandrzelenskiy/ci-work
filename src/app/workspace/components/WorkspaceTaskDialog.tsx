@@ -12,8 +12,8 @@ import { AdapterDateFns } from '@mui/x-date-pickers/AdapterDateFns';
 type Props = {
     open: boolean;
     org: string;
-    projectId: string;
-    /** имена с суффиксом Action, чтобы не ругался TS71007 */
+    /** Ключ проекта (например, "T2-IR"), а не ObjectId */
+    project: string;
     onCloseAction: () => void;
     onCreatedAction: () => void;
 };
@@ -32,7 +32,7 @@ function genId(len = 5) {
 export default function WorkspaceTaskDialog({
                                                 open,
                                                 org,
-                                                projectId,
+                                                project,
                                                 onCloseAction,
                                                 onCreatedAction,
                                             }: Props) {
@@ -71,11 +71,14 @@ export default function WorkspaceTaskDialog({
                 dueDate: dueDate ? dueDate.toISOString() : undefined,
             };
 
-            const res = await fetch(`/api/org/${org}/projects/${projectId}/tasks`, {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify(payload),
-            });
+            const res = await fetch(
+                `/api/org/${encodeURIComponent(org)}/projects/${encodeURIComponent(project)}/tasks`,
+                {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(payload),
+                }
+            );
 
             if (!res.ok) {
                 const j = await res.json().catch(() => ({}));
