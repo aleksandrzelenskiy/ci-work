@@ -1,4 +1,4 @@
-// src/app/workspace/components/ProjectTaskCalendar.tsx
+// app/workspace/components/ProjectTaskCalendar.tsx
 'use client';
 
 import { useMemo, useState } from 'react';

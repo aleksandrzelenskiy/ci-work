@@ -1,3 +1,5 @@
+// app/workspace/components/ProjectTaskList.tsx
+
 'use client';
 
 import React, { useMemo, useState } from 'react';
@@ -9,6 +11,7 @@ import {
 import ViewColumnIcon from '@mui/icons-material/ViewColumn';
 import FilterListIcon from '@mui/icons-material/FilterList';
 import { getStatusColor } from '@/utils/statusColors';
+import { getPriorityIcon, normalizePriority, type Priority as Pri } from '@/utils/priorityIcons';
 
 /* ───────────── типы ───────────── */
 type StatusTitle =
@@ -273,8 +276,7 @@ export default function ProjectTaskList({
 
                         {pageSlice.map((t) => {
                             const statusTitle = t._statusTitle;
-                            const safePriority =
-                                (normPriority(t.priority as string) || 'medium') as Priority;
+                            const safePriority = (normalizePriority(t.priority as string) ?? 'medium') as Pri;
 
                             return (
                                 <TableRow key={t._id}>
@@ -312,9 +314,13 @@ export default function ProjectTaskList({
 
                                     {columnVisibility.priority && (
                                         <TableCell align="center">
-                                            <Chip size="small" variant="outlined" label={safePriority} />
+                                            <Stack direction="row" spacing={0.5} alignItems="center" justifyContent="center">
+                                                {getPriorityIcon(safePriority)}
+                                                <Typography variant="body2">{safePriority}</Typography>
+                                            </Stack>
                                         </TableCell>
                                     )}
+
 
                                     {columnVisibility.assignees && (
                                         <TableCell>

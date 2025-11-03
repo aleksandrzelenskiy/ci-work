@@ -44,21 +44,57 @@ function toMemberDTO(doc: MembershipLean, orgSlug: string): MemberDTO {
     };
 }
 
-// GET /api/org/:org/members
+// GET /api/org/:org/members?role=executor&status=active
 export async function GET(
-    _req: NextRequest,
+    req: NextRequest,
     ctx: { params: Promise<{ org: string }> }
 ): Promise<NextResponse<MembersResponse>> {
     try {
         await dbConnect();
         const { org: orgSlug } = await ctx.params;
-        const user = await currentUser();
-        const email = user?.emailAddresses?.[0]?.emailAddress;
+
+        const me = await currentUser();
+        const email = me?.emailAddresses?.[0]?.emailAddress?.toLowerCase();
         if (!email) return NextResponse.json({ error: 'Auth required' }, { status: 401 });
 
-        const { org } = await requireOrgRole(orgSlug, email, ['owner', 'org_admin', 'manager', 'executor', 'viewer']);
+        // Доступ читают все участники организации
+        const { org } = await requireOrgRole(orgSlug, email, [
+            'owner',
+            'org_admin',
+            'manager',
+            'executor',
+            'viewer',
+        ]);
 
-        const membersRaw = await Membership.find({ orgId: org._id }).lean<MembershipLean[]>();
+        // Параметры фильтрации
+        const url = new URL(req.url);
+        const roleParam = url.searchParams.get('role')?.toLowerCase() as OrgRole | undefined;
+        const statusParam = (url.searchParams.get('status') ?? 'active').toLowerCase() as
+            | 'active'
+            | 'invited';
+
+        const allowedRoles: OrgRole[] = ['owner', 'org_admin', 'manager', 'executor', 'viewer'];
+        const filter: Record<string, unknown> = { orgId: org._id };
+
+        if (roleParam) {
+            if (!allowedRoles.includes(roleParam)) {
+                return NextResponse.json(
+                    { error: `Unknown role: ${roleParam}` },
+                    { status: 400 }
+                );
+            }
+            filter.role = roleParam;
+        }
+
+        if (statusParam && !['active', 'invited'].includes(statusParam)) {
+            return NextResponse.json({ error: `Unknown status: ${statusParam}` }, { status: 400 });
+        }
+        if (statusParam) filter.status = statusParam;
+
+        const membersRaw = await Membership.find(filter)
+            .lean<MembershipLean[]>()
+            .sort({ userName: 1, userEmail: 1 });
+
         const members = membersRaw.map((m) => toMemberDTO(m, org.orgSlug));
 
         return NextResponse.json({ members });
@@ -75,18 +111,25 @@ export async function POST(
     try {
         await dbConnect();
         const { org: orgSlug } = await ctx.params;
-        const user = await currentUser();
-        const email = user?.emailAddresses?.[0]?.emailAddress;
+
+        const me = await currentUser();
+        const email = me?.emailAddresses?.[0]?.emailAddress?.toLowerCase();
         if (!email) return NextResponse.json({ error: 'Auth required' }, { status: 401 });
 
+        // Добавлять участников могут только owner/org_admin
         const { org } = await requireOrgRole(orgSlug, email, ['owner', 'org_admin']);
 
         const body = (await request.json()) as AddMemberBody;
-        const { userEmail, userName, role } = body;
-        if (!userEmail) return NextResponse.json({ error: 'userEmail обязателен' }, { status: 400 });
+        const userEmail = body.userEmail?.toLowerCase();
+        const userName = body.userName?.trim();
+        if (!userEmail) {
+            return NextResponse.json({ error: 'userEmail обязателен' }, { status: 400 });
+        }
 
         const allowed: OrgRole[] = ['org_admin', 'manager', 'executor', 'viewer'];
-        const roleToSet: OrgRole = allowed.includes(role as OrgRole) ? (role as OrgRole) : 'viewer';
+        const roleToSet: OrgRole = (allowed.includes(body.role as OrgRole)
+            ? (body.role as OrgRole)
+            : 'viewer');
 
         await Membership.findOneAndUpdate(
             { orgId: org._id, userEmail },

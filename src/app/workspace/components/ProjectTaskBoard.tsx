@@ -1,3 +1,5 @@
+// app/workspace/components/ProjectTaskBoard.tsx
+
 'use client';
 
 import React, { useMemo } from 'react';
@@ -5,6 +7,7 @@ import { Box, Typography, Card, CardContent, Chip } from '@mui/material';
 import Tooltip from '@mui/material/Tooltip';
 import TaskOutlinedIcon from '@mui/icons-material/TaskOutlined';
 import { getStatusColor } from '@/utils/statusColors';
+import { getPriorityIcon, normalizePriority } from '@/utils/priorityIcons';
 
 type StatusTitle =
     | 'To do'
@@ -35,31 +38,24 @@ type Task = {
     createdAt?: string;
     dueDate?: string;
     status?: string; // нормализуем в Title Case
-    priority?: 'urgent' | 'high' | 'medium' | 'low';
-};
-
-const prColor: Record<NonNullable<Task['priority']>, string> = {
-    urgent: '#d32f2f',
-    high: '#f57c00',
-    medium: '#1976d2',
-    low: '#388e3c',
+    priority?: 'urgent' | 'high' | 'medium' | 'low' | string;
 };
 
 const formatDateRU = (v?: string) => (v ? new Date(v).toLocaleDateString('ru-RU') : '—');
 
 const TITLE_CASE_MAP: Record<string, StatusTitle> = {
     'TO DO': 'To do',
-    'TODO': 'To do',
+    TODO: 'To do',
     'TO-DO': 'To do',
-    'ASSIGNED': 'Assigned',
+    ASSIGNED: 'Assigned',
     'IN PROGRESS': 'At work',
     'IN-PROGRESS': 'At work',
     'AT WORK': 'At work',
-    'DONE': 'Done',
-    'PENDING': 'Pending',
-    'ISSUES': 'Issues',
-    'FIXED': 'Fixed',
-    'AGREED': 'Agreed',
+    DONE: 'Done',
+    PENDING: 'Pending',
+    ISSUES: 'Issues',
+    FIXED: 'Fixed',
+    AGREED: 'Agreed',
 };
 
 function normalizeStatusTitle(s?: string): StatusTitle {
@@ -69,30 +65,51 @@ function normalizeStatusTitle(s?: string): StatusTitle {
 }
 
 function TaskCard({ t, statusTitle }: { t: Task; statusTitle: StatusTitle }) {
+    const p = normalizePriority(t.priority); // 'urgent' | 'high' | 'medium' | 'low' | null
+
     return (
-        <Card sx={{ mb: 2, boxShadow: 2 }}>
+        <Card sx={{ mb: 2, boxShadow: 2, position: 'relative', overflow: 'hidden' }}>
             <Box sx={{ mt: '5px', ml: '5px' }}>
                 <Typography variant="caption" color="text.secondary">
                     <TaskOutlinedIcon sx={{ fontSize: 15, mb: 0.5, mr: 0.5 }} />
                     {t.taskId} {t.createdAt ? new Date(t.createdAt).toLocaleDateString() : ''}
                 </Typography>
             </Box>
-            <CardContent>
-                <Typography variant="subtitle1" gutterBottom>{t.taskName}</Typography>
+
+            <CardContent sx={{ pb: 6 /* оставляем место под нижнюю плашку */ }}>
+                <Typography variant="subtitle1" gutterBottom>
+                    {t.taskName}
+                </Typography>
                 <Typography variant="body2">BS: {t.bsNumber || '—'}</Typography>
                 <Typography variant="caption">Due date: {formatDateRU(t.dueDate)}</Typography>
             </CardContent>
-            <Box sx={{ m: 1.5, display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+
+            {/* Нижняя плашка: слева статус, справа — иконка приоритета с тултипом */}
+            <Box
+                sx={{
+                    position: 'absolute',
+                    left: 8,
+                    right: 8,
+                    bottom: 8,
+                    display: 'flex',
+                    alignItems: 'center',
+                }}
+            >
                 <Chip
                     label={statusTitle}
                     size="small"
                     sx={{ bgcolor: getStatusColor(statusTitle), color: '#fff' }}
                 />
-                {t.priority && (
-                    <Tooltip title={t.priority}>
-                        <Box sx={{ width: 10, height: 10, borderRadius: '50%', bgcolor: prColor[t.priority] }} />
-                    </Tooltip>
-                )}
+
+                <Box sx={{ ml: 'auto', display: 'flex', alignItems: 'center' }}>
+                    {p && (
+                        <Tooltip title={p}>
+                            <Box sx={{ display: 'inline-flex', alignItems: 'center' }}>
+                                {getPriorityIcon(p, { fontSize: 20 })}
+                            </Box>
+                        </Tooltip>
+                    )}
+                </Box>
             </Box>
         </Card>
     );
@@ -110,13 +127,13 @@ export default function ProjectTaskBoard({
     const grouped = useMemo(() => {
         const base: Record<StatusTitle, Task[]> = {
             'To do': [],
-            'Assigned': [],
+            Assigned: [],
             'At work': [],
-            'Done': [],
-            'Pending': [],
-            'Issues': [],
-            'Fixed': [],
-            'Agreed': [],
+            Done: [],
+            Pending: [],
+            Issues: [],
+            Fixed: [],
+            Agreed: [],
         };
         for (const t of items) {
             const s = normalizeStatusTitle(t.status);

@@ -1,0 +1,46 @@
+// src/utils/priorityIcons.tsx
+import * as React from 'react';
+import type { SxProps, Theme } from '@mui/material/styles';
+
+import RemoveIcon from '@mui/icons-material/Remove';
+import DragHandleIcon from '@mui/icons-material/DragHandle';
+import KeyboardArrowUpIcon from '@mui/icons-material/KeyboardArrowUp';
+import KeyboardDoubleArrowUpIcon from '@mui/icons-material/KeyboardDoubleArrowUp';
+
+export type Priority = 'urgent' | 'high' | 'medium' | 'low';
+
+const PRIORITY_COLOR: Record<Priority, string> = {
+    low: '#28a0e9',
+    medium: '#df9b18',
+    high: '#ca3131',
+    urgent: '#ff0000',
+};
+
+export const PRIORITY_ORDER: Priority[] = ['urgent', 'high', 'medium', 'low'];
+
+export function normalizePriority(p?: string): Priority | null {
+    if (!p) return null;
+    const v = p.toString().trim().toLowerCase();
+    if (v === 'urgent' || v === 'high' || v === 'medium' || v === 'low') return v;
+    return null;
+}
+
+export function getPriorityIcon(priority?: string | null, sx?: SxProps<Theme>) {
+    const p = normalizePriority(priority ?? '');
+    if (!p) return null;
+
+    const baseSx: SxProps<Theme> = { color: PRIORITY_COLOR[p], fontSize: 20, ...(sx || {}) };
+
+    switch (p) {
+        case 'low':
+            return <RemoveIcon sx={baseSx} />;
+        case 'medium':
+            return <DragHandleIcon sx={baseSx} />;
+        case 'high':
+            return <KeyboardArrowUpIcon sx={baseSx} />;
+        case 'urgent':
+            return <KeyboardDoubleArrowUpIcon sx={baseSx} />;
+        default:
+            return null;
+    }
+}
