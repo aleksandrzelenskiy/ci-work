@@ -47,6 +47,8 @@ type Task = {
     priority?: Priority | string;
 };
 
+type TaskWithStatus = Task & { _statusTitle: StatusTitle };
+
 /* ───────────── утилиты ───────────── */
 const formatDate = (iso?: string) => {
     if (!iso) return '—';
@@ -116,8 +118,11 @@ export default function ProjectTaskList({
     const [rowsPerPage, setRowsPerPage] = useState<number>(10);
 
     // ── применяем локальные фильтры ─────────────────────────────────────
-    const filtered = useMemo(() => {
-        let res = items.map((t) => ({ ...t, _statusTitle: normalizeStatusTitle(t.status) as StatusTitle })) as (Task & { _statusTitle: StatusTitle })[];
+    const filtered: TaskWithStatus[] = useMemo(() => {
+        let res: TaskWithStatus[] = items.map((t) => ({
+            ...t,
+            _statusTitle: normalizeStatusTitle(t.status),
+        }));
 
         if (status) {
             res = res.filter((t) => t._statusTitle === status);
@@ -125,16 +130,23 @@ export default function ProjectTaskList({
         if (priority) {
             res = res.filter((t) => normPriority(t.priority as string) === priority);
         }
-        // можно отсортировать по порядку статусов (опционально)
-        res.sort((a, b) => STATUS_ORDER.indexOf(a._statusTitle) - STATUS_ORDER.indexOf(b._statusTitle));
+        // сортируем по порядку статусов
+        res.sort(
+            (a, b) =>
+                STATUS_ORDER.indexOf(a._statusTitle) - STATUS_ORDER.indexOf(b._statusTitle)
+        );
         return res;
     }, [items, status, priority]);
 
-    const totalPages = rowsPerPage === -1 ? 1 : Math.max(1, Math.ceil(filtered.length / rowsPerPage));
-    const pageSlice =
+    const totalPages =
+        rowsPerPage === -1 ? 1 : Math.max(1, Math.ceil(filtered.length / rowsPerPage));
+    const pageSlice: TaskWithStatus[] =
         rowsPerPage === -1
             ? filtered
-            : filtered.slice((page - 1) * rowsPerPage, (page - 1) * rowsPerPage + rowsPerPage);
+            : filtered.slice(
+                (page - 1) * rowsPerPage,
+                (page - 1) * rowsPerPage + rowsPerPage
+            );
 
     // ── UI ──────────────────────────────────────────────────────────────
     if (loading) {
@@ -166,9 +178,13 @@ export default function ProjectTaskList({
                             setPage(1);
                         }}
                     >
-                        <MenuItem value=""><em>All</em></MenuItem>
+                        <MenuItem value="">
+                            <em>All</em>
+                        </MenuItem>
                         {STATUS_ORDER.map((s) => (
-                            <MenuItem key={s} value={s}>{s}</MenuItem>
+                            <MenuItem key={s} value={s}>
+                                {s}
+                            </MenuItem>
                         ))}
                     </Select>
                 </FormControl>
@@ -183,7 +199,9 @@ export default function ProjectTaskList({
                             setPage(1);
                         }}
                     >
-                        <MenuItem value=""><em>All</em></MenuItem>
+                        <MenuItem value="">
+                            <em>All</em>
+                        </MenuItem>
                         <MenuItem value="low">low</MenuItem>
                         <MenuItem value="medium">medium</MenuItem>
                         <MenuItem value="high">high</MenuItem>
@@ -193,8 +211,22 @@ export default function ProjectTaskList({
 
                 {/* чипы активных локальных фильтров */}
                 <Box sx={{ display: 'flex', gap: 1, flexWrap: 'wrap', ml: 'auto' }}>
-                    {status && <Chip size="small" color="primary" label={`Status: ${status}`} onDelete={() => setStatus('')} />}
-                    {priority && <Chip size="small" color="primary" label={`Priority: ${priority}`} onDelete={() => setPriority('')} />}
+                    {status && (
+                        <Chip
+                            size="small"
+                            color="primary"
+                            label={`Status: ${status}`}
+                            onDelete={() => setStatus('')}
+                        />
+                    )}
+                    {priority && (
+                        <Chip
+                            size="small"
+                            color="primary"
+                            label={`Priority: ${priority}`}
+                            onDelete={() => setPriority('')}
+                        />
+                    )}
                 </Box>
             </Box>
 
@@ -202,12 +234,32 @@ export default function ProjectTaskList({
                 <Table size="small">
                     <TableHead>
                         <TableRow>
-                            {columnVisibility.taskId && <TableCell width={100} align="center"><strong>ID</strong></TableCell>}
+                            {columnVisibility.taskId && (
+                                <TableCell width={100} align="center">
+                                    <strong>ID</strong>
+                                </TableCell>
+                            )}
                             {columnVisibility.task && <TableCell><strong>Задача</strong></TableCell>}
-                            {columnVisibility.status && <TableCell width={160} align="center"><strong>Статус</strong></TableCell>}
-                            {columnVisibility.priority && <TableCell width={140} align="center"><strong>Приоритет</strong></TableCell>}
-                            {columnVisibility.assignees && <TableCell width={240}><strong>Исполнитель</strong></TableCell>}
-                            {columnVisibility.due && <TableCell width={140} align="center"><strong>Срок</strong></TableCell>}
+                            {columnVisibility.status && (
+                                <TableCell width={160} align="center">
+                                    <strong>Статус</strong>
+                                </TableCell>
+                            )}
+                            {columnVisibility.priority && (
+                                <TableCell width={140} align="center">
+                                    <strong>Приоритет</strong>
+                                </TableCell>
+                            )}
+                            {columnVisibility.assignees && (
+                                <TableCell width={240}>
+                                    <strong>Исполнитель</strong>
+                                </TableCell>
+                            )}
+                            {columnVisibility.due && (
+                                <TableCell width={140} align="center">
+                                    <strong>Срок</strong>
+                                </TableCell>
+                            )}
                         </TableRow>
                     </TableHead>
                     <TableBody>
@@ -220,12 +272,15 @@ export default function ProjectTaskList({
                         )}
 
                         {pageSlice.map((t) => {
-                            const statusTitle = normalizeStatusTitle((t as any)._statusTitle || t.status);
-                            const safePriority = (normPriority(t.priority as string) || 'medium') as Priority;
+                            const statusTitle = t._statusTitle;
+                            const safePriority =
+                                (normPriority(t.priority as string) || 'medium') as Priority;
 
                             return (
                                 <TableRow key={t._id}>
-                                    {columnVisibility.taskId && <TableCell align="center">{t.taskId}</TableCell>}
+                                    {columnVisibility.taskId && (
+                                        <TableCell align="center">{t.taskId}</TableCell>
+                                    )}
 
                                     {columnVisibility.task && (
                                         <TableCell>
@@ -264,19 +319,29 @@ export default function ProjectTaskList({
                                     {columnVisibility.assignees && (
                                         <TableCell>
                                             {!t.assignees || t.assignees.length === 0 ? (
-                                                <Typography variant="body2" color="text.secondary">—</Typography>
+                                                <Typography variant="body2" color="text.secondary">
+                                                    —
+                                                </Typography>
                                             ) : (
                                                 <Stack direction="row" spacing={1} alignItems="center">
                                                     {t.assignees.slice(0, 2).map((a, i) => (
                                                         <Stack key={i} direction="row" spacing={1} alignItems="center">
                                                             <Avatar sx={{ width: 24, height: 24 }} src={a.avatarUrl}>
-                                                                {(a.name || a.email || '?').slice(0, 1).toUpperCase()}
+                                                                {(a.name || a.email || '?')
+                                                                    .slice(0, 1)
+                                                                    .toUpperCase()}
                                                             </Avatar>
-                                                            <Typography variant="body2">{a.name || a.email}</Typography>
+                                                            <Typography variant="body2">
+                                                                {a.name || a.email}
+                                                            </Typography>
                                                         </Stack>
                                                     ))}
                                                     {t.assignees.length > 2 && (
-                                                        <Chip size="small" label={`+${t.assignees.length - 2}`} variant="outlined" />
+                                                        <Chip
+                                                            size="small"
+                                                            label={`+${t.assignees.length - 2}`}
+                                                            variant="outlined"
+                                                        />
                                                     )}
                                                 </Stack>
                                             )}
@@ -349,7 +414,11 @@ export default function ProjectTaskList({
                         <IconButton
                             aria-label="show all"
                             onClick={() =>
-                                setColumnVisibility(Object.fromEntries(Object.keys(columnVisibility).map(k => [k, true])))
+                                setColumnVisibility(
+                                    Object.fromEntries(
+                                        Object.keys(columnVisibility).map((k) => [k, true])
+                                    )
+                                )
                             }
                         >
                             <FilterListIcon />
@@ -357,7 +426,11 @@ export default function ProjectTaskList({
                         <IconButton
                             aria-label="hide all"
                             onClick={() =>
-                                setColumnVisibility(Object.fromEntries(Object.keys(columnVisibility).map(k => [k, false])))
+                                setColumnVisibility(
+                                    Object.fromEntries(
+                                        Object.keys(columnVisibility).map((k) => [k, false])
+                                    )
+                                )
                             }
                         >
                             <FilterListIcon color="disabled" />
