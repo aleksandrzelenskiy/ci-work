@@ -63,25 +63,38 @@ export default function ProjectTasksPage() {
 
     React.useEffect(() => {
         const ctrl = new AbortController();
-        async function fetchOrg() {
+
+        async function fetchOrg(): Promise<void> {
             try {
                 setOrgInfoError(null);
                 const res = await fetch(`/api/org/${org}`, {
                     signal: ctrl.signal,
                     cache: 'no-store',
                 });
-                if (!res.ok) {
-                    throw new Error(`Failed to load org: ${res.status}`);
+
+                const data = (await res.json().catch(() => null)) as
+                    | { org: OrgInfo; role: string }
+                    | { error: string }
+                    | null;
+
+                if (!res.ok || !data || 'error' in data) {
+                    // не кидаем исключение — сразу фиксируем ошибку
+                    setOrgInfoError(
+                        !data || !('error' in data) ? `Failed to load org: ${res.status}` : data.error
+                    );
+                    setOrgInfo(null);
+                    return;
                 }
-                const data = (await res.json()) as { org: OrgInfo; role: string };
+
                 setOrgInfo(data.org);
             } catch (e) {
-                if ((e as { name?: string })?.name !== 'AbortError') {
+                if ((e as DOMException)?.name !== 'AbortError') {
                     setOrgInfoError(e instanceof Error ? e.message : 'Org load error');
                 }
             }
         }
-        fetchOrg();
+
+        void fetchOrg(); // явный игнор промиса — для линтера
         return () => ctrl.abort();
     }, [org]);
 
