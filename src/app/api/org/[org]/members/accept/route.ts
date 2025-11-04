@@ -1,11 +1,11 @@
 // src/app/api/org/[org]/members/accept/route.ts
-
 import { NextRequest, NextResponse } from 'next/server';
 import dbConnect from '@/utils/mongoose';
 import Organization from '@/app/models/OrganizationModel';
 import MembershipModel, { type Membership as MembershipDoc } from '@/app/models/MembershipModel';
 import { ensureSeatAvailable } from '@/utils/seats';
 import { Types, type FilterQuery } from 'mongoose';
+import { currentUser } from '@clerk/nextjs/server';
 
 export const runtime = 'nodejs';
 export const dynamic = 'force-dynamic';
@@ -24,7 +24,13 @@ export async function POST(
         await dbConnect();
         const { org: orgSlug } = await ctx.params;
 
-        const { token, email } = (await req.json()) as { token?: string; email?: string };
+        const me = await currentUser();
+        const meEmail = me?.emailAddresses?.[0]?.emailAddress?.toLowerCase();
+        if (!meEmail) {
+            return NextResponse.json({ error: 'Auth required' }, { status: 401 });
+        }
+
+        const { token } = (await req.json()) as { token?: string };
         if (!token) {
             return NextResponse.json({ error: 'token обязателен' }, { status: 400 });
         }
@@ -37,31 +43,18 @@ export async function POST(
             return NextResponse.json({ error: 'Организация не найдена' }, { status: 404 });
         }
 
-        // Базовый фильтр приглашения
-        const baseFilter: FilterQuery<MembershipDoc> = {
+        // Ищем приглашение строго на текущий email
+        const filter: FilterQuery<MembershipDoc> = {
             orgId: org._id,
             status: 'invited',
             inviteToken: token,
             inviteExpiresAt: { $gt: new Date() },
+            userEmail: meEmail,
         };
-        if (email) baseFilter.userEmail = email.toLowerCase();
 
-        // Сначала пробуем с учётом email (если он есть)
-        let m = await MembershipModel.findOne(baseFilter);
-
-        // Если с email не нашли — пробуем без него (вдруг регистр/опечатка)
-        if (!m && email) {
-            const fallbackFilter: FilterQuery<MembershipDoc> = {
-                orgId: org._id,
-                status: 'invited',
-                inviteToken: token,
-                inviteExpiresAt: { $gt: new Date() },
-            };
-            m = await MembershipModel.findOne(fallbackFilter);
-        }
-
+        const m = await MembershipModel.findOne(filter);
         if (!m) {
-            return NextResponse.json({ error: 'Приглашение не найдено или истекло' }, { status: 400 });
+            return NextResponse.json({ error: 'Приглашение недействительно для этого аккаунта' }, { status: 400 });
         }
 
         // Проверка лимита мест (seats)

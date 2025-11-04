@@ -13,7 +13,6 @@ type ApiErr = { error: string };
 type ApiResp = ApiOk | ApiErr;
 
 export default function OrgJoinPage() {
-    // безопасно читаем org из params
     const params = useParams() as Record<string, string> | null;
     const org = params?.org ?? null;
 
@@ -37,11 +36,18 @@ export default function OrgJoinPage() {
                 body: JSON.stringify({ token })
             });
             const data = (await res.json().catch(() => ({}) as ApiErr)) as ApiResp;
+
+            if (res.status === 401) {
+                setSnack({ open: true, msg: 'Нужно войти в аккаунт, чтобы принять приглашение', sev: 'error' });
+                return;
+            }
+
             if (!res.ok || ('error' in data && data.error)) {
                 const msg = ('error' in data && data.error) ? data.error : res.statusText;
                 setSnack({ open: true, msg, sev: 'error' });
                 return;
             }
+
             setSnack({ open: true, msg: 'Вы присоединились к организации', sev: 'success' });
             router.replace(`/org/${encodeURIComponent(org)}/projects`);
         } finally {
@@ -50,26 +56,9 @@ export default function OrgJoinPage() {
     }, [org, token, router]);
 
     const decline = React.useCallback(async () => {
-        if (!org || !token) return;
-        setLoading(true);
-        try {
-            const res = await fetch(`/api/org/${encodeURIComponent(org)}/members/decline`, {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ token })
-            });
-            const data = (await res.json().catch(() => ({}) as ApiErr)) as ApiResp;
-            if (!res.ok || ('error' in data && data.error)) {
-                const msg = ('error' in data && data.error) ? data.error : res.statusText;
-                setSnack({ open: true, msg, sev: 'error' });
-                return;
-            }
-            setSnack({ open: true, msg: 'Приглашение отклонено', sev: 'success' });
-            router.replace('/');
-        } finally {
-            setLoading(false);
-        }
-    }, [org, token, router]);
+        // при желании можно реализовать эндпоинт decline, пока просто на главную
+        router.replace('/');
+    }, [router]);
 
     return (
         <Box sx={{ p: { xs: 2, md: 3 }, maxWidth: 560, mx: 'auto' }}>
@@ -87,7 +76,7 @@ export default function OrgJoinPage() {
                     ) : (
                         <Stack spacing={2}>
                             <Typography>
-                                Пользователь вашей компании приглашает вас присоединиться к организации <b>{org}</b>.
+                                Вас пригласили присоединиться к организации <b>{org}</b>.
                             </Typography>
                             <Typography color="text.secondary" variant="body2">
                                 Нажмите «Присоединиться», чтобы стать участником. Если вы не ожидали это приглашение, нажмите «Отказаться».

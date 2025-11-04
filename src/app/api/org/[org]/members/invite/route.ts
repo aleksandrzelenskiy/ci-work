@@ -1,16 +1,18 @@
+// app/api/org/[org]/members/invite/route.ts
 import { NextRequest, NextResponse } from 'next/server';
 import { currentUser } from '@clerk/nextjs/server';
 import dbConnect from '@/utils/mongoose';
 import Membership, { OrgRole } from '@/app/models/MembershipModel';
 import { requireOrgRole } from '@/app/utils/permissions';
 import crypto from 'crypto';
+import UserModel from '@/app/models/UserModel'; // путь к вашему users-моделю
 
 export const runtime = 'nodejs';
 export const dynamic = 'force-dynamic';
 
 const FRONTEND_URL = process.env.FRONTEND_URL ?? 'http://localhost:3000';
 
-type InviteBody = { userEmail: string; userName?: string; role?: OrgRole };
+type InviteBody = { userEmail: string; role?: OrgRole };
 type InviteResponse =
     | { ok: true; inviteUrl: string; expiresAt: string; role: OrgRole }
     | { error: string };
@@ -33,6 +35,12 @@ export async function POST(req: NextRequest, ctx: { params: Promise<{ org: strin
         const userEmail = body.userEmail?.toLowerCase();
         if (!userEmail) return NextResponse.json({ error: 'userEmail обязателен' }, { status: 400 });
 
+        // ищем пользователя в users
+        const userDoc = await UserModel.findOne({ email: userEmail }, { name: 1 }).lean();
+        if (!userDoc) {
+            return NextResponse.json({ error: 'Пользователь с таким e-mail не зарегистрирован' }, { status: 400 });
+        }
+
         const role: OrgRole = (body.role ?? 'executor') as OrgRole;
 
         // токен на 7 дней
@@ -43,7 +51,7 @@ export async function POST(req: NextRequest, ctx: { params: Promise<{ org: strin
             { orgId: org._id, userEmail },
             {
                 $set: {
-                    userName: body.userName || userEmail,
+                    userName: userDoc.name ?? userEmail,
                     role,
                     status: 'invited',
                     invitedByEmail: inviterEmail,
@@ -55,7 +63,6 @@ export async function POST(req: NextRequest, ctx: { params: Promise<{ org: strin
             { upsert: true, new: true }
         );
 
-        // Возвращаем ссылку менеджеру
         const inviteUrl = `${FRONTEND_URL}/org/${encodeURIComponent(orgSlug)}/join?token=${encodeURIComponent(token)}`;
         return NextResponse.json({ ok: true, inviteUrl, expiresAt: expires.toISOString(), role });
 
