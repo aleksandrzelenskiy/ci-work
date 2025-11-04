@@ -24,6 +24,8 @@ import EditIcon from '@mui/icons-material/Edit';
 import DeleteIcon from '@mui/icons-material/Delete';
 import { useRouter, useParams } from 'next/navigation';
 
+type OrgRole = 'owner' | 'org_admin' | 'manager' | 'executor' | 'viewer';
+
 type Project = {
     _id: string;
     name: string;
@@ -36,6 +38,11 @@ type Project = {
 type GetProjectsSuccess = { projects: Project[] };
 type ApiError = { error: string };
 
+// Ответ /api/org/[org]
+type OrgInfoOk = { org: { _id: string; name: string; orgSlug: string }; role: OrgRole };
+type OrgInfoErr = { error: string };
+type OrgInfoResp = OrgInfoOk | OrgInfoErr;
+
 export default function OrgProjectsPage() {
     const router = useRouter();
 
@@ -47,49 +54,35 @@ export default function OrgProjectsPage() {
     const [loading, setLoading] = useState(true);
     const [err, setErr] = useState<string | null>(null);
 
-    // Create dialog
-    const [openCreate, setOpenCreate] = useState(false);
-    const [name, setName] = useState('');
-    const [key, setKey] = useState('');
-    const [description, setDescription] = useState('');
+    // ---- Доступ (только owner/org_admin/manager) ----
+    const allowedRoles: OrgRole[] = ['owner', 'org_admin', 'manager'];
+    const [myRole, setMyRole] = useState<OrgRole | null>(null);
+    const [accessChecked, setAccessChecked] = useState(false);
+    const canManage = allowedRoles.includes(myRole ?? 'viewer');
 
-    // Edit dialog
-    const [openEdit, setOpenEdit] = useState(false);
-    const [editProjectId, setEditProjectId] = useState<string | null>(null);
-    const [editName, setEditName] = useState('');
-    const [editKey, setEditKey] = useState('');
-    const [editDescription, setEditDescription] = useState('');
-
-    // Delete confirm
-    const [openDelete, setOpenDelete] = useState(false);
-    const [deleteProject, setDeleteProject] = useState<Project | null>(null);
-
-    // Snackbars
-    const [snackOpen, setSnackOpen] = useState(false);
-    const [snackMsg, setSnackMsg] = useState('');
-    const [snackSeverity, setSnackSeverity] = useState<'success' | 'error'>('success');
-
-    const showSnack = (message: string, severity: 'success' | 'error') => {
-        setSnackMsg(message);
-        setSnackSeverity(severity);
-        setSnackOpen(true);
-    };
-
-    const loadOrgName = useCallback(async () => {
+    const checkAccessAndLoadOrg = useCallback(async () => {
         try {
             const res = await fetch(`/api/org/${encodeURIComponent(orgSlug)}`);
-            const data: { org?: { name?: string } } | ApiError = await res.json();
-            if (res.ok && 'org' in data && data.org?.name) {
-                setOrgName(data.org.name);
-            } else {
+            const data = (await res.json()) as OrgInfoResp;
+            if (!res.ok || 'error' in data) {
+                // скрываем существование организации для не-членов
+                setMyRole(null);
                 setOrgName(orgSlug);
+            } else {
+                setMyRole(data.role);
+                setOrgName(data.org.name);
             }
         } catch {
+            setMyRole(null);
             setOrgName(orgSlug);
+        } finally {
+            setAccessChecked(true);
         }
     }, [orgSlug]);
 
+    // ---- Проекты ----
     const loadProjects = useCallback(async () => {
+        if (!canManage) return;
         setLoading(true);
         setErr(null);
         try {
@@ -108,14 +101,22 @@ export default function OrgProjectsPage() {
         } finally {
             setLoading(false);
         }
-    }, [orgSlug]);
+    }, [orgSlug, canManage]);
 
     useEffect(() => {
-        void loadOrgName();
-        void loadProjects();
-    }, [loadOrgName, loadProjects]);
+        void checkAccessAndLoadOrg();
+    }, [checkAccessAndLoadOrg]);
 
-    // Create
+    useEffect(() => {
+        if (canManage) void loadProjects();
+    }, [canManage, loadProjects]);
+
+    // ---- Создание ----
+    const [openCreate, setOpenCreate] = useState(false);
+    const [name, setName] = useState('');
+    const [key, setKey] = useState('');
+    const [description, setDescription] = useState('');
+
     const handleCreate = async (): Promise<void> => {
         setErr(null);
         try {
@@ -146,7 +147,13 @@ export default function OrgProjectsPage() {
         }
     };
 
-    // Edit
+    // ---- Редактирование ----
+    const [openEdit, setOpenEdit] = useState(false);
+    const [editProjectId, setEditProjectId] = useState<string | null>(null);
+    const [editName, setEditName] = useState('');
+    const [editKey, setEditKey] = useState('');
+    const [editDescription, setEditDescription] = useState('');
+
     const openEditDialog = (p: Project) => {
         setEditProjectId(p._id);
         setEditName(p.name);
@@ -183,7 +190,10 @@ export default function OrgProjectsPage() {
         }
     };
 
-    // Delete
+    // ---- Удаление ----
+    const [openDelete, setOpenDelete] = useState(false);
+    const [deleteProject, setDeleteProject] = useState<Project | null>(null);
+
     const askDelete = (p: Project) => {
         setDeleteProject(p);
         setOpenDelete(true);
@@ -215,13 +225,48 @@ export default function OrgProjectsPage() {
         }
     };
 
-    // ⬇⬇⬇ ВАЖНО: переходим по KEY, а не по _id
+    // ---- Навигация по KEY ----
     const handleCardClick = (projectKey: string) => {
-        router.push(`/org/${encodeURIComponent(orgSlug)}/projects/${encodeURIComponent(projectKey)}/tasks`);
+        router.push(
+            `/org/${encodeURIComponent(orgSlug)}/projects/${encodeURIComponent(projectKey)}/tasks`
+        );
+    };
+
+    // ---- Снекбар ----
+    const [snackOpen, setSnackOpen] = useState(false);
+    const [snackMsg, setSnackMsg] = useState('');
+    const [snackSeverity, setSnackSeverity] = useState<'success' | 'error'>('success');
+
+    const showSnack = (message: string, severity: 'success' | 'error') => {
+        setSnackMsg(message);
+        setSnackSeverity(severity);
+        setSnackOpen(true);
     };
 
     const isCreateDisabled = useMemo(() => !name || !key, [name, key]);
     const isEditDisabled = useMemo(() => !editName || !editKey, [editName, editKey]);
+
+    // ---- Рендер с учётом доступа ----
+    if (!accessChecked) {
+        return (
+            <Box sx={{ p: 3 }}>
+                <Stack direction="row" spacing={1} alignItems="center">
+                    <CircularProgress size={20} />
+                    <Typography>Проверяем доступ…</Typography>
+                </Stack>
+            </Box>
+        );
+    }
+
+    if (!canManage) {
+        return (
+            <Box sx={{ p: 3, maxWidth: 900, mx: 'auto' }}>
+                <Alert severity="error" variant="outlined">
+                    Недостаточно прав для просмотра страницы проектов.
+                </Alert>
+            </Box>
+        );
+    }
 
     return (
         <Box sx={{ p: 3 }}>
@@ -261,7 +306,7 @@ export default function OrgProjectsPage() {
                                         transition: 'transform 0.08s ease',
                                         '&:hover': { transform: 'translateY(-2px)' },
                                     }}
-                                    onClick={() => handleCardClick(p.key)} // <-- тут был p._id
+                                    onClick={() => handleCardClick(p.key)}
                                     role="button"
                                     aria-label={`Открыть задачи проекта ${p.name}`}
                                     elevation={2}
