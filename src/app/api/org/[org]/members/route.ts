@@ -1,4 +1,5 @@
 // src/app/api/org/[org]/members/route.ts
+
 import { NextRequest, NextResponse } from 'next/server';
 import { currentUser } from '@clerk/nextjs/server';
 import dbConnect from '@/utils/mongoose';
@@ -19,6 +20,11 @@ type MemberDTO = {
     userName?: string;
     role: OrgRole;
     status: 'active' | 'invited';
+
+    // ↓ Доп. поля для приглашённых: отдаются только менеджерским ролям
+    inviteToken?: string;
+    inviteExpiresAt?: string; // ISO
+    invitedByEmail?: string;
 };
 
 type MembersResponse = { members: MemberDTO[] } | { error: string };
@@ -31,10 +37,18 @@ type MembershipLean = {
     userName?: string;
     role: OrgRole;
     status: 'active' | 'invited';
+
+    invitedByEmail?: string;
+    inviteToken?: string;
+    inviteExpiresAt?: Date;
 };
 
-function toMemberDTO(doc: MembershipLean, orgSlug: string): MemberDTO {
-    return {
+function toMemberDTO(
+    doc: MembershipLean,
+    orgSlug: string,
+    includeInviteSecrets: boolean
+): MemberDTO {
+    const base: MemberDTO = {
         _id: String(doc._id),
         orgSlug,
         userEmail: doc.userEmail,
@@ -42,9 +56,20 @@ function toMemberDTO(doc: MembershipLean, orgSlug: string): MemberDTO {
         role: doc.role,
         status: doc.status,
     };
+
+    // Добавляем чувствительные поля только для invited и только если разрешено
+    if (includeInviteSecrets && doc.status === 'invited') {
+        base.invitedByEmail = doc.invitedByEmail;
+        if (doc.inviteToken) base.inviteToken = doc.inviteToken;
+        if (doc.inviteExpiresAt instanceof Date && !isNaN(doc.inviteExpiresAt.getTime())) {
+            base.inviteExpiresAt = doc.inviteExpiresAt.toISOString();
+        }
+    }
+
+    return base;
 }
 
-// GET /api/org/:org/members?role=executor&status=active
+// GET /api/org/:org/members?role=executor&status=active|invited|all
 export async function GET(
     req: NextRequest,
     ctx: { params: Promise<{ org: string }> }
@@ -58,7 +83,7 @@ export async function GET(
         if (!email) return NextResponse.json({ error: 'Auth required' }, { status: 401 });
 
         // Доступ читают все участники организации
-        const { org } = await requireOrgRole(orgSlug, email, [
+        const { org, membership } = await requireOrgRole(orgSlug, email, [
             'owner',
             'org_admin',
             'manager',
@@ -66,37 +91,41 @@ export async function GET(
             'viewer',
         ]);
 
+        // Только менеджерские роли видят токены/сроки приглашений
+        const includeInviteSecrets = ['owner', 'org_admin', 'manager'].includes(membership.role);
+
         // Параметры фильтрации
         const url = new URL(req.url);
         const roleParam = url.searchParams.get('role')?.toLowerCase() as OrgRole | undefined;
-        const statusParam = (url.searchParams.get('status') ?? 'active').toLowerCase() as
-            | 'active'
-            | 'invited';
 
-        const allowedRoles: OrgRole[] = ['owner', 'org_admin', 'manager', 'executor', 'viewer'];
+        // По умолчанию — 'all' (показываем и active, и invited)
+        const statusParamRaw =
+            (url.searchParams.get('status')?.toLowerCase() as 'active' | 'invited' | 'all' | undefined) ??
+            'all';
+
         const filter: Record<string, unknown> = { orgId: org._id };
 
         if (roleParam) {
+            const allowedRoles: OrgRole[] = ['owner', 'org_admin', 'manager', 'executor', 'viewer'];
             if (!allowedRoles.includes(roleParam)) {
-                return NextResponse.json(
-                    { error: `Unknown role: ${roleParam}` },
-                    { status: 400 }
-                );
+                return NextResponse.json({ error: `Unknown role: ${roleParam}` }, { status: 400 });
             }
             filter.role = roleParam;
         }
 
-        if (statusParam && !['active', 'invited'].includes(statusParam)) {
-            return NextResponse.json({ error: `Unknown status: ${statusParam}` }, { status: 400 });
+        // Валидируем статус и применяем фильтр только если не 'all'
+        if (!['active', 'invited', 'all'].includes(statusParamRaw)) {
+            return NextResponse.json({ error: `Unknown status: ${statusParamRaw}` }, { status: 400 });
         }
-        if (statusParam) filter.status = statusParam;
+        if (statusParamRaw !== 'all') {
+            filter.status = statusParamRaw;
+        }
 
         const membersRaw = await Membership.find(filter)
             .lean<MembershipLean[]>()
             .sort({ userName: 1, userEmail: 1 });
 
-        const members = membersRaw.map((m) => toMemberDTO(m, org.orgSlug));
-
+        const members = membersRaw.map((m) => toMemberDTO(m, org.orgSlug, includeInviteSecrets));
         return NextResponse.json({ members });
     } catch (e: unknown) {
         return NextResponse.json({ error: errorMessage(e) }, { status: 500 });
@@ -116,8 +145,8 @@ export async function POST(
         const email = me?.emailAddresses?.[0]?.emailAddress?.toLowerCase();
         if (!email) return NextResponse.json({ error: 'Auth required' }, { status: 401 });
 
-        // Добавлять участников могут только owner/org_admin
-        const { org } = await requireOrgRole(orgSlug, email, ['owner', 'org_admin']);
+        // Добавлять участников могут только owner/org_admin/manager
+        const { org } = await requireOrgRole(orgSlug, email, ['owner', 'org_admin', 'manager']);
 
         const body = (await request.json()) as AddMemberBody;
         const userEmail = body.userEmail?.toLowerCase();
@@ -148,7 +177,16 @@ export async function POST(
             return NextResponse.json({ error: 'Не удалось сохранить участника' }, { status: 500 });
         }
 
-        const member = toMemberDTO(saved, org.orgSlug);
+        // В POST возвращаем без секретов — обычное добавление активного участника
+        const member: MemberDTO = {
+            _id: String(saved._id),
+            orgSlug: org.orgSlug,
+            userEmail: saved.userEmail,
+            userName: saved.userName,
+            role: saved.role,
+            status: saved.status,
+        };
+
         return NextResponse.json({ ok: true, member });
     } catch (e: unknown) {
         return NextResponse.json({ error: errorMessage(e) }, { status: 500 });
