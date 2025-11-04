@@ -17,9 +17,9 @@ import {
     MenuItem,
     CircularProgress,
     Avatar,
-    ListItemIcon,
     ListItemText,
 } from '@mui/material';
+import Autocomplete from '@mui/material/Autocomplete';
 import { DatePicker, LocalizationProvider } from '@mui/x-date-pickers';
 import { AdapterDateFns } from '@mui/x-date-pickers/AdapterDateFns';
 
@@ -34,14 +34,25 @@ type Props = {
 
 type Priority = 'urgent' | 'high' | 'medium' | 'low';
 
-type ExecutorDTO = {
-    id: string;           // внутренний id/uuid участника
-    name: string;         // отображаемое имя
-    email: string;        // рабочий email
-    avatarUrl?: string;   // аватар (опционально)
+/** Опция автокомплита: любой активный участник организации */
+type MemberOption = {
+    id: string;          // _id membership/user
+    name: string;        // userName || userEmail
+    email: string;
+    profilePic?: string; // <— используем profilePic, как на бэке
 };
 
-// noinspection SpellCheckingInspection
+type MembersApi = {
+    members: Array<{
+        _id: string;
+        userName?: string;
+        userEmail: string;
+        profilePic?: string; // <— тут тоже profilePic
+    }>;
+    error?: string;
+};
+
+// cspell:disable-next-line — намеренно без I и O
 const ID_ALPHABET = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789';
 
 function genId(len = 5) {
@@ -68,47 +79,49 @@ export default function WorkspaceTaskDialog({
     const [bsLatitude, setBsLatitude] = React.useState<string>('');
     const [bsLongitude, setBsLongitude] = React.useState<string>('');
 
-    // Исполнители
-    const [executors, setExecutors] = React.useState<ExecutorDTO[]>([]);
-    const [executorsLoading, setExecutorsLoading] = React.useState(false);
-    const [executorsError, setExecutorsError] = React.useState<string | null>(null);
-    const [selectedExecutorId, setSelectedExecutorId] = React.useState<string>('');
+    // Исполнитель = любой активный участник
+    const [members, setMembers] = React.useState<MemberOption[]>([]);
+    const [membersLoading, setMembersLoading] = React.useState(false);
+    const [membersError, setMembersError] = React.useState<string | null>(null);
+    const [selectedExecutor, setSelectedExecutor] = React.useState<MemberOption | null>(null);
 
-    // загрузка списка исполнителей при открытии диалога
+    // загрузка активных участников при открытии диалога
     React.useEffect(() => {
         if (!open) return;
         let aborted = false;
 
-        async function loadExecutors() {
-            setExecutorsLoading(true);
-            setExecutorsError(null);
+        async function loadMembers(): Promise<void> {
+            setMembersLoading(true);
+            setMembersError(null);
             try {
-                // ОЖИДАЕМЫЙ эндпоинт: вернёт только участников с ролью "executor"
-                // Формат ответа:
-                // { members: Array<{ id, name, email, avatarUrl? }> }
-                const res = await fetch(`/api/org/${encodeURIComponent(org)}/members?role=executor`, {
-                    method: 'GET',
-                    headers: { 'Content-Type': 'application/json' },
-                    cache: 'no-store',
-                });
+                const res = await fetch(
+                    `/api/org/${encodeURIComponent(org)}/members?status=active`,
+                    { method: 'GET', headers: { 'Content-Type': 'application/json' }, cache: 'no-store' }
+                );
+                const j = (await res.json().catch(() => ({}))) as MembersApi | { error?: string };
+
                 if (!res.ok) {
-                    const j = await res.json().catch(() => ({}));
-                    throw new Error(j.error || res.statusText);
+                    setMembersError((j as { error?: string })?.error || res.statusText);
+                    return;
                 }
-                const data = await res.json();
-                if (!aborted) {
-                    setExecutors(Array.isArray(data?.members) ? data.members : []);
-                }
-            } catch (e: unknown) {
-                if (!aborted) {
-                    setExecutorsError(e instanceof Error ? e.message : 'Failed to load executors');
-                }
+
+                const list = (j as MembersApi)?.members ?? [];
+                const opts: MemberOption[] = list.map((m) => ({
+                    id: String(m._id),
+                    name: m.userName || m.userEmail,
+                    email: m.userEmail,
+                    profilePic: m.profilePic,
+                }));
+
+                if (!aborted) setMembers(opts);
+            } catch (e) {
+                if (!aborted) setMembersError(e instanceof Error ? e.message : 'Failed to load members');
             } finally {
-                if (!aborted) setExecutorsLoading(false);
+                if (!aborted) setMembersLoading(false);
             }
         }
 
-        loadExecutors();
+        void loadMembers();
         return () => {
             aborted = true;
         };
@@ -136,7 +149,7 @@ export default function WorkspaceTaskDialog({
         setDueDate(new Date());
         setBsLatitude('');
         setBsLongitude('');
-        setSelectedExecutorId('');
+        setSelectedExecutor(null);
     };
 
     const handleClose = () => {
@@ -149,9 +162,6 @@ export default function WorkspaceTaskDialog({
         if (!taskName || !bsNumber) return;
         if (!isLatValid || !isLngValid) return;
 
-        // найдём выбранного исполнителя по id (если выбран)
-        const sel = executors.find((m) => m.id === selectedExecutorId);
-
         setSaving(true);
         try {
             const payload = {
@@ -162,14 +172,14 @@ export default function WorkspaceTaskDialog({
                 status: 'To do', // совпадает с enum модели
                 priority,
                 dueDate: dueDate ? dueDate.toISOString() : undefined,
-                // координаты — числа, если введены
+
                 bsLatitude: bsLatitude === '' ? undefined : Number(bsLatitude),
                 bsLongitude: bsLongitude === '' ? undefined : Number(bsLongitude),
 
-                // привязка исполнителя (минимальный набор полей под твою модель)
-                executorId: sel?.id,
-                executorName: sel?.name,
-                executorEmail: sel?.email,
+                // Исполнитель (если выбран)
+                executorId: selectedExecutor?.id,
+                executorName: selectedExecutor?.name,
+                executorEmail: selectedExecutor?.email,
             };
 
             const res = await fetch(
@@ -183,7 +193,7 @@ export default function WorkspaceTaskDialog({
 
             if (!res.ok) {
                 const j = await res.json().catch(() => ({}));
-                console.error('Failed to create task:', j.error || res.statusText);
+                console.error('Failed to create task:', (j as { error?: string })?.error || res.statusText);
                 return;
             }
 
@@ -231,7 +241,6 @@ export default function WorkspaceTaskDialog({
                             <TextField
                                 label="Latitude (Широта)"
                                 type="number"
-                                inputProps={{ step: 'any', min: -90, max: 90 }}
                                 value={bsLatitude}
                                 onChange={(e) => setBsLatitude(e.target.value)}
                                 error={!isLatValid}
@@ -242,11 +251,14 @@ export default function WorkspaceTaskDialog({
                                         : 'WGS-84, десятичные градусы (lat), точка как разделитель'
                                 }
                                 fullWidth
+                                slotProps={{
+                                    input: { inputProps: { step: 'any', min: -90, max: 90 } },
+                                }}
                             />
+
                             <TextField
                                 label="Longitude (Долгота)"
                                 type="number"
-                                inputProps={{ step: 'any', min: -180, max: 180 }}
                                 value={bsLongitude}
                                 onChange={(e) => setBsLongitude(e.target.value)}
                                 error={!isLngValid}
@@ -257,57 +269,56 @@ export default function WorkspaceTaskDialog({
                                         : 'WGS-84, десятичные градусы (lon), точка как разделитель'
                                 }
                                 fullWidth
+                                slotProps={{
+                                    input: { inputProps: { step: 'any', min: -180, max: 180 } },
+                                }}
                             />
                         </Stack>
 
-                        {/* Исполнитель (роль executor) */}
-                        <FormControl fullWidth>
-                            <InputLabel id="executor-label">Исполнитель</InputLabel>
-                            <Select
-                                labelId="executor-label"
-                                label="Исполнитель"
-                                value={selectedExecutorId}
-                                onChange={(e) => setSelectedExecutorId(e.target.value as string)}
-                                disabled={executorsLoading}
-                                renderValue={(val) => {
-                                    const sel = executors.find((m) => m.id === val);
-                                    return sel ? sel.name : '';
-                                }}
-                            >
-                                {executorsLoading && (
-                                    <MenuItem disabled>
-                                        <ListItemIcon>
-                                            <CircularProgress size={18} />
-                                        </ListItemIcon>
-                                        <ListItemText primary="Загрузка..." />
-                                    </MenuItem>
-                                )}
-                                {executorsError && !executorsLoading && (
-                                    <MenuItem disabled>
-                                        <ListItemText primary={`Ошибка: ${executorsError}`} />
-                                    </MenuItem>
-                                )}
-                                {!executorsLoading && !executorsError && executors.length === 0 && (
-                                    <MenuItem disabled>
-                                        <ListItemText primary="Нет пользователей с ролью executor" />
-                                    </MenuItem>
-                                )}
-                                {executors.map((m) => (
-                                    <MenuItem key={m.id} value={m.id}>
-                                        {m.avatarUrl ? (
-                                            <ListItemIcon>
-                                                <Avatar src={m.avatarUrl} alt={m.name} sx={{ width: 24, height: 24 }} />
-                                            </ListItemIcon>
-                                        ) : (
-                                            <ListItemIcon>
-                                                <Avatar sx={{ width: 24, height: 24 }}>{m.name?.[0] ?? 'U'}</Avatar>
-                                            </ListItemIcon>
-                                        )}
-                                        <ListItemText primary={m.name} secondary={m.email} />
-                                    </MenuItem>
-                                ))}
-                            </Select>
-                        </FormControl>
+                        {/* Исполнитель: любой активный участник (Autocomplete) */}
+                        <Autocomplete<MemberOption>
+                            options={members}
+                            value={selectedExecutor}
+                            onChange={(_e, val) => setSelectedExecutor(val)}
+                            getOptionLabel={(opt) => opt?.name || opt?.email || ''}
+                            loading={membersLoading}
+                            noOptionsText={
+                                membersError
+                                    ? `Ошибка: ${membersError}`
+                                    : 'Нет активных участников'
+                            }
+                            renderInput={(params) => (
+                                <TextField
+                                    {...params}
+                                    label="Исполнитель (любой активный участник)"
+                                    placeholder={membersLoading ? 'Загрузка...' : 'Начните вводить имя или email'}
+                                    fullWidth
+                                    // стандартный способ показать спиннер в Autocomplete
+                                    InputProps={{
+                                        ...params.InputProps,
+                                        endAdornment: (
+                                            <>
+                                                {membersLoading ? <CircularProgress size={18} style={{ marginRight: 8 }} /> : null}
+                                                {params.InputProps.endAdornment}
+                                            </>
+                                        ),
+                                    }}
+                                />
+                            )}
+                            renderOption={(props, option) => (
+                                <li {...props} key={option.id}>
+                                    <Avatar
+                                        src={option.profilePic}
+                                        alt={option.name}
+                                        sx={{ width: 24, height: 24, mr: 1 }}
+                                    >
+                                        {(option.name || option.email)?.[0]?.toUpperCase() ?? 'U'}
+                                    </Avatar>
+                                    <ListItemText primary={option.name} secondary={option.email} />
+                                </li>
+                            )}
+                            isOptionEqualToValue={(opt, val) => opt.id === val.id}
+                        />
 
                         <Stack direction={{ xs: 'column', sm: 'row' }} spacing={2}>
                             <FormControl fullWidth>
@@ -341,7 +352,9 @@ export default function WorkspaceTaskDialog({
                     <Button
                         onClick={handleCreate}
                         variant="contained"
-                        disabled={saving || !taskName || !bsNumber || !isLatValid || !isLngValid}
+                        disabled={
+                            saving || !taskName || !bsNumber || !isLatValid || !isLngValid
+                        }
                     >
                         Создать
                     </Button>

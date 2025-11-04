@@ -21,7 +21,10 @@ type MemberDTO = {
     role: OrgRole;
     status: 'active' | 'invited';
 
-    // ↓ Доп. поля для приглашённых: отдаются только менеджерским ролям
+    /** аватар из users.profilePic */
+    profilePic?: string;
+
+    // Доп. поля для приглашённых: отдаются только менеджерским ролям
     inviteToken?: string;
     inviteExpiresAt?: string; // ISO
     invitedByEmail?: string;
@@ -37,37 +40,23 @@ type MembershipLean = {
     userName?: string;
     role: OrgRole;
     status: 'active' | 'invited';
-
     invitedByEmail?: string;
     inviteToken?: string;
     inviteExpiresAt?: Date;
 };
 
-function toMemberDTO(
-    doc: MembershipLean,
-    orgSlug: string,
-    includeInviteSecrets: boolean
-): MemberDTO {
-    const base: MemberDTO = {
-        _id: String(doc._id),
-        orgSlug,
-        userEmail: doc.userEmail,
-        userName: doc.userName,
-        role: doc.role,
-        status: doc.status,
-    };
-
-    // Добавляем чувствительные поля только для invited и только если разрешено
-    if (includeInviteSecrets && doc.status === 'invited') {
-        base.invitedByEmail = doc.invitedByEmail;
-        if (doc.inviteToken) base.inviteToken = doc.inviteToken;
-        if (doc.inviteExpiresAt instanceof Date && !isNaN(doc.inviteExpiresAt.getTime())) {
-            base.inviteExpiresAt = doc.inviteExpiresAt.toISOString();
-        }
-    }
-
-    return base;
-}
+/** Тип строки после aggregate + $project */
+type AggRow = {
+    _id: string;
+    userEmail: string;
+    userName?: string;
+    role: OrgRole;
+    status: 'active' | 'invited';
+    invitedByEmail?: string;
+    inviteToken?: string;
+    inviteExpiresAt?: Date;
+    profilePic?: string | null;
+};
 
 // GET /api/org/:org/members?role=executor&status=active|invited|all
 export async function GET(
@@ -100,32 +89,70 @@ export async function GET(
 
         // По умолчанию — 'all' (показываем и active, и invited)
         const statusParamRaw =
-            (url.searchParams.get('status')?.toLowerCase() as 'active' | 'invited' | 'all' | undefined) ??
-            'all';
+            (url.searchParams.get('status')?.toLowerCase() as 'active' | 'invited' | 'all' | undefined) ?? 'all';
 
-        const filter: Record<string, unknown> = { orgId: org._id };
-
+        const matchStage: Record<string, unknown> = { orgId: org._id };
         if (roleParam) {
             const allowedRoles: OrgRole[] = ['owner', 'org_admin', 'manager', 'executor', 'viewer'];
             if (!allowedRoles.includes(roleParam)) {
                 return NextResponse.json({ error: `Unknown role: ${roleParam}` }, { status: 400 });
             }
-            filter.role = roleParam;
+            matchStage.role = roleParam;
         }
-
-        // Валидируем статус и применяем фильтр только если не 'all'
         if (!['active', 'invited', 'all'].includes(statusParamRaw)) {
             return NextResponse.json({ error: `Unknown status: ${statusParamRaw}` }, { status: 400 });
         }
-        if (statusParamRaw !== 'all') {
-            filter.status = statusParamRaw;
-        }
+        if (statusParamRaw !== 'all') matchStage.status = statusParamRaw;
 
-        const membersRaw = await Membership.find(filter)
-            .lean<MembershipLean[]>()
-            .sort({ userName: 1, userEmail: 1 });
+        // Один проход: Membership -> $lookup users по email
+        const rows = await Membership.aggregate<AggRow>([
+            { $match: matchStage },
+            {
+                $lookup: {
+                    from: 'users',
+                    localField: 'userEmail',   // в Membership email хранится в lowercase
+                    foreignField: 'email',     // в users тоже lowercase
+                    as: 'user',
+                },
+            },
+            { $unwind: { path: '$user', preserveNullAndEmptyArrays: true } },
+            {
+                $project: {
+                    _id: { $toString: '$_id' },
+                    userEmail: 1,
+                    userName: { $ifNull: ['$user.name', '$userName'] }, // имя из users.name приоритетно
+                    role: 1,
+                    status: 1,
+                    invitedByEmail: 1,
+                    inviteToken: 1,
+                    inviteExpiresAt: 1,
+                    profilePic: '$user.profilePic',
+                },
+            },
+            { $sort: { userName: 1, userEmail: 1 } },
+        ]);
 
-        const members = membersRaw.map((m) => toMemberDTO(m, org.orgSlug, includeInviteSecrets));
+        const members: MemberDTO[] = rows.map((row) => {
+            const dto: MemberDTO = {
+                _id: row._id,
+                orgSlug: org.orgSlug,
+                userEmail: row.userEmail,
+                userName: row.userName,
+                role: row.role,
+                status: row.status,
+                profilePic: row.profilePic ?? undefined,
+            };
+
+            if (includeInviteSecrets && row.status === 'invited') {
+                if (row.invitedByEmail) dto.invitedByEmail = row.invitedByEmail;
+                if (row.inviteToken) dto.inviteToken = row.inviteToken;
+                if (row.inviteExpiresAt instanceof Date && !isNaN(row.inviteExpiresAt.getTime())) {
+                    dto.inviteExpiresAt = row.inviteExpiresAt.toISOString();
+                }
+            }
+            return dto;
+        });
+
         return NextResponse.json({ members });
     } catch (e: unknown) {
         return NextResponse.json({ error: errorMessage(e) }, { status: 500 });
