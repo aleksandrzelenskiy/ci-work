@@ -2,7 +2,7 @@
 'use client';
 
 import * as React from 'react';
-import { useParams, useSearchParams, useRouter } from 'next/navigation';
+import { useParams } from 'next/navigation';
 import {
     Box, Card, CardHeader, CardContent, TextField, Button, Stack, Select, MenuItem,
     InputLabel, FormControl, Snackbar, Alert, Table, TableHead, TableRow, TableCell,
@@ -28,6 +28,7 @@ type MemberDTO = {
     role: OrgRole;
     status: MemberStatus;
 };
+
 type SnackState = { open: boolean; msg: string; sev: 'success' | 'error' | 'info' };
 
 function roleLabel(r: OrgRole) {
@@ -49,9 +50,46 @@ function statusChip(s: MemberStatus) {
 export default function OrgSettingsPage() {
     const params = useParams<{ org: string }>();
     const org = params?.org;
-    const sp = useSearchParams();
-    const router = useRouter();
 
+    // ── Проверка роли / доступ ─────────────────────────────────────────────
+    const allowedRoles: OrgRole[] = ['owner', 'org_admin', 'manager'];
+    const [myRole, setMyRole] = React.useState<OrgRole | null>(null);
+    const [orgName, setOrgName] = React.useState<string>('');
+    const [accessChecked, setAccessChecked] = React.useState(false);
+    const canManage = allowedRoles.includes(myRole ?? 'viewer');
+
+    React.useEffect(() => {
+        let cancelled = false;
+        (async () => {
+            if (!org) return;
+            try {
+                const res = await fetch(`/api/org/${encodeURIComponent(org)}`);
+                type OrgInfoOk = { org: { _id: string; name: string; orgSlug: string }; role: OrgRole };
+                type OrgInfoErr = { error: string };
+                type OrgInfoResp = OrgInfoOk | OrgInfoErr;
+
+                const data = (await res.json().catch(() => ({}))) as OrgInfoResp;
+
+                if (!cancelled) {
+                    if (!res.ok || 'error' in data) {
+                        setMyRole(null);
+                    } else {
+                        setMyRole(data.role);
+                        setOrgName(data.org.name);
+                    }
+                    setAccessChecked(true);
+                }
+            } catch {
+                if (!cancelled) {
+                    setMyRole(null);
+                    setAccessChecked(true);
+                }
+            }
+        })();
+        return () => { cancelled = true; };
+    }, [org]);
+
+    // ── Остальные состояния ────────────────────────────────────────────────
     const [members, setMembers] = React.useState<MemberDTO[]>([]);
     const [loading, setLoading] = React.useState(false);
 
@@ -74,7 +112,7 @@ export default function OrgSettingsPage() {
     const [snack, setSnack] = React.useState<SnackState>({ open: false, msg: '', sev: 'success' });
 
     const fetchMembers = React.useCallback(async () => {
-        if (!org) return;
+        if (!org || !canManage) return;
         setLoading(true);
         try {
             const res = await fetch(`/api/org/${encodeURIComponent(org)}/members`, { cache: 'no-store' });
@@ -87,11 +125,11 @@ export default function OrgSettingsPage() {
         } finally {
             setLoading(false);
         }
-    }, [org]);
+    }, [org, canManage]);
 
-    // запрос к данным users
+    // запрос к данным users (делаем только если есть доступ)
     React.useEffect(() => {
-        if (!org) return;
+        if (!org || !canManage) return;
         const q = userQuery.trim();
         if (!q) { setUserOpts([]); return; }
         const ctrl = new AbortController();
@@ -108,21 +146,17 @@ export default function OrgSettingsPage() {
             finally { setUserLoading(false); }
         }, 250);
         return () => { clearTimeout(t); ctrl.abort(); };
-    }, [org, userQuery]);
+    }, [org, userQuery, canManage]);
 
     // когда выбираем пользователя — заполняем invEmail и отображаем имя из users
     React.useEffect(() => {
-        if (selectedUser) {
-            setInvEmail(selectedUser.email);
-        } else {
-            setInvEmail('');
-        }
+        setInvEmail(selectedUser ? selectedUser.email : '');
     }, [selectedUser]);
 
-    React.useEffect(() => { void fetchMembers(); }, [fetchMembers]);
+    React.useEffect(() => { if (canManage) void fetchMembers(); }, [fetchMembers, canManage]);
 
     const invite = React.useCallback(async () => {
-        if (!org || !invEmail) return;
+        if (!org || !invEmail || !canManage) return;
         setInviting(true);
         try {
             const res = await fetch(`/api/org/${encodeURIComponent(org)}/members/invite`, {
@@ -156,36 +190,9 @@ export default function OrgSettingsPage() {
         } finally {
             setInviting(false);
         }
-    }, [org, invEmail, invRole, fetchMembers]);
-
-    // принимаем токен из URL (без email)
-    const token = sp?.get('token') ?? null;
-
-    const acceptByToken = React.useCallback(async () => {
-        if (!org || !token) return;
-        const res = await fetch(`/api/org/${encodeURIComponent(org)}/members/accept`, {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ token }),
-        });
-        const data = (await res.json().catch(() => ({}))) as { error?: string };
-        if (!res.ok) {
-            setSnack({ open: true, msg: data?.error || res.statusText, sev: 'error' });
-            return;
-        }
-        setSnack({ open: true, msg: 'Вы присоединились к организации', sev: 'success' });
-        const clean = new URL(window.location.href);
-        clean.searchParams.delete('token');
-        router.replace(clean.toString());
-        await fetchMembers();
-    }, [org, token, router, fetchMembers]);
-
-    React.useEffect(() => {
-        if (token) { void acceptByToken(); }
-    }, [token, acceptByToken]);
+    }, [org, invEmail, invRole, canManage, fetchMembers]);
 
     const handleInviteClick = () => { void invite(); };
-    const handleAcceptClick = () => { void acceptByToken(); };
     const handleRefreshClick = () => { void fetchMembers(); };
     const handleCopyLink = () => {
         if (!inviteLink) return;
@@ -210,7 +217,7 @@ export default function OrgSettingsPage() {
     };
 
     const confirmRemove = async () => {
-        if (!org || !memberToRemove?._id) return;
+        if (!org || !memberToRemove?._id || !canManage) return;
         setRemoving(true);
         try {
             const res = await fetch(
@@ -235,11 +242,32 @@ export default function OrgSettingsPage() {
         }
     };
 
+    // ── Рендер с учётом доступа ───────────────────────────────────────────
+    if (!accessChecked) {
+        return (
+            <Box sx={{ p: 3 }}>
+                <Stack direction="row" spacing={1} alignItems="center">
+                    <CircularProgress size={20} />
+                    <Typography>Проверяем доступ…</Typography>
+                </Stack>
+            </Box>
+        );
+    }
+
+    if (!canManage) {
+        return (
+            <Box sx={{ p: 3, maxWidth: 900, mx: 'auto' }}>
+                <Alert severity="error" variant="outlined">
+                    Недостаточно прав для просмотра страницы настроек организации.
+                </Alert>
+            </Box>
+        );
+    }
 
     return (
         <Box sx={{ p: { xs: 2, md: 3 }, maxWidth: 1200, mx: 'auto' }}>
             <Typography variant="h5" sx={{ mb: 2 }}>
-                Настройки организации: {org}
+                Настройки организации: {orgName || org}
             </Typography>
 
             <Grid container spacing={2}>
@@ -314,7 +342,6 @@ export default function OrgSettingsPage() {
                                     </Typography>
                                 )}
 
-                                {/* Кнопки */}
                                 <Stack direction="row" spacing={1}>
                                     <Button
                                         variant="contained"
@@ -353,22 +380,6 @@ export default function OrgSettingsPage() {
                         </CardContent>
                     </Card>
                 </Grid>
-
-                {/* Ручной join, если авто-акцепт не сработал */}
-                {token && (
-                    <Grid item xs={12} md={6}>
-                        <Card variant="outlined">
-                            <CardHeader title="Приглашение найдено" />
-                            <CardContent>
-                                <Stack spacing={1}>
-                                    <Button variant="contained" onClick={handleAcceptClick}>
-                                        Присоединиться
-                                    </Button>
-                                </Stack>
-                            </CardContent>
-                        </Card>
-                    </Grid>
-                )}
 
                 {/* Таблица участников */}
                 <Grid item xs={12}>
