@@ -41,13 +41,15 @@ type Task = {
     _id: string;
     taskId: string;
     taskName: string;
-    status?: string; // приходят разные варианты — нормализуем
-    assignees?: Array<{ name?: string; email?: string; avatarUrl?: string }>;
+    status?: string;
     dueDate?: string;
     createdAt?: string;
     bsNumber?: string;
     totalCost?: number;
     priority?: Priority | string;
+    executorId?: string;
+    executorName?: string;
+    executorEmail?: string;
 };
 
 type TaskWithStatus = Task & { _statusTitle: StatusTitle };
@@ -75,7 +77,6 @@ const TITLE_CASE_MAP: Record<string, StatusTitle> = {
     'AGREED': 'Agreed',
 };
 
-/** Приводим вход к одному из ваших заголовков статуса */
 function normalizeStatusTitle(s?: string): StatusTitle {
     if (!s) return 'To do';
     const key = s.trim().toUpperCase();
@@ -84,6 +85,14 @@ function normalizeStatusTitle(s?: string): StatusTitle {
 
 const normPriority = (p?: string): Priority | '' =>
     p ? (p.toString().toLowerCase() as Priority) : '';
+
+const getInitials = (s?: string) =>
+    (s ?? '')
+        .split('@')[0]
+        .split(/\s+/)
+        .slice(0, 2)
+        .map(w => w[0]?.toUpperCase())
+        .join('') || '•';
 
 /* ───────────── компонент ───────────── */
 export default function ProjectTaskList({
@@ -95,32 +104,32 @@ export default function ProjectTaskList({
     loading: boolean;
     error: string | null;
 }) {
-    // ── фильтры (локально только статус/приоритет) ─────────────────────
+    // фильтры (локально только статус/приоритет)
     const [status, setStatus] = useState<'' | StatusTitle>('');
     const [priority, setPriority] = useState<'' | Priority>('');
 
-    // ── колонки ─────────────────────────────────────────────────────────
+    // колонки
     const [columnVisibility, setColumnVisibility] = useState<Record<string, boolean>>({
         taskId: true,
         task: true,
-        assignees: true,
         status: true,
         priority: true,
+        executor: true,
         due: true,
     });
     const toggleColumn = (key: string) =>
         setColumnVisibility((v) => ({ ...v, [key]: !v[key] }));
 
-    // ── поповер (только для колонок) ────────────────────────────────────
+    // поповер (только для колонок)
     const [anchorEl, setAnchorEl] = useState<HTMLElement | null>(null);
     const openColumnsPopover = (e: React.MouseEvent<HTMLElement>) => setAnchorEl(e.currentTarget);
     const closePopover = () => setAnchorEl(null);
 
-    // ── пагинация ───────────────────────────────────────────────────────
+    // пагинация
     const [page, setPage] = useState(1);
     const [rowsPerPage, setRowsPerPage] = useState<number>(10);
 
-    // ── применяем локальные фильтры ─────────────────────────────────────
+    // применяем локальные фильтры
     const filtered: TaskWithStatus[] = useMemo(() => {
         let res: TaskWithStatus[] = items.map((t) => ({
             ...t,
@@ -151,7 +160,7 @@ export default function ProjectTaskList({
                 (page - 1) * rowsPerPage + rowsPerPage
             );
 
-    // ── UI ──────────────────────────────────────────────────────────────
+    // UI
     if (loading) {
         return (
             <Box sx={{ p: 3, textAlign: 'center' }}>
@@ -253,8 +262,8 @@ export default function ProjectTaskList({
                                     <strong>Приоритет</strong>
                                 </TableCell>
                             )}
-                            {columnVisibility.assignees && (
-                                <TableCell width={240}>
+                            {columnVisibility.executor && (
+                                <TableCell width={260}>
                                     <strong>Исполнитель</strong>
                                 </TableCell>
                             )}
@@ -277,6 +286,9 @@ export default function ProjectTaskList({
                         {pageSlice.map((t) => {
                             const statusTitle = t._statusTitle;
                             const safePriority = (normalizePriority(t.priority as string) ?? 'medium') as Pri;
+
+                            const execLabel = t.executorName || t.executorEmail || '';
+                            const execSub = t.executorName && t.executorEmail ? t.executorEmail : '';
 
                             return (
                                 <TableRow key={t._id}>
@@ -321,35 +333,26 @@ export default function ProjectTaskList({
                                         </TableCell>
                                     )}
 
-
-                                    {columnVisibility.assignees && (
+                                    {columnVisibility.executor && (
                                         <TableCell>
-                                            {!t.assignees || t.assignees.length === 0 ? (
-                                                <Typography variant="body2" color="text.secondary">
-                                                    —
-                                                </Typography>
-                                            ) : (
+                                            {execLabel ? (
                                                 <Stack direction="row" spacing={1} alignItems="center">
-                                                    {t.assignees.slice(0, 2).map((a, i) => (
-                                                        <Stack key={i} direction="row" spacing={1} alignItems="center">
-                                                            <Avatar sx={{ width: 24, height: 24 }} src={a.avatarUrl}>
-                                                                {(a.name || a.email || '?')
-                                                                    .slice(0, 1)
-                                                                    .toUpperCase()}
-                                                            </Avatar>
-                                                            <Typography variant="body2">
-                                                                {a.name || a.email}
+                                                    <Avatar sx={{ width: 24, height: 24 }}>
+                                                        {getInitials(t.executorName || t.executorEmail)}
+                                                    </Avatar>
+                                                    <Box>
+                                                        <Typography variant="body2">
+                                                            {execLabel}
+                                                        </Typography>
+                                                        {execSub && (
+                                                            <Typography variant="caption" color="text.secondary">
+                                                                {execSub}
                                                             </Typography>
-                                                        </Stack>
-                                                    ))}
-                                                    {t.assignees.length > 2 && (
-                                                        <Chip
-                                                            size="small"
-                                                            label={`+${t.assignees.length - 2}`}
-                                                            variant="outlined"
-                                                        />
-                                                    )}
+                                                        )}
+                                                    </Box>
                                                 </Stack>
+                                            ) : (
+                                                <Typography variant="body2" color="text.secondary">—</Typography>
                                             )}
                                         </TableCell>
                                     )}

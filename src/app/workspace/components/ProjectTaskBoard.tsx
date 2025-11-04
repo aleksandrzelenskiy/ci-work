@@ -37,8 +37,11 @@ type Task = {
     bsNumber?: string;
     createdAt?: string;
     dueDate?: string;
-    status?: string; // нормализуем в Title Case
+    status?: string;
     priority?: 'urgent' | 'high' | 'medium' | 'low' | string;
+    executorId?: string;
+    executorName?: string;
+    executorEmail?: string;
 };
 
 const formatDateRU = (v?: string) => (v ? new Date(v).toLocaleDateString('ru-RU') : '—');
@@ -66,13 +69,16 @@ function normalizeStatusTitle(s?: string): StatusTitle {
 
 function TaskCard({ t, statusTitle }: { t: Task; statusTitle: StatusTitle }) {
     const p = normalizePriority(t.priority); // 'urgent' | 'high' | 'medium' | 'low' | null
+    const execLabel = t.executorName || t.executorEmail || '';
+    const execTooltip =
+        t.executorName && t.executorEmail ? `${t.executorName} • ${t.executorEmail}` : execLabel;
 
     return (
         <Card sx={{ mb: 2, boxShadow: 2, position: 'relative', overflow: 'hidden' }}>
             <Box sx={{ mt: '5px', ml: '5px' }}>
                 <Typography variant="caption" color="text.secondary">
                     <TaskOutlinedIcon sx={{ fontSize: 15, mb: 0.5, mr: 0.5 }} />
-                    {t.taskId} {t.createdAt ? new Date(t.createdAt).toLocaleDateString() : ''}
+                    {t.taskId} {t.createdAt ? new Date(t.createdAt).toLocaleDateString('ru-RU') : ''}
                 </Typography>
             </Box>
 
@@ -80,7 +86,27 @@ function TaskCard({ t, statusTitle }: { t: Task; statusTitle: StatusTitle }) {
                 <Typography variant="subtitle1" gutterBottom>
                     {t.taskName}
                 </Typography>
+
                 <Typography variant="body2">BS: {t.bsNumber || '—'}</Typography>
+
+                {/* Исполнитель (из executor*) */}
+                <Box sx={{ mt: 0.5, minHeight: 28 }}>
+                    {execLabel ? (
+                        <Tooltip title={execTooltip}>
+                            <Chip
+                                size="small"
+                                label={execLabel}
+                                variant="outlined"
+                                sx={{ maxWidth: '100%' }}
+                            />
+                        </Tooltip>
+                    ) : (
+                        <Typography variant="caption" color="text.secondary">
+                            Исполнитель: —
+                        </Typography>
+                    )}
+                </Box>
+
                 <Typography variant="caption">Due date: {formatDateRU(t.dueDate)}</Typography>
             </CardContent>
 
@@ -93,6 +119,7 @@ function TaskCard({ t, statusTitle }: { t: Task; statusTitle: StatusTitle }) {
                     bottom: 8,
                     display: 'flex',
                     alignItems: 'center',
+                    gap: 1,
                 }}
             >
                 <Chip
