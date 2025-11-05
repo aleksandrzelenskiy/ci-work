@@ -11,6 +11,7 @@ import {
 import Autocomplete from '@mui/material/Autocomplete';
 import ViewColumnIcon from '@mui/icons-material/ViewColumn';
 import FilterListIcon from '@mui/icons-material/FilterList';
+import FilterListAltIcon from '@mui/icons-material/FilterListAlt';
 import PersonSearchIcon from '@mui/icons-material/PersonSearch';
 import { getStatusColor } from '@/utils/statusColors';
 import { getPriorityIcon, normalizePriority, type Priority as Pri } from '@/utils/priorityIcons';
@@ -138,7 +139,7 @@ export default function ProjectTaskList({
         e: React.MouseEvent<HTMLElement>,
         type: 'status' | 'priority' | 'executor' | 'due'
     ) => {
-        if (!showFilters) return; // страховка: если иконки скрыты — не открывать поповер
+        if (!showFilters) return;
         setAnchorEl(e.currentTarget);
         setCurrentFilter(type);
     };
@@ -236,7 +237,7 @@ export default function ProjectTaskList({
     }
     if (error) return <Alert severity="error" sx={{ m: 2 }}>{error}</Alert>;
 
-    // ширина поповера: для исполнителя сделаем шире, чтобы Autocomplete не обрезался
+    // ширина поповера
     const popoverMinWidth = currentFilter === 'executor' ? 380 : 260;
 
     return (
@@ -250,16 +251,16 @@ export default function ProjectTaskList({
                         </IconButton>
                     </Tooltip>
 
-                    {/* Кнопка-переключатель видимости иконок фильтров */}
-                    <Button
-                        size="small"
-                        variant={showFilters ? 'contained' : 'outlined'}
-                        startIcon={<FilterListIcon />}
-                        onClick={() => setShowFilters((v) => !v)}
-                        sx={{ textTransform: 'none' }}
-                    >
-                        Фильтр
-                    </Button>
+                    {/* Иконка-переключатель видимости иконок фильтров */}
+                    <Tooltip title="Добавить фильтр">
+                        <IconButton
+                            onClick={() => setShowFilters((v) => !v)}
+                            color={showFilters ? 'primary' : 'default'}
+                            aria-label="toggle filters"
+                        >
+                            <FilterListAltIcon />
+                        </IconButton>
+                    </Tooltip>
 
                     {/* активные фильтры */}
                     {activeFiltersCount > 0 && (
