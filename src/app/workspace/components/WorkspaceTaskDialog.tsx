@@ -18,10 +18,17 @@ import {
     CircularProgress,
     Avatar,
     ListItemText,
+    Chip,
+    IconButton,
+    Typography,
+    LinearProgress,
+    Tooltip,
 } from '@mui/material';
 import Autocomplete from '@mui/material/Autocomplete';
 import { DatePicker, LocalizationProvider } from '@mui/x-date-pickers';
 import { AdapterDateFns } from '@mui/x-date-pickers/AdapterDateFns';
+import DeleteOutlineIcon from '@mui/icons-material/DeleteOutline';
+import CloudUploadIcon from '@mui/icons-material/CloudUpload';
 
 type Props = {
     open: boolean;
@@ -39,7 +46,7 @@ type MemberOption = {
     id: string;          // _id membership/user
     name: string;        // userName || userEmail
     email: string;
-    profilePic?: string; // <— используем profilePic, как на бэке
+    profilePic?: string; // profilePic как на бэке
 };
 
 type MembersApi = {
@@ -47,7 +54,7 @@ type MembersApi = {
         _id: string;
         userName?: string;
         userEmail: string;
-        profilePic?: string; // <— тут тоже profilePic
+        profilePic?: string;
     }>;
     error?: string;
 };
@@ -72,7 +79,7 @@ export default function WorkspaceTaskDialog({
     const [taskName, setTaskName] = React.useState('');
     const [bsNumber, setBsNumber] = React.useState('');
     const [bsAddress, setBsAddress] = React.useState('');
-    const [taskDescription, setTaskDescription] = React.useState(''); // ← NEW
+    const [taskDescription, setTaskDescription] = React.useState('');
     const [priority, setPriority] = React.useState<Priority>('medium');
     const [dueDate, setDueDate] = React.useState<Date | null>(new Date());
 
@@ -85,6 +92,18 @@ export default function WorkspaceTaskDialog({
     const [membersLoading, setMembersLoading] = React.useState(false);
     const [membersError, setMembersError] = React.useState<string | null>(null);
     const [selectedExecutor, setSelectedExecutor] = React.useState<MemberOption | null>(null);
+
+    // Вложения (drag & drop)
+    const [attachments, setAttachments] = React.useState<File[]>([]);
+    const [dragActive, setDragActive] = React.useState(false);
+    const [uploading, setUploading] = React.useState(false);
+    const [uploadProgress, setUploadProgress] = React.useState<number>(0);
+
+    /** Универсальный извлекатель текстовой ошибки из JSON-ответа */
+    function extractErrorMessage(payload: unknown, fallback: string): string {
+        const err = (payload as { error?: unknown })?.error;
+        return typeof err === 'string' && err.trim() ? err : fallback;
+    }
 
     // загрузка активных участников при открытии диалога
     React.useEffect(() => {
@@ -99,14 +118,16 @@ export default function WorkspaceTaskDialog({
                     `/api/org/${encodeURIComponent(org)}/members?status=active`,
                     { method: 'GET', headers: { 'Content-Type': 'application/json' }, cache: 'no-store' }
                 );
-                const j = (await res.json().catch(() => ({}))) as MembersApi | { error?: string };
+
+                let body: unknown = null;
+                try { body = await res.json(); } catch { /* может не быть тела */ }
 
                 if (!res.ok) {
-                    setMembersError((j as { error?: string })?.error || res.statusText);
+                    if (!aborted) setMembersError(extractErrorMessage(body, res.statusText));
                     return;
                 }
 
-                const list = (j as MembersApi)?.members ?? [];
+                const list = (body as MembersApi)?.members ?? [];
                 const opts: MemberOption[] = list.map((m) => ({
                     id: String(m._id),
                     name: m.userName || m.userEmail,
@@ -146,32 +167,114 @@ export default function WorkspaceTaskDialog({
         setTaskName('');
         setBsNumber('');
         setBsAddress('');
-        setTaskDescription(''); // ← NEW
+        setTaskDescription('');
         setPriority('medium');
         setDueDate(new Date());
         setBsLatitude('');
         setBsLongitude('');
         setSelectedExecutor(null);
+        setAttachments([]);
+        setUploadProgress(0);
+        setUploading(false);
     };
 
     const handleClose = () => {
-        if (saving) return;
+        if (saving || uploading) return;
         reset();
         onCloseAction();
     };
+
+    // ---------- Drag & Drop ----------
+    const onDragOver = (e: React.DragEvent<HTMLDivElement>) => {
+        e.preventDefault();
+        e.stopPropagation();
+        setDragActive(true);
+    };
+    const onDragLeave = (e: React.DragEvent<HTMLDivElement>) => {
+        e.preventDefault();
+        e.stopPropagation();
+        setDragActive(false);
+    };
+    const onDrop = (e: React.DragEvent<HTMLDivElement>) => {
+        e.preventDefault();
+        e.stopPropagation();
+        setDragActive(false);
+        const files = Array.from(e.dataTransfer.files || []);
+        if (!files.length) return;
+        addFiles(files);
+    };
+
+    const inputRef = React.useRef<HTMLInputElement | null>(null);
+    const openFileDialog = () => inputRef.current?.click();
+
+    const onFileInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+        const files = Array.from(e.target.files || []);
+        if (!files.length) return;
+        addFiles(files);
+        // сбрасываем value, чтобы одно и то же имя можно было выбрать снова
+        e.currentTarget.value = '';
+    };
+
+    const addFiles = (files: File[]) => {
+        // простая фильтрация дубликатов по имени+size (можно усложнить до hash)
+        const existing = new Set(attachments.map(f => `${f.name}:${f.size}`));
+        const toAdd = files.filter(f => !existing.has(`${f.name}:${f.size}`));
+        setAttachments(prev => [...prev, ...toAdd]);
+    };
+
+    const removeFile = (name: string, size: number) => {
+        setAttachments(prev => prev.filter(f => !(f.name === name && f.size === size)));
+    };
+
+    // ---------- Upload attachments (после создания задачи) ----------
+    async function uploadAttachments(taskId: string): Promise<void> {
+        if (!attachments.length) return;
+        setUploading(true);
+        setUploadProgress(0);
+
+        // грузим по одному файлу, чтобы легче трекать прогресс
+        for (let i = 0; i < attachments.length; i++) {
+            const file = attachments[i];
+            const fd = new FormData();
+            fd.append('file', file, file.name);
+            fd.append('taskId', taskId);
+            fd.append('subfolder', 'attachments'); // важно для вашей s3-утилиты
+            fd.append('orgSlug', org);             // если на сервере понадобится путь {org}/{task}
+
+            const res = await fetch('/api/upload', {
+                method: 'POST',
+                body: fd,
+                // без Content-Type — браузер сам поставит multipart/form-data с boundary
+            });
+
+            if (!res.ok) {
+                // логируем, но не падаем — грузим остальные
+                let body: unknown = null;
+                try { body = await res.json(); } catch { /* ignore JSON parse error */ }
+                const errText = extractErrorMessage(body, res.statusText);
+                console.error('File upload failed:', errText);
+            }
+
+            setUploadProgress(Math.round(((i + 1) / attachments.length) * 100));
+        }
+
+        setUploading(false);
+    }
 
     const handleCreate = async () => {
         if (!taskName || !bsNumber) return;
         if (!isLatValid || !isLngValid) return;
 
         setSaving(true);
+        const newTaskId = genId();
+
         try {
             const payload = {
-                taskId: genId(),
+                taskId: newTaskId,
                 taskName,
                 bsNumber,
                 bsAddress,
-                taskDescription: taskDescription?.trim() || undefined, // ← NEW
+                taskDescription: taskDescription?.trim() || undefined,
                 status: 'To do', // совпадает с enum модели
                 priority,
                 dueDate: dueDate ? dueDate.toISOString() : undefined,
@@ -195,10 +298,15 @@ export default function WorkspaceTaskDialog({
             );
 
             if (!res.ok) {
-                const j = await res.json().catch(() => ({}));
-                console.error('Failed to create task:', (j as { error?: string })?.error || res.statusText);
+                let body: unknown = null;
+                try { body = await res.json(); } catch { /* ignore */ }
+                const createErr = extractErrorMessage(body, res.statusText);
+                console.error('Failed to create task:', createErr);
                 return;
             }
+
+            // сначала создали задачу — потом грузим вложения, используя тот же taskId
+            await uploadAttachments(newTaskId);
 
             reset();
             onCreatedAction();
@@ -305,7 +413,7 @@ export default function WorkspaceTaskDialog({
                             renderInput={(params) => (
                                 <TextField
                                     {...params}
-                                    label="Исполнитель (любой активный участник)"
+                                    label="Исполнитель (участники организации)"
                                     placeholder={membersLoading ? 'Загрузка...' : 'Начните вводить имя или email'}
                                     fullWidth
                                     InputProps={{
@@ -356,18 +464,87 @@ export default function WorkspaceTaskDialog({
                                 slotProps={{ textField: { fullWidth: true } }}
                             />
                         </Stack>
+
+                        {/* ---------- Drag & Drop attachments ---------- */}
+                        <Box
+                            onDragOver={onDragOver}
+                            onDragLeave={onDragLeave}
+                            onDrop={onDrop}
+                            sx={{
+                                border: '2px dashed',
+                                borderColor: dragActive ? 'primary.main' : 'divider',
+                                borderRadius: 2,
+                                p: 2,
+                                textAlign: 'center',
+                                cursor: 'pointer',
+                                bgcolor: dragActive ? 'action.hover' : 'transparent',
+                                transition: 'all 120ms ease',
+                            }}
+                            onClick={openFileDialog}
+                        >
+                            <CloudUploadIcon sx={{ fontSize: 36, mb: 1 }} />
+                            <Typography variant="body1">
+                                Перетащите файлы сюда или нажмите для выбора
+                            </Typography>
+                            <Typography variant="caption" color="text.secondary">
+                                Вложения будут сохранены как <b>attachments</b> этой задачи
+                            </Typography>
+                            <input
+                                ref={inputRef}
+                                type="file"
+                                multiple
+                                hidden
+                                onChange={onFileInputChange}
+                            />
+                        </Box>
+
+                        {!!attachments.length && (
+                            <Box>
+                                <Stack direction="row" alignItems="center" spacing={1} sx={{ mb: 1 }}>
+                                    <Typography variant="subtitle2">
+                                        Вложения: {attachments.length}
+                                    </Typography>
+                                    {uploading && (
+                                        <>
+                                            <LinearProgress variant="determinate" value={uploadProgress} sx={{ flex: 1 }} />
+                                            <Typography variant="caption" sx={{ minWidth: 36, textAlign: 'right' }}>
+                                                {uploadProgress}%
+                                            </Typography>
+                                        </>
+                                    )}
+                                </Stack>
+
+                                <Stack direction="row" flexWrap="wrap" gap={1}>
+                                    {attachments.map((f) => (
+                                        <Chip
+                                            key={`${f.name}:${f.size}`}
+                                            label={`${f.name} (${Math.round(f.size / 1024)} KB)`}
+                                            onDelete={!saving && !uploading ? () => removeFile(f.name, f.size) : undefined}
+                                            deleteIcon={
+                                                <Tooltip title="Удалить">
+                                                    <IconButton size="small" edge="end">
+                                                        <DeleteOutlineIcon fontSize="small" />
+                                                    </IconButton>
+                                                </Tooltip>
+                                            }
+                                            sx={{ maxWidth: '100%' }}
+                                        />
+                                    ))}
+                                </Stack>
+                            </Box>
+                        )}
                     </Box>
                 </DialogContent>
 
                 <DialogActions>
-                    <Button onClick={handleClose} disabled={saving}>
+                    <Button onClick={handleClose} disabled={saving || uploading}>
                         Отмена
                     </Button>
                     <Button
                         onClick={handleCreate}
                         variant="contained"
                         disabled={
-                            saving || !taskName || !bsNumber || !isLatValid || !isLngValid
+                            saving || uploading || !taskName || !bsNumber || !isLatValid || !isLngValid
                         }
                     >
                         Создать

@@ -1,5 +1,7 @@
 // pages/api/upload.ts
 
+/* cspell:ignore uuidv4 */
+
 import type { NextApiRequest, NextApiResponse } from 'next';
 import { getAuth } from '@clerk/nextjs/server';
 import sharp from 'sharp';
@@ -11,8 +13,11 @@ import dbConnect from '@/utils/mongoose';
 import { uploadBuffer } from '@/utils/s3';
 import { v4 as uuidv4 } from 'uuid';
 import Busboy from 'busboy';
+import type { FileInfo } from 'busboy';
 import { sendEmail } from '@/utils/mailer';
+import path from 'path';
 
+// eslint-disable-next-line @typescript-eslint/no-unused-vars
 export const config = {
     api: {
         bodyParser: false,
@@ -26,13 +31,7 @@ function toDMS(
     seconds: number,
     isLatitude: boolean
 ): string {
-    const direction = isLatitude
-        ? degrees >= 0
-            ? 'N'
-            : 'S'
-        : degrees >= 0
-            ? 'E'
-            : 'W';
+    const direction = isLatitude ? (degrees >= 0 ? 'N' : 'S') : (degrees >= 0 ? 'E' : 'W');
     const absDeg = Math.abs(degrees);
     return `${absDeg}° ${minutes}' ${seconds.toFixed(2)}" ${direction}`;
 }
@@ -41,6 +40,17 @@ function formatDateToDDMMYYYY(exifDateStr: string): string {
     const [datePart] = exifDateStr.split(' ');
     const [yyyy, mm, dd] = datePart.split(':');
     return `${dd}.${mm}.${yyyy}`;
+}
+
+type ParsedFile = {
+    buffer: Buffer;
+    filename: string;
+    mimetype: string;
+};
+
+// Безопасно приводим имя файла
+function safeBasename(name: string): string {
+    return path.basename(name).replace(/[\r\n]/g, '_');
 }
 
 export default async function handler(req: NextApiRequest, res: NextApiResponse) {
@@ -56,36 +66,108 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
         return res.status(401).json({ error: 'User is not authenticated' });
     }
 
-    await dbConnect();
+    const fields: Record<string, string> = {};
+    const files: ParsedFile[] = [];
+
+    try {
+        // --------- Парсинг multipart/form-data через Busboy ---------
+        const bb = Busboy({ headers: req.headers });
+
+        bb.on('field', (fieldName: string, val: string) => {
+            fields[fieldName] = val;
+        });
+
+        bb.on('file', (_field: string, stream, info: FileInfo) => {
+            const filename = info?.filename ?? 'file';
+            const mimeType = (info as FileInfo & { mimeType?: string }).mimeType ?? 'application/octet-stream';
+
+            const chunks: Buffer[] = [];
+            stream.on('data', (c: Buffer) => chunks.push(c));
+            stream.on('end', () => {
+                files.push({
+                    buffer: Buffer.concat(chunks),
+                    filename,
+                    mimetype: mimeType,
+                });
+            });
+        });
+
+        await new Promise<void>((resolve, reject) => {
+            bb.on('finish', resolve);
+            bb.on('error', reject);
+            req.pipe(bb);
+        });
+
+        if (files.length === 0) {
+            console.error('Validation error: No files uploaded');
+            return res.status(400).json({ error: 'No files uploaded' });
+        }
+    } catch (err) {
+        console.error('Multipart parse error:', err);
+        return res.status(400).json({ error: 'Invalid multipart form data' });
+    }
+
+    // --------- Режим вложений задачи (drag&drop) ---------
+    // Условия: есть subfolder (например, "attachments") и taskId.
+    const subfolder = fields.subfolder?.trim();
+    const taskIdForAttachments = fields.taskId?.trim();
+    const orgSlug = fields.orgSlug?.trim();
+
+    if (subfolder && taskIdForAttachments) {
+        try {
+            // Аутентификация пользователя для audit (но без БД логики — только загрузка)
+            await dbConnect();
+            const user = await User.findOne({ clerkUserId: userId });
+            if (!user) {
+                console.error('User not found in database');
+                return res.status(401).json({ error: 'User not found in database' });
+            }
+
+            // Загружаем КАЖДЫЙ файл по ключу:
+            // uploads/{orgSlug?}/{taskId}/{taskId}-{subfolder}/{filename}
+            const uploadedUrls: string[] = [];
+            for (const f of files) {
+                const filename = safeBasename(f.filename || 'file');
+                const key = orgSlug
+                    ? path.posix.join('uploads', orgSlug, taskIdForAttachments, `${taskIdForAttachments}-${subfolder}`, filename)
+                    : path.posix.join('uploads', taskIdForAttachments, `${taskIdForAttachments}-${subfolder}`, filename);
+
+                const url = await uploadBuffer(f.buffer, key, f.mimetype || 'application/octet-stream');
+                uploadedUrls.push(url);
+            }
+
+            return res.status(200).json({
+                success: true,
+                mode: 'attachments',
+                message: `Uploaded ${uploadedUrls.length} file(s) to ${subfolder}`,
+                subfolder,
+                taskId: taskIdForAttachments,
+                orgSlug: orgSlug || null,
+                urls: uploadedUrls,
+            });
+        } catch (error) {
+            console.error('Attachment upload error:', error);
+            return res.status(500).json({ error: 'Failed to upload attachments' });
+        }
+    }
+
+    // --------- Режим фото-отчётов (старая логика) ---------
+    try {
+        await dbConnect();
+    } catch (e) {
+        console.error('DB connect error:', e);
+        return res.status(500).json({ error: 'Database connection error' });
+    }
+
+    // Автор для отчёта и писем
     const user = await User.findOne({ clerkUserId: userId });
     if (!user) {
         console.error('User not found in database');
         return res.status(401).json({ error: 'User not found in database' });
     }
-
     const name = user.name || 'Unknown';
 
-    const fields: Record<string, string> = {};
-    const fileBuffers: Buffer[] = [];
-
-    const bb = Busboy({ headers: req.headers });
-
-    bb.on('field', (fieldName, val) => {
-        fields[fieldName] = val;
-    });
-
-    bb.on('file', (_field, stream) => {
-        const chunks: Buffer[] = [];
-        stream.on('data', (c) => chunks.push(c));
-        stream.on('end', () => fileBuffers.push(Buffer.concat(chunks)));
-    });
-
-    await new Promise<void>((resolve, reject) => {
-        bb.on('finish', resolve);
-        bb.on('error',  reject);
-        req.pipe(bb);
-    });
-
+    // Старые поля для отчётов
     const rawBaseId = fields.baseId;
     const rawTask = fields.task;
     const taskId = fields.taskId ?? 'unknown';
@@ -104,9 +186,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
 
     try {
         if (initiatorIdFromForm) {
-            const initiatorUser = await User.findOne({
-                clerkUserId: initiatorIdFromForm,
-            });
+            const initiatorUser = await User.findOne({ clerkUserId: initiatorIdFromForm });
             if (initiatorUser) {
                 initiatorId = initiatorUser.clerkUserId;
                 initiatorName = initiatorUser.name;
@@ -118,19 +198,15 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
         console.error('Error fetching initiator user:', error);
     }
 
-    if (fileBuffers.length === 0) {
-        console.error('Validation error: No files uploaded');
-        return res.status(400).json({ error: 'No files uploaded' });
-    }
-
     const fileUrls: string[] = [];
 
-    for (const buffer of fileBuffers) {
+    // Проходим файлы и формируем фото-отчёт (как раньше)
+    for (const f of files) {
         let date = 'Unknown Date';
         let coordinates = 'Unknown Location';
 
         try {
-            const tags = ExifReader.load(buffer);
+            const tags = ExifReader.load(f.buffer);
             if (tags.DateTimeOriginal?.description) {
                 date = formatDateToDDMMYYYY(tags.DateTimeOriginal.description);
             }
@@ -170,7 +246,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
         const outputFilename = `${baseId}-${uniqueId}.jpg`;
 
         try {
-            const { data: resizedBuffer, info } = await sharp(buffer)
+            const { data: resizedBuffer, info } = await sharp(f.buffer)
                 .rotate()
                 .resize(1920, 1920, {
                     fit: sharp.fit.inside,
@@ -268,10 +344,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
         try {
             const frontendUrl = process.env.FRONTEND_URL || 'https://ciwork.ru';
             const taskLink = `${frontendUrl}/tasks/${relatedTask?.taskId}`;
-            const recipients = [
-                relatedTask?.authorEmail,
-                relatedTask?.executorEmail,
-            ]
+            const recipients = [relatedTask?.authorEmail, relatedTask?.executorEmail]
                 .filter((email) => !!email)
                 .filter((v, i, arr) => arr.indexOf(v) === i);
 
@@ -302,6 +375,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
 
         return res.status(200).json({
             success: true,
+            mode: 'reports',
             message: `Photo ${task} | Base ID: ${baseId} uploaded successfully`,
             paths: fileUrls,
         });
