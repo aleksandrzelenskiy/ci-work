@@ -75,7 +75,6 @@ type CreateTaskBody = {
     totalCost?: number;
     workItems?: unknown[];
     status?: string;
-    // assignees?: unknown[]; // в схеме нет — не используем
     priority?: 'urgent' | 'high' | 'medium' | 'low';
     dueDate?: string; // ISO
     taskType?: 'construction' | 'installation' | 'document';
@@ -84,6 +83,8 @@ type CreateTaskBody = {
     orderNumber?: string;
     orderDate?: string;
     orderSignDate?: string;
+    taskDescription?: string;
+
     [extra: string]: unknown;
 };
 
@@ -128,7 +129,6 @@ export async function GET(
             ];
         }
         if (statusRaw) {
-            // позволяем передавать статус из UI — нормализуем к БД-значению
             filter.status = normalizeStatus(statusRaw);
         }
         if (from || to) {
@@ -195,7 +195,8 @@ export async function POST(
             orderNumber,
             orderDate,
             orderSignDate,
-            // assignees, // в схеме нет — игнорируем
+            taskDescription,
+
             ...rest
         } = body;
 
@@ -225,8 +226,8 @@ export async function POST(
             orderNumber,
             orderDate: orderDate ? new Date(orderDate) : undefined,
             orderSignDate: orderSignDate ? new Date(orderSignDate) : undefined,
+            taskDescription,
 
-            // автор — поля, существующие в схеме
             authorId: user.id,
             authorEmail: user.emailAddresses?.[0]?.emailAddress,
             authorName: user.fullName || user.username || 'User',

@@ -72,6 +72,7 @@ export default function WorkspaceTaskDialog({
     const [taskName, setTaskName] = React.useState('');
     const [bsNumber, setBsNumber] = React.useState('');
     const [bsAddress, setBsAddress] = React.useState('');
+    const [taskDescription, setTaskDescription] = React.useState(''); // ← NEW
     const [priority, setPriority] = React.useState<Priority>('medium');
     const [dueDate, setDueDate] = React.useState<Date | null>(new Date());
 
@@ -145,6 +146,7 @@ export default function WorkspaceTaskDialog({
         setTaskName('');
         setBsNumber('');
         setBsAddress('');
+        setTaskDescription(''); // ← NEW
         setPriority('medium');
         setDueDate(new Date());
         setBsLatitude('');
@@ -169,6 +171,7 @@ export default function WorkspaceTaskDialog({
                 taskName,
                 bsNumber,
                 bsAddress,
+                taskDescription: taskDescription?.trim() || undefined, // ← NEW
                 status: 'To do', // совпадает с enum модели
                 priority,
                 dueDate: dueDate ? dueDate.toISOString() : undefined,
@@ -275,6 +278,18 @@ export default function WorkspaceTaskDialog({
                             />
                         </Stack>
 
+                        {/* Описание задачи — свободный текст */}
+                        <TextField
+                            label="Описание задачи"
+                            value={taskDescription}
+                            onChange={(e) => setTaskDescription(e.target.value)}
+                            multiline
+                            minRows={3}
+                            maxRows={10}
+                            placeholder="Что сделать, детали, входные данные, ссылки и пр."
+                            fullWidth
+                        />
+
                         {/* Исполнитель: любой активный участник (Autocomplete) */}
                         <Autocomplete<MemberOption>
                             options={members}
@@ -293,7 +308,6 @@ export default function WorkspaceTaskDialog({
                                     label="Исполнитель (любой активный участник)"
                                     placeholder={membersLoading ? 'Загрузка...' : 'Начните вводить имя или email'}
                                     fullWidth
-                                    // стандартный способ показать спиннер в Autocomplete
                                     InputProps={{
                                         ...params.InputProps,
                                         endAdornment: (
