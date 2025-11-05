@@ -12,7 +12,7 @@ import {
 import Autocomplete from '@mui/material/Autocomplete';
 import ViewColumnIcon from '@mui/icons-material/ViewColumn';
 import FilterListIcon from '@mui/icons-material/FilterList';
-import FilterListAltIcon from '@mui/icons-material/FilterListAlt';
+import FilterAltIcon from '@mui/icons-material/FilterAlt';
 import PersonSearchIcon from '@mui/icons-material/PersonSearch';
 import OpenInNewIcon from '@mui/icons-material/OpenInNew';
 import EditIcon from '@mui/icons-material/Edit';
@@ -341,7 +341,7 @@ export default function ProjectTaskList({
                             color={showFilters ? 'primary' : 'default'}
                             aria-label="toggle filters"
                         >
-                            <FilterListAltIcon />
+                            <FilterAltIcon />
                         </IconButton>
                     </Tooltip>
 
