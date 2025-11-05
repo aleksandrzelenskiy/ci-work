@@ -4,16 +4,7 @@
 import * as React from 'react';
 import { useParams } from 'next/navigation';
 import {
-    Box,
-    Stack,
-    Typography,
-    Button,
-    Tabs,
-    Tab,
-    Paper,
-    TextField,
-    IconButton,
-    Tooltip,
+    Box, Stack, Typography, Button, Tabs, Tab, Paper, TextField, IconButton, Tooltip,
 } from '@mui/material';
 import AddIcon from '@mui/icons-material/Add';
 import RefreshIcon from '@mui/icons-material/Refresh';
@@ -43,12 +34,13 @@ type ApiListResponse =
     | { error: string };
 
 export default function ProjectTasksPage() {
-    const params = useParams<{ org: string; project: string }>() as {
-        org: string;
-        project: string;
-    };
+    const params = useParams<{ org: string; project: string }>() as { org: string; project: string };
     const org = params.org;
     const project = params.project;
+
+    // нормализуем и переиспользуем
+    const orgSlug = React.useMemo(() => org?.trim(), [org]);
+    const projectRef = React.useMemo(() => project?.trim(), [project]);
 
     const [tab, setTab] = React.useState<'list' | 'board' | 'calendar'>('list');
     const [open, setOpen] = React.useState(false);
@@ -62,12 +54,13 @@ export default function ProjectTasksPage() {
     const [orgInfoError, setOrgInfoError] = React.useState<string | null>(null);
 
     React.useEffect(() => {
+        if (!orgSlug) return;
         const ctrl = new AbortController();
 
         async function fetchOrg(): Promise<void> {
             try {
                 setOrgInfoError(null);
-                const res = await fetch(`/api/org/${org}`, {
+                const res = await fetch(`/api/org/${encodeURIComponent(orgSlug)}`, {
                     signal: ctrl.signal,
                     cache: 'no-store',
                 });
@@ -78,14 +71,10 @@ export default function ProjectTasksPage() {
                     | null;
 
                 if (!res.ok || !data || 'error' in data) {
-                    // не кидаем исключение — сразу фиксируем ошибку
-                    setOrgInfoError(
-                        !data || !('error' in data) ? `Failed to load org: ${res.status}` : data.error
-                    );
+                    setOrgInfoError(!data || !('error' in data) ? `Failed to load org: ${res.status}` : data.error);
                     setOrgInfo(null);
                     return;
                 }
-
                 setOrgInfo(data.org);
             } catch (e) {
                 if ((e as DOMException)?.name !== 'AbortError') {
@@ -94,17 +83,18 @@ export default function ProjectTasksPage() {
             }
         }
 
-        void fetchOrg(); // явный игнор промиса — для линтера
+        void fetchOrg();
         return () => ctrl.abort();
-    }, [org]);
+    }, [orgSlug]);
 
     // ─────────────── загрузка задач ───────────────
     const load = React.useCallback(async () => {
+        if (!orgSlug || !projectRef) return;
         try {
             setLoading(true);
             setError(null);
             const url = new URL(
-                `/api/org/${org}/projects/${project}/tasks`,
+                `/api/org/${encodeURIComponent(orgSlug)}/projects/${encodeURIComponent(projectRef)}/tasks`,
                 window.location.origin
             );
             if (q) url.searchParams.set('q', q);
@@ -125,7 +115,7 @@ export default function ProjectTasksPage() {
         } finally {
             setLoading(false);
         }
-    }, [org, project, q]);
+    }, [orgSlug, projectRef, q]);
 
     React.useEffect(() => {
         void load();
@@ -133,18 +123,13 @@ export default function ProjectTasksPage() {
 
     return (
         <Box sx={{ p: 2 }}>
-            <Stack
-                direction="row"
-                alignItems="center"
-                justifyContent="space-between"
-                sx={{ mb: 2 }}
-            >
+            <Stack direction="row" alignItems="center" justifyContent="space-between" sx={{ mb: 2 }}>
                 <Box>
                     <Typography variant="h5" fontWeight={700}>
                         Задачи проекта
                     </Typography>
                     <Typography variant="body2" color="text.secondary">
-                        Организация: {orgInfo?.name ?? org} · Проект: {project}
+                        Организация: {orgInfo?.name ?? orgSlug} · Проект: {projectRef}
                     </Typography>
                     {orgInfoError && (
                         <Typography variant="caption" color="error">
@@ -160,11 +145,7 @@ export default function ProjectTasksPage() {
               </IconButton>
             </span>
                     </Tooltip>
-                    <Button
-                        onClick={() => setOpen(true)}
-                        variant="contained"
-                        startIcon={<AddIcon />}
-                    >
+                    <Button onClick={() => setOpen(true)} variant="contained" startIcon={<AddIcon />}>
                         Создать задачу
                     </Button>
                 </Stack>
@@ -196,19 +177,36 @@ export default function ProjectTasksPage() {
                 </Tabs>
 
                 {tab === 'list' && (
-                    <ProjectTaskList items={items} loading={loading} error={error} />
+                    <ProjectTaskList
+                        items={items}
+                        loading={loading}
+                        error={error}
+                        org={orgSlug || ''}
+                        project={projectRef || ''}
+                        onReloadAction={() => { void load(); }}
+                    />
                 )}
+
                 {tab === 'board' && (
-                    <ProjectTaskBoard items={items} loading={loading} error={error} />
+                    <ProjectTaskBoard
+                        items={items}
+                        loading={loading}
+                        error={error}
+                    />
                 )}
+
                 {tab === 'calendar' && (
-                    <ProjectTaskCalendar items={items} loading={loading} error={error} />
+                    <ProjectTaskCalendar
+                        items={items}
+                        loading={loading}
+                        error={error}
+                    />
                 )}
 
                 <WorkspaceTaskDialog
                     open={open}
-                    org={org}
-                    project={project}
+                    org={orgSlug || ''}
+                    project={projectRef || ''}
                     onCloseAction={() => setOpen(false)}
                     onCreatedAction={() => {
                         setOpen(false);
@@ -216,6 +214,9 @@ export default function ProjectTasksPage() {
                     }}
                 />
             </Paper>
+
+
+
         </Box>
     );
 }

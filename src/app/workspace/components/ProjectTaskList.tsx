@@ -1,25 +1,31 @@
-// app/workspace/components/ProjectTaskList.tsx
-
+// src/app/workspace/components/ProjectTaskList.tsx
 'use client';
 
 import React, { useMemo, useState, useEffect } from 'react';
 import {
     Box, Table, TableBody, TableCell, TableContainer, TableHead, TableRow, Typography,
     IconButton, Tooltip, Chip, Popover, FormControl, InputLabel, Select, MenuItem,
-    Checkbox, List, ListItem, ListItemIcon, ListItemText, Pagination, Alert, Avatar, Stack, Button, TextField
+    Checkbox, List, ListItem, ListItemIcon, ListItemText, Pagination, Alert, Avatar, Stack, Button, TextField,
+    Dialog, DialogTitle, DialogContent, DialogContentText, DialogActions, Menu, MenuItem as MMenuItem, Divider,
+    ListItemIcon as MListItemIcon, ListItemText as MListItemText,
 } from '@mui/material';
 import Autocomplete from '@mui/material/Autocomplete';
 import ViewColumnIcon from '@mui/icons-material/ViewColumn';
 import FilterListIcon from '@mui/icons-material/FilterList';
 import FilterListAltIcon from '@mui/icons-material/FilterListAlt';
 import PersonSearchIcon from '@mui/icons-material/PersonSearch';
+import OpenInNewIcon from '@mui/icons-material/OpenInNew';
+import EditIcon from '@mui/icons-material/Edit';
+import DeleteOutlineIcon from '@mui/icons-material/DeleteOutline';
+
 import { getStatusColor } from '@/utils/statusColors';
 import { getPriorityIcon, normalizePriority, type Priority as Pri } from '@/utils/priorityIcons';
 
-// бесплатные date pickers
 import { LocalizationProvider } from '@mui/x-date-pickers/LocalizationProvider';
 import { AdapterDateFns } from '@mui/x-date-pickers/AdapterDateFns';
 import { DatePicker } from '@mui/x-date-pickers/DatePicker';
+
+import WorkspaceTaskDialog, { TaskForEdit } from '@/app/workspace/components/WorkspaceTaskDialog';
 
 /* ───────────── типы ───────────── */
 type StatusTitle =
@@ -58,6 +64,13 @@ type Task = {
     executorId?: string;
     executorName?: string;
     executorEmail?: string;
+
+    // ── добавлено для корректной передачи в диалог редактирования ──
+    bsAddress?: string;
+    taskDescription?: string;
+    bsLatitude?: number;
+    bsLongitude?: number;
+    files?: Array<{ name?: string; url?: string; size?: number }>;
 };
 
 type TaskWithStatus = Task & { _statusTitle: StatusTitle };
@@ -74,15 +87,15 @@ const TITLE_CASE_MAP: Record<string, StatusTitle> = {
     'TO DO': 'To do',
     'TODO': 'To do',
     'TO-DO': 'To do',
-    'ASSIGNED': 'Assigned',
+    ASSIGNED: 'Assigned',
     'IN PROGRESS': 'At work',
     'IN-PROGRESS': 'At work',
     'AT WORK': 'At work',
-    'DONE': 'Done',
-    'PENDING': 'Pending',
-    'ISSUES': 'Issues',
-    'FIXED': 'Fixed',
-    'AGREED': 'Agreed',
+    DONE: 'Done',
+    PENDING: 'Pending',
+    ISSUES: 'Issues',
+    FIXED: 'Fixed',
+    AGREED: 'Agreed',
 };
 
 function normalizeStatusTitle(s?: string): StatusTitle {
@@ -91,8 +104,7 @@ function normalizeStatusTitle(s?: string): StatusTitle {
     return TITLE_CASE_MAP[key] ?? (s as StatusTitle);
 }
 
-const normPriority = (p?: string): Priority | '' =>
-    p ? (p.toString().toLowerCase() as Priority) : '';
+const normPriority = (p?: string): Priority | '' => (p ? (p.toString().toLowerCase() as Priority) : '');
 
 const getInitials = (s?: string) =>
     (s ?? '')
@@ -107,10 +119,16 @@ export default function ProjectTaskList({
                                             items,
                                             loading,
                                             error,
+                                            org,
+                                            project,
+                                            onReloadAction,
                                         }: {
     items: Task[];
     loading: boolean;
     error: string | null;
+    org: string;
+    project: string;
+    onReloadAction?: () => void;
 }) {
     // колонки
     const [columnVisibility, setColumnVisibility] = useState<Record<string, boolean>>({
@@ -121,8 +139,7 @@ export default function ProjectTaskList({
         executor: true,
         due: true,
     });
-    const toggleColumn = (key: string) =>
-        setColumnVisibility((v) => ({ ...v, [key]: !v[key] }));
+    const toggleColumn = (key: string) => setColumnVisibility((v) => ({ ...v, [key]: !v[key] }));
 
     // показ иконок фильтра
     const [showFilters, setShowFilters] = useState(false);
@@ -147,8 +164,7 @@ export default function ProjectTaskList({
         setAnchorEl(null);
         setCurrentFilter('');
     };
-    const handleColumnsIconClick = (e: React.MouseEvent<HTMLElement>) =>
-        setColumnsAnchor(e.currentTarget);
+    const handleColumnsIconClick = (e: React.MouseEvent<HTMLElement>) => setColumnsAnchor(e.currentTarget);
     const closeColumnsPopover = () => setColumnsAnchor(null);
 
     // пагинация
@@ -162,7 +178,6 @@ export default function ProjectTaskList({
     const [dueFrom, setDueFrom] = useState<Date | null>(null);
     const [dueTo, setDueTo] = useState<Date | null>(null);
 
-    // уникальные исполнители
     const uniqueExecutors = useMemo(() => {
         const arr = items
             .map((t) => (t.executorName?.trim() || t.executorEmail?.trim() || ''))
@@ -170,19 +185,14 @@ export default function ProjectTaskList({
         return Array.from(new Set(arr));
     }, [items]);
 
-    // применяем фильтры
     const filtered: TaskWithStatus[] = useMemo(() => {
         let res: TaskWithStatus[] = items.map((t) => ({
             ...t,
             _statusTitle: normalizeStatusTitle(t.status),
         }));
 
-        if (statusFilter) {
-            res = res.filter((t) => t._statusTitle === statusFilter);
-        }
-        if (priorityFilter) {
-            res = res.filter((t) => normPriority(t.priority as string) === priorityFilter);
-        }
+        if (statusFilter) res = res.filter((t) => t._statusTitle === statusFilter);
+        if (priorityFilter) res = res.filter((t) => normPriority(t.priority as string) === priorityFilter);
         if (executorFilter) {
             res = res.filter((t) => {
                 const label = t.executorName?.trim() || t.executorEmail?.trim() || '';
@@ -200,10 +210,7 @@ export default function ProjectTaskList({
             });
         }
 
-        res.sort(
-            (a, b) =>
-                STATUS_ORDER.indexOf(a._statusTitle) - STATUS_ORDER.indexOf(b._statusTitle)
-        );
+        res.sort((a, b) => STATUS_ORDER.indexOf(a._statusTitle) - STATUS_ORDER.indexOf(b._statusTitle));
         return res;
     }, [items, statusFilter, priorityFilter, executorFilter, dueFrom, dueTo]);
 
@@ -211,8 +218,7 @@ export default function ProjectTaskList({
         setPage(1);
     }, [statusFilter, priorityFilter, executorFilter, dueFrom, dueTo]);
 
-    const totalPages =
-        rowsPerPage === -1 ? 1 : Math.max(1, Math.ceil(filtered.length / rowsPerPage));
+    const totalPages = rowsPerPage === -1 ? 1 : Math.max(1, Math.ceil(filtered.length / rowsPerPage));
     const pageSlice: TaskWithStatus[] =
         rowsPerPage === -1
             ? filtered
@@ -227,6 +233,85 @@ export default function ProjectTaskList({
         ].filter(Boolean).length;
     }, [statusFilter, priorityFilter, executorFilter, dueFrom, dueTo]);
 
+    // ───────────── контекстное меню ─────────────
+    const [menuPos, setMenuPos] = useState<{ top: number; left: number } | null>(null);
+    const [selectedTask, setSelectedTask] = useState<TaskWithStatus | null>(null);
+
+    // карта задач для быстрого поиска по DOM (data-task-id)
+    const taskById = useMemo(() => new Map(filtered.map((t) => [t._id, t])), [filtered]);
+
+    // глобально подавляем системное меню, пока наше открыто; переносим меню на новую карточку/позицию
+    useEffect(() => {
+        if (!menuPos) return; // наше меню закрыто
+        const handler = (e: MouseEvent) => {
+            e.preventDefault(); // гасим системное меню
+
+            const target = e.target as HTMLElement | null;
+            const rowEl = target?.closest?.('[data-task-id]') as HTMLElement | null;
+            if (rowEl) {
+                const id = rowEl.getAttribute('data-task-id') || '';
+                const t = taskById.get(id);
+                if (t) setSelectedTask(t);
+            }
+            setMenuPos({ top: e.clientY - 4, left: e.clientX - 2 });
+        };
+
+        document.addEventListener('contextmenu', handler, true); // capture
+        return () => document.removeEventListener('contextmenu', handler, true);
+    }, [menuPos, taskById]);
+
+    const handleContextMenu = (e: React.MouseEvent, task: TaskWithStatus) => {
+        e.preventDefault();
+        setSelectedTask(task);
+        setMenuPos({ top: e.clientY - 4, left: e.clientX - 2 });
+    };
+    const handleCloseMenu = () => setMenuPos(null);
+
+    // ───────────── редактирование ─────────────
+    const [editOpen, setEditOpen] = useState(false);
+    const handleEditTask = () => {
+        if (selectedTask) setEditOpen(true);
+    };
+    const handleEdited = () => {
+        setEditOpen(false);
+        onReloadAction?.();
+    };
+
+    // ───────────── удаление ─────────────
+    const [deleteOpen, setDeleteOpen] = useState(false);
+    const [deleteLoading, setDeleteLoading] = useState(false);
+    const [deleteError, setDeleteError] = useState<string | null>(null);
+
+    const askDelete = () => {
+        setDeleteError(null);
+        setDeleteOpen(true);
+    };
+    const handleCancelDelete = () => setDeleteOpen(false);
+    const handleConfirmDelete = async () => {
+        if (!selectedTask) return;
+        try {
+            setDeleteLoading(true);
+            setDeleteError(null);
+            const url = `/api/org/${encodeURIComponent(org)}/projects/${encodeURIComponent(
+                project
+            )}/tasks/${encodeURIComponent(selectedTask._id)}`;
+            const res = await fetch(url, { method: 'DELETE' });
+            if (!res.ok) {
+                const data: unknown = await res.json().catch(() => ({}));
+                const msg = (data as { error?: string })?.error || `Delete failed: ${res.status}`;
+                setDeleteError(msg);
+                return;
+            }
+            setDeleteOpen(false);
+            onReloadAction?.();
+        } catch (e: unknown) {
+            const msg = e instanceof Error ? e.message : 'Ошибка удаления';
+            setDeleteError(msg);
+        } finally {
+            setDeleteLoading(false);
+        }
+    };
+
     // UI
     if (loading) {
         return (
@@ -237,7 +322,6 @@ export default function ProjectTaskList({
     }
     if (error) return <Alert severity="error" sx={{ m: 2 }}>{error}</Alert>;
 
-    // ширина поповера
     const popoverMinWidth = currentFilter === 'executor' ? 380 : 260;
 
     return (
@@ -251,7 +335,6 @@ export default function ProjectTaskList({
                         </IconButton>
                     </Tooltip>
 
-                    {/* Иконка-переключатель видимости иконок фильтров */}
                     <Tooltip title="Добавить фильтр">
                         <IconButton
                             onClick={() => setShowFilters((v) => !v)}
@@ -262,7 +345,6 @@ export default function ProjectTaskList({
                         </IconButton>
                     </Tooltip>
 
-                    {/* активные фильтры */}
                     {activeFiltersCount > 0 && (
                         <Box sx={{ display: 'flex', gap: 1, flexWrap: 'wrap' }}>
                             {statusFilter && (
@@ -313,11 +395,7 @@ export default function ProjectTaskList({
                                         <strong>ID</strong>
                                     </TableCell>
                                 )}
-                                {columnVisibility.task && (
-                                    <TableCell>
-                                        <strong>Задача</strong>
-                                    </TableCell>
-                                )}
+                                {columnVisibility.task && <TableCell><strong>Задача</strong></TableCell>}
                                 {columnVisibility.status && (
                                     <TableCell width={200} align="center">
                                         <Box sx={{ display: 'inline-flex', alignItems: 'center', gap: 0.5 }}>
@@ -409,21 +487,21 @@ export default function ProjectTaskList({
                             {pageSlice.map((t) => {
                                 const statusTitle = t._statusTitle;
                                 const safePriority = (normalizePriority(t.priority as string) ?? 'medium') as Pri;
-
                                 const execLabel = t.executorName || t.executorEmail || '';
                                 const execSub = t.executorName && t.executorEmail ? t.executorEmail : '';
 
                                 return (
                                     <TableRow
                                         key={t._id}
+                                        data-task-id={t._id} // ← важно для переноса меню
+                                        onContextMenu={(e) => handleContextMenu(e, t)}
                                         sx={{
                                             transition: 'background-color .15s ease',
+                                            cursor: 'context-menu',
                                             '&:hover': { backgroundColor: '#fffde7' },
                                         }}
                                     >
-                                        {columnVisibility.taskId && (
-                                            <TableCell align="center">{t.taskId}</TableCell>
-                                        )}
+                                        {columnVisibility.taskId && <TableCell align="center">{t.taskId}</TableCell>}
 
                                         {columnVisibility.task && (
                                             <TableCell>
@@ -444,11 +522,7 @@ export default function ProjectTaskList({
                                                     size="small"
                                                     label={statusTitle}
                                                     variant="outlined"
-                                                    sx={{
-                                                        backgroundColor: getStatusColor(statusTitle),
-                                                        color: '#fff',
-                                                        borderColor: 'transparent',
-                                                    }}
+                                                    sx={{ backgroundColor: getStatusColor(statusTitle), color: '#fff', borderColor: 'transparent' }}
                                                 />
                                             </TableCell>
                                         )}
@@ -470,9 +544,7 @@ export default function ProjectTaskList({
                                                             {getInitials(t.executorName || t.executorEmail)}
                                                         </Avatar>
                                                         <Box>
-                                                            <Typography variant="body2">
-                                                                {execLabel}
-                                                            </Typography>
+                                                            <Typography variant="body2">{execLabel}</Typography>
                                                             {execSub && (
                                                                 <Typography variant="caption" color="text.secondary">
                                                                     {execSub}
@@ -486,9 +558,7 @@ export default function ProjectTaskList({
                                             </TableCell>
                                         )}
 
-                                        {columnVisibility.due && (
-                                            <TableCell align="center">{formatDate(t.dueDate)}</TableCell>
-                                        )}
+                                        {columnVisibility.due && <TableCell align="center">{formatDate(t.dueDate)}</TableCell>}
                                     </TableRow>
                                 );
                             })}
@@ -533,9 +603,7 @@ export default function ProjectTaskList({
                     anchorEl={anchorEl}
                     onClose={closeFilterPopover}
                     anchorOrigin={{ vertical: 'bottom', horizontal: 'left' }}
-                    slotProps={{
-                        paper: { sx: { overflow: 'visible' } },
-                    }}
+                    slotProps={{ paper: { sx: { overflow: 'visible' } } }}
                 >
                     <Box sx={{ p: 1.5, minWidth: popoverMinWidth }}>
                         {currentFilter === 'status' && (
@@ -552,7 +620,9 @@ export default function ProjectTaskList({
                                         <em>All</em>
                                     </MenuItem>
                                     {STATUS_ORDER.map((s) => (
-                                        <MenuItem key={s} value={s}>{s}</MenuItem>
+                                        <MenuItem key={s} value={s}>
+                                            {s}
+                                        </MenuItem>
                                     ))}
                                 </Select>
                             </FormControl>
@@ -563,9 +633,12 @@ export default function ProjectTaskList({
                                 <InputLabel id="priority-filter-label">Приоритет</InputLabel>
                                 <Select
                                     labelId="priority-filter-label"
-                                    value={priorityFilter}
                                     label="Приоритет"
-                                    onChange={(e) => setPriorityFilter(e.target.value as Priority | '')}
+                                    value={priorityFilter}
+                                    onChange={(e) => {
+                                        const v = e.target.value as '' | Priority;
+                                        setPriorityFilter(v);
+                                    }}
                                     autoFocus
                                 >
                                     <MenuItem value="">
@@ -602,19 +675,13 @@ export default function ProjectTaskList({
                                     label="От"
                                     value={dueFrom}
                                     onChange={(v: Date | null) => setDueFrom(v)}
-                                    slotProps={{
-                                        textField: { size: 'small' },
-                                        popper: { disablePortal: true },
-                                    }}
+                                    slotProps={{ textField: { size: 'small' }, popper: { disablePortal: true } }}
                                 />
                                 <DatePicker
                                     label="До"
                                     value={dueTo}
                                     onChange={(v: Date | null) => setDueTo(v)}
-                                    slotProps={{
-                                        textField: { size: 'small' },
-                                        popper: { disablePortal: true },
-                                    }}
+                                    slotProps={{ textField: { size: 'small' }, popper: { disablePortal: true } }}
                                 />
                                 <Box sx={{ display: 'flex', justifyContent: 'space-between', pt: 0.5 }}>
                                     <Button
@@ -648,10 +715,7 @@ export default function ProjectTaskList({
                             {Object.keys(columnVisibility).map((key) => (
                                 <ListItem key={key}>
                                     <ListItemIcon>
-                                        <Checkbox
-                                            checked={columnVisibility[key]}
-                                            onChange={() => toggleColumn(key)}
-                                        />
+                                        <Checkbox checked={columnVisibility[key]} onChange={() => toggleColumn(key)} />
                                     </ListItemIcon>
                                     <ListItemText primary={key[0].toUpperCase() + key.slice(1)} />
                                 </ListItem>
@@ -681,6 +745,104 @@ export default function ProjectTaskList({
                         </Box>
                     </Box>
                 </Popover>
+
+                {/* Контекстное меню задач */}
+                <Menu
+                    open={!!menuPos}
+                    onClose={handleCloseMenu}
+                    anchorReference="anchorPosition"
+                    anchorPosition={menuPos ?? undefined}
+                    slotProps={{ paper: { sx: { minWidth: 190, borderRadius: 2 } } }}
+                >
+                    <MMenuItem
+                        onClick={() => {
+                            alert('Открыть задачу (заглушка)');
+                            handleCloseMenu();
+                        }}
+                    >
+                        <MListItemIcon>
+                            <OpenInNewIcon fontSize="small" />
+                        </MListItemIcon>
+                        <MListItemText primary="Открыть" />
+                    </MMenuItem>
+
+                    <MMenuItem
+                        onClick={() => {
+                            handleEditTask();
+                            handleCloseMenu();
+                        }}
+                    >
+                        <MListItemIcon>
+                            <EditIcon fontSize="small" />
+                        </MListItemIcon>
+                        <MListItemText primary="Редактировать" />
+                    </MMenuItem>
+
+                    <Divider />
+
+                    <MMenuItem
+                        onClick={() => {
+                            askDelete();
+                            handleCloseMenu();
+                        }}
+                        sx={{ color: 'error.main' }}
+                    >
+                        <MListItemIcon>
+                            <DeleteOutlineIcon fontSize="small" color="error" />
+                        </MListItemIcon>
+                        <MListItemText primary="Удалить" />
+                    </MMenuItem>
+                </Menu>
+
+                {/* Диалог подтверждения удаления */}
+                <Dialog open={deleteOpen} onClose={deleteLoading ? undefined : handleCancelDelete}>
+                    <DialogTitle>Удалить задачу?</DialogTitle>
+                    <DialogContent>
+                        <DialogContentText>
+                            Это действие нельзя отменить. Будет удалена задача
+                            {selectedTask ? ` «${selectedTask.taskName}»` : ''}.
+                        </DialogContentText>
+                        {deleteError && <Alert severity="error" sx={{ mt: 2 }}>{deleteError}</Alert>}
+                    </DialogContent>
+                    <DialogActions>
+                        <Button onClick={handleCancelDelete} disabled={deleteLoading}>
+                            Отмена
+                        </Button>
+                        <Button onClick={handleConfirmDelete} variant="contained" color="error" disabled={deleteLoading}>
+                            {deleteLoading ? 'Удаляю…' : 'Удалить'}
+                        </Button>
+                    </DialogActions>
+                </Dialog>
+
+                {/* Диалог редактирования: передаём данные задачи */}
+                {selectedTask && (
+                    <WorkspaceTaskDialog
+                        open={editOpen}
+                        org={org}
+                        project={project}
+                        mode="edit"
+                        initialTask={{
+                            _id: selectedTask._id,
+                            taskId: selectedTask.taskId,
+                            taskName: selectedTask.taskName,
+                            status: selectedTask.status,
+                            dueDate: selectedTask.dueDate,
+                            bsNumber: selectedTask.bsNumber,
+                            bsAddress: selectedTask.bsAddress,
+                            taskDescription: selectedTask.taskDescription,
+                            bsLatitude: selectedTask.bsLatitude,
+                            bsLongitude: selectedTask.bsLongitude,
+                            totalCost: selectedTask.totalCost,
+                            priority: (normalizePriority(selectedTask.priority as string) ?? 'medium') as Pri,
+                            executorId: selectedTask.executorId,
+                            executorName: selectedTask.executorName,
+                            executorEmail: selectedTask.executorEmail,
+                            files: selectedTask.files,
+                        } as TaskForEdit}
+                        onCloseAction={() => setEditOpen(false)}
+                        onCreatedAction={handleEdited}
+                    />
+                )}
             </Box>
         </LocalizationProvider>
     );

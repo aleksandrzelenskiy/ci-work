@@ -3,32 +3,49 @@
 
 import * as React from 'react';
 import {
-    Box,
-    Button,
-    Dialog,
-    DialogTitle,
-    DialogContent,
-    DialogActions,
-    TextField,
-    Stack,
-    FormControl,
-    InputLabel,
-    Select,
-    MenuItem,
-    CircularProgress,
-    Avatar,
-    ListItemText,
-    Chip,
-    IconButton,
-    Typography,
-    LinearProgress,
-    Tooltip,
+    Box, Button, Dialog, DialogTitle, DialogContent, DialogActions, TextField, Stack,
+    FormControl, InputLabel, Select, MenuItem, CircularProgress, Avatar, ListItemText,
+    Chip, IconButton, Typography, LinearProgress, Tooltip,
 } from '@mui/material';
 import Autocomplete from '@mui/material/Autocomplete';
 import { DatePicker, LocalizationProvider } from '@mui/x-date-pickers';
 import { AdapterDateFns } from '@mui/x-date-pickers/AdapterDateFns';
 import DeleteOutlineIcon from '@mui/icons-material/DeleteOutline';
 import CloudUploadIcon from '@mui/icons-material/CloudUpload';
+
+type Priority = 'urgent' | 'high' | 'medium' | 'low';
+
+type MemberOption = {
+    id: string;
+    name: string;
+    email: string;
+    profilePic?: string;
+};
+
+type MembersApi = {
+    members: Array<{ _id: string; userName?: string; userEmail: string; profilePic?: string }>;
+    error?: string;
+};
+
+export type TaskForEdit = {
+    _id: string;
+    taskId: string;
+    taskName: string;
+    status?: string;
+    dueDate?: string;
+    bsNumber?: string;
+    bsAddress?: string;
+    taskDescription?: string;
+    bsLatitude?: number;
+    bsLongitude?: number;
+    totalCost?: number;
+    priority?: Priority | string;
+    executorId?: string;
+    executorName?: string;
+    executorEmail?: string;
+    /** Если сервер уже отдаёт список файлов — покажем его */
+    files?: Array<{ name?: string; url?: string; size?: number }>;
+};
 
 type Props = {
     open: boolean;
@@ -37,35 +54,21 @@ type Props = {
     project: string;
     onCloseAction: () => void;
     onCreatedAction: () => void;
-};
-
-type Priority = 'urgent' | 'high' | 'medium' | 'low';
-
-/** Опция автокомплита: любой активный участник организации */
-type MemberOption = {
-    id: string;          // _id membership/user
-    name: string;        // userName || userEmail
-    email: string;
-    profilePic?: string; // profilePic как на бэке
-};
-
-type MembersApi = {
-    members: Array<{
-        _id: string;
-        userName?: string;
-        userEmail: string;
-        profilePic?: string;
-    }>;
-    error?: string;
+    mode?: 'create' | 'edit';
+    initialTask?: TaskForEdit | null;
 };
 
 // cspell:disable-next-line — намеренно без I и O
 const ID_ALPHABET = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789';
-
 function genId(len = 5) {
     let s = '';
     for (let i = 0; i < len; i++) s += ID_ALPHABET[Math.floor(Math.random() * ID_ALPHABET.length)];
     return s;
+}
+
+function extractErrorMessage(payload: unknown, fallback: string): string {
+    const err = (payload as { error?: unknown })?.error;
+    return typeof err === 'string' && err.trim() ? err : fallback;
 }
 
 export default function WorkspaceTaskDialog({
@@ -74,8 +77,24 @@ export default function WorkspaceTaskDialog({
                                                 project,
                                                 onCloseAction,
                                                 onCreatedAction,
+                                                mode = 'create',
+                                                initialTask = null,
                                             }: Props) {
+    const isEdit = mode === 'edit';
+
+    // нормализованные org/project
+    const orgSlug = React.useMemo(() => org?.trim(), [org]);
+    const projectRef = React.useMemo(() => project?.trim(), [project]);
+    const apiPath = React.useCallback(
+        (path: string) => {
+            if (!orgSlug) throw new Error('org is required');
+            return `/api/org/${encodeURIComponent(orgSlug)}${path}`;
+        },
+        [orgSlug]
+    );
+
     const [saving, setSaving] = React.useState(false);
+
     const [taskName, setTaskName] = React.useState('');
     const [bsNumber, setBsNumber] = React.useState('');
     const [bsAddress, setBsAddress] = React.useState('');
@@ -83,44 +102,89 @@ export default function WorkspaceTaskDialog({
     const [priority, setPriority] = React.useState<Priority>('medium');
     const [dueDate, setDueDate] = React.useState<Date | null>(new Date());
 
-    // Координаты
     const [bsLatitude, setBsLatitude] = React.useState<string>('');
     const [bsLongitude, setBsLongitude] = React.useState<string>('');
 
-    // Исполнитель = любой активный участник
     const [members, setMembers] = React.useState<MemberOption[]>([]);
     const [membersLoading, setMembersLoading] = React.useState(false);
     const [membersError, setMembersError] = React.useState<string | null>(null);
     const [selectedExecutor, setSelectedExecutor] = React.useState<MemberOption | null>(null);
 
-    // Вложения (drag & drop)
+    const [existingAttachments, setExistingAttachments] = React.useState<
+        Array<{ key: string; name: string; url?: string; size?: number }>
+    >([]);
     const [attachments, setAttachments] = React.useState<File[]>([]);
     const [dragActive, setDragActive] = React.useState(false);
     const [uploading, setUploading] = React.useState(false);
     const [uploadProgress, setUploadProgress] = React.useState<number>(0);
 
-    /** Универсальный извлекатель текстовой ошибки из JSON-ответа */
-    function extractErrorMessage(payload: unknown, fallback: string): string {
-        const err = (payload as { error?: unknown })?.error;
-        return typeof err === 'string' && err.trim() ? err : fallback;
-    }
-
-    // загрузка активных участников при открытии диалога
+    // Подстановка initialTask при открытии в режиме редактирования
     React.useEffect(() => {
         if (!open) return;
+        if (!isEdit || !initialTask) return;
+
+        setTaskName(initialTask.taskName ?? '');
+        setBsNumber(initialTask.bsNumber ?? '');
+        setBsAddress(initialTask.bsAddress ?? '');
+        setTaskDescription(initialTask.taskDescription ?? '');
+
+        const pr = (initialTask.priority || 'medium').toString().toLowerCase() as Priority;
+        setPriority(['urgent', 'high', 'medium', 'low'].includes(pr) ? pr : 'medium');
+
+        setDueDate(initialTask.dueDate ? new Date(initialTask.dueDate) : null);
+
+        setBsLatitude(typeof initialTask.bsLatitude === 'number' ? String(initialTask.bsLatitude) : '');
+        setBsLongitude(typeof initialTask.bsLongitude === 'number' ? String(initialTask.bsLongitude) : '');
+
+        if (initialTask.executorEmail || initialTask.executorName || initialTask.executorId) {
+            setSelectedExecutor({
+                id: initialTask.executorId || 'unknown',
+                name: initialTask.executorName || initialTask.executorEmail || 'Executor',
+                email: initialTask.executorEmail || '',
+            });
+        } else {
+            setSelectedExecutor(null);
+        }
+
+        // показать уже существующие вложения, если сервер их прислал
+        const files = initialTask.files ?? [];
+        setExistingAttachments(
+            files
+                .filter(Boolean)
+                .map((f, i) => ({
+                    key: `${f?.name ?? 'file'}:${f?.size ?? i}`,
+                    name: f?.name ?? `file-${i + 1}`,
+                    url: f?.url,
+                    size: f?.size,
+                }))
+        );
+
+        setAttachments([]);
+        setUploadProgress(0);
+        setUploading(false);
+    }, [open, isEdit, initialTask]);
+
+    // Загрузка активных участников при открытии диалога
+    React.useEffect(() => {
+        if (!open || !orgSlug) return;
         let aborted = false;
 
         async function loadMembers(): Promise<void> {
             setMembersLoading(true);
             setMembersError(null);
             try {
-                const res = await fetch(
-                    `/api/org/${encodeURIComponent(org)}/members?status=active`,
-                    { method: 'GET', headers: { 'Content-Type': 'application/json' }, cache: 'no-store' }
-                );
+                const res = await fetch(apiPath(`/members?status=active`), {
+                    method: 'GET',
+                    headers: { 'Content-Type': 'application/json' },
+                    cache: 'no-store',
+                });
 
                 let body: unknown = null;
-                try { body = await res.json(); } catch { /* может не быть тела */ }
+                try {
+                    body = await res.json();
+                } catch {
+                    /* ignore */
+                }
 
                 if (!res.ok) {
                     if (!aborted) setMembersError(extractErrorMessage(body, res.statusText));
@@ -136,8 +200,9 @@ export default function WorkspaceTaskDialog({
                 }));
 
                 if (!aborted) setMembers(opts);
-            } catch (e) {
-                if (!aborted) setMembersError(e instanceof Error ? e.message : 'Failed to load members');
+            } catch (e: unknown) {
+                const msg = e instanceof Error ? e.message : 'Failed to load members';
+                if (!aborted) setMembersError(msg);
             } finally {
                 if (!aborted) setMembersLoading(false);
             }
@@ -147,7 +212,7 @@ export default function WorkspaceTaskDialog({
         return () => {
             aborted = true;
         };
-    }, [open, org]);
+    }, [open, orgSlug, apiPath]);
 
     const isLatValid =
         bsLatitude === '' ||
@@ -173,6 +238,7 @@ export default function WorkspaceTaskDialog({
         setBsLatitude('');
         setBsLongitude('');
         setSelectedExecutor(null);
+        setExistingAttachments([]);
         setAttachments([]);
         setUploadProgress(0);
         setUploading(false);
@@ -180,11 +246,11 @@ export default function WorkspaceTaskDialog({
 
     const handleClose = () => {
         if (saving || uploading) return;
-        reset();
+        if (!isEdit) reset();
         onCloseAction();
     };
 
-    // ---------- Drag & Drop ----------
+    // Drag & Drop
     const onDragOver = (e: React.DragEvent<HTMLDivElement>) => {
         e.preventDefault();
         e.stopPropagation();
@@ -211,59 +277,55 @@ export default function WorkspaceTaskDialog({
         const files = Array.from(e.target.files || []);
         if (!files.length) return;
         addFiles(files);
-        // сбрасываем value, чтобы одно и то же имя можно было выбрать снова
         e.currentTarget.value = '';
     };
 
     const addFiles = (files: File[]) => {
-        // простая фильтрация дубликатов по имени+size (можно усложнить до hash)
-        const existing = new Set(attachments.map(f => `${f.name}:${f.size}`));
-        const toAdd = files.filter(f => !existing.has(`${f.name}:${f.size}`));
-        setAttachments(prev => [...prev, ...toAdd]);
+        const existing = new Set(attachments.map((f) => `${f.name}:${f.size}`));
+        const toAdd = files.filter((f) => !existing.has(`${f.name}:${f.size}`));
+        setAttachments((prev) => [...prev, ...toAdd]);
     };
 
     const removeFile = (name: string, size: number) => {
-        setAttachments(prev => prev.filter(f => !(f.name === name && f.size === size)));
+        setAttachments((prev) => prev.filter((f) => !(f.name === name && f.size === size)));
     };
 
-    // ---------- Upload attachments (после создания задачи) ----------
-    async function uploadAttachments(taskId: string): Promise<void> {
+    // Upload attachments (используем короткий taskId)
+    async function uploadAttachments(taskShortId: string): Promise<void> {
         if (!attachments.length) return;
         setUploading(true);
         setUploadProgress(0);
 
-        // грузим по одному файлу, чтобы легче трекать прогресс
         for (let i = 0; i < attachments.length; i++) {
             const file = attachments[i];
             const fd = new FormData();
             fd.append('file', file, file.name);
-            fd.append('taskId', taskId);
-            fd.append('subfolder', 'attachments'); // важно для вашей s3-утилиты
-            fd.append('orgSlug', org);             // если на сервере понадобится путь {org}/{task}
+            fd.append('taskId', taskShortId); // короткий id задачи
+            fd.append('subfolder', 'attachments');
+            fd.append('orgSlug', orgSlug || '');
 
-            const res = await fetch('/api/upload', {
-                method: 'POST',
-                body: fd,
-                // без Content-Type — браузер сам поставит multipart/form-data с boundary
-            });
+            const res = await fetch('/api/upload', { method: 'POST', body: fd });
 
             if (!res.ok) {
-                // логируем, но не падаем — грузим остальные
                 let body: unknown = null;
-                try { body = await res.json(); } catch { /* ignore JSON parse error */ }
+                try {
+                    body = await res.json();
+                } catch {
+                    /* ignore */
+                }
                 const errText = extractErrorMessage(body, res.statusText);
                 console.error('File upload failed:', errText);
             }
-
             setUploadProgress(Math.round(((i + 1) / attachments.length) * 100));
         }
 
         setUploading(false);
     }
 
-    const handleCreate = async () => {
+    async function handleCreate() {
         if (!taskName || !bsNumber) return;
         if (!isLatValid || !isLngValid) return;
+        if (!orgSlug || !projectRef) return;
 
         setSaving(true);
         const newTaskId = genId();
@@ -275,52 +337,97 @@ export default function WorkspaceTaskDialog({
                 bsNumber,
                 bsAddress,
                 taskDescription: taskDescription?.trim() || undefined,
-                status: 'To do', // совпадает с enum модели
+                status: 'To do',
                 priority,
                 dueDate: dueDate ? dueDate.toISOString() : undefined,
-
                 bsLatitude: bsLatitude === '' ? undefined : Number(bsLatitude),
                 bsLongitude: bsLongitude === '' ? undefined : Number(bsLongitude),
-
-                // Исполнитель (если выбран)
                 executorId: selectedExecutor?.id,
                 executorName: selectedExecutor?.name,
                 executorEmail: selectedExecutor?.email,
             };
 
             const res = await fetch(
-                `/api/org/${encodeURIComponent(org)}/projects/${encodeURIComponent(project)}/tasks`,
-                {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify(payload),
-                }
+                apiPath(`/projects/${encodeURIComponent(projectRef)}/tasks`),
+                { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(payload) }
             );
 
             if (!res.ok) {
                 let body: unknown = null;
-                try { body = await res.json(); } catch { /* ignore */ }
-                const createErr = extractErrorMessage(body, res.statusText);
-                console.error('Failed to create task:', createErr);
+                try {
+                    body = await res.json();
+                } catch {
+                    /* ignore */
+                }
+                console.error('Failed to create task:', extractErrorMessage(body, res.statusText));
                 return;
             }
 
-            // сначала создали задачу — потом грузим вложения, используя тот же taskId
             await uploadAttachments(newTaskId);
-
             reset();
             onCreatedAction();
-        } catch (e) {
+        } catch (e: unknown) {
             console.error(e);
         } finally {
             setSaving(false);
         }
-    };
+    }
+
+    async function handleUpdate() {
+        if (!initialTask) return;
+        if (!taskName || !bsNumber) return;
+        if (!isLatValid || !isLngValid) return;
+        if (!orgSlug || !projectRef) return;
+
+        setSaving(true);
+        try {
+            const payload = {
+                taskName,
+                bsNumber,
+                bsAddress,
+                taskDescription: taskDescription?.trim() || undefined,
+                priority,
+                dueDate: dueDate ? dueDate.toISOString() : undefined,
+                bsLatitude: bsLatitude === '' ? undefined : Number(bsLatitude),
+                bsLongitude: bsLongitude === '' ? undefined : Number(bsLongitude),
+                executorId: selectedExecutor?.id,
+                executorName: selectedExecutor?.name,
+                executorEmail: selectedExecutor?.email,
+            };
+
+            const res = await fetch(
+                apiPath(`/projects/${encodeURIComponent(projectRef)}/tasks/${encodeURIComponent(initialTask._id)}`),
+                { method: 'PUT', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(payload) }
+            );
+
+            if (!res.ok) {
+                let body: unknown = null;
+                try {
+                    body = await res.json();
+                } catch {
+                    /* ignore */
+                }
+                console.error('Failed to update task:', extractErrorMessage(body, res.statusText));
+                return;
+            }
+
+            // если в редактировании добавили новые файлы — зальём их taskId
+            if (attachments.length) {
+                await uploadAttachments(initialTask.taskId);
+            }
+
+            onCreatedAction();
+        } catch (e: unknown) {
+            console.error(e);
+        } finally {
+            setSaving(false);
+        }
+    }
 
     return (
         <LocalizationProvider dateAdapter={AdapterDateFns}>
             <Dialog open={open} onClose={handleClose} fullWidth maxWidth="sm">
-                <DialogTitle>Создать задачу</DialogTitle>
+                <DialogTitle>{isEdit ? 'Редактировать задачу' : 'Создать задачу'}</DialogTitle>
                 <DialogContent>
                     <Box sx={{ mt: 2, display: 'flex', flexDirection: 'column', gap: 2 }}>
                         <TextField
@@ -347,7 +454,6 @@ export default function WorkspaceTaskDialog({
                             />
                         </Stack>
 
-                        {/* Координаты БС — WGS-84 Decimal Degrees */}
                         <Stack direction={{ xs: 'column', sm: 'row' }} spacing={2}>
                             <TextField
                                 label="Latitude (Широта)"
@@ -356,17 +462,10 @@ export default function WorkspaceTaskDialog({
                                 onChange={(e) => setBsLatitude(e.target.value)}
                                 error={!isLatValid}
                                 placeholder="напр. 52.270889"
-                                helperText={
-                                    !isLatValid
-                                        ? 'Широта должна быть в диапазоне −90…90'
-                                        : 'WGS-84, десятичные градусы (lat), точка как разделитель'
-                                }
+                                helperText={!isLatValid ? 'Широта должна быть в диапазоне −90…90' : 'WGS-84, десятичные градусы'}
                                 fullWidth
-                                slotProps={{
-                                    input: { inputProps: { step: 'any', min: -90, max: 90 } },
-                                }}
+                                slotProps={{ input: { inputProps: { step: 'any', min: -90, max: 90 } } }}
                             />
-
                             <TextField
                                 label="Longitude (Долгота)"
                                 type="number"
@@ -374,19 +473,12 @@ export default function WorkspaceTaskDialog({
                                 onChange={(e) => setBsLongitude(e.target.value)}
                                 error={!isLngValid}
                                 placeholder="напр. 104.599610"
-                                helperText={
-                                    !isLngValid
-                                        ? 'Долгота должна быть в диапазоне −180…180'
-                                        : 'WGS-84, десятичные градусы (lon), точка как разделитель'
-                                }
+                                helperText={!isLngValid ? 'Долгота должна быть в диапазоне −180…180' : 'WGS-84, десятичные градусы'}
                                 fullWidth
-                                slotProps={{
-                                    input: { inputProps: { step: 'any', min: -180, max: 180 } },
-                                }}
+                                slotProps={{ input: { inputProps: { step: 'any', min: -180, max: 180 } } }}
                             />
                         </Stack>
 
-                        {/* Описание задачи — свободный текст */}
                         <TextField
                             label="Описание задачи"
                             value={taskDescription}
@@ -394,22 +486,17 @@ export default function WorkspaceTaskDialog({
                             multiline
                             minRows={3}
                             maxRows={10}
-                            placeholder="Что сделать, детали, входные данные, ссылки и пр."
+                            placeholder="Что сделать, детали, ссылки и пр."
                             fullWidth
                         />
 
-                        {/* Исполнитель: любой активный участник (Autocomplete) */}
                         <Autocomplete<MemberOption>
                             options={members}
                             value={selectedExecutor}
                             onChange={(_e, val) => setSelectedExecutor(val)}
                             getOptionLabel={(opt) => opt?.name || opt?.email || ''}
                             loading={membersLoading}
-                            noOptionsText={
-                                membersError
-                                    ? `Ошибка: ${membersError}`
-                                    : 'Нет активных участников'
-                            }
+                            noOptionsText={membersError ? `Ошибка: ${membersError}` : 'Нет активных участников'}
                             renderInput={(params) => (
                                 <TextField
                                     {...params}
@@ -429,11 +516,7 @@ export default function WorkspaceTaskDialog({
                             )}
                             renderOption={(props, option) => (
                                 <li {...props} key={option.id}>
-                                    <Avatar
-                                        src={option.profilePic}
-                                        alt={option.name}
-                                        sx={{ width: 24, height: 24, mr: 1 }}
-                                    >
+                                    <Avatar src={option.profilePic} alt={option.name} sx={{ width: 24, height: 24, mr: 1 }}>
                                         {(option.name || option.email)?.[0]?.toUpperCase() ?? 'U'}
                                     </Avatar>
                                     <ListItemText primary={option.name} secondary={option.email} />
@@ -445,11 +528,7 @@ export default function WorkspaceTaskDialog({
                         <Stack direction={{ xs: 'column', sm: 'row' }} spacing={2}>
                             <FormControl fullWidth>
                                 <InputLabel>Priority</InputLabel>
-                                <Select
-                                    label="Priority"
-                                    value={priority}
-                                    onChange={(e) => setPriority(e.target.value as Priority)}
-                                >
+                                <Select label="Priority" value={priority} onChange={(e) => setPriority(e.target.value as Priority)}>
                                     <MenuItem value="urgent">Urgent</MenuItem>
                                     <MenuItem value="high">High</MenuItem>
                                     <MenuItem value="medium">Medium</MenuItem>
@@ -457,15 +536,10 @@ export default function WorkspaceTaskDialog({
                                 </Select>
                             </FormControl>
 
-                            <DatePicker
-                                label="Due Date"
-                                value={dueDate}
-                                onChange={(d) => setDueDate(d)}
-                                slotProps={{ textField: { fullWidth: true } }}
-                            />
+                            <DatePicker label="Due Date" value={dueDate} onChange={(d) => setDueDate(d)} slotProps={{ textField: { fullWidth: true } }} />
                         </Stack>
 
-                        {/* ---------- Drag & Drop attachments ---------- */}
+                        {/* Зона добавления файлов */}
                         <Box
                             onDragOver={onDragOver}
                             onDragLeave={onDragLeave}
@@ -483,27 +557,41 @@ export default function WorkspaceTaskDialog({
                             onClick={openFileDialog}
                         >
                             <CloudUploadIcon sx={{ fontSize: 36, mb: 1 }} />
-                            <Typography variant="body1">
-                                Перетащите файлы сюда или нажмите для выбора
-                            </Typography>
+                            <Typography variant="body1">Перетащите файлы сюда или нажмите для выбора</Typography>
                             <Typography variant="caption" color="text.secondary">
                                 Вложения будут сохранены как <b>attachments</b> этой задачи
                             </Typography>
-                            <input
-                                ref={inputRef}
-                                type="file"
-                                multiple
-                                hidden
-                                onChange={onFileInputChange}
-                            />
+                            <input ref={inputRef} type="file" multiple hidden onChange={onFileInputChange} />
                         </Box>
 
+                        {/* Уже существующие вложения */}
+                        {!!existingAttachments.length && (
+                            <Box>
+                                <Typography variant="subtitle2" sx={{ mb: 1 }}>
+                                    Уже прикреплено: {existingAttachments.length}
+                                </Typography>
+                                <Stack direction="row" flexWrap="wrap" gap={1}>
+                                    {existingAttachments.map((f) => (
+                                        <Chip
+                                            key={f.key}
+                                            label={`${f.name}${typeof f.size === 'number' ? ` (${Math.round(f.size / 1024)} KB)` : ''}`}
+                                            component={f.url ? 'a' : 'div'}
+                                            href={f.url}
+                                            clickable={Boolean(f.url)}
+                                            target={f.url ? '_blank' : undefined}
+                                            rel={f.url ? 'noopener noreferrer' : undefined}
+                                            sx={{ maxWidth: '100%' }}
+                                        />
+                                    ))}
+                                </Stack>
+                            </Box>
+                        )}
+
+                        {/* Новые вложения, которые пользователь добавил сейчас */}
                         {!!attachments.length && (
                             <Box>
                                 <Stack direction="row" alignItems="center" spacing={1} sx={{ mb: 1 }}>
-                                    <Typography variant="subtitle2">
-                                        Вложения: {attachments.length}
-                                    </Typography>
+                                    <Typography variant="subtitle2">Вложения к загрузке: {attachments.length}</Typography>
                                     {uploading && (
                                         <>
                                             <LinearProgress variant="determinate" value={uploadProgress} sx={{ flex: 1 }} />
@@ -540,15 +628,23 @@ export default function WorkspaceTaskDialog({
                     <Button onClick={handleClose} disabled={saving || uploading}>
                         Отмена
                     </Button>
-                    <Button
-                        onClick={handleCreate}
-                        variant="contained"
-                        disabled={
-                            saving || uploading || !taskName || !bsNumber || !isLatValid || !isLngValid
-                        }
-                    >
-                        Создать
-                    </Button>
+                    {isEdit ? (
+                        <Button
+                            onClick={handleUpdate}
+                            variant="contained"
+                            disabled={saving || !taskName || !bsNumber || !isLatValid || !isLngValid}
+                        >
+                            Сохранить
+                        </Button>
+                    ) : (
+                        <Button
+                            onClick={handleCreate}
+                            variant="contained"
+                            disabled={saving || uploading || !taskName || !bsNumber || !isLatValid || !isLngValid}
+                        >
+                            Создать
+                        </Button>
+                    )}
                 </DialogActions>
             </Dialog>
         </LocalizationProvider>

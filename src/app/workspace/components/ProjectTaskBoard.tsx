@@ -2,12 +2,27 @@
 
 'use client';
 
-import React, { useMemo } from 'react';
-import { Box, Typography, Card, CardContent, Chip } from '@mui/material';
+import React, { useMemo, useState, useEffect } from 'react';
+import {
+    Box,
+    Typography,
+    Card,
+    CardContent,
+    Chip,
+    Dialog,
+    DialogTitle,
+    DialogContent,
+    DialogContentText,
+    DialogActions,
+    Button,
+    Alert,
+} from '@mui/material';
 import Tooltip from '@mui/material/Tooltip';
 import TaskOutlinedIcon from '@mui/icons-material/TaskOutlined';
 import { getStatusColor } from '@/utils/statusColors';
 import { getPriorityIcon, normalizePriority } from '@/utils/priorityIcons';
+import WorkspaceTaskDialog, { TaskForEdit } from '@/app/workspace/components/WorkspaceTaskDialog';
+import TaskContextMenu from '@/app/workspace/components/TaskContextMenu';
 
 type StatusTitle =
     | 'To do'
@@ -42,6 +57,14 @@ type Task = {
     executorId?: string;
     executorName?: string;
     executorEmail?: string;
+
+    // для диалога редактирования
+    bsAddress?: string;
+    taskDescription?: string;
+    bsLatitude?: number;
+    bsLongitude?: number;
+    totalCost?: number;
+    files?: Array<{ name?: string; url?: string; size?: number }>;
 };
 
 const formatDateRU = (v?: string) => (v ? new Date(v).toLocaleDateString('ru-RU') : '—');
@@ -67,14 +90,36 @@ function normalizeStatusTitle(s?: string): StatusTitle {
     return TITLE_CASE_MAP[key] ?? (s as StatusTitle);
 }
 
-function TaskCard({ t, statusTitle }: { t: Task; statusTitle: StatusTitle }) {
-    const p = normalizePriority(t.priority); // 'urgent' | 'high' | 'medium' | 'low' | null
+function TaskCard({
+                      t,
+                      statusTitle,
+                      onClick,
+                      onContextMenu,
+                  }: {
+    t: Task;
+    statusTitle: StatusTitle;
+    onClick?: (task: Task) => void;
+    onContextMenu?: (e: React.MouseEvent, task: Task) => void;
+}) {
+    const p = normalizePriority(t.priority);
     const execLabel = t.executorName || t.executorEmail || '';
     const execTooltip =
         t.executorName && t.executorEmail ? `${t.executorName} • ${t.executorEmail}` : execLabel;
 
     return (
-        <Card sx={{ mb: 2, boxShadow: 2, position: 'relative', overflow: 'hidden' }}>
+        <Card
+            data-task-id={t._id} // важно для корректного переноса меню
+            sx={{
+                mb: 2,
+                boxShadow: 2,
+                position: 'relative',
+                overflow: 'hidden',
+                cursor: onClick ? 'pointer' : 'default',
+                '&:hover': onClick ? { transform: 'translateY(-1px)', transition: '150ms ease' } : undefined,
+            }}
+            onClick={onClick ? () => onClick(t) : undefined}
+            onContextMenu={onContextMenu ? (e) => onContextMenu(e, t) : undefined}
+        >
             <Box sx={{ mt: '5px', ml: '5px' }}>
                 <Typography variant="caption" color="text.secondary">
                     <TaskOutlinedIcon sx={{ fontSize: 15, mb: 0.5, mr: 0.5 }} />
@@ -82,23 +127,17 @@ function TaskCard({ t, statusTitle }: { t: Task; statusTitle: StatusTitle }) {
                 </Typography>
             </Box>
 
-            <CardContent sx={{ pb: 6 /* оставляем место под нижнюю плашку */ }}>
+            <CardContent sx={{ pb: 6 }}>
                 <Typography variant="subtitle1" gutterBottom>
                     {t.taskName}
                 </Typography>
 
                 <Typography variant="body2">BS: {t.bsNumber || '—'}</Typography>
 
-                {/* Исполнитель (из executor*) */}
                 <Box sx={{ mt: 0.5, minHeight: 28 }}>
                     {execLabel ? (
                         <Tooltip title={execTooltip}>
-                            <Chip
-                                size="small"
-                                label={execLabel}
-                                variant="outlined"
-                                sx={{ maxWidth: '100%' }}
-                            />
+                            <Chip size="small" label={execLabel} variant="outlined" sx={{ maxWidth: '100%' }} />
                         </Tooltip>
                     ) : (
                         <Typography variant="caption" color="text.secondary">
@@ -110,7 +149,6 @@ function TaskCard({ t, statusTitle }: { t: Task; statusTitle: StatusTitle }) {
                 <Typography variant="caption">Due date: {formatDateRU(t.dueDate)}</Typography>
             </CardContent>
 
-            {/* Нижняя плашка: слева статус, справа — иконка приоритета с тултипом */}
             <Box
                 sx={{
                     position: 'absolute',
@@ -122,11 +160,7 @@ function TaskCard({ t, statusTitle }: { t: Task; statusTitle: StatusTitle }) {
                     gap: 1,
                 }}
             >
-                <Chip
-                    label={statusTitle}
-                    size="small"
-                    sx={{ bgcolor: getStatusColor(statusTitle), color: '#fff' }}
-                />
+                <Chip label={statusTitle} size="small" sx={{ bgcolor: getStatusColor(statusTitle), color: '#fff' }} />
 
                 <Box sx={{ ml: 'auto', display: 'flex', alignItems: 'center' }}>
                     {p && (
@@ -146,10 +180,16 @@ export default function ProjectTaskBoard({
                                              items,
                                              loading,
                                              error,
+                                             org,
+                                             project,
+                                             onReloadAction,
                                          }: {
     items: Task[];
     loading: boolean;
     error: string | null;
+    org?: string;
+    project?: string;
+    onReloadAction?: () => void;
 }) {
     const grouped = useMemo(() => {
         const base: Record<StatusTitle, Task[]> = {
@@ -168,6 +208,108 @@ export default function ProjectTaskBoard({
         }
         return base;
     }, [items]);
+
+    const [editOpen, setEditOpen] = useState(false);
+    const [selectedTask, setSelectedTask] = useState<Task | null>(null);
+
+    const [menuPos, setMenuPos] = useState<{ top: number; left: number } | null>(null);
+    const [menuTask, setMenuTask] = useState<Task | null>(null);
+
+    const [deleteOpen, setDeleteOpen] = useState(false);
+    const [deleteLoading, setDeleteLoading] = useState(false);
+    const [deleteError, setDeleteError] = useState<string | null>(null);
+
+    const canEdit = Boolean(org && project);
+
+    // карта задач по _id — для быстрого поиска при переносе меню
+    const taskById = useMemo(() => new Map(items.map((t) => [t._id, t])), [items]);
+
+    // пока наше меню открыто — гасим системное контекстное меню и переносим своё
+    useEffect(() => {
+        if (!menuPos) return; // меню закрыто
+
+        const handler = (e: MouseEvent) => {
+            e.preventDefault(); // блокируем браузерное меню
+
+            const target = e.target as HTMLElement | null;
+            const cardEl = target?.closest?.('[data-task-id]') as HTMLElement | null;
+
+            if (cardEl) {
+                const id = cardEl.getAttribute('data-task-id') || '';
+                const t = taskById.get(id);
+                if (t) setMenuTask(t);
+            }
+            setMenuPos({ top: e.clientY - 4, left: e.clientX - 2 });
+        };
+
+        // capture=true — чтобы опередить браузер/другие слушатели
+        document.addEventListener('contextmenu', handler, true);
+        return () => document.removeEventListener('contextmenu', handler, true);
+    }, [menuPos, taskById]);
+
+    // клик по карте — открыть редактирование (если есть org/project)
+    const handleCardClick = (t: Task) => {
+        if (!canEdit) return;
+        setSelectedTask(t);
+        setEditOpen(true);
+    };
+
+    // ПКМ — открыть кастомное меню
+    const handleCardContext = (e: React.MouseEvent, t: Task) => {
+        e.preventDefault();
+        setMenuTask(t);
+        setMenuPos({ top: e.clientY - 4, left: e.clientX - 2 });
+    };
+    const closeMenu = () => setMenuPos(null);
+
+    // обработчики меню
+    const onOpenTask = () => {
+        // TODO: router.push на страницу задачи, когда появится
+        alert('Открыть задачу (заглушка)');
+    };
+
+    const onEditTask = () => {
+        if (!canEdit || !menuTask) return;
+        setSelectedTask(menuTask);
+        setEditOpen(true);
+    };
+
+    const onDeleteTask = () => {
+        if (!menuTask) return;
+        setDeleteError(null);
+        setDeleteOpen(true);
+    };
+
+    // удаление задачи
+    const confirmDelete = async () => {
+        if (!menuTask || !org || !project) return;
+        try {
+            setDeleteLoading(true);
+            setDeleteError(null);
+            const url = `/api/org/${encodeURIComponent(org)}/projects/${encodeURIComponent(
+                project
+            )}/tasks/${encodeURIComponent(menuTask._id)}`;
+            const res = await fetch(url, { method: 'DELETE' });
+            if (!res.ok) {
+                const data: unknown = await res.json().catch(() => ({}));
+                const msg = (data as { error?: string })?.error || `Delete failed: ${res.status}`;
+                setDeleteError(msg);
+                return;
+            }
+            setDeleteOpen(false);
+            onReloadAction?.();
+        } catch (e: unknown) {
+            const msg = e instanceof Error ? e.message : 'Ошибка удаления';
+            setDeleteError(msg);
+        } finally {
+            setDeleteLoading(false);
+        }
+    };
+
+    const handleEdited = () => {
+        setEditOpen(false);
+        onReloadAction?.();
+    };
 
     if (loading)
         return (
@@ -201,11 +343,78 @@ export default function ProjectTaskBoard({
                             {status} ({grouped[status]?.length || 0})
                         </Typography>
                         {(grouped[status] || []).map((t) => (
-                            <TaskCard key={t._id} t={t} statusTitle={status} />
+                            <TaskCard
+                                key={t._id}
+                                t={t}
+                                statusTitle={status}
+                                onClick={canEdit ? handleCardClick : undefined}
+                                onContextMenu={handleCardContext}
+                            />
                         ))}
                     </Box>
                 ))}
             </Box>
+
+            {/* контекстное меню */}
+            <TaskContextMenu
+                anchorPosition={menuPos}
+                onClose={closeMenu}
+                onOpenTask={onOpenTask}
+                onEditTask={onEditTask}
+                onDeleteTask={onDeleteTask}
+            />
+
+            {/* диалог удаления */}
+            <Dialog open={deleteOpen} onClose={deleteLoading ? undefined : () => setDeleteOpen(false)}>
+                <DialogTitle>Удалить задачу?</DialogTitle>
+                <DialogContent>
+                    <DialogContentText>
+                        Это действие нельзя отменить. Будет удалена задача
+                        {menuTask ? ` «${menuTask.taskName}»` : ''}.
+                    </DialogContentText>
+                    {deleteError && <Alert severity="error" sx={{ mt: 2 }}>{deleteError}</Alert>}
+                </DialogContent>
+                <DialogActions>
+                    <Button onClick={() => setDeleteOpen(false)} disabled={deleteLoading}>
+                        Отмена
+                    </Button>
+                    <Button onClick={confirmDelete} variant="contained" color="error" disabled={deleteLoading}>
+                        {deleteLoading ? 'Удаляю…' : 'Удалить'}
+                    </Button>
+                </DialogActions>
+            </Dialog>
+
+            {/* диалог редактирования */}
+            {canEdit && selectedTask && (
+                <WorkspaceTaskDialog
+                    open={editOpen}
+                    org={org as string}
+                    project={project as string}
+                    mode="edit"
+                    initialTask={
+                        {
+                            _id: selectedTask._id,
+                            taskId: selectedTask.taskId,
+                            taskName: selectedTask.taskName,
+                            status: selectedTask.status,
+                            dueDate: selectedTask.dueDate,
+                            bsNumber: selectedTask.bsNumber,
+                            bsAddress: selectedTask.bsAddress,
+                            taskDescription: selectedTask.taskDescription,
+                            bsLatitude: selectedTask.bsLatitude,
+                            bsLongitude: selectedTask.bsLongitude,
+                            totalCost: selectedTask.totalCost,
+                            priority: normalizePriority(selectedTask.priority || 'medium') || 'medium',
+                            executorId: selectedTask.executorId,
+                            executorName: selectedTask.executorName,
+                            executorEmail: selectedTask.executorEmail,
+                            files: selectedTask.files,
+                        } as TaskForEdit
+                    }
+                    onCloseAction={() => setEditOpen(false)}
+                    onCreatedAction={handleEdited}
+                />
+            )}
         </Box>
     );
 }
