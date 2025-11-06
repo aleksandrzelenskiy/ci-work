@@ -3,11 +3,28 @@
 
 import * as React from 'react';
 import {
-    Box, Button, Dialog, DialogTitle, DialogContent, DialogActions, TextField, Stack,
-    FormControl, InputLabel, Select, MenuItem, CircularProgress, Avatar, ListItemText,
-    Chip, IconButton, Typography, LinearProgress, Tooltip,
+    Box,
+    Button,
+    Dialog,
+    DialogTitle,
+    DialogContent,
+    DialogActions,
+    TextField,
+    Stack,
+    FormControl,
+    InputLabel,
+    Select,
+    MenuItem,
+    CircularProgress,
+    Avatar,
+    ListItemText,
+    Chip,
+    IconButton,
+    Typography,
+    LinearProgress,
+    Tooltip,
 } from '@mui/material';
-import Autocomplete from '@mui/material/Autocomplete';
+import Autocomplete, { createFilterOptions } from '@mui/material/Autocomplete';
 import { DatePicker, LocalizationProvider } from '@mui/x-date-pickers';
 import { AdapterDateFns } from '@mui/x-date-pickers/AdapterDateFns';
 import DeleteOutlineIcon from '@mui/icons-material/DeleteOutline';
@@ -43,14 +60,12 @@ export type TaskForEdit = {
     executorId?: string;
     executorName?: string;
     executorEmail?: string;
-    /** Если сервер уже отдаёт список файлов — покажем его */
     files?: Array<{ name?: string; url?: string; size?: number }>;
 };
 
 type Props = {
     open: boolean;
     org: string;
-    /** Ключ проекта (например, "T2-IR"), а не ObjectId */
     project: string;
     onCloseAction: () => void;
     onCreatedAction: () => void;
@@ -71,6 +86,42 @@ function extractErrorMessage(payload: unknown, fallback: string): string {
     return typeof err === 'string' && err.trim() ? err : fallback;
 }
 
+// опция БС из базы объектов
+type BsOption = {
+    id: string;
+    name: string;
+    address?: string;
+    lat?: number | null;
+    lon?: number | null;
+};
+
+// если строка начинается с IR..., берём только первую часть до запятой
+function getDisplayBsName(raw: string): string {
+    const trimmed = raw.trim();
+    if (/^IR\d+/i.test(trimmed)) {
+        const firstPart = trimmed.split(',')[0]?.trim();
+        return firstPart || trimmed;
+    }
+    return trimmed;
+}
+
+// нормализация адреса: если БС IR*, добавляем "Иркутская область," и убираем "- " в начале
+function normalizeAddressFromDb(bsNumber: string, raw?: string): string {
+    let addr = (raw ?? '').trim();
+    if (addr.startsWith('-')) {
+        addr = addr.slice(1).trim();
+    }
+    const hasIrPrefix = /^IR\d+/i.test(bsNumber.trim());
+    if (hasIrPrefix) {
+        if (!addr.startsWith('Иркутская область')) {
+            addr = `Иркутская область, ${addr}`;
+        }
+    }
+    return addr;
+}
+
+const defaultFilter = createFilterOptions<BsOption>();
+
 export default function WorkspaceTaskDialog({
                                                 open,
                                                 org,
@@ -82,7 +133,6 @@ export default function WorkspaceTaskDialog({
                                             }: Props) {
     const isEdit = mode === 'edit';
 
-    // нормализованные org/project
     const orgSlug = React.useMemo(() => org?.trim(), [org]);
     const projectRef = React.useMemo(() => project?.trim(), [project]);
     const apiPath = React.useCallback(
@@ -97,6 +147,7 @@ export default function WorkspaceTaskDialog({
 
     const [taskName, setTaskName] = React.useState('');
     const [bsNumber, setBsNumber] = React.useState('');
+    const [bsInput, setBsInput] = React.useState(''); // то, что реально в инпуте
     const [bsAddress, setBsAddress] = React.useState('');
     const [taskDescription, setTaskDescription] = React.useState('');
     const [priority, setPriority] = React.useState<Priority>('medium');
@@ -118,13 +169,44 @@ export default function WorkspaceTaskDialog({
     const [uploading, setUploading] = React.useState(false);
     const [uploadProgress, setUploadProgress] = React.useState<number>(0);
 
-    // Подстановка initialTask при открытии в режиме редактирования
+    const [bsOptions, setBsOptions] = React.useState<BsOption[]>([]);
+    const [bsOptionsLoading, setBsOptionsLoading] = React.useState(false);
+    const [bsOptionsError, setBsOptionsError] = React.useState<string | null>(null);
+
+    // новая штука: реальная выбранная БС из базы
+    const [selectedBsOption, setSelectedBsOption] = React.useState<BsOption | null>(null);
+
+    const loadBsOptions = React.useCallback(async (term: string) => {
+        setBsOptionsLoading(true);
+        setBsOptionsError(null);
+        try {
+            const url = `/api/objects${term ? `?q=${encodeURIComponent(term)}` : ''}`;
+            const res = await fetch(url, { method: 'GET', cache: 'no-store' });
+            const body = await res.json();
+            if (!res.ok) {
+                setBsOptionsError(extractErrorMessage(body, res.statusText));
+                setBsOptions([]);
+                return;
+            }
+            const arr = (body?.objects ?? []) as BsOption[];
+            setBsOptions(arr);
+        } catch (e: unknown) {
+            setBsOptionsError(e instanceof Error ? e.message : 'Failed to load objects');
+            setBsOptions([]);
+        } finally {
+            setBsOptionsLoading(false);
+        }
+    }, []);
+
+    // заполнение при редактировании
     React.useEffect(() => {
         if (!open) return;
         if (!isEdit || !initialTask) return;
 
         setTaskName(initialTask.taskName ?? '');
-        setBsNumber(initialTask.bsNumber ?? '');
+        const initialBs = initialTask.bsNumber ? getDisplayBsName(initialTask.bsNumber) : '';
+        setBsNumber(initialBs);
+        setBsInput(initialBs);
         setBsAddress(initialTask.bsAddress ?? '');
         setTaskDescription(initialTask.taskDescription ?? '');
 
@@ -133,8 +215,8 @@ export default function WorkspaceTaskDialog({
 
         setDueDate(initialTask.dueDate ? new Date(initialTask.dueDate) : null);
 
-        setBsLatitude(typeof initialTask.bsLatitude === 'number' ? String(initialTask.bsLatitude) : '');
-        setBsLongitude(typeof initialTask.bsLongitude === 'number' ? String(initialTask.bsLongitude) : '');
+        setBsLatitude(typeof initialTask.bsLatitude === 'number' ? String(initialTask.bsLatitude).replace(',', '.') : '');
+        setBsLongitude(typeof initialTask.bsLongitude === 'number' ? String(initialTask.bsLongitude).replace(',', '.') : '');
 
         if (initialTask.executorEmail || initialTask.executorName || initialTask.executorId) {
             setSelectedExecutor({
@@ -146,7 +228,6 @@ export default function WorkspaceTaskDialog({
             setSelectedExecutor(null);
         }
 
-        // показать уже существующие вложения, если сервер их прислал
         const files = initialTask.files ?? [];
         setExistingAttachments(
             files
@@ -162,9 +243,16 @@ export default function WorkspaceTaskDialog({
         setAttachments([]);
         setUploadProgress(0);
         setUploading(false);
-    }, [open, isEdit, initialTask]);
 
-    // Загрузка активных участников при открытии диалога
+        if (initialTask.bsNumber) {
+            void loadBsOptions(initialTask.bsNumber);
+        }
+
+        // при открытии в режиме редактирования выбранный объект нам неизвестен (бэк не прислал), поэтому:
+        setSelectedBsOption(null);
+    }, [open, isEdit, initialTask, loadBsOptions]);
+
+    // загрузка участников
     React.useEffect(() => {
         if (!open || !orgSlug) return;
         let aborted = false;
@@ -231,6 +319,7 @@ export default function WorkspaceTaskDialog({
     const reset = () => {
         setTaskName('');
         setBsNumber('');
+        setBsInput('');
         setBsAddress('');
         setTaskDescription('');
         setPriority('medium');
@@ -238,6 +327,7 @@ export default function WorkspaceTaskDialog({
         setBsLatitude('');
         setBsLongitude('');
         setSelectedExecutor(null);
+        setSelectedBsOption(null);
         setExistingAttachments([]);
         setAttachments([]);
         setUploadProgress(0);
@@ -290,7 +380,7 @@ export default function WorkspaceTaskDialog({
         setAttachments((prev) => prev.filter((f) => !(f.name === name && f.size === size)));
     };
 
-    // Upload attachments (используем короткий taskId)
+    // UPLOAD
     async function uploadAttachments(taskShortId: string): Promise<void> {
         if (!attachments.length) return;
         setUploading(true);
@@ -300,7 +390,7 @@ export default function WorkspaceTaskDialog({
             const file = attachments[i];
             const fd = new FormData();
             fd.append('file', file, file.name);
-            fd.append('taskId', taskShortId); // короткий id задачи
+            fd.append('taskId', taskShortId);
             fd.append('subfolder', 'attachments');
             fd.append('orgSlug', orgSlug || '');
 
@@ -320,6 +410,29 @@ export default function WorkspaceTaskDialog({
         }
 
         setUploading(false);
+    }
+
+    // Сборка bsLocation по аналогии с тем, что делает твой /api/addTasks
+    function buildBsLocation(): Array<{ name: string; coordinates: string }> {
+        // если выбрали БС из базы — используем её
+        if (selectedBsOption) {
+            const displayName = getDisplayBsName(selectedBsOption.name);
+            const lat = typeof selectedBsOption.lat === 'number' ? String(selectedBsOption.lat).replace(',', '.') : '';
+            const lon = typeof selectedBsOption.lon === 'number' ? String(selectedBsOption.lon).replace(',', '.') : '';
+            if (lat && lon) {
+                return [{ name: displayName, coordinates: `${lat} ${lon}` }];
+            }
+            // если вдруг в объекте нет координат, попробуем из полей
+        }
+
+        // если не было выбора, но пользователь ввёл координаты руками — тоже положим
+        const lat = bsLatitude.trim();
+        const lon = bsLongitude.trim();
+        if (bsNumber.trim() && lat && lon) {
+            return [{ name: bsNumber.trim(), coordinates: `${lat} ${lon}` }];
+        }
+
+        return [];
     }
 
     async function handleCreate() {
@@ -342,6 +455,8 @@ export default function WorkspaceTaskDialog({
                 dueDate: dueDate ? dueDate.toISOString() : undefined,
                 bsLatitude: bsLatitude === '' ? undefined : Number(bsLatitude),
                 bsLongitude: bsLongitude === '' ? undefined : Number(bsLongitude),
+                // НОВОЕ
+                bsLocation: buildBsLocation(),
                 executorId: selectedExecutor?.id,
                 executorName: selectedExecutor?.name,
                 executorEmail: selectedExecutor?.email,
@@ -390,6 +505,8 @@ export default function WorkspaceTaskDialog({
                 dueDate: dueDate ? dueDate.toISOString() : undefined,
                 bsLatitude: bsLatitude === '' ? undefined : Number(bsLatitude),
                 bsLongitude: bsLongitude === '' ? undefined : Number(bsLongitude),
+                // НОВОЕ
+                bsLocation: buildBsLocation(),
                 executorId: selectedExecutor?.id,
                 executorName: selectedExecutor?.name,
                 executorEmail: selectedExecutor?.email,
@@ -411,7 +528,6 @@ export default function WorkspaceTaskDialog({
                 return;
             }
 
-            // если в редактировании добавили новые файлы — зальём их taskId
             if (attachments.length) {
                 await uploadAttachments(initialTask.taskId);
             }
@@ -423,6 +539,40 @@ export default function WorkspaceTaskDialog({
             setSaving(false);
         }
     }
+
+    // выбор БС из автокомплита
+    const handleSelectBsOption = (opt: BsOption | null) => {
+        if (!opt) {
+            setSelectedBsOption(null);
+            return;
+        }
+        const displayName = getDisplayBsName(opt.name);
+        setBsNumber(displayName);
+        setBsInput(displayName);
+        setSelectedBsOption(opt);
+        const normalized = normalizeAddressFromDb(displayName, opt.address);
+        setBsAddress(normalized);
+        setBsLatitude(typeof opt.lat === 'number' ? String(opt.lat).replace(',', '.') : '');
+        setBsLongitude(typeof opt.lon === 'number' ? String(opt.lon).replace(',', '.') : '');
+    };
+
+    // debounce ввода
+    const bsSearchTimeout = React.useRef<ReturnType<typeof setTimeout> | null>(null);
+    const handleBsInputChange = (_e: React.SyntheticEvent, value: string) => {
+        setBsInput(value);
+        setBsNumber(value);
+        // пользователь начал ввод руками — это уже не выбранная из базы БС
+        setSelectedBsOption(null);
+        if (bsSearchTimeout.current) clearTimeout(bsSearchTimeout.current);
+        if (!value.trim()) {
+            // если поле очистили — список не нужен
+            setBsOptions([]);
+            return;
+        }
+        bsSearchTimeout.current = setTimeout(() => {
+            void loadBsOptions(value);
+        }, 300);
+    };
 
     return (
         <LocalizationProvider dateAdapter={AdapterDateFns}>
@@ -438,44 +588,108 @@ export default function WorkspaceTaskDialog({
                             fullWidth
                         />
 
-                        <Stack direction={{ xs: 'column', sm: 'row' }} spacing={2}>
-                            <TextField
-                                label="BS Number"
-                                value={bsNumber}
-                                onChange={(e) => setBsNumber(e.target.value)}
-                                required
-                                fullWidth
-                            />
-                            <TextField
-                                label="BS Address"
-                                value={bsAddress}
-                                onChange={(e) => setBsAddress(e.target.value)}
-                                fullWidth
-                            />
-                        </Stack>
+                        {/* BS Number — полная строка, список показываем только при вводе */}
+                        <Autocomplete<BsOption, false, false, true>
+                            freeSolo
+                            options={bsOptions}
+                            loading={bsOptionsLoading}
+                            value={bsNumber}
+                            inputValue={bsInput}
+                            onChange={(_e, val) => {
+                                if (typeof val === 'string') {
+                                    setBsNumber(val);
+                                    setBsInput(val);
+                                    setSelectedBsOption(null);
+                                    return;
+                                }
+                                if (val) {
+                                    handleSelectBsOption(val);
+                                } else {
+                                    setBsNumber('');
+                                    setBsInput('');
+                                    setSelectedBsOption(null);
+                                }
+                            }}
+                            onInputChange={handleBsInputChange}
+                            getOptionLabel={(opt) =>
+                                typeof opt === 'string' ? opt : getDisplayBsName(opt.name)
+                            }
+                            filterOptions={(opts, params) => {
+                                if (!params.inputValue.trim()) {
+                                    return [];
+                                }
+                                return defaultFilter(opts, params);
+                            }}
+                            isOptionEqualToValue={(option, value) =>
+                                option.id === (value as BsOption).id
+                            }
+                            noOptionsText={bsOptionsError ? `Ошибка: ${bsOptionsError}` : 'Не найдено'}
+                            renderInput={(params) => (
+                                <TextField
+                                    {...params}
+                                    label="BS Number"
+                                    required
+                                    fullWidth
+                                    InputProps={{
+                                        ...params.InputProps,
+                                        endAdornment: (
+                                            <>
+                                                {bsOptionsLoading ? <CircularProgress size={18} sx={{ mr: 1 }} /> : null}
+                                                {params.InputProps.endAdornment}
+                                            </>
+                                        ),
+                                    }}
+                                />
+                            )}
+                            renderOption={(props, option) => (
+                                <li {...props} key={option.id}>
+                                    <Box>
+                                        <Typography variant="body2">{getDisplayBsName(option.name)}</Typography>
+                                        {option.address ? (
+                                            <Typography variant="caption" color="text.secondary">
+                                                {option.address}
+                                            </Typography>
+                                        ) : null}
+                                    </Box>
+                                </li>
+                            )}
+                        />
+
+                        <TextField
+                            label="BS Address"
+                            value={bsAddress}
+                            onChange={(e) => setBsAddress(e.target.value)}
+                            fullWidth
+                        />
 
                         <Stack direction={{ xs: 'column', sm: 'row' }} spacing={2}>
                             <TextField
                                 label="Latitude (Широта)"
-                                type="number"
+                                type="text"
                                 value={bsLatitude}
-                                onChange={(e) => setBsLatitude(e.target.value)}
+                                onChange={(e) => {
+                                    const v = e.target.value.replace(',', '.');
+                                    setBsLatitude(v);
+                                }}
                                 error={!isLatValid}
-                                placeholder="напр. 52.270889"
+                                placeholder="52.219319"
                                 helperText={!isLatValid ? 'Широта должна быть в диапазоне −90…90' : 'WGS-84, десятичные градусы'}
                                 fullWidth
-                                slotProps={{ input: { inputProps: { step: 'any', min: -90, max: 90 } } }}
+                                inputProps={{ inputMode: 'decimal' }}
                             />
                             <TextField
                                 label="Longitude (Долгота)"
-                                type="number"
+                                type="text"
                                 value={bsLongitude}
-                                onChange={(e) => setBsLongitude(e.target.value)}
+                                onChange={(e) => {
+                                    const v = e.target.value.replace(',', '.');
+                                    setBsLongitude(v);
+                                }}
                                 error={!isLngValid}
-                                placeholder="напр. 104.599610"
+                                placeholder="104.26913"
                                 helperText={!isLngValid ? 'Долгота должна быть в диапазоне −180…180' : 'WGS-84, десятичные градусы'}
                                 fullWidth
-                                slotProps={{ input: { inputProps: { step: 'any', min: -180, max: 180 } } }}
+                                inputProps={{ inputMode: 'decimal' }}
                             />
                         </Stack>
 
@@ -536,7 +750,12 @@ export default function WorkspaceTaskDialog({
                                 </Select>
                             </FormControl>
 
-                            <DatePicker label="Due Date" value={dueDate} onChange={(d) => setDueDate(d)} slotProps={{ textField: { fullWidth: true } }} />
+                            <DatePicker
+                                label="Due Date"
+                                value={dueDate}
+                                onChange={(d) => setDueDate(d)}
+                                slotProps={{ textField: { fullWidth: true } }}
+                            />
                         </Stack>
 
                         {/* Зона добавления файлов */}
@@ -564,7 +783,6 @@ export default function WorkspaceTaskDialog({
                             <input ref={inputRef} type="file" multiple hidden onChange={onFileInputChange} />
                         </Box>
 
-                        {/* Уже существующие вложения */}
                         {!!existingAttachments.length && (
                             <Box>
                                 <Typography variant="subtitle2" sx={{ mb: 1 }}>
@@ -587,7 +805,6 @@ export default function WorkspaceTaskDialog({
                             </Box>
                         )}
 
-                        {/* Новые вложения, которые пользователь добавил сейчас */}
                         {!!attachments.length && (
                             <Box>
                                 <Stack direction="row" alignItems="center" spacing={1} sx={{ mb: 1 }}>
