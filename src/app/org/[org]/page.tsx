@@ -8,8 +8,7 @@ import {
     Snackbar, Alert, Table, TableHead, TableRow, TableCell,
     TableBody, Chip, IconButton, Tooltip, Typography,
     CircularProgress, Grid, Dialog, DialogTitle, DialogContent, DialogActions,
-    TextField,
-    Button,
+    TextField, Button,
 } from '@mui/material';
 import RefreshIcon from '@mui/icons-material/Refresh';
 import DeleteOutlineIcon from '@mui/icons-material/DeleteOutline';
@@ -73,6 +72,39 @@ export default function OrgSettingsPage() {
     const [accessChecked, setAccessChecked] = React.useState(false);
     const canManage = allowedRoles.includes(myRole ?? 'viewer');
 
+    // участники
+    const [members, setMembers] = React.useState<MemberDTO[]>([]);
+    const [loading, setLoading] = React.useState(false);
+    const [memberSearch, setMemberSearch] = React.useState('');
+
+    // проекты
+    const [projects, setProjects] = React.useState<ProjectDTO[]>([]);
+    const [projectsLoading, setProjectsLoading] = React.useState(false);
+
+    // snackbar
+    const [snack, setSnack] = React.useState<SnackState>({ open: false, msg: '', sev: 'success' });
+
+    // диалог приглашения
+    const [inviteOpen, setInviteOpen] = React.useState(false);
+
+    // диалог создания проекта
+    const [createOpen, setCreateOpen] = React.useState(false);
+    const [newProjectName, setNewProjectName] = React.useState('');
+    const [newProjectKey, setNewProjectKey] = React.useState('');
+    const [newProjectDescription, setNewProjectDescription] = React.useState('');
+    const isCreateDisabled = !newProjectName || !newProjectKey;
+
+    // диалог удаления участника
+    const [removeOpen, setRemoveOpen] = React.useState(false);
+    const [removing, setRemoving] = React.useState(false);
+    const [memberToRemove, setMemberToRemove] = React.useState<MemberDTO | null>(null);
+
+    // диалог удаления проекта
+    const [removeProjectOpen, setRemoveProjectOpen] = React.useState(false);
+    const [removingProject, setRemovingProject] = React.useState(false);
+    const [projectToRemove, setProjectToRemove] = React.useState<ProjectDTO | null>(null);
+
+    // загрузка инфы об организации и своей роли
     React.useEffect(() => {
         let cancelled = false;
         (async () => {
@@ -80,15 +112,13 @@ export default function OrgSettingsPage() {
             try {
                 const res = await fetch(`/api/org/${encodeURIComponent(org)}`);
                 type OrgInfoOk = { org: { _id: string; name: string; orgSlug: string }; role: OrgRole };
-                type OrgInfoErr = { error: string };
-                const data = (await res.json().catch(() => ({}))) as OrgInfoOk | OrgInfoErr;
-
+                const data = (await res.json().catch(() => ({}))) as OrgInfoOk | { error: string };
                 if (!cancelled) {
                     if (!res.ok || 'error' in data) {
                         setMyRole(null);
                     } else {
-                        setMyRole((data as OrgInfoOk).role);
-                        setOrgName((data as OrgInfoOk).org.name);
+                        setMyRole(data.role);
+                        setOrgName(data.org.name);
                     }
                     setAccessChecked(true);
                 }
@@ -101,25 +131,6 @@ export default function OrgSettingsPage() {
         })();
         return () => { cancelled = true; };
     }, [org]);
-
-    const [members, setMembers] = React.useState<MemberDTO[]>([]);
-    const [loading, setLoading] = React.useState(false);
-    const [memberSearch, setMemberSearch] = React.useState('');
-
-    const [projects, setProjects] = React.useState<ProjectDTO[]>([]);
-    const [projectsLoading, setProjectsLoading] = React.useState(false);
-
-    const [snack, setSnack] = React.useState<SnackState>({ open: false, msg: '', sev: 'success' });
-
-    // диалог добавления участника
-    const [inviteOpen, setInviteOpen] = React.useState(false);
-
-    // диалог создания проекта
-    const [createOpen, setCreateOpen] = React.useState(false);
-    const [newProjectName, setNewProjectName] = React.useState('');
-    const [newProjectKey, setNewProjectKey] = React.useState('');
-    const [newProjectDescription, setNewProjectDescription] = React.useState('');
-    const isCreateDisabled = !newProjectName || !newProjectKey;
 
     const fetchMembers = React.useCallback(async () => {
         if (!org || !canManage) return;
@@ -153,6 +164,7 @@ export default function OrgSettingsPage() {
         }
     }, [org, canManage]);
 
+    // слушаем событие успешного приглашения
     React.useEffect(() => {
         const handler = async () => {
             await fetchMembers();
@@ -162,6 +174,7 @@ export default function OrgSettingsPage() {
         return () => window.removeEventListener('org-members:invited', handler as EventListener);
     }, [fetchMembers]);
 
+    // первичная загрузка
     React.useEffect(() => {
         if (canManage) {
             void fetchMembers();
@@ -174,11 +187,7 @@ export default function OrgSettingsPage() {
         void fetchProjects();
     };
 
-    // Удаление участника
-    const [removeOpen, setRemoveOpen] = React.useState(false);
-    const [removing, setRemoving] = React.useState(false);
-    const [memberToRemove, setMemberToRemove] = React.useState<MemberDTO | null>(null);
-
+    // удаление участника
     const openRemoveDialog = (m: MemberDTO) => {
         setMemberToRemove(m);
         setRemoveOpen(true);
@@ -188,30 +197,52 @@ export default function OrgSettingsPage() {
         setRemoveOpen(false);
         setMemberToRemove(null);
     };
-
     const confirmRemove = async () => {
         if (!org || !memberToRemove?._id || !canManage) return;
         setRemoving(true);
         try {
-            const res = await fetch(
-                `/api/org/${encodeURIComponent(org)}/members/${memberToRemove._id}`,
-                { method: 'DELETE' }
-            );
-            const data: unknown = await res.json().catch(() => ({}));
-            type ErrorShape = { error?: unknown };
-            const err = (data as ErrorShape).error;
-            const errorMsg = typeof err === 'string' ? err : res.statusText;
-
+            const res = await fetch(`/api/org/${encodeURIComponent(org)}/members/${memberToRemove._id}`, { method: 'DELETE' });
+            const data = (await res.json().catch(() => ({}))) as { error?: string };
             if (!res.ok) {
-                setSnack({ open: true, msg: errorMsg, sev: 'error' });
+                setSnack({ open: true, msg: data?.error || res.statusText, sev: 'error' });
                 return;
             }
-
             setSnack({ open: true, msg: 'Участник удалён', sev: 'success' });
             await fetchMembers();
             closeRemoveDialog();
         } finally {
             setRemoving(false);
+        }
+    };
+
+    // удаление проекта
+    const openRemoveProjectDialog = (p: ProjectDTO) => {
+        setProjectToRemove(p);
+        setRemoveProjectOpen(true);
+    };
+    const closeRemoveProjectDialog = () => {
+        if (removingProject) return;
+        setRemoveProjectOpen(false);
+        setProjectToRemove(null);
+    };
+    const confirmRemoveProject = async () => {
+        if (!org || !projectToRemove?._id || !canManage) return;
+        setRemovingProject(true);
+        try {
+            // если у тебя удаление по key — поменяй здесь на projectToRemove.key
+            const res = await fetch(`/api/org/${encodeURIComponent(org)}/projects/${projectToRemove._id}`, {
+                method: 'DELETE',
+            });
+            const data = (await res.json().catch(() => ({}))) as { error?: string };
+            if (!res.ok) {
+                setSnack({ open: true, msg: data?.error || res.statusText, sev: 'error' });
+                return;
+            }
+            setSnack({ open: true, msg: 'Проект удалён', sev: 'success' });
+            await fetchProjects();
+            closeRemoveProjectDialog();
+        } finally {
+            setRemovingProject(false);
         }
     };
 
@@ -241,11 +272,7 @@ export default function OrgSettingsPage() {
             });
             const data = await res.json();
             if (!res.ok || !data?.ok) {
-                setSnack({
-                    open: true,
-                    msg: data?.error || 'Ошибка создания проекта',
-                    sev: 'error',
-                });
+                setSnack({ open: true, msg: data?.error || 'Ошибка создания проекта', sev: 'error' });
                 return;
             }
             setSnack({ open: true, msg: 'Проект создан', sev: 'success' });
@@ -260,8 +287,8 @@ export default function OrgSettingsPage() {
         }
     };
 
+    // ↓↓↓ ЭТО ПРОСТО ПЕРЕМЕННЫЕ, НЕ ХУКИ ↓↓↓
     const existingMemberEmails = members.map((m) => m.userEmail.toLowerCase());
-
     const filteredMembers = (() => {
         const q = memberSearch.trim().toLowerCase();
         if (!q) return members;
@@ -271,6 +298,7 @@ export default function OrgSettingsPage() {
             return name.includes(q) || email.includes(q);
         });
     })();
+    // ↑↑↑
 
     if (!accessChecked) {
         return (
@@ -308,19 +336,18 @@ export default function OrgSettingsPage() {
                             action={
                                 <Stack direction="row" spacing={1}>
                                     <Tooltip title="Пригласить участника">
-                                        <span>
-                                            <IconButton onClick={() => setInviteOpen(true)}>
-                                                <PersonAddIcon />
-                                            </IconButton>
-                                        </span>
+                    <span>
+                      <IconButton onClick={() => setInviteOpen(true)}>
+                        <PersonAddIcon />
+                      </IconButton>
+                    </span>
                                     </Tooltip>
-
                                     <Tooltip title="Обновить">
-                                        <span>
-                                            <IconButton onClick={handleRefreshClick} disabled={loading || projectsLoading}>
-                                                <RefreshIcon />
-                                            </IconButton>
-                                        </span>
+                    <span>
+                      <IconButton onClick={handleRefreshClick} disabled={loading || projectsLoading}>
+                        <RefreshIcon />
+                      </IconButton>
+                    </span>
                                     </Tooltip>
                                 </Stack>
                             }
@@ -372,11 +399,7 @@ export default function OrgSettingsPage() {
                                                         <Stack direction="row" spacing={1} alignItems="center">
                                                             {statusChip(m.status)}
                                                             {isInvited && m.inviteExpiresAt && (
-                                                                <Chip
-                                                                    size="small"
-                                                                    variant="outlined"
-                                                                    label={`до ${formatExpire(m.inviteExpiresAt)}`}
-                                                                />
+                                                                <Chip size="small" variant="outlined" label={`до ${formatExpire(m.inviteExpiresAt)}`} />
                                                             )}
                                                         </Stack>
                                                     </TableCell>
@@ -431,18 +454,18 @@ export default function OrgSettingsPage() {
                             action={
                                 <Stack direction="row" spacing={1}>
                                     <Tooltip title="Создать проект">
-                                        <span>
-                                            <IconButton onClick={() => setCreateOpen(true)}>
-                                                <CreateNewFolderIcon />
-                                            </IconButton>
-                                        </span>
+                    <span>
+                      <IconButton onClick={() => setCreateOpen(true)}>
+                        <CreateNewFolderIcon />
+                      </IconButton>
+                    </span>
                                     </Tooltip>
                                     <Tooltip title="Перейти к проектам">
-                                        <span>
-                                            <IconButton onClick={goToProjectsPage}>
-                                                <DriveFileMoveIcon />
-                                            </IconButton>
-                                        </span>
+                    <span>
+                      <IconButton onClick={goToProjectsPage}>
+                        <DriveFileMoveIcon />
+                      </IconButton>
+                    </span>
                                     </Tooltip>
                                 </Stack>
                             }
@@ -461,6 +484,7 @@ export default function OrgSettingsPage() {
                                             <TableCell>Проект</TableCell>
                                             <TableCell>Менеджер</TableCell>
                                             <TableCell>Описание</TableCell>
+                                            <TableCell align="right">Действия</TableCell>
                                         </TableRow>
                                     </TableHead>
                                     <TableBody>
@@ -470,23 +494,39 @@ export default function OrgSettingsPage() {
                                                 (Array.isArray(p.managers) && p.managers.length > 0 ? p.managers[0] : '—');
 
                                             return (
-                                                <TableRow
-                                                    key={p._id}
-                                                    hover
-                                                    sx={{ cursor: 'pointer' }}
-                                                    onClick={() =>
-                                                        router.push(
-                                                            `/org/${encodeURIComponent(String(org))}/projects/${encodeURIComponent(p.key)}/tasks`
-                                                        )
-                                                    }
-                                                >
-                                                    <TableCell>{p.key}</TableCell>
-                                                    <TableCell>{p.name}</TableCell>
+                                                <TableRow key={p._id} hover>
+                                                    <TableCell
+                                                        sx={{ cursor: 'pointer' }}
+                                                        onClick={() =>
+                                                            router.push(
+                                                                `/org/${encodeURIComponent(String(org))}/projects/${encodeURIComponent(p.key)}/tasks`
+                                                            )
+                                                        }
+                                                    >
+                                                        {p.key}
+                                                    </TableCell>
+                                                    <TableCell
+                                                        sx={{ cursor: 'pointer' }}
+                                                        onClick={() =>
+                                                            router.push(
+                                                                `/org/${encodeURIComponent(String(org))}/projects/${encodeURIComponent(p.key)}/tasks`
+                                                            )
+                                                        }
+                                                    >
+                                                        {p.name}
+                                                    </TableCell>
                                                     <TableCell>{manager}</TableCell>
                                                     <TableCell sx={{ maxWidth: 360 }}>
                                                         <Typography variant="body2" color="text.secondary" noWrap>
                                                             {p.description || '—'}
                                                         </Typography>
+                                                    </TableCell>
+                                                    <TableCell align="right">
+                                                        <Tooltip title="Удалить проект">
+                                                            <IconButton onClick={() => openRemoveProjectDialog(p)}>
+                                                                <DeleteOutlineIcon fontSize="small" />
+                                                            </IconButton>
+                                                        </Tooltip>
                                                     </TableCell>
                                                 </TableRow>
                                             );
@@ -494,7 +534,7 @@ export default function OrgSettingsPage() {
 
                                         {projects.length === 0 && (
                                             <TableRow>
-                                                <TableCell colSpan={4}>
+                                                <TableCell colSpan={5}>
                                                     <Typography color="text.secondary">
                                                         Проектов пока нет. Нажмите «Создать» или зайдите на страницу проектов.
                                                     </Typography>
@@ -562,7 +602,7 @@ export default function OrgSettingsPage() {
                 </DialogActions>
             </Dialog>
 
-            {/* Диалог подтверждения удаления */}
+            {/* Диалог удаления участника */}
             <Dialog open={removeOpen} onClose={removing ? undefined : closeRemoveDialog}>
                 <DialogTitle>Удалить участника?</DialogTitle>
                 <DialogContent>
@@ -576,6 +616,23 @@ export default function OrgSettingsPage() {
                     <Button onClick={closeRemoveDialog} disabled={removing}>Отмена</Button>
                     <Button color="error" variant="contained" onClick={confirmRemove} disabled={removing}>
                         {removing ? 'Удаляем…' : 'Удалить'}
+                    </Button>
+                </DialogActions>
+            </Dialog>
+
+            {/* Диалог удаления проекта */}
+            <Dialog open={removeProjectOpen} onClose={removingProject ? undefined : closeRemoveProjectDialog}>
+                <DialogTitle>Удалить проект?</DialogTitle>
+                <DialogContent>
+                    <Typography variant="body2">
+                        Вы действительно хотите удалить проект{' '}
+                        <b>{projectToRemove?.name || projectToRemove?.key}</b>?
+                    </Typography>
+                </DialogContent>
+                <DialogActions>
+                    <Button onClick={closeRemoveProjectDialog} disabled={removingProject}>Отмена</Button>
+                    <Button color="error" variant="contained" onClick={confirmRemoveProject} disabled={removingProject}>
+                        {removingProject ? 'Удаляем…' : 'Удалить'}
                     </Button>
                 </DialogActions>
             </Dialog>
