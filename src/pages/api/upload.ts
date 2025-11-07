@@ -1,7 +1,5 @@
 // pages/api/upload.ts
 
-/* cspell:ignore uuidv4 */
-
 import type { NextApiRequest, NextApiResponse } from 'next';
 import { getAuth } from '@clerk/nextjs/server';
 import sharp from 'sharp';
@@ -17,7 +15,6 @@ import type { FileInfo } from 'busboy';
 import { sendEmail } from '@/utils/mailer';
 import path from 'path';
 
-// eslint-disable-next-line @typescript-eslint/no-unused-vars
 export const config = {
     api: {
         bodyParser: false,
@@ -48,7 +45,7 @@ type ParsedFile = {
     mimetype: string;
 };
 
-// Безопасно приводим имя файла
+// безопасно приводим имя файла
 function safeBasename(name: string): string {
     return path.basename(name).replace(/[\r\n]/g, '_');
 }
@@ -70,7 +67,6 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
     const files: ParsedFile[] = [];
 
     try {
-        // --------- Парсинг multipart/form-data через Busboy ---------
         const bb = Busboy({ headers: req.headers });
 
         bb.on('field', (fieldName: string, val: string) => {
@@ -107,33 +103,63 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
         return res.status(400).json({ error: 'Invalid multipart form data' });
     }
 
-    // --------- Режим вложений задачи (drag&drop) ---------
-    // Условия: есть subfolder (например, "attachments") и taskId.
+    // РЕЖИМ ВЛОЖЕНИЙ К ЗАДАЧЕ
     const subfolder = fields.subfolder?.trim();
     const taskIdForAttachments = fields.taskId?.trim();
     const orgSlug = fields.orgSlug?.trim();
 
     if (subfolder && taskIdForAttachments) {
         try {
-            // Аутентификация пользователя для audit (но без БД логики — только загрузка)
             await dbConnect();
-            const user = await User.findOne({ clerkUserId: userId });
+
+            // пробуем найти юзера — если нет, пишем варнинг
+            const user = await User.findOne({ clerkUserId: userId }).lean().exec();
             if (!user) {
-                console.error('User not found in database');
-                return res.status(401).json({ error: 'User not found in database' });
+                console.warn('[upload attachments] user not found in database, but continuing upload for task attachments');
             }
 
-            // Загружаем КАЖДЫЙ файл по ключу:
-            // uploads/{orgSlug?}/{taskId}/{taskId}-{subfolder}/{filename}
             const uploadedUrls: string[] = [];
+
             for (const f of files) {
                 const filename = safeBasename(f.filename || 'file');
-                const key = orgSlug
-                    ? path.posix.join('uploads', orgSlug, taskIdForAttachments, `${taskIdForAttachments}-${subfolder}`, filename)
-                    : path.posix.join('uploads', taskIdForAttachments, `${taskIdForAttachments}-${subfolder}`, filename);
 
-                const url = await uploadBuffer(f.buffer, key, f.mimetype || 'application/octet-stream');
+                // путь в хранилище
+                const key = orgSlug
+                    ? path.posix.join(
+                        'uploads',
+                        orgSlug,
+                        taskIdForAttachments,
+                        `${taskIdForAttachments}-${subfolder}`,
+                        filename
+                    )
+                    : path.posix.join(
+                        'uploads',
+                        taskIdForAttachments,
+                        `${taskIdForAttachments}-${subfolder}`,
+                        filename
+                    );
+
+                // физическая загрузка (S3 или локально)
+                const url = await uploadBuffer(
+                    f.buffer,
+                    key,
+                    f.mimetype || 'application/octet-stream'
+                );
+
                 uploadedUrls.push(url);
+            }
+
+            if (uploadedUrls.length) {
+                await TaskModel.updateOne(
+                    { taskId: taskIdForAttachments },
+                    {
+                        $push: {
+                            attachments: {
+                                $each: uploadedUrls,
+                            },
+                        },
+                    }
+                ).exec();
             }
 
             return res.status(200).json({
@@ -151,7 +177,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
         }
     }
 
-    // --------- Режим фото-отчётов (старая логика) ---------
+    // режим ФОТООТЧЕТОВ
     try {
         await dbConnect();
     } catch (e) {
@@ -159,7 +185,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
         return res.status(500).json({ error: 'Database connection error' });
     }
 
-    // Автор для отчёта и писем
+    // для фотоотчётов нам нужен юзер из БД
     const user = await User.findOne({ clerkUserId: userId });
     if (!user) {
         console.error('User not found in database');
@@ -167,7 +193,6 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
     }
     const name = user.name || 'Unknown';
 
-    // Старые поля для отчётов
     const rawBaseId = fields.baseId;
     const rawTask = fields.task;
     const taskId = fields.taskId ?? 'unknown';
@@ -200,7 +225,6 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
 
     const fileUrls: string[] = [];
 
-    // Проходим файлы и формируем фото-отчёт (как раньше)
     for (const f of files) {
         let date = 'Unknown Date';
         let coordinates = 'Unknown Location';
@@ -341,6 +365,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
             await relatedTask.save();
         }
 
+        // уведомления авторам/исполнителям
         try {
             const frontendUrl = process.env.FRONTEND_URL || 'https://ciwork.ru';
             const taskLink = `${frontendUrl}/tasks/${relatedTask?.taskId}`;
@@ -350,8 +375,10 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
 
             for (const email of recipients) {
                 let roleText = `Информация по задаче "${relatedTask?.taskName} ${relatedTask?.bsNumber}" (${relatedTask?.taskId}).`;
-                if (email === relatedTask?.authorEmail) roleText = `Вы получили это письмо как автор задачи "${relatedTask?.taskName} ${relatedTask?.bsNumber}" (${relatedTask?.taskId}).`;
-                if (email === relatedTask?.executorEmail) roleText = `Вы получили это письмо как исполнитель задачи "${relatedTask?.taskName} ${relatedTask?.bsNumber}" (${relatedTask?.taskId}).`;
+                if (email === relatedTask?.authorEmail)
+                    roleText = `Вы получили это письмо как автор задачи "${relatedTask?.taskName} ${relatedTask?.bsNumber}" (${relatedTask?.taskId}).`;
+                if (email === relatedTask?.executorEmail)
+                    roleText = `Вы получили это письмо как исполнитель задачи "${relatedTask?.taskName} ${relatedTask?.bsNumber}" (${relatedTask?.taskId}).`;
 
                 const html = `
 <p>${roleText}</p>

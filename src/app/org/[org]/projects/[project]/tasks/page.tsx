@@ -126,10 +126,10 @@ export default function ProjectTasksPage() {
             <Stack direction="row" alignItems="center" justifyContent="space-between" sx={{ mb: 2 }}>
                 <Box>
                     <Typography variant="h5" fontWeight={700}>
-                        Задачи проекта
+                        Задачи проекта {projectRef}
                     </Typography>
                     <Typography variant="body2" color="text.secondary">
-                        Организация: {orgInfo?.name ?? orgSlug} · Проект: {projectRef}
+                        Организация: {orgInfo?.name ?? orgSlug}
                     </Typography>
                     {orgInfoError && (
                         <Typography variant="caption" color="error">

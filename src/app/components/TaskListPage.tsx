@@ -117,8 +117,6 @@ async function downloadFile(url: string, fallbackName: string) {
   a.remove();
 }
 
-
-
 /* ───────────── строка задачи ───────────── */
 function Row({
                task,

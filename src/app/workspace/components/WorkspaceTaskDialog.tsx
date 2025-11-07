@@ -44,6 +44,7 @@ type MembersApi = {
     error?: string;
 };
 
+// добавляем сюда attachments и bsLocation
 export type TaskForEdit = {
     _id: string;
     taskId: string;
@@ -60,7 +61,12 @@ export type TaskForEdit = {
     executorId?: string;
     executorName?: string;
     executorEmail?: string;
+    // старый формат
     files?: Array<{ name?: string; url?: string; size?: number }>;
+    // новый формат — строки
+    attachments?: string[];
+    // координаты из БД
+    bsLocation?: Array<{ name: string; coordinates: string }>;
 };
 
 type Props = {
@@ -122,6 +128,17 @@ function normalizeAddressFromDb(bsNumber: string, raw?: string): string {
 
 const defaultFilter = createFilterOptions<BsOption>();
 
+// достаём имя файла из URL, чтобы красиво показать в Chip
+function getFileNameFromUrl(url?: string): string {
+    if (!url) return 'file';
+    try {
+        const parts = url.split('/');
+        return parts[parts.length - 1] || url;
+    } catch {
+        return url;
+    }
+}
+
 export default function WorkspaceTaskDialog({
                                                 open,
                                                 org,
@@ -173,7 +190,7 @@ export default function WorkspaceTaskDialog({
     const [bsOptionsLoading, setBsOptionsLoading] = React.useState(false);
     const [bsOptionsError, setBsOptionsError] = React.useState<string | null>(null);
 
-    // новая штука: реальная выбранная БС из базы
+    // реальная выбранная БС
     const [selectedBsOption, setSelectedBsOption] = React.useState<BsOption | null>(null);
 
     const loadBsOptions = React.useCallback(async (term: string) => {
@@ -198,7 +215,7 @@ export default function WorkspaceTaskDialog({
         }
     }, []);
 
-    // заполнение при редактировании
+    // ───── заполнение при редактировании ─────
     React.useEffect(() => {
         if (!open) return;
         if (!isEdit || !initialTask) return;
@@ -215,9 +232,30 @@ export default function WorkspaceTaskDialog({
 
         setDueDate(initialTask.dueDate ? new Date(initialTask.dueDate) : null);
 
-        setBsLatitude(typeof initialTask.bsLatitude === 'number' ? String(initialTask.bsLatitude).replace(',', '.') : '');
-        setBsLongitude(typeof initialTask.bsLongitude === 'number' ? String(initialTask.bsLongitude).replace(',', '.') : '');
+        // 1) сначала попробуем взять явные поля
+        let latStr =
+            typeof initialTask.bsLatitude === 'number'
+                ? String(initialTask.bsLatitude).replace(',', '.')
+                : '';
+        let lonStr =
+            typeof initialTask.bsLongitude === 'number'
+                ? String(initialTask.bsLongitude).replace(',', '.')
+                : '';
 
+        // 2) если их нет, но есть bsLocation — парсим "52.278028 104.30669"
+        if ((!latStr || !lonStr) && Array.isArray(initialTask.bsLocation) && initialTask.bsLocation.length > 0) {
+            const coord = initialTask.bsLocation[0]?.coordinates || '';
+            const parts = coord.split(/\s+/).filter(Boolean);
+            if (parts.length >= 2) {
+                latStr = latStr || parts[0];
+                lonStr = lonStr || parts[1];
+            }
+        }
+
+        setBsLatitude(latStr);
+        setBsLongitude(lonStr);
+
+        // исполнитель
         if (initialTask.executorEmail || initialTask.executorName || initialTask.executorId) {
             setSelectedExecutor({
                 id: initialTask.executorId || 'unknown',
@@ -228,17 +266,32 @@ export default function WorkspaceTaskDialog({
             setSelectedExecutor(null);
         }
 
-        const files = initialTask.files ?? [];
-        setExistingAttachments(
-            files
+        // ---- вложения ----
+        // сначала берём "старый" формат (files: [{...}])
+        const filesFromTask = initialTask.files ?? [];
+
+        // потом добавляем "новый" формат (attachments: string[])
+        const attachmentsFromTask = Array.isArray(initialTask.attachments) ? initialTask.attachments : [];
+
+        const merged = [
+            // из files
+            ...filesFromTask
                 .filter(Boolean)
                 .map((f, i) => ({
                     key: `${f?.name ?? 'file'}:${f?.size ?? i}`,
                     name: f?.name ?? `file-${i + 1}`,
                     url: f?.url,
                     size: f?.size,
-                }))
-        );
+                })),
+            // из attachments (строки)
+            ...attachmentsFromTask.map((url, i) => ({
+                key: `att-${i}`,
+                name: getFileNameFromUrl(url),
+                url,
+            })),
+        ];
+
+        setExistingAttachments(merged);
 
         setAttachments([]);
         setUploadProgress(0);
@@ -248,7 +301,6 @@ export default function WorkspaceTaskDialog({
             void loadBsOptions(initialTask.bsNumber);
         }
 
-        // при открытии в режиме редактирования выбранный объект нам неизвестен (бэк не прислал), поэтому:
         setSelectedBsOption(null);
     }, [open, isEdit, initialTask, loadBsOptions]);
 
@@ -412,9 +464,8 @@ export default function WorkspaceTaskDialog({
         setUploading(false);
     }
 
-    // Сборка bsLocation по аналогии с тем, что делает твой /api/addTasks
+    // сборка bsLocation
     function buildBsLocation(): Array<{ name: string; coordinates: string }> {
-        // если выбрали БС из базы — используем её
         if (selectedBsOption) {
             const displayName = getDisplayBsName(selectedBsOption.name);
             const lat = typeof selectedBsOption.lat === 'number' ? String(selectedBsOption.lat).replace(',', '.') : '';
@@ -422,10 +473,8 @@ export default function WorkspaceTaskDialog({
             if (lat && lon) {
                 return [{ name: displayName, coordinates: `${lat} ${lon}` }];
             }
-            // если вдруг в объекте нет координат, попробуем из полей
         }
 
-        // если не было выбора, но пользователь ввёл координаты руками — тоже положим
         const lat = bsLatitude.trim();
         const lon = bsLongitude.trim();
         if (bsNumber.trim() && lat && lon) {
@@ -455,7 +504,6 @@ export default function WorkspaceTaskDialog({
                 dueDate: dueDate ? dueDate.toISOString() : undefined,
                 bsLatitude: bsLatitude === '' ? undefined : Number(bsLatitude),
                 bsLongitude: bsLongitude === '' ? undefined : Number(bsLongitude),
-                // НОВОЕ
                 bsLocation: buildBsLocation(),
                 executorId: selectedExecutor?.id,
                 executorName: selectedExecutor?.name,
@@ -505,7 +553,6 @@ export default function WorkspaceTaskDialog({
                 dueDate: dueDate ? dueDate.toISOString() : undefined,
                 bsLatitude: bsLatitude === '' ? undefined : Number(bsLatitude),
                 bsLongitude: bsLongitude === '' ? undefined : Number(bsLongitude),
-                // НОВОЕ
                 bsLocation: buildBsLocation(),
                 executorId: selectedExecutor?.id,
                 executorName: selectedExecutor?.name,
@@ -561,11 +608,9 @@ export default function WorkspaceTaskDialog({
     const handleBsInputChange = (_e: React.SyntheticEvent, value: string) => {
         setBsInput(value);
         setBsNumber(value);
-        // пользователь начал ввод руками — это уже не выбранная из базы БС
         setSelectedBsOption(null);
         if (bsSearchTimeout.current) clearTimeout(bsSearchTimeout.current);
         if (!value.trim()) {
-            // если поле очистили — список не нужен
             setBsOptions([]);
             return;
         }
@@ -588,7 +633,6 @@ export default function WorkspaceTaskDialog({
                             fullWidth
                         />
 
-                        {/* BS Number — полная строка, список показываем только при вводе */}
                         <Autocomplete<BsOption, false, false, true>
                             freeSolo
                             options={bsOptions}
@@ -620,9 +664,7 @@ export default function WorkspaceTaskDialog({
                                 }
                                 return defaultFilter(opts, params);
                             }}
-                            isOptionEqualToValue={(option, value) =>
-                                option.id === (value as BsOption).id
-                            }
+                            isOptionEqualToValue={(option, value) => option.id === (value as BsOption).id}
                             noOptionsText={bsOptionsError ? `Ошибка: ${bsOptionsError}` : 'Не найдено'}
                             renderInput={(params) => (
                                 <TextField
@@ -754,34 +796,13 @@ export default function WorkspaceTaskDialog({
                                 label="Due Date"
                                 value={dueDate}
                                 onChange={(d) => setDueDate(d)}
+                                format="dd.MM.yyyy"
                                 slotProps={{ textField: { fullWidth: true } }}
                             />
+
                         </Stack>
 
                         {/* Зона добавления файлов */}
-                        <Box
-                            onDragOver={onDragOver}
-                            onDragLeave={onDragLeave}
-                            onDrop={onDrop}
-                            sx={{
-                                border: '2px dashed',
-                                borderColor: dragActive ? 'primary.main' : 'divider',
-                                borderRadius: 2,
-                                p: 2,
-                                textAlign: 'center',
-                                cursor: 'pointer',
-                                bgcolor: dragActive ? 'action.hover' : 'transparent',
-                                transition: 'all 120ms ease',
-                            }}
-                            onClick={openFileDialog}
-                        >
-                            <CloudUploadIcon sx={{ fontSize: 36, mb: 1 }} />
-                            <Typography variant="body1">Перетащите файлы сюда или нажмите для выбора</Typography>
-                            <Typography variant="caption" color="text.secondary">
-                                Вложения будут сохранены как <b>attachments</b> этой задачи
-                            </Typography>
-                            <input ref={inputRef} type="file" multiple hidden onChange={onFileInputChange} />
-                        </Box>
 
                         {!!existingAttachments.length && (
                             <Box>
@@ -792,7 +813,7 @@ export default function WorkspaceTaskDialog({
                                     {existingAttachments.map((f) => (
                                         <Chip
                                             key={f.key}
-                                            label={`${f.name}${typeof f.size === 'number' ? ` (${Math.round(f.size / 1024)} KB)` : ''}`}
+                                            label={f.name}
                                             component={f.url ? 'a' : 'div'}
                                             href={f.url}
                                             clickable={Boolean(f.url)}
@@ -838,6 +859,32 @@ export default function WorkspaceTaskDialog({
                                 </Stack>
                             </Box>
                         )}
+
+                        <Box
+                            onDragOver={onDragOver}
+                            onDragLeave={onDragLeave}
+                            onDrop={onDrop}
+                            sx={{
+                                border: '2px dashed',
+                                borderColor: dragActive ? 'primary.main' : 'divider',
+                                borderRadius: 2,
+                                p: 2,
+                                textAlign: 'center',
+                                cursor: 'pointer',
+                                bgcolor: dragActive ? 'action.hover' : 'transparent',
+                                transition: 'all 120ms ease',
+                            }}
+                            onClick={openFileDialog}
+                        >
+                            <CloudUploadIcon sx={{ fontSize: 36, mb: 1 }} />
+                            <Typography variant="body1">Перетащите файлы сюда или нажмите для выбора</Typography>
+                            <Typography variant="caption" color="text.secondary">
+                                Вложения будут сохранены как <b>attachments</b> этой задачи
+                            </Typography>
+                            <input ref={inputRef} type="file" multiple hidden onChange={onFileInputChange} />
+                        </Box>
+
+
                     </Box>
                 </DialogContent>
 

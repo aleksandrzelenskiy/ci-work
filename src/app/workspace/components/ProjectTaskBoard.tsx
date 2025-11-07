@@ -45,6 +45,7 @@ const STATUS_ORDER: StatusTitle[] = [
     'Agreed',
 ];
 
+// тип задачи, приходящей в доску
 type Task = {
     _id: string;
     taskId: string;
@@ -58,13 +59,15 @@ type Task = {
     executorName?: string;
     executorEmail?: string;
 
-    // для диалога редактирования
+    // для диалога
     bsAddress?: string;
     taskDescription?: string;
     bsLatitude?: number;
     bsLongitude?: number;
     totalCost?: number;
     files?: Array<{ name?: string; url?: string; size?: number }>;
+    attachments?: string[];
+    bsLocation?: Array<{ name: string; coordinates: string }>;
 };
 
 const formatDateRU = (v?: string) => (v ? new Date(v).toLocaleDateString('ru-RU') : '—');
@@ -108,7 +111,7 @@ function TaskCard({
 
     return (
         <Card
-            data-task-id={t._id} // важно для корректного переноса меню
+            data-task-id={t._id}
             sx={{
                 mb: 2,
                 boxShadow: 2,
@@ -187,10 +190,11 @@ export default function ProjectTaskBoard({
     items: Task[];
     loading: boolean;
     error: string | null;
-    org?: string;
-    project?: string;
+    org: string;
+    project: string;
     onReloadAction?: () => void;
 }) {
+    // группировка по статусу
     const grouped = useMemo(() => {
         const base: Record<StatusTitle, Task[]> = {
             'To do': [],
@@ -219,17 +223,15 @@ export default function ProjectTaskBoard({
     const [deleteLoading, setDeleteLoading] = useState(false);
     const [deleteError, setDeleteError] = useState<string | null>(null);
 
-    const canEdit = Boolean(org && project);
-
-    // карта задач по _id — для быстрого поиска при переносе меню
+    // карта задач для переноса меню
     const taskById = useMemo(() => new Map(items.map((t) => [t._id, t])), [items]);
 
-    // пока наше меню открыто — гасим системное контекстное меню и переносим своё
+    // перетаскивание контекстного меню по другим карточкам
     useEffect(() => {
-        if (!menuPos) return; // меню закрыто
+        if (!menuPos) return;
 
         const handler = (e: MouseEvent) => {
-            e.preventDefault(); // блокируем браузерное меню
+            e.preventDefault();
 
             const target = e.target as HTMLElement | null;
             const cardEl = target?.closest?.('[data-task-id]') as HTMLElement | null;
@@ -242,19 +244,17 @@ export default function ProjectTaskBoard({
             setMenuPos({ top: e.clientY - 4, left: e.clientX - 2 });
         };
 
-        // capture=true — чтобы опередить браузер/другие слушатели
         document.addEventListener('contextmenu', handler, true);
         return () => document.removeEventListener('contextmenu', handler, true);
     }, [menuPos, taskById]);
 
-    // клик по карте — открыть редактирование (если есть org/project)
+    // клик по карточке — открыть диалог
     const handleCardClick = (t: Task) => {
-        if (!canEdit) return;
         setSelectedTask(t);
         setEditOpen(true);
     };
 
-    // ПКМ — открыть кастомное меню
+    // ПКМ по карточке — открыть меню
     const handleCardContext = (e: React.MouseEvent, t: Task) => {
         e.preventDefault();
         setMenuTask(t);
@@ -262,14 +262,13 @@ export default function ProjectTaskBoard({
     };
     const closeMenu = () => setMenuPos(null);
 
-    // обработчики меню
+    // действия меню
     const onOpenTask = () => {
-        // TODO: router.push на страницу задачи, когда появится
         alert('Открыть задачу (заглушка)');
     };
 
     const onEditTask = () => {
-        if (!canEdit || !menuTask) return;
+        if (!menuTask) return;
         setSelectedTask(menuTask);
         setEditOpen(true);
     };
@@ -280,9 +279,9 @@ export default function ProjectTaskBoard({
         setDeleteOpen(true);
     };
 
-    // удаление задачи
+    // удаление
     const confirmDelete = async () => {
-        if (!menuTask || !org || !project) return;
+        if (!menuTask) return;
         try {
             setDeleteLoading(true);
             setDeleteError(null);
@@ -347,7 +346,7 @@ export default function ProjectTaskBoard({
                                 key={t._id}
                                 t={t}
                                 statusTitle={status}
-                                onClick={canEdit ? handleCardClick : undefined}
+                                onClick={handleCardClick}
                                 onContextMenu={handleCardContext}
                             />
                         ))}
@@ -355,7 +354,7 @@ export default function ProjectTaskBoard({
                 ))}
             </Box>
 
-            {/* контекстное меню */}
+            {/* меню */}
             <TaskContextMenu
                 anchorPosition={menuPos}
                 onClose={closeMenu}
@@ -385,32 +384,32 @@ export default function ProjectTaskBoard({
             </Dialog>
 
             {/* диалог редактирования */}
-            {canEdit && selectedTask && (
+            {selectedTask && (
                 <WorkspaceTaskDialog
                     open={editOpen}
-                    org={org as string}
-                    project={project as string}
+                    org={org}
+                    project={project}
                     mode="edit"
-                    initialTask={
-                        {
-                            _id: selectedTask._id,
-                            taskId: selectedTask.taskId,
-                            taskName: selectedTask.taskName,
-                            status: selectedTask.status,
-                            dueDate: selectedTask.dueDate,
-                            bsNumber: selectedTask.bsNumber,
-                            bsAddress: selectedTask.bsAddress,
-                            taskDescription: selectedTask.taskDescription,
-                            bsLatitude: selectedTask.bsLatitude,
-                            bsLongitude: selectedTask.bsLongitude,
-                            totalCost: selectedTask.totalCost,
-                            priority: normalizePriority(selectedTask.priority || 'medium') || 'medium',
-                            executorId: selectedTask.executorId,
-                            executorName: selectedTask.executorName,
-                            executorEmail: selectedTask.executorEmail,
-                            files: selectedTask.files,
-                        } as TaskForEdit
-                    }
+                    initialTask={{
+                        _id: selectedTask._id,
+                        taskId: selectedTask.taskId,
+                        taskName: selectedTask.taskName,
+                        status: selectedTask.status,
+                        dueDate: selectedTask.dueDate,
+                        bsNumber: selectedTask.bsNumber,
+                        bsAddress: selectedTask.bsAddress,
+                        taskDescription: selectedTask.taskDescription,
+                        bsLatitude: selectedTask.bsLatitude,
+                        bsLongitude: selectedTask.bsLongitude,
+                        totalCost: selectedTask.totalCost,
+                        priority: normalizePriority(selectedTask.priority || 'medium') || 'medium',
+                        executorId: selectedTask.executorId,
+                        executorName: selectedTask.executorName,
+                        executorEmail: selectedTask.executorEmail,
+                        files: selectedTask.files,
+                        attachments: selectedTask.attachments,
+                        bsLocation: selectedTask.bsLocation,
+                    } as TaskForEdit}
                     onCloseAction={() => setEditOpen(false)}
                     onCreatedAction={handleEdited}
                 />
