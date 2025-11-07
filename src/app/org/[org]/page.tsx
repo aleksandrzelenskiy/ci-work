@@ -16,6 +16,8 @@ import PersonAddIcon from '@mui/icons-material/PersonAdd';
 import LinkIcon from '@mui/icons-material/Link';
 import DriveFileMoveIcon from '@mui/icons-material/DriveFileMove';
 import CreateNewFolderIcon from '@mui/icons-material/CreateNewFolder';
+import PersonSearchIcon from '@mui/icons-material/PersonSearch';
+import CancelIcon from '@mui/icons-material/Cancel';
 
 import InviteMemberForm from '@/app/workspace/components/InviteMemberForm';
 
@@ -75,7 +77,10 @@ export default function OrgSettingsPage() {
     // участники
     const [members, setMembers] = React.useState<MemberDTO[]>([]);
     const [loading, setLoading] = React.useState(false);
+
+    // поиск по участникам
     const [memberSearch, setMemberSearch] = React.useState('');
+    const [showMemberSearch, setShowMemberSearch] = React.useState(false);
 
     // проекты
     const [projects, setProjects] = React.useState<ProjectDTO[]>([]);
@@ -287,8 +292,9 @@ export default function OrgSettingsPage() {
         }
     };
 
-    // ↓↓↓ ЭТО ПРОСТО ПЕРЕМЕННЫЕ, НЕ ХУКИ ↓↓↓
+    // ↓↓↓ НЕ хуки ↓↓↓
     const existingMemberEmails = members.map((m) => m.userEmail.toLowerCase());
+
     const filteredMembers = (() => {
         const q = memberSearch.trim().toLowerCase();
         if (!q) return members;
@@ -297,6 +303,16 @@ export default function OrgSettingsPage() {
             const email = (m.userEmail || '').toLowerCase();
             return name.includes(q) || email.includes(q);
         });
+    })();
+
+    const memberByEmail = (() => {
+        const map = new Map<string, MemberDTO>();
+        for (const m of members) {
+            if (m.userEmail) {
+                map.set(m.userEmail.toLowerCase(), m);
+            }
+        }
+        return map;
     })();
     // ↑↑↑
 
@@ -324,44 +340,208 @@ export default function OrgSettingsPage() {
     return (
         <Box sx={{ p: { xs: 2, md: 3 }, maxWidth: 1200, mx: 'auto' }}>
             <Typography variant="h5" sx={{ mb: 2 }}>
-                Настройки организации: {orgName || org}
+                Организация - {orgName || org}
             </Typography>
 
             <Grid container spacing={2}>
-                {/* Участники */}
+                {/* ПРОЕКТЫ */}
                 <Grid item xs={12}>
                     <Card variant="outlined">
                         <CardHeader
-                            title="Участники организации"
+                            title={`Проекты организации (${projects.length})`}
                             action={
                                 <Stack direction="row" spacing={1}>
-                                    <Tooltip title="Пригласить участника">
-                    <span>
-                      <IconButton onClick={() => setInviteOpen(true)}>
-                        <PersonAddIcon />
-                      </IconButton>
-                    </span>
+                                    <Tooltip title="Создать проект">
+                                        <span>
+                                            <IconButton onClick={() => setCreateOpen(true)}>
+                                                <CreateNewFolderIcon />
+                                            </IconButton>
+                                        </span>
+                                    </Tooltip>
+                                    <Tooltip title="Перейти к проектам">
+                                        <span>
+                                            <IconButton onClick={goToProjectsPage}>
+                                                <DriveFileMoveIcon />
+                                            </IconButton>
+                                        </span>
                                     </Tooltip>
                                     <Tooltip title="Обновить">
-                    <span>
-                      <IconButton onClick={handleRefreshClick} disabled={loading || projectsLoading}>
-                        <RefreshIcon />
-                      </IconButton>
-                    </span>
+                                        <span>
+                                            <IconButton onClick={handleRefreshClick} disabled={projectsLoading || loading}>
+                                                <RefreshIcon />
+                                            </IconButton>
+                                        </span>
                                     </Tooltip>
                                 </Stack>
                             }
                         />
                         <CardContent>
-                            <Box sx={{ mb: 2, maxWidth: 360 }}>
-                                <TextField
-                                    size="small"
-                                    fullWidth
-                                    label="Поиск по имени или e-mail"
-                                    value={memberSearch}
-                                    onChange={(e) => setMemberSearch(e.target.value)}
-                                />
-                            </Box>
+                            {projectsLoading ? (
+                                <Stack direction="row" spacing={1} alignItems="center">
+                                    <CircularProgress size={20} />
+                                    <Typography>Загрузка проектов…</Typography>
+                                </Stack>
+                            ) : (
+                                <Table size="small">
+                                    <TableHead>
+                                        <TableRow>
+                                            <TableCell>Код</TableCell>
+                                            <TableCell>Проект</TableCell>
+                                            <TableCell>Менеджер</TableCell>
+                                            <TableCell>Описание</TableCell>
+                                            <TableCell align="right">Действия</TableCell>
+                                        </TableRow>
+                                    </TableHead>
+                                    <TableBody>
+                                        {projects.map((p) => {
+                                            return (
+                                                <TableRow key={p._id} hover>
+                                                    <TableCell
+                                                        sx={{ cursor: 'pointer' }}
+                                                        onClick={() =>
+                                                            router.push(
+                                                                `/org/${encodeURIComponent(String(org))}/projects/${encodeURIComponent(p.key)}/tasks`
+                                                            )
+                                                        }
+                                                    >
+                                                        {p.key}
+                                                    </TableCell>
+                                                    <TableCell
+                                                        sx={{ cursor: 'pointer' }}
+                                                        onClick={() =>
+                                                            router.push(
+                                                                `/org/${encodeURIComponent(String(org))}/projects/${encodeURIComponent(p.key)}/tasks`
+                                                            )
+                                                        }
+                                                    >
+                                                        {p.name}
+                                                    </TableCell>
+                                                    <TableCell>
+                                                        {(() => {
+                                                            const rawEmail =
+                                                                p.managerEmail ||
+                                                                (Array.isArray(p.managers) && p.managers.length > 0
+                                                                    ? p.managers[0]
+                                                                    : '');
+                                                            const normalized = rawEmail ? rawEmail.trim().toLowerCase() : '';
+                                                            const member = normalized ? memberByEmail.get(normalized) : undefined;
+
+                                                            const name = member?.userName || '';
+                                                            const email = member?.userEmail || rawEmail || '';
+
+                                                            if (name && email) {
+                                                                return (
+                                                                    <Box>
+                                                                        <Typography variant="body2">{name}</Typography>
+                                                                        <Typography variant="caption" color="text.secondary">
+                                                                            {email}
+                                                                        </Typography>
+                                                                    </Box>
+                                                                );
+                                                            }
+
+                                                            if (email) {
+                                                                return <Typography variant="body2">{email}</Typography>;
+                                                            }
+
+                                                            return (
+                                                                <Typography variant="body2" color="text.secondary">
+                                                                    —
+                                                                </Typography>
+                                                            );
+                                                        })()}
+                                                    </TableCell>
+                                                    <TableCell sx={{ maxWidth: 360 }}>
+                                                        <Typography variant="body2" color="text.secondary" noWrap>
+                                                            {p.description || '—'}
+                                                        </Typography>
+                                                    </TableCell>
+                                                    <TableCell align="right">
+                                                        <Tooltip title="Удалить проект">
+                                                            <IconButton onClick={() => openRemoveProjectDialog(p)}>
+                                                                <DeleteOutlineIcon fontSize="small" />
+                                                            </IconButton>
+                                                        </Tooltip>
+                                                    </TableCell>
+                                                </TableRow>
+                                            );
+                                        })}
+
+                                        {projects.length === 0 && (
+                                            <TableRow>
+                                                <TableCell colSpan={5}>
+                                                    <Typography color="text.secondary">
+                                                        Проектов пока нет. Нажмите «Создать».
+                                                    </Typography>
+                                                </TableCell>
+                                            </TableRow>
+                                        )}
+                                    </TableBody>
+                                </Table>
+                            )}
+                        </CardContent>
+                    </Card>
+                </Grid>
+
+                {/* УЧАСТНИКИ */}
+                <Grid item xs={12}>
+                    <Card variant="outlined">
+                        <CardHeader
+                            title={`Участники организации (${members.length})`}
+                            subheader={`Действующие и приглашённые участники ${orgName || org}`}
+                            action={
+                                <Stack direction="row" spacing={1}>
+                                    <Tooltip title={showMemberSearch ? 'Скрыть поиск' : 'Поиск по участникам'}>
+                        <span>
+                            <IconButton
+                                onClick={() => setShowMemberSearch((prev) => !prev)}
+                                color={showMemberSearch ? 'primary' : 'default'}
+                            >
+                                <PersonSearchIcon />
+                            </IconButton>
+                        </span>
+                                    </Tooltip>
+                                    <Tooltip title="Пригласить участника">
+                        <span>
+                            <IconButton onClick={() => setInviteOpen(true)}>
+                                <PersonAddIcon />
+                            </IconButton>
+                        </span>
+                                    </Tooltip>
+                                    <Tooltip title="Обновить">
+                        <span>
+                            <IconButton onClick={handleRefreshClick} disabled={loading || projectsLoading}>
+                                <RefreshIcon />
+                            </IconButton>
+                        </span>
+                                    </Tooltip>
+                                </Stack>
+                            }
+                        />
+                        <CardContent>
+                            {showMemberSearch && (
+                                <Box sx={{ mb: 2, maxWidth: 360 }}>
+                                    <Stack direction="row" spacing={1} alignItems="center">
+                                        <TextField
+                                            size="small"
+                                            fullWidth
+                                            label="Поиск по имени или e-mail"
+                                            value={memberSearch}
+                                            onChange={(e) => setMemberSearch(e.target.value)}
+                                        />
+                                        <Tooltip title="Сбросить поиск">
+                                            <IconButton
+                                                onClick={() => {
+                                                    setMemberSearch('');
+                                                    setShowMemberSearch(false);
+                                                }}
+                                            >
+                                                <CancelIcon fontSize="small" />
+                                            </IconButton>
+                                        </Tooltip>
+                                    </Stack>
+                                </Box>
+                            )}
 
                             {loading ? (
                                 <Stack direction="row" spacing={1} alignItems="center">
@@ -382,9 +562,10 @@ export default function OrgSettingsPage() {
                                     <TableBody>
                                         {filteredMembers.map((m) => {
                                             const isInvited = m.status === 'invited';
-                                            const inviteLink = isInvited && m.inviteToken
-                                                ? `/org/${encodeURIComponent(String(org))}/join?token=${encodeURIComponent(m.inviteToken)}`
-                                                : undefined;
+                                            const inviteLink =
+                                                isInvited && m.inviteToken
+                                                    ? `/org/${encodeURIComponent(String(org))}/join?token=${encodeURIComponent(m.inviteToken)}`
+                                                    : undefined;
 
                                             return (
                                                 <TableRow
@@ -399,7 +580,11 @@ export default function OrgSettingsPage() {
                                                         <Stack direction="row" spacing={1} alignItems="center">
                                                             {statusChip(m.status)}
                                                             {isInvited && m.inviteExpiresAt && (
-                                                                <Chip size="small" variant="outlined" label={`до ${formatExpire(m.inviteExpiresAt)}`} />
+                                                                <Chip
+                                                                    size="small"
+                                                                    variant="outlined"
+                                                                    label={`до ${formatExpire(m.inviteExpiresAt)}`}
+                                                                />
                                                             )}
                                                         </Stack>
                                                     </TableCell>
@@ -446,107 +631,7 @@ export default function OrgSettingsPage() {
                     </Card>
                 </Grid>
 
-                {/* Проекты */}
-                <Grid item xs={12}>
-                    <Card variant="outlined">
-                        <CardHeader
-                            title="Проекты организации"
-                            action={
-                                <Stack direction="row" spacing={1}>
-                                    <Tooltip title="Создать проект">
-                    <span>
-                      <IconButton onClick={() => setCreateOpen(true)}>
-                        <CreateNewFolderIcon />
-                      </IconButton>
-                    </span>
-                                    </Tooltip>
-                                    <Tooltip title="Перейти к проектам">
-                    <span>
-                      <IconButton onClick={goToProjectsPage}>
-                        <DriveFileMoveIcon />
-                      </IconButton>
-                    </span>
-                                    </Tooltip>
-                                </Stack>
-                            }
-                        />
-                        <CardContent>
-                            {projectsLoading ? (
-                                <Stack direction="row" spacing={1} alignItems="center">
-                                    <CircularProgress size={20} />
-                                    <Typography>Загрузка проектов…</Typography>
-                                </Stack>
-                            ) : (
-                                <Table size="small">
-                                    <TableHead>
-                                        <TableRow>
-                                            <TableCell>Код</TableCell>
-                                            <TableCell>Проект</TableCell>
-                                            <TableCell>Менеджер</TableCell>
-                                            <TableCell>Описание</TableCell>
-                                            <TableCell align="right">Действия</TableCell>
-                                        </TableRow>
-                                    </TableHead>
-                                    <TableBody>
-                                        {projects.map((p) => {
-                                            const manager =
-                                                p.managerEmail ??
-                                                (Array.isArray(p.managers) && p.managers.length > 0 ? p.managers[0] : '—');
 
-                                            return (
-                                                <TableRow key={p._id} hover>
-                                                    <TableCell
-                                                        sx={{ cursor: 'pointer' }}
-                                                        onClick={() =>
-                                                            router.push(
-                                                                `/org/${encodeURIComponent(String(org))}/projects/${encodeURIComponent(p.key)}/tasks`
-                                                            )
-                                                        }
-                                                    >
-                                                        {p.key}
-                                                    </TableCell>
-                                                    <TableCell
-                                                        sx={{ cursor: 'pointer' }}
-                                                        onClick={() =>
-                                                            router.push(
-                                                                `/org/${encodeURIComponent(String(org))}/projects/${encodeURIComponent(p.key)}/tasks`
-                                                            )
-                                                        }
-                                                    >
-                                                        {p.name}
-                                                    </TableCell>
-                                                    <TableCell>{manager}</TableCell>
-                                                    <TableCell sx={{ maxWidth: 360 }}>
-                                                        <Typography variant="body2" color="text.secondary" noWrap>
-                                                            {p.description || '—'}
-                                                        </Typography>
-                                                    </TableCell>
-                                                    <TableCell align="right">
-                                                        <Tooltip title="Удалить проект">
-                                                            <IconButton onClick={() => openRemoveProjectDialog(p)}>
-                                                                <DeleteOutlineIcon fontSize="small" />
-                                                            </IconButton>
-                                                        </Tooltip>
-                                                    </TableCell>
-                                                </TableRow>
-                                            );
-                                        })}
-
-                                        {projects.length === 0 && (
-                                            <TableRow>
-                                                <TableCell colSpan={5}>
-                                                    <Typography color="text.secondary">
-                                                        Проектов пока нет. Нажмите «Создать» или зайдите на страницу проектов.
-                                                    </Typography>
-                                                </TableCell>
-                                            </TableRow>
-                                        )}
-                                    </TableBody>
-                                </Table>
-                            )}
-                        </CardContent>
-                    </Card>
-                </Grid>
             </Grid>
 
             {/* Диалог добавления участника */}
