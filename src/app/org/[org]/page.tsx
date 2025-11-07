@@ -21,7 +21,6 @@ import PersonSearchIcon from '@mui/icons-material/PersonSearch';
 import CancelIcon from '@mui/icons-material/Cancel';
 import ManageAccountsIcon from '@mui/icons-material/ManageAccounts';
 
-
 import InviteMemberForm from '@/app/workspace/components/InviteMemberForm';
 
 type OrgRole = 'owner' | 'org_admin' | 'manager' | 'executor' | 'viewer';
@@ -66,6 +65,24 @@ function statusChip(s: MemberStatus) {
         : <Chip label="invited" size="small" color="warning" variant="outlined" />;
 }
 
+function normalizeBaseUrl(url: string | undefined | null) {
+    if (!url) return '';
+    return url.replace(/\/+$/, '');
+}
+
+// универсальная склейка на всякий случай
+function makeAbsoluteUrl(base: string, path: string) {
+    try {
+        // URL сам уберёт двойные слэши
+        return new URL(path, base).toString();
+    } catch {
+        // запасной вариант — чуть более грубый
+        const cleanBase = normalizeBaseUrl(base);
+        const cleanPath = path.replace(/^\/+/, '');
+        return `${cleanBase}/${cleanPath}`;
+    }
+}
+
 export default function OrgSettingsPage() {
     const params = useParams<{ org: string }>();
     const router = useRouter();
@@ -90,7 +107,6 @@ export default function OrgSettingsPage() {
     const [memberToEditRole, setMemberToEditRole] = React.useState<MemberDTO | null>(null);
     const [newRole, setNewRole] = React.useState<OrgRole>('executor');
 
-
     // проекты
     const [projects, setProjects] = React.useState<ProjectDTO[]>([]);
     const [projectsLoading, setProjectsLoading] = React.useState(false);
@@ -100,6 +116,8 @@ export default function OrgSettingsPage() {
 
     // диалог приглашения
     const [inviteOpen, setInviteOpen] = React.useState(false);
+    // снимок e-mail'ов на момент открытия
+    const [inviteExistingEmails, setInviteExistingEmails] = React.useState<string[]>([]);
 
     // диалог создания проекта
     const [createOpen, setCreateOpen] = React.useState(false);
@@ -117,6 +135,21 @@ export default function OrgSettingsPage() {
     const [removeProjectOpen, setRemoveProjectOpen] = React.useState(false);
     const [removingProject, setRemovingProject] = React.useState(false);
     const [projectToRemove, setProjectToRemove] = React.useState<ProjectDTO | null>(null);
+
+    // база фронтенда для ссылок
+    const [frontendBase, setFrontendBase] = React.useState('');
+
+    React.useEffect(() => {
+        const envPublic = process.env.NEXT_PUBLIC_FRONTEND_URL;
+        const envPrivate = process.env.FRONTEND_URL;
+        if (envPublic) {
+            setFrontendBase(normalizeBaseUrl(envPublic));
+        } else if (envPrivate) {
+            setFrontendBase(normalizeBaseUrl(envPrivate));
+        } else if (typeof window !== 'undefined') {
+            setFrontendBase(normalizeBaseUrl(window.location.origin));
+        }
+    }, []);
 
     // загрузка инфы об организации и своей роли
     React.useEffect(() => {
@@ -181,8 +214,8 @@ export default function OrgSettingsPage() {
     // слушаем событие успешного приглашения
     React.useEffect(() => {
         const handler = async () => {
+            // диалог не закрываем — просто обновляем список
             await fetchMembers();
-            setInviteOpen(false);
         };
         window.addEventListener('org-members:invited', handler as EventListener);
         return () => window.removeEventListener('org-members:invited', handler as EventListener);
@@ -243,7 +276,6 @@ export default function OrgSettingsPage() {
         if (!org || !projectToRemove?._id || !canManage) return;
         setRemovingProject(true);
         try {
-            // если у тебя удаление по key — поменяй здесь на projectToRemove.key
             const res = await fetch(`/api/org/${encodeURIComponent(org)}/projects/${projectToRemove._id}`, {
                 method: 'DELETE',
             });
@@ -301,9 +333,6 @@ export default function OrgSettingsPage() {
         }
     };
 
-    // ↓↓↓ НЕ хуки ↓↓↓
-    const existingMemberEmails = members.map((m) => m.userEmail.toLowerCase());
-
     const filteredMembers = (() => {
         const q = memberSearch.trim().toLowerCase();
         if (!q) return members;
@@ -323,7 +352,6 @@ export default function OrgSettingsPage() {
         }
         return map;
     })();
-    // ↑↑↑
 
     if (!accessChecked) {
         return (
@@ -501,28 +529,34 @@ export default function OrgSettingsPage() {
                             action={
                                 <Stack direction="row" spacing={1}>
                                     <Tooltip title={showMemberSearch ? 'Скрыть поиск' : 'Поиск по участникам'}>
-                        <span>
-                            <IconButton
-                                onClick={() => setShowMemberSearch((prev) => !prev)}
-                                color={showMemberSearch ? 'primary' : 'default'}
-                            >
-                                <PersonSearchIcon />
-                            </IconButton>
-                        </span>
+                                        <span>
+                                            <IconButton
+                                                onClick={() => setShowMemberSearch((prev) => !prev)}
+                                                color={showMemberSearch ? 'primary' : 'default'}
+                                            >
+                                                <PersonSearchIcon />
+                                            </IconButton>
+                                        </span>
                                     </Tooltip>
                                     <Tooltip title="Пригласить участника">
-                        <span>
-                            <IconButton onClick={() => setInviteOpen(true)}>
-                                <PersonAddIcon />
-                            </IconButton>
-                        </span>
+                                        <span>
+                                            <IconButton
+                                                onClick={() => {
+                                                    // фиксируем e-mail'ы на момент открытия
+                                                    setInviteExistingEmails(members.map((m) => m.userEmail.toLowerCase()));
+                                                    setInviteOpen(true);
+                                                }}
+                                            >
+                                                <PersonAddIcon />
+                                            </IconButton>
+                                        </span>
                                     </Tooltip>
                                     <Tooltip title="Обновить">
-                        <span>
-                            <IconButton onClick={handleRefreshClick} disabled={loading || projectsLoading}>
-                                <RefreshIcon />
-                            </IconButton>
-                        </span>
+                                        <span>
+                                            <IconButton onClick={handleRefreshClick} disabled={loading || projectsLoading}>
+                                                <RefreshIcon />
+                                            </IconButton>
+                                        </span>
                                     </Tooltip>
                                 </Stack>
                             }
@@ -571,9 +605,12 @@ export default function OrgSettingsPage() {
                                     <TableBody>
                                         {filteredMembers.map((m) => {
                                             const isInvited = m.status === 'invited';
+                                            const invitePath = `/org/${encodeURIComponent(String(org))}/join?token=${encodeURIComponent(
+                                                m.inviteToken || ''
+                                            )}`;
                                             const inviteLink =
                                                 isInvited && m.inviteToken
-                                                    ? `/org/${encodeURIComponent(String(org))}/join?token=${encodeURIComponent(m.inviteToken)}`
+                                                    ? (frontendBase ? makeAbsoluteUrl(frontendBase, invitePath) : invitePath)
                                                     : undefined;
 
                                             return (
@@ -612,7 +649,6 @@ export default function OrgSettingsPage() {
                                                             </Tooltip>
                                                         )}
 
-                                                        {/* кнопка изменить роль */}
                                                         {m.role !== 'owner' && (
                                                             <Tooltip title="Изменить роль">
                                                                 <IconButton
@@ -635,7 +671,6 @@ export default function OrgSettingsPage() {
                                                             </Tooltip>
                                                         )}
                                                     </TableCell>
-
                                                 </TableRow>
                                             );
                                         })}
@@ -655,8 +690,6 @@ export default function OrgSettingsPage() {
                         </CardContent>
                     </Card>
                 </Grid>
-
-
             </Grid>
 
             {/* Диалог добавления участника */}
@@ -667,7 +700,8 @@ export default function OrgSettingsPage() {
                         <InviteMemberForm
                             org={org}
                             defaultRole="executor"
-                            existingEmails={existingMemberEmails}
+                            // передаём снимок, чтобы не было "уже в организации" сразу после генерации
+                            existingEmails={inviteExistingEmails}
                         />
                     )}
                 </DialogContent>
@@ -713,7 +747,6 @@ export default function OrgSettingsPage() {
             </Dialog>
 
             {/* Диалог изменения роли участника */}
-
             <Dialog open={roleDialogOpen} onClose={() => setRoleDialogOpen(false)}>
                 <DialogTitle>Изменить роль участника</DialogTitle>
                 <DialogContent>
@@ -763,14 +796,12 @@ export default function OrgSettingsPage() {
                                 const msg = e instanceof Error ? e.message : 'Ошибка сети';
                                 setSnack({ open: true, msg, sev: 'error' });
                             }
-
                         }}
                     >
                         Сохранить
                     </Button>
                 </DialogActions>
             </Dialog>
-
 
             {/* Диалог удаления участника */}
             <Dialog open={removeOpen} onClose={removing ? undefined : closeRemoveDialog}>
@@ -779,7 +810,7 @@ export default function OrgSettingsPage() {
                     <Typography variant="body2">
                         Вы действительно хотите удалить участника{' '}
                         <b>{memberToRemove?.userName || memberToRemove?.userEmail}</b>{' '}
-                        из организации? Доступ к проектам будет утерян.
+                        из организации? Доступ пользователя {memberToRemove?.userName || memberToRemove?.userEmail} к проектам будет утерян.
                     </Typography>
                 </DialogContent>
                 <DialogActions>

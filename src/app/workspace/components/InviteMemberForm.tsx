@@ -1,26 +1,84 @@
-//app/workspace/components/InviteMemberForm.tsx
+// app/workspace/components/InviteMemberForm.tsx
 
 'use client';
 
 import * as React from 'react';
 import {
-    Box, Stack, TextField, Typography, FormControl, InputLabel, Select, MenuItem,
-    Button, CircularProgress, Snackbar, Alert, IconButton, Tooltip, Avatar
+    Box,
+    Stack,
+    TextField,
+    Typography,
+    FormControl,
+    InputLabel,
+    Select,
+    MenuItem,
+    Button,
+    CircularProgress,
+    Snackbar,
+    Alert,
+    IconButton,
+    Tooltip,
+    Avatar,
 } from '@mui/material';
 import Autocomplete from '@mui/material/Autocomplete';
 import ContentCopyIcon from '@mui/icons-material/ContentCopy';
 
 type OrgRole = 'owner' | 'org_admin' | 'manager' | 'executor' | 'viewer';
-type UserOption = { email: string; name?: string; profilePic?: string };
+
+type UserOption = {
+    email: string;
+    name?: string;
+    profilePic?: string;
+};
 
 type Props = {
     org: string;
     defaultRole?: OrgRole;
-    //список e-mail уже действующих/приглашённых участников организации
     existingEmails?: string[];
 };
 
-export default function InviteMemberForm({ org, defaultRole = 'executor', existingEmails = [] }: Props) {
+// убираем хвостовые "/"
+function normalizeBaseUrl(url: string | undefined | null) {
+    if (!url) return '';
+    return url.replace(/\/+$/, '');
+}
+
+// аккуратно достраиваем относительный путь
+function makeAbsoluteUrl(base: string, path: string) {
+    try {
+        return new URL(path, base).toString();
+    } catch {
+        const cleanBase = normalizeBaseUrl(base);
+        const cleanPath = path.replace(/^\/+/, '');
+        return `${cleanBase}/${cleanPath}`;
+    }
+}
+
+// чистим кривые ссылки из бэка
+function normalizeInviteUrl(raw: string, frontendBase?: string) {
+    if (!raw) return raw;
+
+    // относительный путь — достраиваем
+    if (raw.startsWith('/')) {
+        const base = frontendBase || (typeof window !== 'undefined' ? window.location.origin : '');
+        return makeAbsoluteUrl(base, raw);
+    }
+
+    // абсолютный урл — чиним pathname
+    try {
+        const u = new URL(raw);
+        u.pathname = u.pathname.replace(/\/{2,}/g, '/');
+        return u.toString();
+    } catch {
+        return raw.replace(/\/\/+org\//, '/org/');
+    }
+}
+
+export default function InviteMemberForm({
+                                             org,
+                                             defaultRole = 'executor',
+                                             existingEmails = [],
+                                         }: Props) {
     const [userQuery, setUserQuery] = React.useState('');
     const [userOpts, setUserOpts] = React.useState<UserOption[]>([]);
     const [userLoading, setUserLoading] = React.useState(false);
@@ -32,9 +90,28 @@ export default function InviteMemberForm({ org, defaultRole = 'executor', existi
     const [inviteLink, setInviteLink] = React.useState<string | null>(null);
     const [inviteExpiresAt, setInviteExpiresAt] = React.useState<string | null>(null);
 
-    const [snack, setSnack] = React.useState<{ open: boolean; msg: string; sev: 'success' | 'error' | 'info' }>({
-        open: false, msg: '', sev: 'success',
+    const [snack, setSnack] = React.useState<{
+        open: boolean;
+        msg: string;
+        sev: 'success' | 'error' | 'info';
+    }>({
+        open: false,
+        msg: '',
+        sev: 'success',
     });
+
+    const [frontendBase, setFrontendBase] = React.useState('');
+    React.useEffect(() => {
+        const envPublic = process.env.NEXT_PUBLIC_FRONTEND_URL;
+        const envPrivate = process.env.FRONTEND_URL;
+        if (envPublic) {
+            setFrontendBase(normalizeBaseUrl(envPublic));
+        } else if (envPrivate) {
+            setFrontendBase(normalizeBaseUrl(envPrivate));
+        } else if (typeof window !== 'undefined') {
+            setFrontendBase(normalizeBaseUrl(window.location.origin));
+        }
+    }, []);
 
     // сет для быстрых проверок
     const existingSet = React.useMemo(
@@ -45,7 +122,10 @@ export default function InviteMemberForm({ org, defaultRole = 'executor', existi
     // автопоиск пользователей
     React.useEffect(() => {
         const q = userQuery.trim();
-        if (!q) { setUserOpts([]); return; }
+        if (!q) {
+            setUserOpts([]);
+            return;
+        }
         const ctrl = new AbortController();
         setUserLoading(true);
         const t = setTimeout(async () => {
@@ -57,12 +137,16 @@ export default function InviteMemberForm({ org, defaultRole = 'executor', existi
                 const data = (await res.json().catch(() => ({}))) as { users?: UserOption[] };
                 setUserOpts(Array.isArray(data.users) ? data.users : []);
             } catch {
-                // ignore
+                // игнорируем
             } finally {
                 setUserLoading(false);
             }
         }, 250);
-        return () => { clearTimeout(t); ctrl.abort(); };
+
+        return () => {
+            clearTimeout(t);
+            ctrl.abort();
+        };
     }, [org, userQuery]);
 
     const selectedEmail = selectedUser?.email?.trim() || '';
@@ -95,19 +179,29 @@ export default function InviteMemberForm({ org, defaultRole = 'executor', existi
             if (!res.ok || !('ok' in data)) {
                 setSnack({
                     open: true,
-                    msg: ('error' in data && data.error) ? data.error : res.statusText,
-                    sev: 'error'
+                    msg: 'error' in data && data.error ? data.error : res.statusText,
+                    sev: 'error',
                 });
                 return;
             }
 
-            setInviteLink(data.inviteUrl);
+            const normalizedLink = normalizeInviteUrl(data.inviteUrl, frontendBase);
+
+            setInviteLink(normalizedLink);
             setInviteExpiresAt(data.expiresAt);
             setSnack({ open: true, msg: 'Ссылка приглашения сгенерирована', sev: 'success' });
 
-            window.dispatchEvent(new CustomEvent('org-members:invited', {
-                detail: { inviteUrl: data.inviteUrl, expiresAt: data.expiresAt, role: data.role }
-            }));
+            if (typeof window !== 'undefined') {
+                window.dispatchEvent(
+                    new CustomEvent('org-members:invited', {
+                        detail: {
+                            inviteUrl: normalizedLink,
+                            expiresAt: data.expiresAt,
+                            role: data.role,
+                        },
+                    })
+                );
+            }
         } finally {
             setInviting(false);
         }
@@ -122,57 +216,57 @@ export default function InviteMemberForm({ org, defaultRole = 'executor', existi
     return (
         <Box>
             <Stack spacing={2}>
-                <Autocomplete<UserOption>
+                <Autocomplete<UserOption, false, false, false>
                     options={userOpts}
                     loading={userLoading}
                     value={selectedUser}
                     onChange={(_, val) => setSelectedUser(val)}
                     inputValue={userQuery}
                     onInputChange={(_, val) => setUserQuery(val)}
-                    freeSolo={false}
                     autoHighlight
                     filterOptions={(x) => x}
                     getOptionLabel={(o) => o?.email ?? ''}
                     isOptionEqualToValue={(opt, val) => opt.email === val.email}
                     noOptionsText={userQuery ? 'Нет совпадений' : 'Начните вводить e-mail или имя'}
-                    renderOption={(props, option) => (
-                        <li {...props} key={option.email}>
-                            <Stack direction="row" spacing={1} alignItems="center">
-                                <Avatar src={option.profilePic} sx={{ width: 28, height: 28 }} />
-                                <Box>
-                                    <Typography variant="body2">{option.email}</Typography>
-                                    <Typography variant="caption" color="text.secondary">
-                                        {option.name || '—'}{' '}
-                                        {existingSet.has(option.email.toLowerCase()) && (
-                                            <Typography component="span" variant="caption" color="error">
-                                                уже в организации
-                                            </Typography>
-                                        )}
-                                    </Typography>
-                                </Box>
-                            </Stack>
-                        </li>
-                    )}
-                    renderInput={(params) => {
-                        const { InputProps, ...rest } = params;
+                    renderOption={(props, option) => {
+                        // ВАЖНО: забираем key отдельно
+                        const { key, ...liProps } = props as React.HTMLAttributes<HTMLLIElement> & { key?: string };
                         return (
-                            <TextField
-                                {...rest}
-                                label="E-mail исполнителя"
-                                placeholder="worker@example.com"
-                                fullWidth
-                                InputProps={{
-                                    ...InputProps,
-                                    endAdornment: (
-                                        <>
-                                            {userLoading ? <CircularProgress size={16} /> : null}
-                                            {InputProps?.endAdornment}
-                                        </>
-                                    ),
-                                }}
-                            />
+                            <li key={key} {...liProps}>
+                                <Stack direction="row" spacing={1} alignItems="center">
+                                    <Avatar src={option.profilePic} sx={{ width: 28, height: 28 }} />
+                                    <Box>
+                                        <Typography variant="body2">{option.email}</Typography>
+                                        <Typography variant="caption" color="text.secondary">
+                                            {option.name || '—'}{' '}
+                                            {existingSet.has(option.email.toLowerCase()) && (
+                                                <Typography component="span" variant="caption" color="error">
+                                                    уже в организации
+                                                </Typography>
+                                            )}
+                                        </Typography>
+                                    </Box>
+                                </Stack>
+                            </li>
                         );
                     }}
+                    renderInput={(params) => (
+                        <TextField
+                            {...params}
+                            label="E-mail исполнителя"
+                            placeholder="worker@example.com"
+                            fullWidth
+                            InputProps={{
+                                ...params.InputProps,
+                                endAdornment: (
+                                    <>
+                                        {userLoading ? <CircularProgress size={16} /> : null}
+                                        {params.InputProps.endAdornment}
+                                    </>
+                                ),
+                            }}
+                        />
+                    )}
                 />
 
                 <FormControl fullWidth>
@@ -223,7 +317,6 @@ export default function InviteMemberForm({ org, defaultRole = 'executor', existi
                                     value={inviteLink}
                                     fullWidth
                                     size="small"
-                                    // если у тебя MUI v6 и нужен readOnly:
                                     inputProps={{ readOnly: true }}
                                 />
                                 <Tooltip title="Скопировать ссылку">
@@ -242,7 +335,11 @@ export default function InviteMemberForm({ org, defaultRole = 'executor', existi
                 autoHideDuration={3000}
                 onClose={() => setSnack((s) => ({ ...s, open: false }))}
             >
-                <Alert onClose={() => setSnack((s) => ({ ...s, open: false }))} severity={snack.sev} variant="filled">
+                <Alert
+                    onClose={() => setSnack((s) => ({ ...s, open: false }))}
+                    severity={snack.sev}
+                    variant="filled"
+                >
                     {snack.msg}
                 </Alert>
             </Snackbar>
