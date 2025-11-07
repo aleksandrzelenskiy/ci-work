@@ -9,6 +9,7 @@ import {
     TableBody, Chip, IconButton, Tooltip, Typography,
     CircularProgress, Grid, Dialog, DialogTitle, DialogContent, DialogActions,
     TextField, Button,
+    MenuItem,
 } from '@mui/material';
 import RefreshIcon from '@mui/icons-material/Refresh';
 import DeleteOutlineIcon from '@mui/icons-material/DeleteOutline';
@@ -18,6 +19,8 @@ import DriveFileMoveIcon from '@mui/icons-material/DriveFileMove';
 import CreateNewFolderIcon from '@mui/icons-material/CreateNewFolder';
 import PersonSearchIcon from '@mui/icons-material/PersonSearch';
 import CancelIcon from '@mui/icons-material/Cancel';
+import ManageAccountsIcon from '@mui/icons-material/ManageAccounts';
+
 
 import InviteMemberForm from '@/app/workspace/components/InviteMemberForm';
 
@@ -81,6 +84,12 @@ export default function OrgSettingsPage() {
     // поиск по участникам
     const [memberSearch, setMemberSearch] = React.useState('');
     const [showMemberSearch, setShowMemberSearch] = React.useState(false);
+
+    // изменение роли участника
+    const [roleDialogOpen, setRoleDialogOpen] = React.useState(false);
+    const [memberToEditRole, setMemberToEditRole] = React.useState<MemberDTO | null>(null);
+    const [newRole, setNewRole] = React.useState<OrgRole>('executor');
+
 
     // проекты
     const [projects, setProjects] = React.useState<ProjectDTO[]>([]);
@@ -603,6 +612,21 @@ export default function OrgSettingsPage() {
                                                             </Tooltip>
                                                         )}
 
+                                                        {/* кнопка изменить роль */}
+                                                        {m.role !== 'owner' && (
+                                                            <Tooltip title="Изменить роль">
+                                                                <IconButton
+                                                                    onClick={() => {
+                                                                        setMemberToEditRole(m);
+                                                                        setNewRole(m.role);
+                                                                        setRoleDialogOpen(true);
+                                                                    }}
+                                                                >
+                                                                    <ManageAccountsIcon fontSize="small" />
+                                                                </IconButton>
+                                                            </Tooltip>
+                                                        )}
+
                                                         {m.role !== 'owner' && (
                                                             <Tooltip title="Удалить участника">
                                                                 <IconButton onClick={() => openRemoveDialog(m)}>
@@ -611,6 +635,7 @@ export default function OrgSettingsPage() {
                                                             </Tooltip>
                                                         )}
                                                     </TableCell>
+
                                                 </TableRow>
                                             );
                                         })}
@@ -686,6 +711,66 @@ export default function OrgSettingsPage() {
                     </Button>
                 </DialogActions>
             </Dialog>
+
+            {/* Диалог изменения роли участника */}
+
+            <Dialog open={roleDialogOpen} onClose={() => setRoleDialogOpen(false)}>
+                <DialogTitle>Изменить роль участника</DialogTitle>
+                <DialogContent>
+                    <Typography variant="body2" sx={{ mb: 2 }}>
+                        {memberToEditRole?.userName || memberToEditRole?.userEmail}
+                    </Typography>
+                    <TextField
+                        select
+                        label="Роль"
+                        fullWidth
+                        value={newRole}
+                        onChange={(e) => setNewRole(e.target.value as OrgRole)}
+                        sx={{ mt: 1 }}
+                    >
+                        {(['org_admin', 'manager', 'executor', 'viewer'] as OrgRole[]).map((r) => (
+                            <MenuItem key={r} value={r}>
+                                {roleLabel(r)}
+                            </MenuItem>
+                        ))}
+                    </TextField>
+                </DialogContent>
+                <DialogActions>
+                    <Button onClick={() => setRoleDialogOpen(false)}>Отмена</Button>
+                    <Button
+                        variant="contained"
+                        onClick={async () => {
+                            if (!org || !memberToEditRole?._id) return;
+                            try {
+                                const res = await fetch(
+                                    `/api/org/${encodeURIComponent(org)}/members/${memberToEditRole._id}`,
+                                    {
+                                        method: 'PATCH',
+                                        headers: { 'Content-Type': 'application/json' },
+                                        body: JSON.stringify({ role: newRole }),
+                                    }
+                                );
+                                const data = await res.json();
+                                if (!res.ok) {
+                                    setSnack({ open: true, msg: data?.error || 'Ошибка изменения роли', sev: 'error' });
+                                    return;
+                                }
+                                setSnack({ open: true, msg: 'Роль обновлена', sev: 'success' });
+                                setRoleDialogOpen(false);
+                                setMemberToEditRole(null);
+                                await fetchMembers();
+                            } catch (e: unknown) {
+                                const msg = e instanceof Error ? e.message : 'Ошибка сети';
+                                setSnack({ open: true, msg, sev: 'error' });
+                            }
+
+                        }}
+                    >
+                        Сохранить
+                    </Button>
+                </DialogActions>
+            </Dialog>
+
 
             {/* Диалог удаления участника */}
             <Dialog open={removeOpen} onClose={removing ? undefined : closeRemoveDialog}>
