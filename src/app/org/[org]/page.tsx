@@ -2,17 +2,21 @@
 'use client';
 
 import * as React from 'react';
-import { useParams } from 'next/navigation';
+import { useParams, useRouter } from 'next/navigation';
 import {
-    Box, Card, CardHeader, CardContent, Button, Stack,
+    Box, Card, CardHeader, CardContent, Stack,
     Snackbar, Alert, Table, TableHead, TableRow, TableCell,
     TableBody, Chip, IconButton, Tooltip, Typography,
     CircularProgress, Grid, Dialog, DialogTitle, DialogContent, DialogActions,
+    TextField,
+    Button,
 } from '@mui/material';
 import RefreshIcon from '@mui/icons-material/Refresh';
 import DeleteOutlineIcon from '@mui/icons-material/DeleteOutline';
 import PersonAddIcon from '@mui/icons-material/PersonAdd';
 import LinkIcon from '@mui/icons-material/Link';
+import DriveFileMoveIcon from '@mui/icons-material/DriveFileMove';
+import CreateNewFolderIcon from '@mui/icons-material/CreateNewFolder';
 
 import InviteMemberForm from '@/app/workspace/components/InviteMemberForm';
 
@@ -26,10 +30,17 @@ type MemberDTO = {
     userName?: string;
     role: OrgRole;
     status: MemberStatus;
+    inviteToken?: string;
+    inviteExpiresAt?: string;
+};
 
-    // нужно только для построения ссылки приглашения
-    inviteToken?: string;        // приходит из API только для manager/admin/owner
-    inviteExpiresAt?: string;    // ISO-строка, опционально
+type ProjectDTO = {
+    _id: string;
+    name: string;
+    key: string;
+    description?: string;
+    managers?: string[];
+    managerEmail?: string;
 };
 
 type SnackState = { open: boolean; msg: string; sev: 'success' | 'error' | 'info' };
@@ -53,9 +64,9 @@ function statusChip(s: MemberStatus) {
 
 export default function OrgSettingsPage() {
     const params = useParams<{ org: string }>();
+    const router = useRouter();
     const org = params?.org;
 
-    // ── Проверка роли / доступ ─────────────────────────────────────────────
     const allowedRoles: OrgRole[] = ['owner', 'org_admin', 'manager'];
     const [myRole, setMyRole] = React.useState<OrgRole | null>(null);
     const [orgName, setOrgName] = React.useState<string>('');
@@ -91,13 +102,24 @@ export default function OrgSettingsPage() {
         return () => { cancelled = true; };
     }, [org]);
 
-    // ── Остальные состояния ────────────────────────────────────────────────
     const [members, setMembers] = React.useState<MemberDTO[]>([]);
     const [loading, setLoading] = React.useState(false);
+    const [memberSearch, setMemberSearch] = React.useState('');
+
+    const [projects, setProjects] = React.useState<ProjectDTO[]>([]);
+    const [projectsLoading, setProjectsLoading] = React.useState(false);
+
     const [snack, setSnack] = React.useState<SnackState>({ open: false, msg: '', sev: 'success' });
 
     // диалог добавления участника
     const [inviteOpen, setInviteOpen] = React.useState(false);
+
+    // диалог создания проекта
+    const [createOpen, setCreateOpen] = React.useState(false);
+    const [newProjectName, setNewProjectName] = React.useState('');
+    const [newProjectKey, setNewProjectKey] = React.useState('');
+    const [newProjectDescription, setNewProjectDescription] = React.useState('');
+    const isCreateDisabled = !newProjectName || !newProjectKey;
 
     const fetchMembers = React.useCallback(async () => {
         if (!org || !canManage) return;
@@ -115,6 +137,22 @@ export default function OrgSettingsPage() {
         }
     }, [org, canManage]);
 
+    const fetchProjects = React.useCallback(async () => {
+        if (!org || !canManage) return;
+        setProjectsLoading(true);
+        try {
+            const res = await fetch(`/api/org/${encodeURIComponent(org)}/projects`, { cache: 'no-store' });
+            const data = (await res.json().catch(() => ({}))) as { projects?: ProjectDTO[]; error?: string };
+            if (!res.ok) {
+                setSnack({ open: true, msg: data?.error || res.statusText, sev: 'error' });
+                return;
+            }
+            setProjects(Array.isArray(data?.projects) ? data.projects : []);
+        } finally {
+            setProjectsLoading(false);
+        }
+    }, [org, canManage]);
+
     React.useEffect(() => {
         const handler = async () => {
             await fetchMembers();
@@ -124,11 +162,19 @@ export default function OrgSettingsPage() {
         return () => window.removeEventListener('org-members:invited', handler as EventListener);
     }, [fetchMembers]);
 
-    React.useEffect(() => { if (canManage) void fetchMembers(); }, [fetchMembers, canManage]);
+    React.useEffect(() => {
+        if (canManage) {
+            void fetchMembers();
+            void fetchProjects();
+        }
+    }, [canManage, fetchMembers, fetchProjects]);
 
-    const handleRefreshClick = () => { void fetchMembers(); };
+    const handleRefreshClick = () => {
+        void fetchMembers();
+        void fetchProjects();
+    };
 
-    // ── Удаление участника ────────────────────────────────────────────────
+    // Удаление участника
     const [removeOpen, setRemoveOpen] = React.useState(false);
     const [removing, setRemoving] = React.useState(false);
     const [memberToRemove, setMemberToRemove] = React.useState<MemberDTO | null>(null);
@@ -169,7 +215,63 @@ export default function OrgSettingsPage() {
         }
     };
 
-    // ── Рендер с учётом доступа ───────────────────────────────────────────
+    const formatExpire = (iso?: string) => {
+        if (!iso) return '';
+        const d = new Date(iso);
+        if (isNaN(d.getTime())) return '';
+        return d.toLocaleDateString(undefined, { year: 'numeric', month: '2-digit', day: '2-digit' });
+    };
+
+    const goToProjectsPage = () => {
+        if (!org) return;
+        router.push(`/org/${encodeURIComponent(org)}/projects`);
+    };
+
+    const handleCreateProject = async () => {
+        if (!org) return;
+        try {
+            const res = await fetch(`/api/org/${encodeURIComponent(org)}/projects`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    name: newProjectName,
+                    key: newProjectKey,
+                    description: newProjectDescription,
+                }),
+            });
+            const data = await res.json();
+            if (!res.ok || !data?.ok) {
+                setSnack({
+                    open: true,
+                    msg: data?.error || 'Ошибка создания проекта',
+                    sev: 'error',
+                });
+                return;
+            }
+            setSnack({ open: true, msg: 'Проект создан', sev: 'success' });
+            setCreateOpen(false);
+            setNewProjectName('');
+            setNewProjectKey('');
+            setNewProjectDescription('');
+            void fetchProjects();
+        } catch (e: unknown) {
+            const msg = e instanceof Error ? e.message : 'Ошибка сети';
+            setSnack({ open: true, msg, sev: 'error' });
+        }
+    };
+
+    const existingMemberEmails = members.map((m) => m.userEmail.toLowerCase());
+
+    const filteredMembers = (() => {
+        const q = memberSearch.trim().toLowerCase();
+        if (!q) return members;
+        return members.filter((m) => {
+            const name = (m.userName || '').toLowerCase();
+            const email = (m.userEmail || '').toLowerCase();
+            return name.includes(q) || email.includes(q);
+        });
+    })();
+
     if (!accessChecked) {
         return (
             <Box sx={{ p: 3 }}>
@@ -191,13 +293,6 @@ export default function OrgSettingsPage() {
         );
     }
 
-    const formatExpire = (iso?: string) => {
-        if (!iso) return '';
-        const d = new Date(iso);
-        if (isNaN(d.getTime())) return '';
-        return d.toLocaleDateString(undefined, { year: 'numeric', month: '2-digit', day: '2-digit' });
-    };
-
     return (
         <Box sx={{ p: { xs: 2, md: 3 }, maxWidth: 1200, mx: 'auto' }}>
             <Typography variant="h5" sx={{ mb: 2 }}>
@@ -205,116 +300,209 @@ export default function OrgSettingsPage() {
             </Typography>
 
             <Grid container spacing={2}>
-                {/* Таблица участников */}
+                {/* Участники */}
                 <Grid item xs={12}>
                     <Card variant="outlined">
                         <CardHeader
                             title="Участники организации"
                             action={
-                                <Tooltip title="Обновить">
-                  <span>
-                    <IconButton onClick={handleRefreshClick} disabled={loading}>
-                      <RefreshIcon />
-                    </IconButton>
-                  </span>
-                                </Tooltip>
+                                <Stack direction="row" spacing={1}>
+                                    <Tooltip title="Пригласить участника">
+                                        <span>
+                                            <IconButton onClick={() => setInviteOpen(true)}>
+                                                <PersonAddIcon />
+                                            </IconButton>
+                                        </span>
+                                    </Tooltip>
+
+                                    <Tooltip title="Обновить">
+                                        <span>
+                                            <IconButton onClick={handleRefreshClick} disabled={loading || projectsLoading}>
+                                                <RefreshIcon />
+                                            </IconButton>
+                                        </span>
+                                    </Tooltip>
+                                </Stack>
                             }
                         />
                         <CardContent>
+                            <Box sx={{ mb: 2, maxWidth: 360 }}>
+                                <TextField
+                                    size="small"
+                                    fullWidth
+                                    label="Поиск по имени или e-mail"
+                                    value={memberSearch}
+                                    onChange={(e) => setMemberSearch(e.target.value)}
+                                />
+                            </Box>
+
                             {loading ? (
                                 <Stack direction="row" spacing={1} alignItems="center">
                                     <CircularProgress size={20} />
                                     <Typography>Загрузка участников…</Typography>
                                 </Stack>
                             ) : (
-                                <>
-                                    <Table size="small">
-                                        <TableHead>
-                                            <TableRow>
-                                                <TableCell>Имя</TableCell>
-                                                <TableCell>E-mail</TableCell>
-                                                <TableCell>Роль</TableCell>
-                                                <TableCell>Статус</TableCell>
-                                                <TableCell align="right">Действия</TableCell>
-                                            </TableRow>
-                                        </TableHead>
-                                        <TableBody>
-                                            {members.map((m) => {
-                                                const isInvited = m.status === 'invited';
-                                                // строим относительную ссылку — фронт знает BASE-URL
-                                                const inviteLink = isInvited && m.inviteToken
-                                                    ? `/org/${encodeURIComponent(String(org))}/join?token=${encodeURIComponent(m.inviteToken)}`
-                                                    : undefined;
+                                <Table size="small">
+                                    <TableHead>
+                                        <TableRow>
+                                            <TableCell>Имя</TableCell>
+                                            <TableCell>E-mail</TableCell>
+                                            <TableCell>Роль</TableCell>
+                                            <TableCell>Статус</TableCell>
+                                            <TableCell align="right">Действия</TableCell>
+                                        </TableRow>
+                                    </TableHead>
+                                    <TableBody>
+                                        {filteredMembers.map((m) => {
+                                            const isInvited = m.status === 'invited';
+                                            const inviteLink = isInvited && m.inviteToken
+                                                ? `/org/${encodeURIComponent(String(org))}/join?token=${encodeURIComponent(m.inviteToken)}`
+                                                : undefined;
 
-                                                return (
-                                                    <TableRow
-                                                        key={m._id}
-                                                        sx={isInvited ? { opacity: 0.85 } : undefined}
-                                                        title={isInvited ? 'Приглашение отправлено, ожидаем подтверждения' : undefined}
-                                                    >
-                                                        <TableCell>{m.userName || '—'}</TableCell>
-                                                        <TableCell>{m.userEmail}</TableCell>
-                                                        <TableCell>{roleLabel(m.role)}</TableCell>
-                                                        <TableCell>
-                                                            <Stack direction="row" spacing={1} alignItems="center">
-                                                                {statusChip(m.status)}
-                                                                {isInvited && m.inviteExpiresAt && (
-                                                                    <Chip
-                                                                        size="small"
-                                                                        variant="outlined"
-                                                                        label={`до ${formatExpire(m.inviteExpiresAt)}`}
-                                                                    />
-                                                                )}
-                                                            </Stack>
-                                                        </TableCell>
-                                                        <TableCell align="right">
-                                                            {/* Только ссылка, без токена */}
-                                                            {inviteLink && (
-                                                                <Tooltip title="Скопировать ссылку приглашения">
-                                                                    <IconButton
-                                                                        onClick={() => {
-                                                                            void navigator.clipboard.writeText(inviteLink).then(() =>
-                                                                                setSnack({ open: true, msg: 'Ссылка скопирована', sev: 'info' })
-                                                                            );
-                                                                        }}
-                                                                    >
-                                                                        <LinkIcon fontSize="small" />
-                                                                    </IconButton>
-                                                                </Tooltip>
+                                            return (
+                                                <TableRow
+                                                    key={m._id}
+                                                    sx={isInvited ? { opacity: 0.85 } : undefined}
+                                                    title={isInvited ? 'Приглашение отправлено, ожидаем подтверждения' : undefined}
+                                                >
+                                                    <TableCell>{m.userName || '—'}</TableCell>
+                                                    <TableCell>{m.userEmail}</TableCell>
+                                                    <TableCell>{roleLabel(m.role)}</TableCell>
+                                                    <TableCell>
+                                                        <Stack direction="row" spacing={1} alignItems="center">
+                                                            {statusChip(m.status)}
+                                                            {isInvited && m.inviteExpiresAt && (
+                                                                <Chip
+                                                                    size="small"
+                                                                    variant="outlined"
+                                                                    label={`до ${formatExpire(m.inviteExpiresAt)}`}
+                                                                />
                                                             )}
+                                                        </Stack>
+                                                    </TableCell>
+                                                    <TableCell align="right">
+                                                        {inviteLink && (
+                                                            <Tooltip title="Скопировать ссылку приглашения">
+                                                                <IconButton
+                                                                    onClick={() => {
+                                                                        void navigator.clipboard.writeText(inviteLink).then(() =>
+                                                                            setSnack({ open: true, msg: 'Ссылка скопирована', sev: 'info' })
+                                                                        );
+                                                                    }}
+                                                                >
+                                                                    <LinkIcon fontSize="small" />
+                                                                </IconButton>
+                                                            </Tooltip>
+                                                        )}
 
-                                                            {/* Удалить участника (кроме владельца) */}
-                                                            {m.role !== 'owner' && (
-                                                                <Tooltip title="Удалить участника">
-                                                                    <IconButton onClick={() => openRemoveDialog(m)}>
-                                                                        <DeleteOutlineIcon fontSize="small" />
-                                                                    </IconButton>
-                                                                </Tooltip>
-                                                            )}
-                                                        </TableCell>
-                                                    </TableRow>
-                                                );
-                                            })}
-
-                                            {/* Пустой список */}
-                                            {members.length === 0 && (
-                                                <TableRow>
-                                                    <TableCell colSpan={5}>
-                                                        <Typography color="text.secondary">Участников пока нет.</Typography>
+                                                        {m.role !== 'owner' && (
+                                                            <Tooltip title="Удалить участника">
+                                                                <IconButton onClick={() => openRemoveDialog(m)}>
+                                                                    <DeleteOutlineIcon fontSize="small" />
+                                                                </IconButton>
+                                                            </Tooltip>
+                                                        )}
                                                     </TableCell>
                                                 </TableRow>
-                                            )}
+                                            );
+                                        })}
 
+                                        {filteredMembers.length === 0 && (
                                             <TableRow>
-                                                <TableCell colSpan={5} align="right">
-                                                    <Button startIcon={<PersonAddIcon />} variant="contained" onClick={() => setInviteOpen(true)}>
-                                                        Добавить
-                                                    </Button>
+                                                <TableCell colSpan={5}>
+                                                    <Typography color="text.secondary">
+                                                        Не найдено участников по запросу.
+                                                    </Typography>
                                                 </TableCell>
                                             </TableRow>
-                                        </TableBody>
-                                    </Table>
-                                </>
+                                        )}
+                                    </TableBody>
+                                </Table>
+                            )}
+                        </CardContent>
+                    </Card>
+                </Grid>
+
+                {/* Проекты */}
+                <Grid item xs={12}>
+                    <Card variant="outlined">
+                        <CardHeader
+                            title="Проекты организации"
+                            action={
+                                <Stack direction="row" spacing={1}>
+                                    <Tooltip title="Создать проект">
+                                        <span>
+                                            <IconButton onClick={() => setCreateOpen(true)}>
+                                                <CreateNewFolderIcon />
+                                            </IconButton>
+                                        </span>
+                                    </Tooltip>
+                                    <Tooltip title="Перейти к проектам">
+                                        <span>
+                                            <IconButton onClick={goToProjectsPage}>
+                                                <DriveFileMoveIcon />
+                                            </IconButton>
+                                        </span>
+                                    </Tooltip>
+                                </Stack>
+                            }
+                        />
+                        <CardContent>
+                            {projectsLoading ? (
+                                <Stack direction="row" spacing={1} alignItems="center">
+                                    <CircularProgress size={20} />
+                                    <Typography>Загрузка проектов…</Typography>
+                                </Stack>
+                            ) : (
+                                <Table size="small">
+                                    <TableHead>
+                                        <TableRow>
+                                            <TableCell>Код</TableCell>
+                                            <TableCell>Проект</TableCell>
+                                            <TableCell>Менеджер</TableCell>
+                                            <TableCell>Описание</TableCell>
+                                        </TableRow>
+                                    </TableHead>
+                                    <TableBody>
+                                        {projects.map((p) => {
+                                            const manager =
+                                                p.managerEmail ??
+                                                (Array.isArray(p.managers) && p.managers.length > 0 ? p.managers[0] : '—');
+
+                                            return (
+                                                <TableRow
+                                                    key={p._id}
+                                                    hover
+                                                    sx={{ cursor: 'pointer' }}
+                                                    onClick={() =>
+                                                        router.push(
+                                                            `/org/${encodeURIComponent(String(org))}/projects/${encodeURIComponent(p.key)}/tasks`
+                                                        )
+                                                    }
+                                                >
+                                                    <TableCell>{p.key}</TableCell>
+                                                    <TableCell>{p.name}</TableCell>
+                                                    <TableCell>{manager}</TableCell>
+                                                    <TableCell sx={{ maxWidth: 360 }}>
+                                                        <Typography variant="body2" color="text.secondary" noWrap>
+                                                            {p.description || '—'}
+                                                        </Typography>
+                                                    </TableCell>
+                                                </TableRow>
+                                            );
+                                        })}
+
+                                        {projects.length === 0 && (
+                                            <TableRow>
+                                                <TableCell colSpan={4}>
+                                                    <Typography color="text.secondary">
+                                                        Проектов пока нет. Нажмите «Создать» или зайдите на страницу проектов.
+                                                    </Typography>
+                                                </TableCell>
+                                            </TableRow>
+                                        )}
+                                    </TableBody>
+                                </Table>
                             )}
                         </CardContent>
                     </Card>
@@ -329,11 +517,48 @@ export default function OrgSettingsPage() {
                         <InviteMemberForm
                             org={org}
                             defaultRole="executor"
+                            existingEmails={existingMemberEmails}
                         />
                     )}
                 </DialogContent>
                 <DialogActions>
                     <Button onClick={() => setInviteOpen(false)}>Закрыть</Button>
+                </DialogActions>
+            </Dialog>
+
+            {/* Диалог создания проекта */}
+            <Dialog open={createOpen} onClose={() => setCreateOpen(false)} maxWidth="sm" fullWidth>
+                <DialogTitle>Новый проект</DialogTitle>
+                <DialogContent dividers>
+                    <TextField
+                        label="Название"
+                        fullWidth
+                        sx={{ mt: 1 }}
+                        value={newProjectName}
+                        onChange={(e) => setNewProjectName(e.target.value)}
+                    />
+                    <TextField
+                        label="Код (KEY)"
+                        fullWidth
+                        sx={{ mt: 2 }}
+                        value={newProjectKey}
+                        onChange={(e) => setNewProjectKey(e.target.value)}
+                    />
+                    <TextField
+                        label="Описание"
+                        fullWidth
+                        multiline
+                        minRows={3}
+                        sx={{ mt: 2 }}
+                        value={newProjectDescription}
+                        onChange={(e) => setNewProjectDescription(e.target.value)}
+                    />
+                </DialogContent>
+                <DialogActions>
+                    <Button onClick={() => setCreateOpen(false)}>Отмена</Button>
+                    <Button variant="contained" onClick={handleCreateProject} disabled={isCreateDisabled}>
+                        Создать
+                    </Button>
                 </DialogActions>
             </Dialog>
 

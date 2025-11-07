@@ -16,9 +16,11 @@ type UserOption = { email: string; name?: string; profilePic?: string };
 type Props = {
     org: string;
     defaultRole?: OrgRole;
+    //список e-mail уже действующих/приглашённых участников организации
+    existingEmails?: string[];
 };
 
-export default function InviteMemberForm({ org, defaultRole = 'executor' }: Props) {
+export default function InviteMemberForm({ org, defaultRole = 'executor', existingEmails = [] }: Props) {
     const [userQuery, setUserQuery] = React.useState('');
     const [userOpts, setUserOpts] = React.useState<UserOption[]>([]);
     const [userLoading, setUserLoading] = React.useState(false);
@@ -30,9 +32,15 @@ export default function InviteMemberForm({ org, defaultRole = 'executor' }: Prop
     const [inviteLink, setInviteLink] = React.useState<string | null>(null);
     const [inviteExpiresAt, setInviteExpiresAt] = React.useState<string | null>(null);
 
-    const [snack, setSnack] = React.useState<{ open: boolean; msg: string; sev: 'success'|'error'|'info' }>({
+    const [snack, setSnack] = React.useState<{ open: boolean; msg: string; sev: 'success' | 'error' | 'info' }>({
         open: false, msg: '', sev: 'success',
     });
+
+    // сет для быстрых проверок
+    const existingSet = React.useMemo(
+        () => new Set(existingEmails.map((e) => e.toLowerCase())),
+        [existingEmails]
+    );
 
     // автопоиск пользователей
     React.useEffect(() => {
@@ -48,11 +56,19 @@ export default function InviteMemberForm({ org, defaultRole = 'executor' }: Prop
                 );
                 const data = (await res.json().catch(() => ({}))) as { users?: UserOption[] };
                 setUserOpts(Array.isArray(data.users) ? data.users : []);
-            } catch { /* ignore */ }
-            finally { setUserLoading(false); }
+            } catch {
+                // ignore
+            } finally {
+                setUserLoading(false);
+            }
         }, 250);
         return () => { clearTimeout(t); ctrl.abort(); };
     }, [org, userQuery]);
+
+    const selectedEmail = selectedUser?.email?.trim() || '';
+    const emailAlreadyInOrg = selectedEmail
+        ? existingSet.has(selectedEmail.toLowerCase())
+        : false;
 
     const handleInvite = async () => {
         const email = selectedUser?.email?.trim();
@@ -60,6 +76,11 @@ export default function InviteMemberForm({ org, defaultRole = 'executor' }: Prop
             setSnack({ open: true, msg: 'Выберите пользователя (e-mail)', sev: 'error' });
             return;
         }
+        if (existingSet.has(email.toLowerCase())) {
+            setSnack({ open: true, msg: 'Этот e-mail уже есть в организации', sev: 'error' });
+            return;
+        }
+
         setInviting(true);
         try {
             const res = await fetch(`/api/org/${encodeURIComponent(org)}/members/invite`, {
@@ -72,7 +93,11 @@ export default function InviteMemberForm({ org, defaultRole = 'executor' }: Prop
                 | { error?: string };
 
             if (!res.ok || !('ok' in data)) {
-                setSnack({ open: true, msg: ('error' in data && data.error) ? data.error : res.statusText, sev: 'error' });
+                setSnack({
+                    open: true,
+                    msg: ('error' in data && data.error) ? data.error : res.statusText,
+                    sev: 'error'
+                });
                 return;
             }
 
@@ -80,7 +105,6 @@ export default function InviteMemberForm({ org, defaultRole = 'executor' }: Prop
             setInviteExpiresAt(data.expiresAt);
             setSnack({ open: true, msg: 'Ссылка приглашения сгенерирована', sev: 'success' });
 
-            // Сообщаем родителю через глобальное событие
             window.dispatchEvent(new CustomEvent('org-members:invited', {
                 detail: { inviteUrl: data.inviteUrl, expiresAt: data.expiresAt, role: data.role }
             }));
@@ -118,7 +142,12 @@ export default function InviteMemberForm({ org, defaultRole = 'executor' }: Prop
                                 <Box>
                                     <Typography variant="body2">{option.email}</Typography>
                                     <Typography variant="caption" color="text.secondary">
-                                        {option.name || '—'}
+                                        {option.name || '—'}{' '}
+                                        {existingSet.has(option.email.toLowerCase()) && (
+                                            <Typography component="span" variant="caption" color="error">
+                                                уже в организации
+                                            </Typography>
+                                        )}
                                     </Typography>
                                 </Box>
                             </Stack>
@@ -144,7 +173,6 @@ export default function InviteMemberForm({ org, defaultRole = 'executor' }: Prop
                             />
                         );
                     }}
-
                 />
 
                 <FormControl fullWidth>
@@ -162,20 +190,21 @@ export default function InviteMemberForm({ org, defaultRole = 'executor' }: Prop
                 </FormControl>
 
                 {selectedUser && (
-                    <Typography variant="body2" color="text.secondary">
-                        Приглашаемый: <b>{selectedUser.name || '—'}</b>
+                    <Typography variant="body2" color={emailAlreadyInOrg ? 'error' : 'text.secondary'}>
+                        Приглашаемый: <b>{selectedUser.name || '—'}</b>{' '}
+                        {emailAlreadyInOrg && '(уже в организации)'}
                     </Typography>
-
                 )}
+
                 <Typography variant="caption" color="text.secondary">
-                    Приглашение действует 7 дней.  Сгенерируйте ссылку и отправьте ее пользователю удобным для вас способом.
+                    Приглашение действует 7 дней. Сгенерируйте ссылку и отправьте её пользователю удобным для вас способом.
                 </Typography>
 
                 <Stack direction="row" spacing={1}>
                     <Button
                         variant="contained"
                         onClick={handleInvite}
-                        disabled={inviting || !selectedUser}
+                        disabled={inviting || !selectedUser || emailAlreadyInOrg}
                     >
                         {inviting ? 'Создаём…' : 'Сгенерировать ссылку'}
                     </Button>
@@ -194,7 +223,8 @@ export default function InviteMemberForm({ org, defaultRole = 'executor' }: Prop
                                     value={inviteLink}
                                     fullWidth
                                     size="small"
-                                    slotProps={{ input: { readOnly: true } }}
+                                    // если у тебя MUI v6 и нужен readOnly:
+                                    inputProps={{ readOnly: true }}
                                 />
                                 <Tooltip title="Скопировать ссылку">
                                     <IconButton onClick={copyLink}>
