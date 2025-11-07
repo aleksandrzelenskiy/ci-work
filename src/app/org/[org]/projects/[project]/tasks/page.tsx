@@ -1,10 +1,20 @@
 // src/app/org/[org]/projects/[project]/tasks/page.tsx
+
 'use client';
 
 import * as React from 'react';
 import { useParams } from 'next/navigation';
 import {
-    Box, Stack, Typography, Button, Tabs, Tab, Paper, TextField, IconButton, Tooltip,
+    Box,
+    Stack,
+    Typography,
+    Button,
+    Tabs,
+    Tab,
+    Paper,
+    TextField,
+    IconButton,
+    Tooltip,
 } from '@mui/material';
 import AddIcon from '@mui/icons-material/Add';
 import RefreshIcon from '@mui/icons-material/Refresh';
@@ -34,11 +44,13 @@ type ApiListResponse =
     | { error: string };
 
 export default function ProjectTasksPage() {
-    const params = useParams<{ org: string; project: string }>() as { org: string; project: string };
+    const params = useParams<{ org: string; project: string }>() as {
+        org: string;
+        project: string;
+    };
     const org = params.org;
     const project = params.project;
 
-    // нормализуем и переиспользуем
     const orgSlug = React.useMemo(() => org?.trim(), [org]);
     const projectRef = React.useMemo(() => project?.trim(), [project]);
 
@@ -49,7 +61,6 @@ export default function ProjectTasksPage() {
     const [items, setItems] = React.useState<Task[]>([]);
     const [error, setError] = React.useState<string | null>(null);
 
-    // ─────────────── org info (чтобы показывать имя вместо slug) ───────────────
     const [orgInfo, setOrgInfo] = React.useState<OrgInfo | null>(null);
     const [orgInfoError, setOrgInfoError] = React.useState<string | null>(null);
 
@@ -71,7 +82,11 @@ export default function ProjectTasksPage() {
                     | null;
 
                 if (!res.ok || !data || 'error' in data) {
-                    setOrgInfoError(!data || !('error' in data) ? `Failed to load org: ${res.status}` : data.error);
+                    setOrgInfoError(
+                        !data || !('error' in data)
+                            ? `Failed to load org: ${res.status}`
+                            : data.error
+                    );
                     setOrgInfo(null);
                     return;
                 }
@@ -87,14 +102,15 @@ export default function ProjectTasksPage() {
         return () => ctrl.abort();
     }, [orgSlug]);
 
-    // ─────────────── загрузка задач ───────────────
     const load = React.useCallback(async () => {
         if (!orgSlug || !projectRef) return;
         try {
             setLoading(true);
             setError(null);
             const url = new URL(
-                `/api/org/${encodeURIComponent(orgSlug)}/projects/${encodeURIComponent(projectRef)}/tasks`,
+                `/api/org/${encodeURIComponent(orgSlug)}/projects/${encodeURIComponent(
+                    projectRef
+                )}/tasks`,
                 window.location.origin
             );
             if (q) url.searchParams.set('q', q);
@@ -139,11 +155,11 @@ export default function ProjectTasksPage() {
                 </Box>
                 <Stack direction="row" spacing={1}>
                     <Tooltip title="Обновить">
-            <span>
-              <IconButton onClick={() => void load()} disabled={loading}>
-                <RefreshIcon />
-              </IconButton>
-            </span>
+                        <span>
+                            <IconButton onClick={() => void load()} disabled={loading}>
+                                <RefreshIcon />
+                            </IconButton>
+                        </span>
                     </Tooltip>
                     <Button onClick={() => setOpen(true)} variant="contained" startIcon={<AddIcon />}>
                         Создать задачу
@@ -183,7 +199,9 @@ export default function ProjectTasksPage() {
                         error={error}
                         org={orgSlug || ''}
                         project={projectRef || ''}
-                        onReloadAction={() => { void load(); }}
+                        onReloadAction={() => {
+                            void load();
+                        }}
                     />
                 )}
 
@@ -192,6 +210,11 @@ export default function ProjectTasksPage() {
                         items={items}
                         loading={loading}
                         error={error}
+                        org={orgSlug || ''}
+                        project={projectRef || ''}
+                        onReloadAction={() => {
+                            void load();
+                        }}
                     />
                 )}
 
@@ -200,6 +223,11 @@ export default function ProjectTasksPage() {
                         items={items}
                         loading={loading}
                         error={error}
+                        org={orgSlug || ''}
+                        project={projectRef || ''}
+                        onReloadAction={() => {
+                            void load();
+                        }}
                     />
                 )}
 
@@ -214,9 +242,6 @@ export default function ProjectTasksPage() {
                     }}
                 />
             </Paper>
-
-
-
         </Box>
     );
 }

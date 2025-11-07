@@ -4,17 +4,32 @@
 import { useMemo, useState } from 'react';
 import dynamic from 'next/dynamic';
 import {
-    Box, Chip, Stack, Typography,
-    Dialog, DialogTitle, DialogContent, DialogActions,
-    Button, Alert, ButtonGroup
+    Box,
+    Chip,
+    Stack,
+    Typography,
+    Dialog,
+    DialogTitle,
+    DialogContent,
+    DialogActions,
+    Button,
+    Alert,
+    ButtonGroup,
 } from '@mui/material';
 
 import {
-    format, parse, startOfWeek, getDay, addHours, getISOWeek
+    format,
+    parse,
+    startOfWeek,
+    getDay,
+    addHours,
+    getISOWeek,
 } from 'date-fns';
 import { ru } from 'date-fns/locale';
 import {
-    dateFnsLocalizer, type CalendarProps, type Event as RBCEvent,
+    dateFnsLocalizer,
+    type CalendarProps,
+    type Event as RBCEvent,
 } from 'react-big-calendar';
 import 'react-big-calendar/lib/css/react-big-calendar.css';
 import ArrowBackIos from '@mui/icons-material/ArrowBackIos';
@@ -122,11 +137,24 @@ export default function ProjectTaskCalendar({
                                                 items,
                                                 loading,
                                                 error,
+                                                org,
+                                                project,
+                                                onReloadAction,
                                             }: {
     items: Task[];
     loading: boolean;
     error: string | null;
+    org?: string;
+    project?: string;
+    onReloadAction?: () => void;
 }) {
+    // чтобы ESLint не ругался на неиспользуемые пропсы
+    void org;
+    void project;
+    void onReloadAction;
+
+    // дальше твой код...
+
     const [currentDate, setCurrentDate] = useState<Date>(new Date());
     const [view, setView] = useState<ViewType>('month');
     const [selected, setSelected] = useState<Task | null>(null);
@@ -152,7 +180,6 @@ export default function ProjectTaskCalendar({
     }
     if (error) return <Alert severity="error" sx={{ m: 2 }}>{error}</Alert>;
 
-    // подготавливаем components prop без any
     const calendarComponents = {
         toolbar: Toolbar,
     } as unknown as CalendarProps<CalendarEvent>['components'];
@@ -203,8 +230,9 @@ export default function ProjectTaskCalendar({
                                     label={(selected.status || 'TO DO').toString().toUpperCase()}
                                     sx={{
                                         bgcolor:
-                                            statusBg[((selected.status || 'TO DO') as string).toUpperCase() as Status] ??
-                                            '#9e9e9e',
+                                            statusBg[
+                                                ((selected.status || 'TO DO') as string).toUpperCase() as Status
+                                                ] ?? '#9e9e9e',
                                         color: '#fff',
                                     }}
                                 />
@@ -244,6 +272,7 @@ export default function ProjectTaskCalendar({
 
                         <DialogActions>
                             <Button onClick={() => setSelected(null)}>Close</Button>
+                            {/* при желании можно дергать onReloadAction() после каких-то действий */}
                         </DialogActions>
                     </>
                 )}
