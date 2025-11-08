@@ -2,7 +2,7 @@
 
 'use client';
 
-import React, { useMemo, useState, useEffect } from 'react';
+import React, { useMemo, useState } from 'react';
 import {
     Box,
     Typography,
@@ -223,31 +223,6 @@ export default function ProjectTaskBoard({
     const [deleteLoading, setDeleteLoading] = useState(false);
     const [deleteError, setDeleteError] = useState<string | null>(null);
 
-    // карта задач для переноса меню
-    const taskById = useMemo(() => new Map(items.map((t) => [t._id, t])), [items]);
-
-    // перетаскивание контекстного меню по другим карточкам
-    useEffect(() => {
-        if (!menuPos) return;
-
-        const handler = (e: MouseEvent) => {
-            e.preventDefault();
-
-            const target = e.target as HTMLElement | null;
-            const cardEl = target?.closest?.('[data-task-id]') as HTMLElement | null;
-
-            if (cardEl) {
-                const id = cardEl.getAttribute('data-task-id') || '';
-                const t = taskById.get(id);
-                if (t) setMenuTask(t);
-            }
-            setMenuPos({ top: e.clientY - 4, left: e.clientX - 2 });
-        };
-
-        document.addEventListener('contextmenu', handler, true);
-        return () => document.removeEventListener('contextmenu', handler, true);
-    }, [menuPos, taskById]);
-
     // клик по карточке — открыть диалог
     const handleCardClick = (t: Task) => {
         setSelectedTask(t);
@@ -257,9 +232,11 @@ export default function ProjectTaskBoard({
     // ПКМ по карточке — открыть меню
     const handleCardContext = (e: React.MouseEvent, t: Task) => {
         e.preventDefault();
+        e.stopPropagation();
         setMenuTask(t);
         setMenuPos({ top: e.clientY - 4, left: e.clientX - 2 });
     };
+
     const closeMenu = () => setMenuPos(null);
 
     // действия меню

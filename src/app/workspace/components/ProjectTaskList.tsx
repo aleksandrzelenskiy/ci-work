@@ -64,15 +64,11 @@ type Task = {
     executorId?: string;
     executorName?: string;
     executorEmail?: string;
-
-    // то, что раньше было только в диалоге — но бэк уже это отдаёт
     bsAddress?: string;
     taskDescription?: string;
     bsLatitude?: number;
     bsLongitude?: number;
     files?: Array<{ name?: string; url?: string; size?: number }>;
-
-    // 👇 вот они — добавляем, чтобы не потерять
     attachments?: string[];
     bsLocation?: Array<{ name: string; coordinates: string }>;
 };
@@ -235,28 +231,9 @@ export default function ProjectTaskList({
     const [menuPos, setMenuPos] = useState<{ top: number; left: number } | null>(null);
     const [selectedTask, setSelectedTask] = useState<TaskWithStatus | null>(null);
 
-    const taskById = useMemo(() => new Map(filtered.map((t) => [t._id, t])), [filtered]);
-
-    useEffect(() => {
-        if (!menuPos) return;
-        const handler = (e: MouseEvent) => {
-            e.preventDefault();
-            const target = e.target as HTMLElement | null;
-            const rowEl = target?.closest?.('[data-task-id]') as HTMLElement | null;
-            if (rowEl) {
-                const id = rowEl.getAttribute('data-task-id') || '';
-                const t = taskById.get(id);
-                if (t) setSelectedTask(t);
-            }
-            setMenuPos({ top: e.clientY - 4, left: e.clientX - 2 });
-        };
-
-        document.addEventListener('contextmenu', handler, true);
-        return () => document.removeEventListener('contextmenu', handler, true);
-    }, [menuPos, taskById]);
-
     const handleContextMenu = (e: React.MouseEvent, task: TaskWithStatus) => {
         e.preventDefault();
+        e.stopPropagation();
         setSelectedTask(task);
         setMenuPos({ top: e.clientY - 4, left: e.clientX - 2 });
     };
