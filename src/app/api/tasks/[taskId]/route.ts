@@ -23,18 +23,16 @@ interface UpdateData {
   dueDate?: string;
   priority?: PriorityLevel;
   orderNumber?: string;
-  orderDate?: string;      // ISO
-  orderSignDate?: string;  // ISO
-  workCompletionDate?: string; // ISO — дата окончания работ (= дата уведомления)
+  orderDate?: string; // ISO
+  orderSignDate?: string; // ISO
+  workCompletionDate?: string; // ISO
   reportLink?: string;
   event?: { details?: { comment?: string } };
   existingAttachments?: string[];
-  // решения исполнителя
-  decision?: string;       // 'accept' | 'reject'
+  decision?: string; // 'accept' | 'reject'
   accept?: boolean | string;
   reject?: boolean | string;
 }
-
 
 function toBool(x: unknown): boolean {
   if (typeof x === 'boolean') return x;
@@ -61,15 +59,20 @@ export async function GET(
   try {
     await connectToDatabase();
     const { taskId } = await context.params;
-    if (!taskId) return NextResponse.json({ error: 'No taskId provided' }, { status: 400 });
+    if (!taskId)
+      return NextResponse.json({ error: 'No taskId provided' }, { status: 400 });
 
     const taskIdUpper = taskId.toUpperCase();
     const task = await TaskModel.findOne({ taskId: taskIdUpper });
     if (!task) return NextResponse.json({ error: 'Task not found' }, { status: 404 });
 
-    const photoReports = await Report.find({ reportId: { $regex: `^${taskIdUpper}` } });
+    const photoReports = await Report.find({
+      reportId: { $regex: `^${taskIdUpper}` },
+    });
 
-    return NextResponse.json({ task: { ...task.toObject(), photoReports: photoReports || [] } });
+    return NextResponse.json({
+      task: { ...task.toObject(), photoReports: photoReports || [] },
+    });
   } catch (err) {
     console.error('GET task error:', err);
     return NextResponse.json({ error: 'Internal Server Error' }, { status: 500 });
@@ -83,15 +86,25 @@ export async function PATCH(
   try {
     await connectToDatabase();
     const { taskId } = await context.params;
-    if (!taskId) return NextResponse.json({ error: 'No taskId provided' }, { status: 400 });
+    if (!taskId)
+      return NextResponse.json({ error: 'No taskId provided' }, { status: 400 });
 
     const taskIdUpper = taskId.toUpperCase();
 
     const user = await currentUser();
-    if (!user) return NextResponse.json({ error: 'Authentication required' }, { status: 401 });
+    if (!user)
+      return NextResponse.json({ error: 'Authentication required' }, { status: 401 });
 
     const task = await TaskModel.findOne({ taskId: taskIdUpper });
     if (!task) return NextResponse.json({ error: 'Task not found' }, { status: 404 });
+
+    // ✅ гарантируем массивы, чтобы ниже не ругался TS
+    if (!Array.isArray(task.events)) {
+      task.events = [];
+    }
+    if (!Array.isArray(task.attachments)) {
+      task.attachments = [];
+    }
 
     const contentType = request.headers.get('content-type');
     let updateData: UpdateData = {} as UpdateData;
@@ -104,7 +117,7 @@ export async function PATCH(
 
       const otherData: Record<string, FormDataEntryValue> = {};
       let orderFile: File | null = null;
-      let ncwFile: File | null = null; // <— НОВОЕ
+      let ncwFile: File | null = null;
 
       for (const [key, value] of entries) {
         if (key.startsWith('attachments_') && value instanceof Blob) {
@@ -112,7 +125,7 @@ export async function PATCH(
         } else if (key === 'orderFile' && value instanceof Blob) {
           orderFile = value as File;
         } else if (key === 'ncwFile' && value instanceof Blob) {
-          ncwFile = value as File; // <— НОВОЕ
+          ncwFile = value as File;
         } else {
           otherData[key] = value;
         }
@@ -122,8 +135,10 @@ export async function PATCH(
           Object.entries(otherData).map(([k, v]) => [k, v.toString()])
       ) as unknown as UpdateData;
 
-      const maybeExisting =
-          (updateData as unknown as { existingAttachments?: string | string[] }).existingAttachments;
+      const maybeExisting = (updateData as unknown as {
+        existingAttachments?: string | string[];
+      }).existingAttachments;
+
       if (typeof maybeExisting === 'string') {
         try {
           updateData.existingAttachments = JSON.parse(maybeExisting);
@@ -134,7 +149,14 @@ export async function PATCH(
 
       if (attachments.length > 0) {
         const existing = updateData.existingAttachments || [];
-        task.attachments = task.attachments.filter((a: string) => existing.includes(a));
+
+        // уже гарантировано, но оставим
+        task.attachments = task.attachments || [];
+
+        // оставляем только те, что были помечены как существующие
+        task.attachments = task.attachments.filter((a: string) =>
+            existing.includes(a)
+        );
 
         const newAttachments: string[] = [];
         for (const file of attachments) {
@@ -155,10 +177,16 @@ export async function PATCH(
         const mime = orderFile.type || 'application/octet-stream';
         const allowed = ['application/pdf', 'image/jpeg', 'image/png', 'image/webp'];
         if (!allowed.includes(mime) && !mime.startsWith('image/')) {
-          return NextResponse.json({ error: 'Unsupported file type for orderFile' }, { status: 400 });
+          return NextResponse.json(
+              { error: 'Unsupported file type for orderFile' },
+              { status: 400 }
+          );
         }
         if (orderFile.size > 20 * 1024 * 1024) {
-          return NextResponse.json({ error: 'Order file too large (max 20 MB)' }, { status: 413 });
+          return NextResponse.json(
+              { error: 'Order file too large (max 20 MB)' },
+              { status: 413 }
+          );
         }
 
         const buffer = Buffer.from(await orderFile.arrayBuffer());
@@ -175,17 +203,23 @@ export async function PATCH(
       if (ncwFile) {
         const mime = ncwFile.type || 'application/pdf';
         if (mime !== 'application/pdf') {
-          return NextResponse.json({ error: 'Unsupported file type for ncwFile (PDF only)' }, { status: 400 });
+          return NextResponse.json(
+              { error: 'Unsupported file type for ncwFile (PDF only)' },
+              { status: 400 }
+          );
         }
         if (ncwFile.size > 20 * 1024 * 1024) {
-          return NextResponse.json({ error: 'NCW file too large (max 20 MB)' }, { status: 413 });
+          return NextResponse.json(
+              { error: 'NCW file too large (max 20 MB)' },
+              { status: 413 }
+          );
         }
 
         const buffer = Buffer.from(await ncwFile.arrayBuffer());
         task.ncwUrl = await uploadTaskFile(
             buffer,
             taskIdUpper,
-            'ncw', // uploads/TASKID/TASKID-ncw/<filename>
+            'ncw',
             `${Date.now()}-${ncwFile.name}`,
             mime
         );
@@ -202,7 +236,9 @@ export async function PATCH(
     if (updateData.taskDescription) task.taskDescription = updateData.taskDescription;
 
     if (updateData.initiatorId) {
-      const initiator = await UserModel.findOne({ clerkUserId: updateData.initiatorId });
+      const initiator = await UserModel.findOne({
+        clerkUserId: updateData.initiatorId,
+      });
       if (initiator) {
         task.initiatorId = initiator.clerkUserId;
         task.initiatorName = initiator.name;
@@ -229,12 +265,16 @@ export async function PATCH(
             author: user.fullName || user.username || 'Unknown',
             authorId: user.id,
             date: new Date(),
-            details: { comment: 'Executor removed, status reverted to To do' },
+            details: {
+              comment: 'Executor removed, status reverted to To do',
+            },
           });
         }
       } else if (updateData.executorId) {
         // назначить исполнителя (по clerkUserId)
-        const executor = await UserModel.findOne({ clerkUserId: updateData.executorId });
+        const executor = await UserModel.findOne({
+          clerkUserId: updateData.executorId,
+        });
         if (executor) {
           executorAssigned = true;
           task.executorId = executor.clerkUserId;
@@ -242,17 +282,17 @@ export async function PATCH(
           task.executorEmail = executor.email;
 
           if (task.status === 'To do') {
-            // Только TASK_ASSIGNED, без STATUS_CHANGED/EXECUTOR_ASSIGNED
             task.status = 'Assigned';
             task.events.push({
               action: 'TASK_ASSIGNED',
               author: user.fullName || user.username || 'Unknown',
               authorId: user.id,
               date: new Date(),
-              details: { comment: `The task is assigned to the executor: ${executor.name}` },
+              details: {
+                comment: `The task is assigned to the executor: ${executor.name}`,
+              },
             });
           }
-          // Если статус уже не To do (например, пере-назначение) — не плодим события.
         }
       }
     }
@@ -274,7 +314,10 @@ export async function PATCH(
 
     if (decision === 'accept') {
       if (!task.executorId) {
-        return NextResponse.json({ error: 'Cannot accept: no executor assigned' }, { status: 400 });
+        return NextResponse.json(
+            { error: 'Cannot accept: no executor assigned' },
+            { status: 400 }
+        );
       }
       if (task.status !== 'At work') {
         task.status = 'At work';
@@ -283,7 +326,9 @@ export async function PATCH(
           author: user.fullName || user.username || 'Unknown',
           authorId: user.id,
           date: new Date(),
-          details: { comment: 'Executor accepted the task. Status → At work' },
+          details: {
+            comment: 'Executor accepted the task. Status → At work',
+          },
         });
       }
     }
@@ -310,14 +355,28 @@ export async function PATCH(
           author: user.fullName || user.username || 'Unknown',
           authorId: user.id,
           date: new Date(),
-          details: { comment: 'Executor removed, status reverted to To do' },
+          details: {
+            comment: 'Executor removed, status reverted to To do',
+          },
         });
       }
     }
 
-    // === ручная смена статуса (например, Done/Agreed) — только если не менялся исполнитель и не было accept/reject
+    // === ручная смена статуса (если не меняли исполнителя и не было accept/reject)
     if (updateData.status && !executorRemoved && !executorAssigned && !decision) {
-      task.status = updateData.status;
+
+      if (updateData.status && !executorRemoved && !executorAssigned && !decision) {
+
+        task.status = updateData.status as typeof task.status;
+        task.events.push({
+          action: 'STATUS_CHANGED',
+          author: user.fullName || user.username || 'Unknown',
+          authorId: user.id,
+          date: new Date(),
+          details: { comment: `Status changed to: ${updateData.status}` },
+        });
+      }
+
       task.events.push({
         action: 'STATUS_CHANGED',
         author: user.fullName || user.username || 'Unknown',
@@ -328,7 +387,8 @@ export async function PATCH(
     }
 
     // === поля заказа ===
-    if (updateData.orderNumber !== undefined) task.orderNumber = updateData.orderNumber;
+    if (updateData.orderNumber !== undefined)
+      task.orderNumber = updateData.orderNumber;
     if (updateData.orderDate) {
       const d = new Date(updateData.orderDate);
       if (!isNaN(d.getTime())) task.orderDate = d;
@@ -338,7 +398,7 @@ export async function PATCH(
       if (!isNaN(d.getTime())) task.orderSignDate = d;
     }
 
-    // === дата окончания работ (= дата уведомления) ===
+    // === дата окончания работ ===
     if (updateData.workCompletionDate) {
       const d = new Date(updateData.workCompletionDate);
       if (!isNaN(d.getTime())) task.workCompletionDate = d;
@@ -349,10 +409,8 @@ export async function PATCH(
       const v = (updateData.reportLink ?? '').trim();
 
       if (v) {
-        // 1) сохраняем ссылку
         task.reportLink = v;
 
-        // 2) если статус ещё не Pending — меняем и пишем событие
         if (task.status !== 'Pending') {
           task.events.push({
             action: 'STATUS_CHANGED',
@@ -368,13 +426,9 @@ export async function PATCH(
           task.status = 'Pending';
         }
       } else {
-        // Пустая строка — очищаем значение
         task.reportLink = '';
       }
     }
-
-
-
 
     // === Excel при Agreed ===
     if (updateData.status?.toLowerCase() === 'agreed' && !decision) {
@@ -396,16 +450,17 @@ export async function DELETE(
   try {
     await connectToDatabase();
     const { taskId } = await context.params;
-    if (!taskId) return NextResponse.json({ error: 'No taskId provided' }, { status: 400 });
+    if (!taskId)
+      return NextResponse.json({ error: 'No taskId provided' }, { status: 400 });
 
     const user = await currentUser();
-    if (!user) return NextResponse.json({ error: 'Authentication required' }, { status: 401 });
+    if (!user)
+      return NextResponse.json({ error: 'Authentication required' }, { status: 401 });
 
     const taskIdUpper = taskId.toUpperCase();
     const task = await TaskModel.findOne({ taskId: taskIdUpper });
     if (!task) return NextResponse.json({ error: 'Task not found' }, { status: 404 });
 
-    // ?file=order | ncw (по умолчанию — order)
     const url = new URL(request.url);
     const fileType = (url.searchParams.get('file') || 'order').toLowerCase();
 
@@ -416,38 +471,32 @@ export async function DELETE(
 
       const updatedTask = await TaskModel.findOneAndUpdate(
           { taskId: taskIdUpper },
-          { $unset: { ncwUrl: "", workCompletionDate: "" } },
+          { $unset: { ncwUrl: '', workCompletionDate: '' } },
           { new: true, runValidators: false }
       );
 
       return NextResponse.json({ task: updatedTask });
     }
 
-
     // --- default: order ---
-    const hasOrderFile = !!task.orderUrl;
-
-    if (hasOrderFile) {
+    if (task.orderUrl) {
       await deleteTaskFile(task.orderUrl);
     }
 
-// Даже если файла нет, всё равно чистим связанные поля заказа
     const updatedTask = await TaskModel.findOneAndUpdate(
         { taskId: taskIdUpper },
         {
           $unset: {
-            orderUrl: "",
-            orderNumber: "",
-            orderDate: "",
-            orderSignDate: ""
-          }
+            orderUrl: '',
+            orderNumber: '',
+            orderDate: '',
+            orderSignDate: '',
+          },
         },
         { new: true, runValidators: false }
     );
 
     return NextResponse.json({ task: updatedTask });
-
-
   } catch (err) {
     console.error('Error deleting order/ncw file:', err);
     return NextResponse.json({ error: 'Internal server error' }, { status: 500 });
