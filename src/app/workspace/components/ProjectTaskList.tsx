@@ -2,6 +2,7 @@
 'use client';
 
 import React, { useMemo, useState, useEffect } from 'react';
+import { useRouter } from 'next/navigation';
 import {
     Box, Table, TableBody, TableCell, TableContainer, TableHead, TableRow, Typography,
     IconButton, Tooltip, Chip, Popover, FormControl, InputLabel, Select, MenuItem,
@@ -130,6 +131,9 @@ export default function ProjectTaskList({
     project: string;
     onReloadAction?: () => void;
 }) {
+
+    const router = useRouter();
+
     const [columnVisibility, setColumnVisibility] = useState<Record<string, boolean>>({
         taskId: true,
         task: true,
@@ -238,6 +242,15 @@ export default function ProjectTaskList({
         setMenuPos({ top: e.clientY - 4, left: e.clientX - 2 });
     };
     const handleCloseMenu = () => setMenuPos(null);
+
+    const openTaskPage = (task: TaskWithStatus) => {
+        // если по какой-то причине taskId нет — переходим на _id
+        const slug = task.taskId ? task.taskId : task._id;
+        router.push(
+            `/org/${encodeURIComponent(org)}/projects/${encodeURIComponent(project)}/tasks/${encodeURIComponent(slug)}`
+        );
+    };
+
 
     const [editOpen, setEditOpen] = useState(false);
     const handleEditTask = () => {
@@ -460,17 +473,23 @@ export default function ProjectTaskList({
                                 const execSub = t.executorName && t.executorEmail ? t.executorEmail : '';
 
                                 return (
+
                                     <TableRow
                                         key={t._id}
                                         data-task-id={t._id}
+                                        onClick={(e) => {
+                                            if (e.button !== 0) return;
+                                            openTaskPage(t);
+                                        }}
                                         onContextMenu={(e) => handleContextMenu(e, t)}
                                         sx={{
                                             transition: 'background-color .15s ease',
-                                            cursor: 'context-menu',
+                                            cursor: 'pointer', // теперь логичнее pointer
                                             '&:hover': { backgroundColor: '#fffde7' },
                                         }}
                                     >
-                                        {columnVisibility.taskId && <TableCell align="center">{t.taskId}</TableCell>}
+
+                                    {columnVisibility.taskId && <TableCell align="center">{t.taskId}</TableCell>}
 
                                         {columnVisibility.task && (
                                             <TableCell>
@@ -704,11 +723,14 @@ export default function ProjectTaskList({
                 >
                     <MMenuItem
                         onClick={() => {
-                            alert('Открыть задачу (заглушка)');
+                            if (selectedTask) {
+                                openTaskPage(selectedTask);
+                            }
                             handleCloseMenu();
                         }}
                     >
-                        <MListItemIcon>
+
+                    <MListItemIcon>
                             <OpenInNewIcon fontSize="small" />
                         </MListItemIcon>
                         <MListItemText primary="Открыть" />

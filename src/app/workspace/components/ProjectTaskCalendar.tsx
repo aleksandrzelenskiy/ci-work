@@ -2,19 +2,14 @@
 'use client';
 
 import { useMemo, useState } from 'react';
+import { useRouter } from 'next/navigation';
 import dynamic from 'next/dynamic';
 import {
     Box,
-    Chip,
-    Stack,
     Typography,
-    Dialog,
-    DialogTitle,
-    DialogContent,
-    DialogActions,
-    Button,
     Alert,
     ButtonGroup,
+    Button,
 } from '@mui/material';
 
 import {
@@ -36,7 +31,7 @@ import ArrowBackIos from '@mui/icons-material/ArrowBackIos';
 import ArrowForwardIos from '@mui/icons-material/ArrowForwardIos';
 import Today from '@mui/icons-material/Today';
 
-/* ---------- Типы ---------- */
+// Типы
 type Status = 'TO DO' | 'IN PROGRESS' | 'DONE';
 type Priority = 'urgent' | 'high' | 'medium' | 'low';
 type ViewType = 'month' | 'week' | 'day';
@@ -56,20 +51,13 @@ type Task = {
 
 type CalendarEvent = RBCEvent<{ priority?: Priority | string; status?: Status | string; id: string }>;
 
-/* ---------- Цвета ---------- */
-const prColors: Record<Priority, string> = {
-    urgent: '#d32f2f',
-    high: '#f57c00',
-    medium: '#1976d2',
-    low: '#388e3c',
-};
 const statusBg: Record<Status, string> = {
     'TO DO': '#9e9e9e',
     'IN PROGRESS': '#0288d1',
     'DONE': '#2e7d32',
 };
 
-/* ---------- Динамический импорт Calendar ---------- */
+// Динамический импорт Calendar
 const Calendar = dynamic(
     () =>
         import('react-big-calendar').then(
@@ -78,7 +66,7 @@ const Calendar = dynamic(
     { ssr: false }
 );
 
-/* ---------- Localizer ---------- */
+// Localizer
 const localizer = dateFnsLocalizer({
     format,
     parse,
@@ -87,7 +75,7 @@ const localizer = dateFnsLocalizer({
     locales: { ru },
 });
 
-/* ---------- Кастомный Toolbar ---------- */
+// Кастомный Toolbar
 type ToolbarProps = {
     label: string;
     view: ViewType | string;
@@ -132,7 +120,7 @@ function Toolbar({ label, view, date, onNavigate, onView }: ToolbarProps) {
     );
 }
 
-/* ---------- Компонент ---------- */
+// Компонент
 export default function ProjectTaskCalendar({
                                                 items,
                                                 loading,
@@ -148,16 +136,19 @@ export default function ProjectTaskCalendar({
     project?: string;
     onReloadAction?: () => void;
 }) {
-    // чтобы ESLint не ругался на неиспользуемые пропсы
-    void org;
-    void project;
+    const router = useRouter();
     void onReloadAction;
 
-    // дальше твой код...
+    const openTaskPage = (task: Task) => {
+        if (!org || !project) return;
+        const slug = task.taskId ? task.taskId : task._id;
+        router.push(
+            `/org/${encodeURIComponent(org)}/projects/${encodeURIComponent(project)}/tasks/${encodeURIComponent(slug)}`
+        );
+    };
 
     const [currentDate, setCurrentDate] = useState<Date>(new Date());
     const [view, setView] = useState<ViewType>('month');
-    const [selected, setSelected] = useState<Task | null>(null);
 
     const events = useMemo<CalendarEvent[]>(() => {
         return items
@@ -185,98 +176,37 @@ export default function ProjectTaskCalendar({
     } as unknown as CalendarProps<CalendarEvent>['components'];
 
     return (
-        <>
-            <Box sx={{ height: 'calc(100vh - 260px)' }}>
-                <Calendar
-                    localizer={localizer}
-                    events={events}
-                    date={currentDate}
-                    view={view}
-                    onNavigate={setCurrentDate}
-                    onView={(v) => setView(v as ViewType)}
-                    components={calendarComponents}
-                    views={{ month: true, week: true, day: true }}
-                    popup
-                    style={{ height: '100%' }}
-                    eventPropGetter={(ev) => {
-                        const st = ((ev.resource?.status || 'TO DO') as string).toUpperCase() as Status;
-                        return {
-                            style: {
-                                backgroundColor: statusBg[st] ?? '#9e9e9e',
-                                fontSize: '0.75rem',
-                                lineHeight: 1.15,
-                            },
-                        };
-                    }}
-                    onSelectEvent={(ev) => {
-                        const id = ev.resource?.id;
-                        if (!id) return;
-                        const t = items.find((x) => x._id === id);
-                        if (t) setSelected(t);
-                    }}
-                />
-            </Box>
-
-            <Dialog open={Boolean(selected)} onClose={() => setSelected(null)} fullWidth maxWidth="sm">
-                {selected && (
-                    <>
-                        <DialogTitle sx={{ fontSize: 16 }}>
-                            {selected.taskName} {selected.bsNumber ? `| ${selected.bsNumber}` : ''}
-                        </DialogTitle>
-
-                        <DialogContent dividers>
-                            <Stack direction="row" spacing={2} mb={2} flexWrap="wrap">
-                                <Chip
-                                    label={(selected.status || 'TO DO').toString().toUpperCase()}
-                                    sx={{
-                                        bgcolor:
-                                            statusBg[
-                                                ((selected.status || 'TO DO') as string).toUpperCase() as Status
-                                                ] ?? '#9e9e9e',
-                                        color: '#fff',
-                                    }}
-                                />
-                                {selected.priority && (
-                                    <Chip
-                                        label={selected.priority}
-                                        sx={{
-                                            bgcolor: prColors[(selected.priority as Priority) || 'medium'],
-                                            color: '#fff',
-                                        }}
-                                    />
-                                )}
-                                {selected.createdAt && (
-                                    <Typography variant="body2">
-                                        Created: {new Date(selected.createdAt).toLocaleDateString('ru-RU')}
-                                    </Typography>
-                                )}
-                                {selected.dueDate && (
-                                    <Typography variant="body2">
-                                        Due: {new Date(selected.dueDate).toLocaleDateString('ru-RU')}
-                                    </Typography>
-                                )}
-                            </Stack>
-
-                            <Stack spacing={1}>
-                                {selected.bsNumber && (
-                                    <Typography variant="subtitle2">BS Number: {selected.bsNumber}</Typography>
-                                )}
-                                {selected.bsAddress && (
-                                    <Typography variant="subtitle2">Address: {selected.bsAddress}</Typography>
-                                )}
-                                {typeof selected.totalCost === 'number' && (
-                                    <Typography variant="subtitle2">Cost: {selected.totalCost}</Typography>
-                                )}
-                            </Stack>
-                        </DialogContent>
-
-                        <DialogActions>
-                            <Button onClick={() => setSelected(null)}>Close</Button>
-                            {/* при желании можно дергать onReloadAction() после каких-то действий */}
-                        </DialogActions>
-                    </>
-                )}
-            </Dialog>
-        </>
+        <Box sx={{ height: 'calc(100vh - 260px)' }}>
+            <Calendar
+                localizer={localizer}
+                events={events}
+                date={currentDate}
+                view={view}
+                onNavigate={setCurrentDate}
+                onView={(v) => setView(v as ViewType)}
+                components={calendarComponents}
+                views={{ month: true, week: true, day: true }}
+                popup
+                style={{ height: '100%' }}
+                eventPropGetter={(ev) => {
+                    const st = ((ev.resource?.status || 'TO DO') as string).toUpperCase() as Status;
+                    return {
+                        style: {
+                            backgroundColor: statusBg[st] ?? '#9e9e9e',
+                            fontSize: '0.75rem',
+                            lineHeight: 1.15,
+                        },
+                    };
+                }}
+                onSelectEvent={(ev) => {
+                    const id = ev.resource?.id;
+                    if (!id) return;
+                    const t = items.find((x) => x._id === id);
+                    if (t) {
+                        openTaskPage(t);
+                    }
+                }}
+            />
+        </Box>
     );
 }

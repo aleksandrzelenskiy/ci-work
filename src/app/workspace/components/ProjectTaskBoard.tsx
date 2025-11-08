@@ -3,6 +3,7 @@
 'use client';
 
 import React, { useMemo, useState } from 'react';
+import { useRouter } from 'next/navigation';
 import {
     Box,
     Typography,
@@ -194,6 +195,9 @@ export default function ProjectTaskBoard({
     project: string;
     onReloadAction?: () => void;
 }) {
+
+    const router = useRouter();
+
     // группировка по статусу
     const grouped = useMemo(() => {
         const base: Record<StatusTitle, Task[]> = {
@@ -223,10 +227,15 @@ export default function ProjectTaskBoard({
     const [deleteLoading, setDeleteLoading] = useState(false);
     const [deleteError, setDeleteError] = useState<string | null>(null);
 
-    // клик по карточке — открыть диалог
+    // ЛКМ - переход на страницу задачи
+    const openTaskPage = (task: Task) => {
+        const slug = task.taskId ? task.taskId : task._id;
+        router.push(
+            `/org/${encodeURIComponent(org)}/projects/${encodeURIComponent(project)}/tasks/${encodeURIComponent(slug)}`
+        );
+    };
     const handleCardClick = (t: Task) => {
-        setSelectedTask(t);
-        setEditOpen(true);
+        openTaskPage(t);
     };
 
     // ПКМ по карточке — открыть меню
@@ -239,10 +248,13 @@ export default function ProjectTaskBoard({
 
     const closeMenu = () => setMenuPos(null);
 
-    // действия меню
+    // открытие страницы задачи из контекстного меню
     const onOpenTask = () => {
-        alert('Открыть задачу (заглушка)');
+        if (menuTask) {
+            openTaskPage(menuTask);
+        }
     };
+
 
     const onEditTask = () => {
         if (!menuTask) return;

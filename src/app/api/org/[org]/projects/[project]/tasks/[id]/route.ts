@@ -244,9 +244,6 @@ export async function GET(
         if (!email) return NextResponse.json({ error: 'Auth required' }, { status: 401 });
 
         const { org: orgSlug, project: projectRef, id } = await ctx.params;
-        if (!Types.ObjectId.isValid(id)) {
-            return NextResponse.json({ error: 'Invalid task id' }, { status: 400 });
-        }
 
         const ensured = await requireOrgProject(orgSlug, projectRef);
         if (!ensured.ok) {
@@ -254,15 +251,22 @@ export async function GET(
         }
         const { orgId, projectId } = ensured;
 
-        const task = await TaskModel.findOne(
-            {
-                _id: new Types.ObjectId(String(id)),
-                orgId,
-                projectId,
-            },
-            {},
-            { lean: true }
-        );
+        const rawId = String(id);
+
+        let task = null;
+        if (Types.ObjectId.isValid(rawId)) {
+            task = await TaskModel.findOne(
+                { _id: new Types.ObjectId(rawId), orgId, projectId },
+                {},
+                { lean: true }
+            );
+        } else {
+            task = await TaskModel.findOne(
+                { taskId: rawId, orgId, projectId },
+                {},
+                { lean: true }
+            );
+        }
 
         if (!task) return NextResponse.json({ error: 'Task not found' }, { status: 404 });
         return NextResponse.json({ task });
