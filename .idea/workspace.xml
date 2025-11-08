@@ -6,13 +6,7 @@
   <component name="ChangeListManager">
     <list default="true" id="b3c91f45-fbe1-4477-9fd9-38d0fcaf660d" name="Changes" comment="feat: сохраняем clerkUserId для исполнителя и добавляем поле стоимости в задачу">
       <change beforePath="$PROJECT_DIR$/.idea/workspace.xml" beforeDir="false" afterPath="$PROJECT_DIR$/.idea/workspace.xml" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/src/app/api/org/[org]/members/invite/route.ts" beforeDir="false" afterPath="$PROJECT_DIR$/src/app/api/org/[org]/members/invite/route.ts" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/src/app/api/org/[org]/members/route.ts" beforeDir="false" afterPath="$PROJECT_DIR$/src/app/api/org/[org]/members/route.ts" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/src/app/api/org/[org]/projects/[project]/tasks/[id]/route.ts" beforeDir="false" afterPath="$PROJECT_DIR$/src/app/api/org/[org]/projects/[project]/tasks/[id]/route.ts" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/src/app/api/org/[org]/projects/[project]/tasks/route.ts" beforeDir="false" afterPath="$PROJECT_DIR$/src/app/api/org/[org]/projects/[project]/tasks/route.ts" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/src/app/models/TaskModel.ts" beforeDir="false" afterPath="$PROJECT_DIR$/src/app/models/TaskModel.ts" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/src/app/org/[org]/projects/[project]/tasks/[id]/page.tsx" beforeDir="false" afterPath="$PROJECT_DIR$/src/app/org/[org]/projects/[project]/tasks/[id]/page.tsx" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/src/app/workspace/components/WorkspaceTaskDialog.tsx" beforeDir="false" afterPath="$PROJECT_DIR$/src/app/workspace/components/WorkspaceTaskDialog.tsx" afterDir="false" />
     </list>
     <option name="SHOW_DIALOG" value="false" />
     <option name="HIGHLIGHT_CONFLICTS" value="true" />
@@ -120,15 +114,7 @@
       <workItem from="1761720378244" duration="633000" />
       <workItem from="1761887562972" duration="15306000" />
       <workItem from="1762422367880" duration="27839000" />
-      <workItem from="1762582926294" duration="9632000" />
-    </task>
-    <task id="LOCAL-00004" summary="Generation of UOR and addtask route has been modified">
-      <option name="closed" value="true" />
-      <created>1749050731543</created>
-      <option name="number" value="00004" />
-      <option name="presentableId" value="LOCAL-00004" />
-      <option name="project" value="LOCAL" />
-      <updated>1749050731543</updated>
+      <workItem from="1762582926294" duration="10306000" />
     </task>
     <task id="LOCAL-00005" summary="Generation of UOR and addtask route has been modified">
       <option name="closed" value="true" />
@@ -514,7 +500,15 @@
       <option name="project" value="LOCAL" />
       <updated>1762590521214</updated>
     </task>
-    <option name="localTasksCounter" value="53" />
+    <task id="LOCAL-00053" summary="feat: сохраняем clerkUserId для исполнителя и добавляем поле стоимости в задачу">
+      <option name="closed" value="true" />
+      <created>1762597309290</created>
+      <option name="number" value="00053" />
+      <option name="presentableId" value="LOCAL-00053" />
+      <option name="project" value="LOCAL" />
+      <updated>1762597309290</updated>
+    </task>
+    <option name="localTasksCounter" value="54" />
     <servers />
   </component>
   <component name="TypeScriptGeneratedFilesManager">

@@ -23,9 +23,9 @@ import {
 } from '@mui/material';
 import ArrowBackIcon from '@mui/icons-material/ArrowBack';
 import RefreshIcon from '@mui/icons-material/Refresh';
-import EditDocumentIcon from '@mui/icons-material/EditDocument';
+import EditNoteIcon from '@mui/icons-material/EditNote';
 import DeleteIcon from '@mui/icons-material/Delete';
-import InfoOutlineIcon from '@mui/icons-material/InfoOutline';
+import InfoOutlinedIcon from '@mui/icons-material/InfoOutlined';
 import DescriptionOutlinedIcon from '@mui/icons-material/DescriptionOutlined';
 import AttachFileOutlinedIcon from '@mui/icons-material/AttachFileOutlined';
 import WorkspaceTaskDialog, {
@@ -287,7 +287,7 @@ export default function TaskDetailsPage() {
                     <Tooltip title="Редактировать">
                         <span>
                             <IconButton onClick={() => task && setEditOpen(true)} disabled={loading || !task}>
-                                <EditDocumentIcon />
+                                <EditNoteIcon />
                             </IconButton>
                         </span>
                     </Tooltip>
@@ -333,7 +333,7 @@ export default function TaskDetailsPage() {
                                     gutterBottom
                                     sx={{ display: 'flex', alignItems: 'center', gap: 1 }}
                                 >
-                                    <InfoOutlineIcon fontSize="small" />
+                                    <InfoOutlinedIcon fontSize="small" />
                                     Информация
                                 </Typography>
                                 <Divider sx={{ mb: 1.5 }} />
