@@ -4,9 +4,12 @@
     <option name="autoReloadType" value="SELECTIVE" />
   </component>
   <component name="ChangeListManager">
-    <list default="true" id="b3c91f45-fbe1-4477-9fd9-38d0fcaf660d" name="Changes" comment="Add Complete date to TaskColumnPage ExecutorFinancialMetrics UI to English">
+    <list default="true" id="b3c91f45-fbe1-4477-9fd9-38d0fcaf660d" name="Changes" comment="Переход на логику использования универсальной БС для дальнейшей реализации настойки проекта для региона/оператора. Изменение">
+      <change afterPath="$PROJECT_DIR$/src/app/workspace/components/TaskGeoLocation.tsx" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/.idea/workspace.xml" beforeDir="false" afterPath="$PROJECT_DIR$/.idea/workspace.xml" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/src/app/components/dashboards/ExecutorFinancialMetrics.tsx" beforeDir="false" afterPath="$PROJECT_DIR$/src/app/components/dashboards/ExecutorFinancialMetrics.tsx" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/src/app/api/org/[org]/projects/[project]/tasks/[id]/route.ts" beforeDir="false" afterPath="$PROJECT_DIR$/src/app/api/org/[org]/projects/[project]/tasks/[id]/route.ts" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/src/app/models/BaseStation.ts" beforeDir="false" afterPath="$PROJECT_DIR$/src/app/models/BaseStation.ts" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/src/app/org/[org]/projects/[project]/tasks/[id]/page.tsx" beforeDir="false" afterPath="$PROJECT_DIR$/src/app/org/[org]/projects/[project]/tasks/[id]/page.tsx" afterDir="false" />
     </list>
     <option name="SHOW_DIALOG" value="false" />
     <option name="HIGHLIGHT_CONFLICTS" value="true" />
@@ -113,14 +116,8 @@
       <workItem from="1761024187633" duration="5895000" />
       <workItem from="1761720378244" duration="633000" />
       <workItem from="1761887562972" duration="15306000" />
-    </task>
-    <task id="LOCAL-00001" summary="Dockerfile has been modified #2">
-      <option name="closed" value="true" />
-      <created>1744545220176</created>
-      <option name="number" value="00001" />
-      <option name="presentableId" value="LOCAL-00001" />
-      <option name="project" value="LOCAL" />
-      <updated>1744545220176</updated>
+      <workItem from="1762422367880" duration="27839000" />
+      <workItem from="1762582926294" duration="627000" />
     </task>
     <task id="LOCAL-00002" summary="Dependencies has been changed">
       <option name="closed" value="true" />
@@ -434,23 +431,93 @@
       <option name="project" value="LOCAL" />
       <updated>1761909429818</updated>
     </task>
-    <option name="localTasksCounter" value="41" />
+    <task id="LOCAL-00041" summary="OrgSettingsPage - добавлены проекты организации с возможностью добавления и ссылкой на  /projects/&#10;InviteMemberForm - добавлена проверка уже действующих пользователей&#10;+ UI доработки">
+      <option name="closed" value="true" />
+      <created>1762479786898</created>
+      <option name="number" value="00041" />
+      <option name="presentableId" value="LOCAL-00041" />
+      <option name="project" value="LOCAL" />
+      <updated>1762479786898</updated>
+    </task>
+    <task id="LOCAL-00042" summary="OrgSettingsPage - добавлена логика удаления проектов">
+      <option name="closed" value="true" />
+      <created>1762480537152</created>
+      <option name="number" value="00042" />
+      <option name="presentableId" value="LOCAL-00042" />
+      <option name="project" value="LOCAL" />
+      <updated>1762480537152</updated>
+    </task>
+    <task id="LOCAL-00043" summary="OrgSettingsPage - доработка UI">
+      <option name="closed" value="true" />
+      <created>1762486226062</created>
+      <option name="number" value="00043" />
+      <option name="presentableId" value="LOCAL-00043" />
+      <option name="project" value="LOCAL" />
+      <updated>1762486226062</updated>
+    </task>
+    <task id="LOCAL-00044" summary="OrgSettingsPage - добавлена логика изменения роли пользвоателя (участника организации)">
+      <option name="closed" value="true" />
+      <created>1762487974912</created>
+      <option name="number" value="00044" />
+      <option name="presentableId" value="LOCAL-00044" />
+      <option name="project" value="LOCAL" />
+      <updated>1762487974912</updated>
+    </task>
+    <task id="LOCAL-00045" summary="OrgSettingsPage InviteMemberForm - добавлена нормализация ссылки приглашения (исключено дублирование &quot;/&quot;)">
+      <option name="closed" value="true" />
+      <created>1762498831502</created>
+      <option name="number" value="00045" />
+      <option name="presentableId" value="LOCAL-00045" />
+      <option name="project" value="LOCAL" />
+      <updated>1762498831502</updated>
+    </task>
+    <task id="LOCAL-00046" summary="WorkspaceTaskDialog: показываем вложения сверху, парсим files[] и attachments[], подтягиваем coords из bsLocation, ru-RU date.&#10;ProjectTaskList/Board: при редактировании передаём attachments и bsLocation, диалог всегда открывается.">
+      <option name="closed" value="true" />
+      <created>1762504960289</created>
+      <option name="number" value="00046" />
+      <option name="presentableId" value="LOCAL-00046" />
+      <option name="project" value="LOCAL" />
+      <updated>1762504960289</updated>
+    </task>
+    <task id="LOCAL-00047" summary="fix: расширил типы календаря под org/project и onReload">
+      <option name="closed" value="true" />
+      <created>1762506065374</created>
+      <option name="number" value="00047" />
+      <option name="presentableId" value="LOCAL-00047" />
+      <option name="project" value="LOCAL" />
+      <updated>1762506065374</updated>
+    </task>
+    <task id="LOCAL-00048" summary="WorkspaceTaskDialog - реализована логика загрузки и удаления attachments из формы при создании и редактировании задачи">
+      <option name="closed" value="true" />
+      <created>1762572158008</created>
+      <option name="number" value="00048" />
+      <option name="presentableId" value="LOCAL-00048" />
+      <option name="project" value="LOCAL" />
+      <updated>1762572158008</updated>
+    </task>
+    <task id="LOCAL-00049" summary="(fix) ProjectTaskList ProjectTaskBoard - удален глобальный слушатель для контекстного меню. Меню привязано к ПКМ по строке и карточке задачи + заблокировано браузерное меню.">
+      <option name="closed" value="true" />
+      <created>1762574366458</created>
+      <option name="number" value="00049" />
+      <option name="presentableId" value="LOCAL-00049" />
+      <option name="project" value="LOCAL" />
+      <updated>1762574366459</updated>
+    </task>
+    <task id="LOCAL-00050" summary="Добавлена карточка задачи TaskDetailsPage. Настроен переход из ProjectTaskList ProjectTaskBoard ProjectTaskCalendar при клике на задачу а также из контекстного меню">
+      <option name="closed" value="true" />
+      <created>1762578071200</created>
+      <option name="number" value="00050" />
+      <option name="presentableId" value="LOCAL-00050" />
+      <option name="project" value="LOCAL" />
+      <updated>1762578071201</updated>
+    </task>
+    <option name="localTasksCounter" value="51" />
     <servers />
   </component>
   <component name="TypeScriptGeneratedFilesManager">
     <option name="version" value="3" />
   </component>
   <component name="VcsManagerConfiguration">
-    <MESSAGE value="change .pro to .ru" />
-    <MESSAGE value="upload page has been modified" />
-    <MESSAGE value="Fix body parsing: pass req directly to Busboy" />
-    <MESSAGE value="S3 utils keys name has been changed" />
-    <MESSAGE value="next config and upload route has been modified" />
-    <MESSAGE value="Task Calendar component has been added" />
-    <MESSAGE value="Task Calendar component has been modified (tasks view by role)" />
-    <MESSAGE value="Task Calendar component hidden for executor role" />
-    <MESSAGE value="Add padding style for loader into calendar and kanban page" />
-    <MESSAGE value="Order Parsing logic has been modified" />
     <MESSAGE value="File upload logic has been modified. Order uploading added into task detail page." />
     <MESSAGE value="uploadBuffer error bug has been fixed" />
     <MESSAGE value="apply Inter font globally and set as default in MUI theme and use finance information from file" />
@@ -466,6 +533,16 @@
     <MESSAGE value="NCW Button hiden for all status before Done" />
     <MESSAGE value="Add Complete column after Due Date and render workCompletionDate as dd.mm.yyyy" />
     <MESSAGE value="Add Complete date to TaskColumnPage ExecutorFinancialMetrics UI to English" />
-    <option name="LAST_COMMIT_MESSAGE" value="Add Complete date to TaskColumnPage ExecutorFinancialMetrics UI to English" />
+    <MESSAGE value="OrgSettingsPage - добавлены проекты организации с возможностью добавления и ссылкой на  /projects/&#10;InviteMemberForm - добавлена проверка уже действующих пользователей&#10;+ UI доработки" />
+    <MESSAGE value="OrgSettingsPage - добавлена логика удаления проектов" />
+    <MESSAGE value="OrgSettingsPage - доработка UI" />
+    <MESSAGE value="OrgSettingsPage - добавлена логика изменения роли пользвоателя (участника организации)" />
+    <MESSAGE value="OrgSettingsPage InviteMemberForm - добавлена нормализация ссылки приглашения (исключено дублирование &quot;/&quot;)" />
+    <MESSAGE value="WorkspaceTaskDialog: показываем вложения сверху, парсим files[] и attachments[], подтягиваем coords из bsLocation, ru-RU date.&#10;ProjectTaskList/Board: при редактировании передаём attachments и bsLocation, диалог всегда открывается." />
+    <MESSAGE value="fix: расширил типы календаря под org/project и onReload" />
+    <MESSAGE value="WorkspaceTaskDialog - реализована логика загрузки и удаления attachments из формы при создании и редактировании задачи" />
+    <MESSAGE value="(fix) ProjectTaskList ProjectTaskBoard - удален глобальный слушатель для контекстного меню. Меню привязано к ПКМ по строке и карточке задачи + заблокировано браузерное меню." />
+    <MESSAGE value="Добавлена карточка задачи TaskDetailsPage. Настроен переход из ProjectTaskList ProjectTaskBoard ProjectTaskCalendar при клике на задачу а также из контекстного меню" />
+    <option name="LAST_COMMIT_MESSAGE" value="Добавлена карточка задачи TaskDetailsPage. Настроен переход из ProjectTaskList ProjectTaskBoard ProjectTaskCalendar при клике на задачу а также из контекстного меню" />
   </component>
 </project>

@@ -4,6 +4,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { currentUser } from '@clerk/nextjs/server';
 import dbConnect from '@/utils/mongoose';
 import TaskModel from '@/app/models/TaskModel';
+import BaseStation, { IBaseStation } from '@/app/models/BaseStation';
 import { Types } from 'mongoose';
 import { getOrgAndProjectByRef } from '../../_helpers';
 
@@ -55,7 +56,7 @@ function parseMaybeISODate(v: unknown): Date | undefined {
     return Number.isNaN(d.getTime()) ? undefined : d;
 }
 
-/** Безопасно приводим _id к ObjectId, не полагаясь на типы Lean/FlattenMaps */
+/** Безопасно приводим _id к ObjectId */
 function toObjectId(id: unknown): Types.ObjectId {
     if (id instanceof Types.ObjectId) return id;
     return new Types.ObjectId(String(id));
@@ -64,7 +65,11 @@ function toObjectId(id: unknown): Types.ObjectId {
 /* ========= Типы и type-guard для getOrgAndProjectByRef ========= */
 
 type OrgDocLean = { _id: unknown };
-type ProjectDocLean = { _id: unknown };
+type ProjectDocLean = {
+    _id: unknown;
+    operatorCode?: string;
+    regionCode?: string;
+};
 
 type GetOrgProjectOk = { orgDoc: OrgDocLean; projectDoc: ProjectDocLean };
 type GetOrgProjectErr = { error: string };
@@ -81,12 +86,27 @@ function extractError(x: unknown): string | undefined {
     return typeof maybe.error === 'string' ? maybe.error : undefined;
 }
 
-/** Узкая обёртка для безопасного извлечения org/project из getOrgAndProjectByRef */
+/** элемент bsLocation в задаче */
+interface TaskBsLocationItem {
+    name: string;
+    coordinates: string;
+    address?: string;
+}
+
+/**
+ * Узкая обёртка для безопасного извлечения org/project.
+ * Возвращаем ещё и сам projectDoc, чтобы взять operatorCode/regionCode.
+ */
 async function requireOrgProject(
     orgSlug: string,
     projectRef: string
 ): Promise<
-    | { ok: true; orgId: Types.ObjectId; projectId: Types.ObjectId }
+    | {
+    ok: true;
+    orgId: Types.ObjectId;
+    projectId: Types.ObjectId;
+    projectDoc: ProjectDocLean;
+}
     | { ok: false; status: number; error: string }
 > {
     const refUnknown = (await getOrgAndProjectByRef(orgSlug, projectRef)) as unknown;
@@ -109,7 +129,7 @@ async function requireOrgProject(
     const orgId = toObjectId(rawOrgId);
     const projectId = toObjectId(rawProjectId);
 
-    return { ok: true, orgId, projectId };
+    return { ok: true, orgId, projectId, projectDoc: refUnknown.projectDoc };
 }
 
 /* ====================== Handlers ====================== */
@@ -173,12 +193,24 @@ export async function PUT(
         if (!ensured.ok) {
             return NextResponse.json({ error: ensured.error }, { status: ensured.status });
         }
-        const { orgId, projectId } = ensured;
+        const { orgId, projectId, projectDoc } = ensured;
 
         const body = (await req.json().catch(() => ({}))) as Record<string, unknown>;
 
+        // читаем текущую задачу, чтобы понять, менялся ли bsNumber
+        const currentTask = await TaskModel.findOne({
+            _id: new Types.ObjectId(String(id)),
+            orgId,
+            projectId,
+        });
+
+        if (!currentTask) {
+            return NextResponse.json({ error: 'Task not found' }, { status: 404 });
+        }
+
         const allowedPatch: Record<string, unknown> = {};
 
+        // обычные поля
         if (typeof body.taskName === 'string') allowedPatch.taskName = body.taskName;
         if (typeof body.bsNumber === 'string') allowedPatch.bsNumber = body.bsNumber;
         if (typeof body.bsAddress === 'string') allowedPatch.bsAddress = body.bsAddress;
@@ -200,8 +232,8 @@ export async function PUT(
         const lat = parseMaybeNumber(body.bsLatitude);
         if (typeof lat !== 'undefined') allowedPatch.bsLatitude = lat;
 
-        const lng = parseMaybeNumber(body.bsLongitude);
-        if (typeof lng !== 'undefined') allowedPatch.bsLongitude = lng;
+        const lon = parseMaybeNumber(body.bsLongitude);
+        if (typeof lon !== 'undefined') allowedPatch.bsLongitude = lon;
 
         if (typeof body.executorId === 'string') allowedPatch.executorId = body.executorId;
         if (typeof body.executorName === 'string') allowedPatch.executorName = body.executorName;
@@ -212,9 +244,73 @@ export async function PUT(
             if (typeof tc !== 'undefined') allowedPatch.totalCost = tc;
         }
 
+        // --- КЛЮЧЕВАЯ ЧАСТЬ: обновление геолокации при смене БС ---
+        const clientBsLocation: TaskBsLocationItem[] | null = Array.isArray(body.bsLocation)
+            ? (body.bsLocation as TaskBsLocationItem[])
+            : null;
+
+        const newBsNumber =
+            typeof body.bsNumber === 'string' ? (body.bsNumber as string) : currentTask.bsNumber;
+
+        const bsNumberChanged = newBsNumber !== currentTask.bsNumber;
+
+        const operatorCode: string | undefined = projectDoc.operatorCode;
+        const regionCode: string | undefined = projectDoc.regionCode;
+
+        if (bsNumberChanged) {
+            // формируем запрос к универсальной коллекции базовых станций
+            const bsQuery: {
+                name: string;
+                operatorCode?: string;
+                regionCode?: string;
+            } = { name: newBsNumber };
+
+            // если указаны оператор/регион – добавляем в фильтр
+            if (operatorCode) bsQuery.operatorCode = operatorCode;
+            if (regionCode) bsQuery.regionCode = regionCode;
+
+            const bs = (await BaseStation.findOne(bsQuery).lean()) as
+                | (IBaseStation & { operatorCode?: string; regionCode?: string })
+                | null;
+
+            if (bs) {
+                if (bs.coordinates) {
+                    allowedPatch.bsLocation = [
+                        {
+                            name: newBsNumber,
+                            coordinates: bs.coordinates,
+                            address: bs.address ?? '',
+                        } satisfies TaskBsLocationItem,
+                    ];
+                } else if (typeof bs.lat === 'number' && typeof bs.lon === 'number') {
+                    allowedPatch.bsLocation = [
+                        {
+                            name: newBsNumber,
+                            coordinates: `${bs.lat} ${bs.lon}`,
+                            address: bs.address ?? '',
+                        } satisfies TaskBsLocationItem,
+                    ];
+                } else if (clientBsLocation) {
+                    // БС нашлась, но без координат — берём то, что прислал клиент
+                    allowedPatch.bsLocation = clientBsLocation;
+                } else {
+                    allowedPatch.bsLocation = [];
+                }
+            } else if (clientBsLocation) {
+                // в этой базе такой БС нет, но клиент прислал координаты
+                allowedPatch.bsLocation = clientBsLocation;
+            } else {
+                // ничего нет — чистим
+                allowedPatch.bsLocation = [];
+            }
+        } else if (clientBsLocation) {
+            // номер БС не меняли, но координаты руками обновили — сохраняем
+            allowedPatch.bsLocation = clientBsLocation;
+        }
+
         const updated = await TaskModel.findOneAndUpdate(
             {
-                _id: new Types.ObjectId(String(id)),
+                _id: currentTask._id,
                 orgId,
                 projectId,
             },
@@ -253,23 +349,23 @@ export async function GET(
 
         const rawId = String(id);
 
-        let task = null;
+        let taskDoc;
         if (Types.ObjectId.isValid(rawId)) {
-            task = await TaskModel.findOne(
+            taskDoc = await TaskModel.findOne(
                 { _id: new Types.ObjectId(rawId), orgId, projectId },
                 {},
                 { lean: true }
             );
         } else {
-            task = await TaskModel.findOne(
+            taskDoc = await TaskModel.findOne(
                 { taskId: rawId, orgId, projectId },
                 {},
                 { lean: true }
             );
         }
 
-        if (!task) return NextResponse.json({ error: 'Task not found' }, { status: 404 });
-        return NextResponse.json({ task });
+        if (!taskDoc) return NextResponse.json({ error: 'Task not found' }, { status: 404 });
+        return NextResponse.json({ task: taskDoc });
     } catch (err) {
         console.error(err);
         return NextResponse.json({ error: errorMessage(err) }, { status: 500 });

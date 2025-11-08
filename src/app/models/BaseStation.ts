@@ -1,13 +1,15 @@
+// app/models/BaseStation.ts
+
 import mongoose, { Schema, model, models, Document } from 'mongoose';
 
 export interface IBaseStation extends Document {
     name: string;
-    coordinates: string;   // "lat lon" (для UI/обратной совместимости)
+    coordinates: string;
     address?: string;
     lat?: number;
     lon?: number;
-    coordKey?: string;     // "lat6|lon6" — уникальный ключ для upsert
-    source?: string;       // 'kmz' | 'manual' и т.п.
+    coordKey?: string;
+    source?: string;
 }
 
 function to6(x: number) {
