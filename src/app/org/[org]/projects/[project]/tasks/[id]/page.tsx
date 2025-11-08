@@ -23,7 +23,7 @@ import {
 } from '@mui/material';
 import ArrowBackIcon from '@mui/icons-material/ArrowBack';
 import RefreshIcon from '@mui/icons-material/Refresh';
-import EditIcon from '@mui/icons-material/Edit';
+import EditDocumentIcon from '@mui/icons-material/EditDocument';
 import DeleteIcon from '@mui/icons-material/Delete';
 import WorkspaceTaskDialog, {
     type TaskForEdit,
@@ -84,6 +84,9 @@ export default function TaskDetailsPage() {
     const [deleteOpen, setDeleteOpen] = React.useState(false);
     const [deleting, setDeleting] = React.useState(false);
 
+    // новое: имя организации
+    const [orgName, setOrgName] = React.useState<string | null>(null);
+
     const formatDate = (v?: string) => {
         if (!v) return '—';
         const d = new Date(v);
@@ -125,9 +128,30 @@ export default function TaskDetailsPage() {
         }
     }, [org, project, id]);
 
+    // отдельная загрузка организации по слагу
+    const loadOrg = React.useCallback(async () => {
+        if (!org) return;
+        try {
+            const res = await fetch(`/api/org/${encodeURIComponent(org)}`, {
+                cache: 'no-store',
+            });
+            if (!res.ok) return;
+            const data = (await res.json()) as { org?: { name?: string } };
+            if (data.org?.name) {
+                setOrgName(data.org.name);
+            }
+        } catch {
+            // тихо игнорируем, оставим слаг
+        }
+    }, [org]);
+
     React.useEffect(() => {
         void load();
     }, [load]);
+
+    React.useEffect(() => {
+        void loadOrg();
+    }, [loadOrg]);
 
     const hasAttachments =
         !!task &&
@@ -159,7 +183,6 @@ export default function TaskDetailsPage() {
                 : undefined,
         };
     };
-
 
     const handleDelete = async () => {
         if (!org || !project || !id) return;
@@ -207,14 +230,35 @@ export default function TaskDetailsPage() {
                                 <Chip label={task.status} size="small" color="primary" variant="outlined" />
                             )}
                         </Stack>
-                        <Typography variant="body2" color="text.secondary">
-                            Организация: {org} • Проект: {project}
+                        {/* вот тут меняем вывод */}
+                        <Typography variant="body2" color="text.secondary" sx={{ display: 'flex', gap: 0.5, flexWrap: 'wrap' }}>
+                            Организация:{' '}
+                            <Link
+                                href={`/org/${encodeURIComponent(org)}`}
+                                underline="hover"
+                                color="inherit"
+                            >
+                                {orgName || org}
+                            </Link>
+                            •
+                            Проект:{' '}
+                            <Link
+                                href={`/org/${encodeURIComponent(org)}/projects/${encodeURIComponent(project)}/tasks`}
+                                underline="hover"
+                                color="inherit"
+                            >
+                                {project}
+                            </Link>
                         </Typography>
                         {task?.taskId && (
-                            <Typography variant="caption" color="text.secondary">
-                                ID задачи: {task.taskId}
-                            </Typography>
+                            <Chip
+                                label={task.taskId}
+                                size="small"
+                                variant="outlined"
+                                sx={{ mt: 0.5 }}
+                            />
                         )}
+
                     </Box>
                 </Stack>
                 <Stack direction="row" spacing={1}>
@@ -228,7 +272,7 @@ export default function TaskDetailsPage() {
                     <Tooltip title="Редактировать">
                         <span>
                             <IconButton onClick={() => task && setEditOpen(true)} disabled={loading || !task}>
-                                <EditIcon />
+                                <EditDocumentIcon />
                             </IconButton>
                         </span>
                     </Tooltip>
@@ -237,7 +281,6 @@ export default function TaskDetailsPage() {
                             <IconButton
                                 onClick={() => task && setDeleteOpen(true)}
                                 disabled={loading || !task}
-                                color="error"
                             >
                                 <DeleteIcon />
                             </IconButton>
@@ -420,11 +463,8 @@ export default function TaskDetailsPage() {
                         <Grid item xs={12} md={6} lg={3}>
                             <Paper variant="outlined" sx={{ p: 2 }}>
                                 <TaskGeoLocation locations={task.bsLocation} />
-
                             </Paper>
                         </Grid>
-
-
                     </Grid>
 
                     {(task.orderNumber || task.orderUrl || task.orderDate || task.orderSignDate) && (

@@ -4,11 +4,8 @@
     <option name="autoReloadType" value="SELECTIVE" />
   </component>
   <component name="ChangeListManager">
-    <list default="true" id="b3c91f45-fbe1-4477-9fd9-38d0fcaf660d" name="Changes" comment="Переход на логику использования универсальной БС для дальнейшей реализации настойки проекта для региона/оператора. Изменение">
-      <change afterPath="$PROJECT_DIR$/src/app/workspace/components/TaskGeoLocation.tsx" afterDir="false" />
+    <list default="true" id="b3c91f45-fbe1-4477-9fd9-38d0fcaf660d" name="Changes" comment="Добавлен блок геолокации задачи и вынес его в отдельный компонент с Яндекс-картой. Исправлена нормализация bsLocation, чтобы типы в диалоге редактирования не падали.">
       <change beforePath="$PROJECT_DIR$/.idea/workspace.xml" beforeDir="false" afterPath="$PROJECT_DIR$/.idea/workspace.xml" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/src/app/api/org/[org]/projects/[project]/tasks/[id]/route.ts" beforeDir="false" afterPath="$PROJECT_DIR$/src/app/api/org/[org]/projects/[project]/tasks/[id]/route.ts" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/src/app/models/BaseStation.ts" beforeDir="false" afterPath="$PROJECT_DIR$/src/app/models/BaseStation.ts" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/src/app/org/[org]/projects/[project]/tasks/[id]/page.tsx" beforeDir="false" afterPath="$PROJECT_DIR$/src/app/org/[org]/projects/[project]/tasks/[id]/page.tsx" afterDir="false" />
     </list>
     <option name="SHOW_DIALOG" value="false" />
@@ -117,15 +114,7 @@
       <workItem from="1761720378244" duration="633000" />
       <workItem from="1761887562972" duration="15306000" />
       <workItem from="1762422367880" duration="27839000" />
-      <workItem from="1762582926294" duration="627000" />
-    </task>
-    <task id="LOCAL-00002" summary="Dependencies has been changed">
-      <option name="closed" value="true" />
-      <created>1744548532149</created>
-      <option name="number" value="00002" />
-      <option name="presentableId" value="LOCAL-00002" />
-      <option name="project" value="LOCAL" />
-      <updated>1744548532149</updated>
+      <workItem from="1762582926294" duration="3287000" />
     </task>
     <task id="LOCAL-00003" summary="added generation of UOR">
       <option name="closed" value="true" />
@@ -511,14 +500,21 @@
       <option name="project" value="LOCAL" />
       <updated>1762578071201</updated>
     </task>
-    <option name="localTasksCounter" value="51" />
+    <task id="LOCAL-00051" summary="Добавлен блок геолокации задачи и вынес его в отдельный компонент с Яндекс-картой. Исправлена нормализация bsLocation, чтобы типы в диалоге редактирования не падали.">
+      <option name="closed" value="true" />
+      <created>1762583817844</created>
+      <option name="number" value="00051" />
+      <option name="presentableId" value="LOCAL-00051" />
+      <option name="project" value="LOCAL" />
+      <updated>1762583817845</updated>
+    </task>
+    <option name="localTasksCounter" value="52" />
     <servers />
   </component>
   <component name="TypeScriptGeneratedFilesManager">
     <option name="version" value="3" />
   </component>
   <component name="VcsManagerConfiguration">
-    <MESSAGE value="File upload logic has been modified. Order uploading added into task detail page." />
     <MESSAGE value="uploadBuffer error bug has been fixed" />
     <MESSAGE value="apply Inter font globally and set as default in MUI theme and use finance information from file" />
     <MESSAGE value="replace coast style" />
@@ -543,6 +539,7 @@
     <MESSAGE value="WorkspaceTaskDialog - реализована логика загрузки и удаления attachments из формы при создании и редактировании задачи" />
     <MESSAGE value="(fix) ProjectTaskList ProjectTaskBoard - удален глобальный слушатель для контекстного меню. Меню привязано к ПКМ по строке и карточке задачи + заблокировано браузерное меню." />
     <MESSAGE value="Добавлена карточка задачи TaskDetailsPage. Настроен переход из ProjectTaskList ProjectTaskBoard ProjectTaskCalendar при клике на задачу а также из контекстного меню" />
-    <option name="LAST_COMMIT_MESSAGE" value="Добавлена карточка задачи TaskDetailsPage. Настроен переход из ProjectTaskList ProjectTaskBoard ProjectTaskCalendar при клике на задачу а также из контекстного меню" />
+    <MESSAGE value="Добавлен блок геолокации задачи и вынес его в отдельный компонент с Яндекс-картой. Исправлена нормализация bsLocation, чтобы типы в диалоге редактирования не падали." />
+    <option name="LAST_COMMIT_MESSAGE" value="Добавлен блок геолокации задачи и вынес его в отдельный компонент с Яндекс-картой. Исправлена нормализация bsLocation, чтобы типы в диалоге редактирования не падали." />
   </component>
 </project>
