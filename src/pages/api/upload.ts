@@ -8,7 +8,7 @@ import Report from '@/app/models/ReportModel';
 import User from '@/app/models/UserModel';
 import TaskModel from '@/app/models/TaskModel';
 import dbConnect from '@/utils/mongoose';
-import { uploadBuffer } from '@/utils/s3';
+import { uploadBuffer, deleteTaskFile } from '@/utils/s3';
 import { v4 as uuidv4 } from 'uuid';
 import Busboy from 'busboy';
 import type { FileInfo } from 'busboy';
@@ -51,6 +51,38 @@ function safeBasename(name: string): string {
 }
 
 export default async function handler(req: NextApiRequest, res: NextApiResponse) {
+
+    if (req.method === 'DELETE') {
+        const { userId } = getAuth(req);
+        if (!userId) {
+            return res.status(401).json({ error: 'User is not authenticated' });
+        }
+
+        const taskId = (req.query.taskId as string | undefined)?.trim();
+        const url = (req.query.url as string | undefined)?.trim();
+
+        if (!taskId || !url) {
+            return res.status(400).json({ error: 'taskId and url are required' });
+        }
+
+        try {
+            await dbConnect();
+            // убираем URL из attachments
+            await TaskModel.updateOne(
+                { taskId },
+                { $pull: { attachments: url } }
+            ).exec();
+
+            // удаляем сам файл
+            await deleteTaskFile(url);
+
+            return res.status(200).json({ success: true });
+        } catch (error) {
+            console.error('DELETE /api/upload error:', error);
+            return res.status(500).json({ error: 'Failed to delete attachment' });
+        }
+    }
+
     if (req.method !== 'POST') {
         return res.status(405).json({ error: 'Method not allowed' });
     }

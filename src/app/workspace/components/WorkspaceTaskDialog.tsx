@@ -23,6 +23,8 @@ import {
     Typography,
     LinearProgress,
     Tooltip,
+    Snackbar,
+    Alert,
 } from '@mui/material';
 import Autocomplete, { createFilterOptions } from '@mui/material/Autocomplete';
 import { DatePicker, LocalizationProvider } from '@mui/x-date-pickers';
@@ -44,7 +46,6 @@ type MembersApi = {
     error?: string;
 };
 
-// добавляем сюда attachments и bsLocation
 export type TaskForEdit = {
     _id: string;
     taskId: string;
@@ -61,11 +62,8 @@ export type TaskForEdit = {
     executorId?: string;
     executorName?: string;
     executorEmail?: string;
-    // старый формат
     files?: Array<{ name?: string; url?: string; size?: number }>;
-    // новый формат — строки
     attachments?: string[];
-    // координаты из БД
     bsLocation?: Array<{ name: string; coordinates: string }>;
 };
 
@@ -79,7 +77,6 @@ type Props = {
     initialTask?: TaskForEdit | null;
 };
 
-// cspell:disable-next-line — намеренно без I и O
 const ID_ALPHABET = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789';
 function genId(len = 5) {
     let s = '';
@@ -92,7 +89,6 @@ function extractErrorMessage(payload: unknown, fallback: string): string {
     return typeof err === 'string' && err.trim() ? err : fallback;
 }
 
-// опция БС из базы объектов
 type BsOption = {
     id: string;
     name: string;
@@ -101,7 +97,6 @@ type BsOption = {
     lon?: number | null;
 };
 
-// если строка начинается с IR..., берём только первую часть до запятой
 function getDisplayBsName(raw: string): string {
     const trimmed = raw.trim();
     if (/^IR\d+/i.test(trimmed)) {
@@ -111,7 +106,6 @@ function getDisplayBsName(raw: string): string {
     return trimmed;
 }
 
-// нормализация адреса: если БС IR*, добавляем "Иркутская область," и убираем "- " в начале
 function normalizeAddressFromDb(bsNumber: string, raw?: string): string {
     let addr = (raw ?? '').trim();
     if (addr.startsWith('-')) {
@@ -128,7 +122,6 @@ function normalizeAddressFromDb(bsNumber: string, raw?: string): string {
 
 const defaultFilter = createFilterOptions<BsOption>();
 
-// достаём имя файла из URL, чтобы красиво показать в Chip
 function getFileNameFromUrl(url?: string): string {
     if (!url) return 'file';
     try {
@@ -164,7 +157,7 @@ export default function WorkspaceTaskDialog({
 
     const [taskName, setTaskName] = React.useState('');
     const [bsNumber, setBsNumber] = React.useState('');
-    const [bsInput, setBsInput] = React.useState(''); // то, что реально в инпуте
+    const [bsInput, setBsInput] = React.useState('');
     const [bsAddress, setBsAddress] = React.useState('');
     const [taskDescription, setTaskDescription] = React.useState('');
     const [priority, setPriority] = React.useState<Priority>('medium');
@@ -189,9 +182,21 @@ export default function WorkspaceTaskDialog({
     const [bsOptions, setBsOptions] = React.useState<BsOption[]>([]);
     const [bsOptionsLoading, setBsOptionsLoading] = React.useState(false);
     const [bsOptionsError, setBsOptionsError] = React.useState<string | null>(null);
-
-    // реальная выбранная БС
     const [selectedBsOption, setSelectedBsOption] = React.useState<BsOption | null>(null);
+
+    // диалог удаления существующего файла
+    const [deleteDialogOpen, setDeleteDialogOpen] = React.useState(false);
+    const [attachmentToDelete, setAttachmentToDelete] = React.useState<{
+        key: string;
+        name: string;
+        url?: string;
+    } | null>(null);
+    const [deletingExisting, setDeletingExisting] = React.useState(false);
+
+    const [snackbarOpen, setSnackbarOpen] = React.useState(false);
+    const [snackbarMsg, setSnackbarMsg] = React.useState('');
+    const [snackbarSeverity, setSnackbarSeverity] = React.useState<'success' | 'error'>('success');
+
 
     const loadBsOptions = React.useCallback(async (term: string) => {
         setBsOptionsLoading(true);
@@ -215,7 +220,6 @@ export default function WorkspaceTaskDialog({
         }
     }, []);
 
-    // ───── заполнение при редактировании ─────
     React.useEffect(() => {
         if (!open) return;
         if (!isEdit || !initialTask) return;
@@ -232,7 +236,6 @@ export default function WorkspaceTaskDialog({
 
         setDueDate(initialTask.dueDate ? new Date(initialTask.dueDate) : null);
 
-        // 1) сначала попробуем взять явные поля
         let latStr =
             typeof initialTask.bsLatitude === 'number'
                 ? String(initialTask.bsLatitude).replace(',', '.')
@@ -242,7 +245,6 @@ export default function WorkspaceTaskDialog({
                 ? String(initialTask.bsLongitude).replace(',', '.')
                 : '';
 
-        // 2) если их нет, но есть bsLocation — парсим "52.278028 104.30669"
         if ((!latStr || !lonStr) && Array.isArray(initialTask.bsLocation) && initialTask.bsLocation.length > 0) {
             const coord = initialTask.bsLocation[0]?.coordinates || '';
             const parts = coord.split(/\s+/).filter(Boolean);
@@ -255,7 +257,6 @@ export default function WorkspaceTaskDialog({
         setBsLatitude(latStr);
         setBsLongitude(lonStr);
 
-        // исполнитель
         if (initialTask.executorEmail || initialTask.executorName || initialTask.executorId) {
             setSelectedExecutor({
                 id: initialTask.executorId || 'unknown',
@@ -266,15 +267,10 @@ export default function WorkspaceTaskDialog({
             setSelectedExecutor(null);
         }
 
-        // ---- вложения ----
-        // сначала берём "старый" формат (files: [{...}])
         const filesFromTask = initialTask.files ?? [];
-
-        // потом добавляем "новый" формат (attachments: string[])
         const attachmentsFromTask = Array.isArray(initialTask.attachments) ? initialTask.attachments : [];
 
         const merged = [
-            // из files
             ...filesFromTask
                 .filter(Boolean)
                 .map((f, i) => ({
@@ -283,7 +279,6 @@ export default function WorkspaceTaskDialog({
                     url: f?.url,
                     size: f?.size,
                 })),
-            // из attachments (строки)
             ...attachmentsFromTask.map((url, i) => ({
                 key: `att-${i}`,
                 name: getFileNameFromUrl(url),
@@ -304,7 +299,6 @@ export default function WorkspaceTaskDialog({
         setSelectedBsOption(null);
     }, [open, isEdit, initialTask, loadBsOptions]);
 
-    // загрузка участников
     React.useEffect(() => {
         if (!open || !orgSlug) return;
         let aborted = false;
@@ -386,13 +380,14 @@ export default function WorkspaceTaskDialog({
         setUploading(false);
     };
 
+    const handleSnackbarClose = () => setSnackbarOpen(false);
+
     const handleClose = () => {
         if (saving || uploading) return;
         if (!isEdit) reset();
         onCloseAction();
     };
 
-    // Drag & Drop
     const onDragOver = (e: React.DragEvent<HTMLDivElement>) => {
         e.preventDefault();
         e.stopPropagation();
@@ -432,7 +427,6 @@ export default function WorkspaceTaskDialog({
         setAttachments((prev) => prev.filter((f) => !(f.name === name && f.size === size)));
     };
 
-    // UPLOAD
     async function uploadAttachments(taskShortId: string): Promise<void> {
         if (!attachments.length) return;
         setUploading(true);
@@ -464,7 +458,6 @@ export default function WorkspaceTaskDialog({
         setUploading(false);
     }
 
-    // сборка bsLocation
     function buildBsLocation(): Array<{ name: string; coordinates: string }> {
         if (selectedBsOption) {
             const displayName = getDisplayBsName(selectedBsOption.name);
@@ -587,7 +580,6 @@ export default function WorkspaceTaskDialog({
         }
     }
 
-    // выбор БС из автокомплита
     const handleSelectBsOption = (opt: BsOption | null) => {
         if (!opt) {
             setSelectedBsOption(null);
@@ -603,7 +595,6 @@ export default function WorkspaceTaskDialog({
         setBsLongitude(typeof opt.lon === 'number' ? String(opt.lon).replace(',', '.') : '');
     };
 
-    // debounce ввода
     const bsSearchTimeout = React.useRef<ReturnType<typeof setTimeout> | null>(null);
     const handleBsInputChange = (_e: React.SyntheticEvent, value: string) => {
         setBsInput(value);
@@ -617,6 +608,63 @@ export default function WorkspaceTaskDialog({
         bsSearchTimeout.current = setTimeout(() => {
             void loadBsOptions(value);
         }, 300);
+    };
+
+    // запрашиваем удаление существующего файла
+    const requestDeleteExisting = (file: { key: string; name: string; url?: string }) => {
+        setAttachmentToDelete(file);
+        setDeleteDialogOpen(true);
+    };
+
+    const confirmDeleteExisting = async () => {
+        if (!attachmentToDelete) return;
+
+        if (isEdit && initialTask?.taskId && attachmentToDelete.url) {
+            setDeletingExisting(true);
+            try {
+                const q = new URLSearchParams({
+                    taskId: initialTask.taskId,
+                    url: attachmentToDelete.url,
+                });
+                const res = await fetch(`/api/upload?${q.toString()}`, {
+                    method: 'DELETE',
+                });
+                const body = await res.json().catch(() => ({}));
+
+                if (!res.ok) {
+                    const msg = extractErrorMessage(body, res.statusText);
+                    setSnackbarMsg(`Ошибка удаления: ${msg}`);
+                    setSnackbarSeverity('error');
+                    setSnackbarOpen(true);
+                } else {
+                    setExistingAttachments((prev) => prev.filter((x) => x.key !== attachmentToDelete.key));
+                    setSnackbarMsg('Вложение удалено');
+                    setSnackbarSeverity('success');
+                    setSnackbarOpen(true);
+                }
+            } catch (e) {
+                console.error(e);
+                setSnackbarMsg('Ошибка удаления');
+                setSnackbarSeverity('error');
+                setSnackbarOpen(true);
+            } finally {
+                setDeletingExisting(false);
+            }
+        } else {
+            setExistingAttachments((prev) => prev.filter((x) => x.key !== attachmentToDelete.key));
+            setSnackbarMsg('Вложение удалено');
+            setSnackbarSeverity('success');
+            setSnackbarOpen(true);
+        }
+
+        setDeleteDialogOpen(false);
+        setAttachmentToDelete(null);
+    };
+
+
+    const cancelDeleteExisting = () => {
+        setDeleteDialogOpen(false);
+        setAttachmentToDelete(null);
     };
 
     return (
@@ -799,11 +847,9 @@ export default function WorkspaceTaskDialog({
                                 format="dd.MM.yyyy"
                                 slotProps={{ textField: { fullWidth: true } }}
                             />
-
                         </Stack>
 
-                        {/* Зона добавления файлов */}
-
+                        {/* Уже прикреплённые файлы */}
                         {!!existingAttachments.length && (
                             <Box>
                                 <Typography variant="subtitle2" sx={{ mb: 1 }}>
@@ -811,21 +857,38 @@ export default function WorkspaceTaskDialog({
                                 </Typography>
                                 <Stack direction="row" flexWrap="wrap" gap={1}>
                                     {existingAttachments.map((f) => (
-                                        <Chip
-                                            key={f.key}
-                                            label={f.name}
-                                            component={f.url ? 'a' : 'div'}
-                                            href={f.url}
-                                            clickable={Boolean(f.url)}
-                                            target={f.url ? '_blank' : undefined}
-                                            rel={f.url ? 'noopener noreferrer' : undefined}
-                                            sx={{ maxWidth: '100%' }}
-                                        />
+                                        <Box key={f.key} sx={{ display: 'flex', alignItems: 'center', gap: 0.5 }}>
+                                            {/* сам чип — только для открытия */}
+                                            <Chip
+                                                label={f.name}
+                                                component={f.url ? 'a' : 'div'}
+                                                href={f.url}
+                                                clickable={Boolean(f.url)}
+                                                target={f.url ? '_blank' : undefined}
+                                                rel={f.url ? 'noopener noreferrer' : undefined}
+                                                sx={{ maxWidth: '100%' }}
+                                            />
+                                            {/* отдельная кнопка удалить */}
+                                            <Tooltip title="Удалить">
+                                                <IconButton
+                                                    size="small"
+                                                    onClick={(e) => {
+                                                        e.preventDefault();
+                                                        e.stopPropagation();
+                                                        requestDeleteExisting(f);
+                                                    }}
+                                                >
+                                                    <DeleteOutlineIcon fontSize="small" />
+                                                </IconButton>
+                                            </Tooltip>
+                                        </Box>
                                     ))}
                                 </Stack>
                             </Box>
                         )}
 
+
+                        {/* Файлы, готовые к загрузке */}
                         {!!attachments.length && (
                             <Box>
                                 <Stack direction="row" alignItems="center" spacing={1} sx={{ mb: 1 }}>
@@ -860,6 +923,7 @@ export default function WorkspaceTaskDialog({
                             </Box>
                         )}
 
+                        {/* Зона drag & drop */}
                         <Box
                             onDragOver={onDragOver}
                             onDragLeave={onDragLeave}
@@ -883,8 +947,6 @@ export default function WorkspaceTaskDialog({
                             </Typography>
                             <input ref={inputRef} type="file" multiple hidden onChange={onFileInputChange} />
                         </Box>
-
-
                     </Box>
                 </DialogContent>
 
@@ -911,6 +973,42 @@ export default function WorkspaceTaskDialog({
                     )}
                 </DialogActions>
             </Dialog>
+
+            {/* диалог подтверждения удаления существующего файла */}
+            <Dialog open={deleteDialogOpen} onClose={cancelDeleteExisting}>
+                <DialogTitle>Удалить вложение?</DialogTitle>
+                <DialogContent>
+                    <Typography variant="body2">
+                        {attachmentToDelete?.name ? `Удалить "${attachmentToDelete.name}"?` : 'Удалить вложение?'}
+                        {' '}Файл будет удалён и с сервера.
+                    </Typography>
+                </DialogContent>
+                <DialogActions>
+                    <Button onClick={cancelDeleteExisting} disabled={deletingExisting}>
+                        Отмена
+                    </Button>
+                    <Button
+                        onClick={confirmDeleteExisting}
+                        color="error"
+                        variant="contained"
+                        disabled={deletingExisting}
+                    >
+                        Удалить
+                    </Button>
+                </DialogActions>
+            </Dialog>
+
+            <Snackbar
+                open={snackbarOpen}
+                autoHideDuration={3000}
+                onClose={handleSnackbarClose}
+                anchorOrigin={{ vertical: 'bottom', horizontal: 'center' }}
+            >
+                <Alert onClose={handleSnackbarClose} severity={snackbarSeverity} variant="filled" sx={{ width: '100%' }}>
+                    {snackbarMsg}
+                </Alert>
+            </Snackbar>
+
         </LocalizationProvider>
     );
 }
