@@ -4,9 +4,15 @@
     <option name="autoReloadType" value="SELECTIVE" />
   </component>
   <component name="ChangeListManager">
-    <list default="true" id="b3c91f45-fbe1-4477-9fd9-38d0fcaf660d" name="Changes" comment="Добавлен блок геолокации задачи и вынес его в отдельный компонент с Яндекс-картой. Исправлена нормализация bsLocation, чтобы типы в диалоге редактирования не падали.">
+    <list default="true" id="b3c91f45-fbe1-4477-9fd9-38d0fcaf660d" name="Changes" comment="feat: сохраняем clerkUserId для исполнителя и добавляем поле стоимости в задачу">
       <change beforePath="$PROJECT_DIR$/.idea/workspace.xml" beforeDir="false" afterPath="$PROJECT_DIR$/.idea/workspace.xml" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/src/app/api/org/[org]/members/invite/route.ts" beforeDir="false" afterPath="$PROJECT_DIR$/src/app/api/org/[org]/members/invite/route.ts" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/src/app/api/org/[org]/members/route.ts" beforeDir="false" afterPath="$PROJECT_DIR$/src/app/api/org/[org]/members/route.ts" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/src/app/api/org/[org]/projects/[project]/tasks/[id]/route.ts" beforeDir="false" afterPath="$PROJECT_DIR$/src/app/api/org/[org]/projects/[project]/tasks/[id]/route.ts" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/src/app/api/org/[org]/projects/[project]/tasks/route.ts" beforeDir="false" afterPath="$PROJECT_DIR$/src/app/api/org/[org]/projects/[project]/tasks/route.ts" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/src/app/models/TaskModel.ts" beforeDir="false" afterPath="$PROJECT_DIR$/src/app/models/TaskModel.ts" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/src/app/org/[org]/projects/[project]/tasks/[id]/page.tsx" beforeDir="false" afterPath="$PROJECT_DIR$/src/app/org/[org]/projects/[project]/tasks/[id]/page.tsx" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/src/app/workspace/components/WorkspaceTaskDialog.tsx" beforeDir="false" afterPath="$PROJECT_DIR$/src/app/workspace/components/WorkspaceTaskDialog.tsx" afterDir="false" />
     </list>
     <option name="SHOW_DIALOG" value="false" />
     <option name="HIGHLIGHT_CONFLICTS" value="true" />
@@ -114,15 +120,7 @@
       <workItem from="1761720378244" duration="633000" />
       <workItem from="1761887562972" duration="15306000" />
       <workItem from="1762422367880" duration="27839000" />
-      <workItem from="1762582926294" duration="3287000" />
-    </task>
-    <task id="LOCAL-00003" summary="added generation of UOR">
-      <option name="closed" value="true" />
-      <created>1746728600824</created>
-      <option name="number" value="00003" />
-      <option name="presentableId" value="LOCAL-00003" />
-      <option name="project" value="LOCAL" />
-      <updated>1746728600824</updated>
+      <workItem from="1762582926294" duration="9632000" />
     </task>
     <task id="LOCAL-00004" summary="Generation of UOR and addtask route has been modified">
       <option name="closed" value="true" />
@@ -508,15 +506,21 @@
       <option name="project" value="LOCAL" />
       <updated>1762583817845</updated>
     </task>
-    <option name="localTasksCounter" value="52" />
+    <task id="LOCAL-00052" summary="TaskDetailsPage - изменения UI (добавления ссылок проект и организация)">
+      <option name="closed" value="true" />
+      <created>1762590521214</created>
+      <option name="number" value="00052" />
+      <option name="presentableId" value="LOCAL-00052" />
+      <option name="project" value="LOCAL" />
+      <updated>1762590521214</updated>
+    </task>
+    <option name="localTasksCounter" value="53" />
     <servers />
   </component>
   <component name="TypeScriptGeneratedFilesManager">
     <option name="version" value="3" />
   </component>
   <component name="VcsManagerConfiguration">
-    <MESSAGE value="uploadBuffer error bug has been fixed" />
-    <MESSAGE value="apply Inter font globally and set as default in MUI theme and use finance information from file" />
     <MESSAGE value="replace coast style" />
     <MESSAGE value="replace RUB to ₽" />
     <MESSAGE value="Status changing lojic bug has been fixed" />
@@ -540,6 +544,8 @@
     <MESSAGE value="(fix) ProjectTaskList ProjectTaskBoard - удален глобальный слушатель для контекстного меню. Меню привязано к ПКМ по строке и карточке задачи + заблокировано браузерное меню." />
     <MESSAGE value="Добавлена карточка задачи TaskDetailsPage. Настроен переход из ProjectTaskList ProjectTaskBoard ProjectTaskCalendar при клике на задачу а также из контекстного меню" />
     <MESSAGE value="Добавлен блок геолокации задачи и вынес его в отдельный компонент с Яндекс-картой. Исправлена нормализация bsLocation, чтобы типы в диалоге редактирования не падали." />
-    <option name="LAST_COMMIT_MESSAGE" value="Добавлен блок геолокации задачи и вынес его в отдельный компонент с Яндекс-картой. Исправлена нормализация bsLocation, чтобы типы в диалоге редактирования не падали." />
+    <MESSAGE value="TaskDetailsPage - изменения UI (добавления ссылок проект и организация)" />
+    <MESSAGE value="feat: сохраняем clerkUserId для исполнителя и добавляем поле стоимости в задачу" />
+    <option name="LAST_COMMIT_MESSAGE" value="feat: сохраняем clerkUserId для исполнителя и добавляем поле стоимости в задачу" />
   </component>
 </project>

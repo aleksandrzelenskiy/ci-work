@@ -20,6 +20,7 @@ type MemberDTO = {
     userName?: string;
     role: OrgRole;
     status: 'active' | 'invited';
+    clerkId?: string;
 
     /** аватар из users.profilePic */
     profilePic?: string;
@@ -56,7 +57,9 @@ type AggRow = {
     inviteToken?: string;
     inviteExpiresAt?: Date;
     profilePic?: string | null;
+    clerkId?: string | null;
 };
+
 
 // GET /api/org/:org/members?role=executor&status=active|invited|all
 export async function GET(
@@ -127,6 +130,7 @@ export async function GET(
                     inviteToken: 1,
                     inviteExpiresAt: 1,
                     profilePic: '$user.profilePic',
+                    clerkId: '$user.clerkUserId',
                 },
             },
             { $sort: { userName: 1, userEmail: 1 } },
@@ -141,6 +145,7 @@ export async function GET(
                 role: row.role,
                 status: row.status,
                 profilePic: row.profilePic ?? undefined,
+                clerkId: row.clerkId ?? undefined,
             };
 
             if (includeInviteSecrets && row.status === 'invited') {

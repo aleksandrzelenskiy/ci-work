@@ -210,47 +210,87 @@ export async function PUT(
 
         const allowedPatch: Record<string, unknown> = {};
 
-        // обычные поля
-        if (typeof body.taskName === 'string') allowedPatch.taskName = body.taskName;
-        if (typeof body.bsNumber === 'string') allowedPatch.bsNumber = body.bsNumber;
-        if (typeof body.bsAddress === 'string') allowedPatch.bsAddress = body.bsAddress;
+        // --- обычные поля ---
+        if (typeof body.taskName === 'string') {
+            allowedPatch.taskName = body.taskName;
+        }
+        if (typeof body.bsNumber === 'string') {
+            allowedPatch.bsNumber = body.bsNumber;
+        }
+        if (typeof body.bsAddress === 'string') {
+            allowedPatch.bsAddress = body.bsAddress;
+        }
 
         if (typeof body.taskDescription === 'string') {
             const trimmed = body.taskDescription.trim();
             allowedPatch.taskDescription = trimmed || undefined;
         }
 
+        // статус
         const status = normalizeStatus(body.status as string | undefined);
-        if (status) allowedPatch.status = status;
-
-        const pr = normalizePriority(body.priority as string | undefined);
-        if (pr) allowedPatch.priority = pr;
-
-        const due = parseMaybeISODate(body.dueDate);
-        if (due) allowedPatch.dueDate = due;
-
-        const lat = parseMaybeNumber(body.bsLatitude);
-        if (typeof lat !== 'undefined') allowedPatch.bsLatitude = lat;
-
-        const lon = parseMaybeNumber(body.bsLongitude);
-        if (typeof lon !== 'undefined') allowedPatch.bsLongitude = lon;
-
-        if (typeof body.executorId === 'string') allowedPatch.executorId = body.executorId;
-        if (typeof body.executorName === 'string') allowedPatch.executorName = body.executorName;
-        if (typeof body.executorEmail === 'string') allowedPatch.executorEmail = body.executorEmail;
-
-        if (typeof body.totalCost !== 'undefined') {
-            const tc = parseMaybeNumber(body.totalCost);
-            if (typeof tc !== 'undefined') allowedPatch.totalCost = tc;
+        if (status) {
+            allowedPatch.status = status;
         }
 
-        // --- КЛЮЧЕВАЯ ЧАСТЬ: обновление геолокации при смене БС ---
+        // приоритет
+        const pr = normalizePriority(body.priority as string | undefined);
+        if (pr) {
+            allowedPatch.priority = pr;
+        }
+
+        // срок
+        const due = parseMaybeISODate(body.dueDate);
+        if (due) {
+            allowedPatch.dueDate = due;
+        }
+
+        // координаты
+        const lat = parseMaybeNumber(body.bsLatitude);
+        if (typeof lat !== 'undefined') {
+            allowedPatch.bsLatitude = lat;
+        }
+
+        const lon = parseMaybeNumber(body.bsLongitude);
+        if (typeof lon !== 'undefined') {
+            allowedPatch.bsLongitude = lon;
+        }
+
+        // исполнитель — ВСЕГДА строка (clerkUserId), не ObjectId
+        if (typeof body.executorId === 'string' && body.executorId.trim()) {
+            allowedPatch.executorId = body.executorId.trim();
+            if (typeof body.executorName === 'string') {
+                allowedPatch.executorName = body.executorName;
+            }
+            if (typeof body.executorEmail === 'string') {
+                allowedPatch.executorEmail = body.executorEmail;
+            }
+        } else if (body.executorId === null) {
+            // если на фронте сняли исполнителя
+            allowedPatch.executorId = undefined;
+            allowedPatch.executorName = undefined;
+            allowedPatch.executorEmail = undefined;
+        }
+
+        // стоимость
+        if (typeof body.totalCost !== 'undefined') {
+            const tc = parseMaybeNumber(body.totalCost);
+            if (typeof tc !== 'undefined') {
+                allowedPatch.totalCost = tc;
+            } else {
+                // если пришло пустое/некорректное — можно обнулить
+                allowedPatch.totalCost = undefined;
+            }
+        }
+
+        // --- геолокация / БС ---
         const clientBsLocation: TaskBsLocationItem[] | null = Array.isArray(body.bsLocation)
             ? (body.bsLocation as TaskBsLocationItem[])
             : null;
 
         const newBsNumber =
-            typeof body.bsNumber === 'string' ? (body.bsNumber as string) : currentTask.bsNumber;
+            typeof body.bsNumber === 'string'
+                ? (body.bsNumber as string)
+                : currentTask.bsNumber;
 
         const bsNumberChanged = newBsNumber !== currentTask.bsNumber;
 
@@ -265,7 +305,6 @@ export async function PUT(
                 regionCode?: string;
             } = { name: newBsNumber };
 
-            // если указаны оператор/регион – добавляем в фильтр
             if (operatorCode) bsQuery.operatorCode = operatorCode;
             if (regionCode) bsQuery.regionCode = regionCode;
 
@@ -294,20 +333,22 @@ export async function PUT(
                     // БС нашлась, но без координат — берём то, что прислал клиент
                     allowedPatch.bsLocation = clientBsLocation;
                 } else {
+                    // БС нашлась, но координат нет и клиент ничего не прислал
                     allowedPatch.bsLocation = [];
                 }
             } else if (clientBsLocation) {
-                // в этой базе такой БС нет, но клиент прислал координаты
+                // в нашей базе такой БС нет, но клиент прислал координаты
                 allowedPatch.bsLocation = clientBsLocation;
             } else {
-                // ничего нет — чистим
+                // нет ни в базе, ни у клиента
                 allowedPatch.bsLocation = [];
             }
         } else if (clientBsLocation) {
-            // номер БС не меняли, но координаты руками обновили — сохраняем
+            // номер БС не меняли, но координаты руками обновили — сохраняем то, что прислал клиент
             allowedPatch.bsLocation = clientBsLocation;
         }
 
+        // сохраняем
         const updated = await TaskModel.findOneAndUpdate(
             {
                 _id: currentTask._id,
@@ -328,6 +369,7 @@ export async function PUT(
         return NextResponse.json({ error: errorMessage(err) }, { status: 500 });
     }
 }
+
 
 export async function GET(
     _req: NextRequest,

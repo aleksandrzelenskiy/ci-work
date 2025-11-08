@@ -13,7 +13,6 @@ function errorMessage(err: unknown): string {
     return err instanceof Error ? err.message : 'Server error';
 }
 
-// ─────────────── utils ───────────────
 const TASK_ID_ALPHABET = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789';
 function genTaskId(len = 5) {
     let s = '';
@@ -21,7 +20,6 @@ function genTaskId(len = 5) {
     return s;
 }
 
-/** Приводим входной статус (UI/разные варианты) к enum из схемы */
 function normalizeStatus(input?: string) {
     if (!input) return 'To do';
     const s = input.trim().toLowerCase();
@@ -36,7 +34,6 @@ function normalizeStatus(input?: string) {
     return 'To do';
 }
 
-/** Белый список сортировок */
 const SAFE_SORT_FIELDS = new Set([
     'createdAt',
     'updatedAt',
@@ -53,30 +50,17 @@ function sanitizeSortParam(raw: string) {
     return raw.startsWith('-') ? `-${field}` : field;
 }
 
-// ─────────────── types ───────────────
-type TaskFilter = {
-    orgId: Types.ObjectId;
-    projectId: Types.ObjectId;
-    status?: string;
-    createdAt?: { $gte?: Date; $lte?: Date };
-    $or?: Array<
-        | { taskName: { $regex: string; $options: 'i' } }
-        | { bsNumber: { $regex: string; $options: 'i' } }
-        | { taskId: { $regex: string; $options: 'i' } }
-    >;
-};
-
 type CreateTaskBody = {
     taskId?: string;
     taskName: string;
     bsNumber?: string;
     bsAddress?: string;
     bsLocation?: Array<{ name: string; coordinates: string }>;
-    totalCost?: number;
+    totalCost?: number | string;
     workItems?: unknown[];
     status?: string;
     priority?: 'urgent' | 'high' | 'medium' | 'low';
-    dueDate?: string; // ISO
+    dueDate?: string;
     taskType?: 'construction' | 'installation' | 'document';
     requiredAttachments?: Array<'photo' | 'pdf' | 'doc' | 'xlsm' | 'xlsx' | 'dwg'>;
     orderUrl?: string;
@@ -84,11 +68,12 @@ type CreateTaskBody = {
     orderDate?: string;
     orderSignDate?: string;
     taskDescription?: string;
-
+    executorId?: string;
+    executorName?: string;
+    executorEmail?: string;
     [extra: string]: unknown;
 };
 
-// ─────────────── GET /api/org/[org]/projects/[project]/tasks ───────────────
 export async function GET(
     req: NextRequest,
     ctx: { params: Promise<{ org: string; project: string }> }
@@ -100,7 +85,6 @@ export async function GET(
 
         const { org, project } = await ctx.params;
 
-        // ищем проект по key ИЛИ по _id
         const rel = await getOrgAndProjectByRef(org, project);
         if ('error' in rel) {
             console.warn('[GET tasks] not found:', { org, project, reason: rel.error });
@@ -119,7 +103,10 @@ export async function GET(
         const to = searchParams.get('to');
         const sortParam = sanitizeSortParam((searchParams.get('sort') || '-createdAt').trim());
 
-        const filter: TaskFilter = { orgId: orgObjId, projectId: projectObjId };
+        const filter: Record<string, unknown> = {
+            orgId: orgObjId,
+            projectId: projectObjId,
+        };
 
         if (q) {
             filter.$or = [
@@ -132,9 +119,10 @@ export async function GET(
             filter.status = normalizeStatus(statusRaw);
         }
         if (from || to) {
-            filter.createdAt = {};
-            if (from) filter.createdAt.$gte = new Date(from);
-            if (to) filter.createdAt.$lte = new Date(to);
+            const createdAt: Record<string, Date> = {};
+            if (from) createdAt.$gte = new Date(from);
+            if (to) createdAt.$lte = new Date(to);
+            filter.createdAt = createdAt;
         }
 
         const skip = (page - 1) * limit;
@@ -150,7 +138,6 @@ export async function GET(
     }
 }
 
-// ─────────────── POST /api/org/[org]/projects/[project]/tasks ───────────────
 export async function POST(
     req: NextRequest,
     ctx: { params: Promise<{ org: string; project: string }> }
@@ -196,11 +183,12 @@ export async function POST(
             orderDate,
             orderSignDate,
             taskDescription,
-
+            executorId,
+            executorName,
+            executorEmail,
             ...rest
         } = body;
 
-        // обязательные по схеме
         if (!taskName) return NextResponse.json({ error: 'taskName is required' }, { status: 400 });
         if (!bsNumber) return NextResponse.json({ error: 'bsNumber is required' }, { status: 400 });
         if (!bsAddress) return NextResponse.json({ error: 'bsAddress is required' }, { status: 400 });
@@ -214,7 +202,13 @@ export async function POST(
             bsNumber,
             bsAddress,
             bsLocation,
-            totalCost,
+            // приводим в число
+            totalCost:
+                typeof totalCost === 'number'
+                    ? totalCost
+                    : totalCost
+                        ? Number(totalCost)
+                        : undefined,
             workItems,
             status: normalizeStatus(status),
             priority,
@@ -228,10 +222,17 @@ export async function POST(
             orderSignDate: orderSignDate ? new Date(orderSignDate) : undefined,
             taskDescription,
 
+            // автор — всегда clerk
             authorId: user.id,
             authorEmail: user.emailAddresses?.[0]?.emailAddress,
             authorName: user.fullName || user.username || 'User',
 
+            // исполнитель — тоже clerkId (то, что пришло с фронта)
+            executorId: typeof executorId === 'string' ? executorId : undefined,
+            executorName: executorName,
+            executorEmail: executorEmail,
+
+            // безопасно докидываем остальные поля, если есть
             ...rest,
         });
 

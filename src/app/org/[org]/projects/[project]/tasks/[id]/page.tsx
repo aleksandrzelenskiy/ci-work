@@ -25,11 +25,16 @@ import ArrowBackIcon from '@mui/icons-material/ArrowBack';
 import RefreshIcon from '@mui/icons-material/Refresh';
 import EditDocumentIcon from '@mui/icons-material/EditDocument';
 import DeleteIcon from '@mui/icons-material/Delete';
+import InfoOutlineIcon from '@mui/icons-material/InfoOutline';
+import DescriptionOutlinedIcon from '@mui/icons-material/DescriptionOutlined';
+import AttachFileOutlinedIcon from '@mui/icons-material/AttachFileOutlined';
 import WorkspaceTaskDialog, {
     type TaskForEdit,
 } from '@/app/workspace/components/WorkspaceTaskDialog';
 import { getPriorityIcon, normalizePriority } from '@/utils/priorityIcons';
 import TaskGeoLocation from '@/app/workspace/components/TaskGeoLocation';
+import { getStatusColor } from '@/utils/statusColors';
+
 
 type TaskFile = {
     url: string;
@@ -222,16 +227,22 @@ export default function TaskDetailsPage() {
                                 {task?.taskName || 'Задача'}
                             </Typography>
                             {task?.bsNumber && (
-                                <Typography variant="body2" color="text.secondary">
+                                <Typography variant="h6">
                                     {task.bsNumber}
                                 </Typography>
                             )}
-                            {task?.status && (
-                                <Chip label={task.status} size="small" color="primary" variant="outlined" />
+
+                            {task?.taskId && (
+                                <Chip
+                                    label={task.taskId}
+                                    size="small"
+                                    variant="outlined"
+                                    sx={{ mt: 0.5 }}
+                                />
                             )}
                         </Stack>
-                        {/* вот тут меняем вывод */}
-                        <Typography variant="body2" color="text.secondary" sx={{ display: 'flex', gap: 0.5, flexWrap: 'wrap' }}>
+
+                        <Typography variant="body2" color="text.secondary" sx={{ display: 'flex', gap: 0.5, flexWrap: 'wrap', mb: 1 }}>
                             Организация:{' '}
                             <Link
                                 href={`/org/${encodeURIComponent(org)}`}
@@ -250,12 +261,16 @@ export default function TaskDetailsPage() {
                                 {project}
                             </Link>
                         </Typography>
-                        {task?.taskId && (
+
+                        {task?.status && (
                             <Chip
-                                label={task.taskId}
+                                label={task.status}
                                 size="small"
-                                variant="outlined"
-                                sx={{ mt: 0.5 }}
+                                sx={{
+                                    bgcolor: getStatusColor(task.status),
+                                    color: 'rgba(0,0,0,0.87)',
+                                    fontWeight: 500,
+                                }}
                             />
                         )}
 
@@ -312,7 +327,13 @@ export default function TaskDetailsPage() {
                         {/* Информация */}
                         <Grid item xs={12} md={6} lg={3}>
                             <Paper variant="outlined" sx={{ p: 2 }}>
-                                <Typography variant="subtitle1" fontWeight={600} gutterBottom>
+                                <Typography
+                                    variant="subtitle1"
+                                    fontWeight={600}
+                                    gutterBottom
+                                    sx={{ display: 'flex', alignItems: 'center', gap: 1 }}
+                                >
+                                    <InfoOutlineIcon fontSize="small" />
                                     Информация
                                 </Typography>
                                 <Divider sx={{ mb: 1.5 }} />
@@ -409,7 +430,13 @@ export default function TaskDetailsPage() {
                         {/* Описание */}
                         <Grid item xs={12} md={6} lg={3}>
                             <Paper variant="outlined" sx={{ p: 2 }}>
-                                <Typography variant="subtitle1" fontWeight={600} gutterBottom>
+                                <Typography
+                                    variant="subtitle1"
+                                    fontWeight={600}
+                                    gutterBottom
+                                    sx={{ display: 'flex', alignItems: 'center', gap: 1 }}
+                                >
+                                    <DescriptionOutlinedIcon fontSize="small"/>
                                     Описание
                                 </Typography>
                                 <Divider sx={{ mb: 1.5 }} />
@@ -427,7 +454,13 @@ export default function TaskDetailsPage() {
                         {hasAttachments && (
                             <Grid item xs={12} md={6} lg={3}>
                                 <Paper variant="outlined" sx={{ p: 2 }}>
-                                    <Typography variant="subtitle1" fontWeight={600} gutterBottom>
+                                    <Typography
+                                        variant="subtitle1"
+                                        fontWeight={600}
+                                        gutterBottom
+                                        sx={{ display: 'flex', alignItems: 'center', gap: 1 }}
+                                    >
+                                        <AttachFileOutlinedIcon fontSize="small"/>
                                         Вложения
                                     </Typography>
                                     <Divider sx={{ mb: 1.5 }} />

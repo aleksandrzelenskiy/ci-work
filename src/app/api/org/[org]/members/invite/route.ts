@@ -5,7 +5,7 @@ import dbConnect from '@/utils/mongoose';
 import Membership, { OrgRole } from '@/app/models/MembershipModel';
 import { requireOrgRole } from '@/app/utils/permissions';
 import crypto from 'crypto';
-import UserModel from '@/app/models/UserModel'; // путь к вашему users-моделю
+import UserModel from '@/app/models/UserModel';
 
 export const runtime = 'nodejs';
 export const dynamic = 'force-dynamic';

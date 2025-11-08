@@ -39,10 +39,11 @@ type MemberOption = {
     name: string;
     email: string;
     profilePic?: string;
+    clerkId?: string;
 };
 
 type MembersApi = {
-    members: Array<{ _id: string; userName?: string; userEmail: string; profilePic?: string }>;
+    members: Array<{ _id: string; userName?: string; userEmail: string; profilePic?: string; clerkId?: string }>;
     error?: string;
 };
 
@@ -166,6 +167,9 @@ export default function WorkspaceTaskDialog({
     const [bsLatitude, setBsLatitude] = React.useState<string>('');
     const [bsLongitude, setBsLongitude] = React.useState<string>('');
 
+    // новое поле: стоимость
+    const [totalCost, setTotalCost] = React.useState<string>('');
+
     const [members, setMembers] = React.useState<MemberOption[]>([]);
     const [membersLoading, setMembersLoading] = React.useState(false);
     const [membersError, setMembersError] = React.useState<string | null>(null);
@@ -196,7 +200,6 @@ export default function WorkspaceTaskDialog({
     const [snackbarOpen, setSnackbarOpen] = React.useState(false);
     const [snackbarMsg, setSnackbarMsg] = React.useState('');
     const [snackbarSeverity, setSnackbarSeverity] = React.useState<'success' | 'error'>('success');
-
 
     const loadBsOptions = React.useCallback(async (term: string) => {
         setBsOptionsLoading(true);
@@ -256,6 +259,13 @@ export default function WorkspaceTaskDialog({
 
         setBsLatitude(latStr);
         setBsLongitude(lonStr);
+
+        // подставляем стоимость из задачи
+        setTotalCost(
+            typeof initialTask.totalCost === 'number' && !Number.isNaN(initialTask.totalCost)
+                ? String(initialTask.totalCost)
+                : ''
+        );
 
         if (initialTask.executorEmail || initialTask.executorName || initialTask.executorId) {
             setSelectedExecutor({
@@ -326,12 +336,15 @@ export default function WorkspaceTaskDialog({
                 }
 
                 const list = (body as MembersApi)?.members ?? [];
+
                 const opts: MemberOption[] = list.map((m) => ({
-                    id: String(m._id),
+                    id: m.clerkId ? m.clerkId : String(m._id),
+                    clerkId: m.clerkId ?? undefined,
                     name: m.userName || m.userEmail,
                     email: m.userEmail,
                     profilePic: m.profilePic,
                 }));
+
 
                 if (!aborted) setMembers(opts);
             } catch (e: unknown) {
@@ -378,6 +391,7 @@ export default function WorkspaceTaskDialog({
         setAttachments([]);
         setUploadProgress(0);
         setUploading(false);
+        setTotalCost('');
     };
 
     const handleSnackbarClose = () => setSnackbarOpen(false);
@@ -498,9 +512,10 @@ export default function WorkspaceTaskDialog({
                 bsLatitude: bsLatitude === '' ? undefined : Number(bsLatitude),
                 bsLongitude: bsLongitude === '' ? undefined : Number(bsLongitude),
                 bsLocation: buildBsLocation(),
-                executorId: selectedExecutor?.id,
+                executorId: selectedExecutor?.id, // теперь это clerkId
                 executorName: selectedExecutor?.name,
                 executorEmail: selectedExecutor?.email,
+                totalCost: totalCost.trim() ? Number(totalCost.trim()) : undefined,
             };
 
             const res = await fetch(
@@ -547,9 +562,10 @@ export default function WorkspaceTaskDialog({
                 bsLatitude: bsLatitude === '' ? undefined : Number(bsLatitude),
                 bsLongitude: bsLongitude === '' ? undefined : Number(bsLongitude),
                 bsLocation: buildBsLocation(),
-                executorId: selectedExecutor?.id,
+                executorId: selectedExecutor?.id, // теперь это clerkId
                 executorName: selectedExecutor?.name,
                 executorEmail: selectedExecutor?.email,
+                totalCost: totalCost.trim() ? Number(totalCost.trim()) : undefined,
             };
 
             const res = await fetch(
@@ -660,7 +676,6 @@ export default function WorkspaceTaskDialog({
         setDeleteDialogOpen(false);
         setAttachmentToDelete(null);
     };
-
 
     const cancelDeleteExisting = () => {
         setDeleteDialogOpen(false);
@@ -794,6 +809,16 @@ export default function WorkspaceTaskDialog({
                             fullWidth
                         />
 
+                        {/* новое поле стоимость */}
+                        <TextField
+                            label="Стоимость, ₽"
+                            type="number"
+                            value={totalCost}
+                            onChange={(e) => setTotalCost(e.target.value)}
+                            fullWidth
+                            inputProps={{ min: 0, step: '0.01' }}
+                        />
+
                         <Autocomplete<MemberOption>
                             options={members}
                             value={selectedExecutor}
@@ -858,7 +883,6 @@ export default function WorkspaceTaskDialog({
                                 <Stack direction="row" flexWrap="wrap" gap={1}>
                                     {existingAttachments.map((f) => (
                                         <Box key={f.key} sx={{ display: 'flex', alignItems: 'center', gap: 0.5 }}>
-                                            {/* сам чип — только для открытия */}
                                             <Chip
                                                 label={f.name}
                                                 component={f.url ? 'a' : 'div'}
@@ -868,7 +892,6 @@ export default function WorkspaceTaskDialog({
                                                 rel={f.url ? 'noopener noreferrer' : undefined}
                                                 sx={{ maxWidth: '100%' }}
                                             />
-                                            {/* отдельная кнопка удалить */}
                                             <Tooltip title="Удалить">
                                                 <IconButton
                                                     size="small"
@@ -886,7 +909,6 @@ export default function WorkspaceTaskDialog({
                                 </Stack>
                             </Box>
                         )}
-
 
                         {/* Файлы, готовые к загрузке */}
                         {!!attachments.length && (
@@ -979,8 +1001,8 @@ export default function WorkspaceTaskDialog({
                 <DialogTitle>Удалить вложение?</DialogTitle>
                 <DialogContent>
                     <Typography variant="body2">
-                        {attachmentToDelete?.name ? `Удалить "${attachmentToDelete.name}"?` : 'Удалить вложение?'}
-                        {' '}Файл будет удалён и с сервера.
+                        {attachmentToDelete?.name ? `Удалить "${attachmentToDelete.name}"?` : 'Удалить вложение?'} Файл будет
+                        удалён и с сервера.
                     </Typography>
                 </DialogContent>
                 <DialogActions>
@@ -1008,7 +1030,6 @@ export default function WorkspaceTaskDialog({
                     {snackbarMsg}
                 </Alert>
             </Snackbar>
-
         </LocalizationProvider>
     );
 }

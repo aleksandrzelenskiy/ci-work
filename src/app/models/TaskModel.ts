@@ -1,6 +1,6 @@
 // app/models/TaskModel.ts
 
-import { Schema, Document, model, models } from 'mongoose';
+import mongoose, { Schema, Document, model } from 'mongoose';
 import { Task, PriorityLevel, CurrentStatus } from '../types/taskTypes';
 
 const TaskSchema = new Schema<Task & Document>({
@@ -123,4 +123,13 @@ const TaskSchema = new Schema<Task & Document>({
   ],
 });
 
-export default models.Task || model<Task & Document>('Task', TaskSchema);
+const MODEL_NAME = 'Task';
+
+const mutableModels = mongoose.models as unknown as Record<string, mongoose.Model<unknown>>;
+
+if (mutableModels[MODEL_NAME]) {
+  delete mutableModels[MODEL_NAME];
+}
+
+export default model<Task & Document>(MODEL_NAME, TaskSchema);
+
