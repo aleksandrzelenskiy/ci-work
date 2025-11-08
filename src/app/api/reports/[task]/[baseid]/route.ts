@@ -12,61 +12,48 @@ import { currentUser } from '@clerk/nextjs/server';
  * Дополнительно возвращаем `role` текущего пользователя.
  */
 export async function GET(
-  request: Request,
-  // 1) Параметры, которые приходят асинхронно:
-  //    { params: Promise<{ task: string; baseid: string }> }
-  { params }: { params: Promise<{ task: string; baseid: string }> }
+    request: Request,
+    { params }: { params: Promise<{ task: string; baseid: string }> }
 ) {
   try {
-    // Сначала подключаемся к БД
     await dbConnect();
-    console.log('Успешное подключение к базе данных.');
 
-    // 2) «Дожидаемся» сам объект params
     const { task, baseid } = await params;
-
-    // Декодируем
     const taskDecoded = decodeURIComponent(task);
     const baseidDecoded = decodeURIComponent(baseid);
 
     if (!taskDecoded || !baseidDecoded) {
       return NextResponse.json(
-        { error: 'Missing parameters in URL' },
-        { status: 400 }
+          { error: 'Missing parameters in URL' },
+          { status: 400 }
       );
     }
 
     const clerkUser = await currentUser();
     if (!clerkUser) {
-      console.error('Нет активной сессии пользователя');
       return NextResponse.json(
-        { error: 'Нет активной сессии пользователя' },
-        { status: 401 }
+          { error: 'Нет активной сессии пользователя' },
+          { status: 401 }
       );
     }
 
-    // Ищем соответствующего пользователя (для получения роли)
     const dbUser = await UserModel.findOne({ clerkUserId: clerkUser.id });
     if (!dbUser) {
-      console.warn('Пользователь не найден в базе данных MongoDB');
       return NextResponse.json(
-        { error: 'Пользователь не найден в базе данных' },
-        { status: 404 }
+          { error: 'Пользователь не найден в базе данных' },
+          { status: 404 }
       );
     }
 
-    // Находим отчёт по task + baseId
     const report = await ReportModel.findOne({
       task: taskDecoded,
       baseId: baseidDecoded,
     });
 
     if (!report) {
-      console.warn('Отчёт не найден');
       return NextResponse.json({ error: 'Отчёт не найден' }, { status: 404 });
     }
 
-    // Возвращаем данные отчёта вместе с ролью пользователя
     return NextResponse.json({
       reportId: report.reportId,
       files: report.files,
@@ -82,8 +69,8 @@ export async function GET(
   } catch (error) {
     console.error('Ошибка при получении отчёта:', error);
     return NextResponse.json(
-      { error: 'Не удалось получить отчёт' },
-      { status: 500 }
+        { error: 'Не удалось получить отчёт' },
+        { status: 500 }
     );
   }
 }
@@ -92,36 +79,32 @@ export async function GET(
  * PATCH обработчик для обновления информации о конкретном отчёте.
  */
 export async function PATCH(
-  request: Request,
-  { params }: { params: Promise<{ task: string; baseid: string }> }
+    request: Request,
+    { params }: { params: Promise<{ task: string; baseid: string }> }
 ) {
   try {
     await dbConnect();
-    console.log('Успешное подключение к базе данных.');
 
-    // «Дожидаемся» объект params
     const { task, baseid } = await params;
     const taskDecoded = decodeURIComponent(task);
     const baseidDecoded = decodeURIComponent(baseid);
 
     if (!taskDecoded || !baseidDecoded) {
       return NextResponse.json(
-        { error: 'Missing parameters in URL' },
-        { status: 400 }
+          { error: 'Missing parameters in URL' },
+          { status: 400 }
       );
     }
 
     const user = await currentUser();
     if (!user) {
-      console.error('Ошибка аутентификации: пользователь не авторизован');
       return NextResponse.json(
-        { error: 'Пользователь не авторизован' },
-        { status: 401 }
+          { error: 'Пользователь не авторизован' },
+          { status: 401 }
       );
     }
 
     const name = `${user.firstName || 'Unknown'} ${user.lastName || ''}`.trim();
-    console.log(`Авторизованный пользователь: ${name}`);
 
     const body: {
       status?: string;
@@ -139,7 +122,6 @@ export async function PATCH(
     });
 
     if (!report) {
-      console.warn('Отчёт не найден.');
       return NextResponse.json({ error: 'Отчёт не найден' }, { status: 404 });
     }
 
@@ -180,32 +162,32 @@ export async function PATCH(
     if (updateIssue) {
       const { index, text } = updateIssue;
       if (
-        index >= 0 &&
-        Array.isArray(report.issues) &&
-        index < report.issues.length
+          index >= 0 &&
+          Array.isArray(report.issues) &&
+          index < report.issues.length
       ) {
         report.issues[index] = text;
         issuesChanged = true;
       } else {
         return NextResponse.json(
-          { error: 'Неверный индекс для обновления issue' },
-          { status: 400 }
+            { error: 'Неверный индекс для обновления issue' },
+            { status: 400 }
         );
       }
     }
 
     if (typeof deleteIssueIndex === 'number') {
       if (
-        deleteIssueIndex >= 0 &&
-        Array.isArray(report.issues) &&
-        deleteIssueIndex < report.issues.length
+          deleteIssueIndex >= 0 &&
+          Array.isArray(report.issues) &&
+          deleteIssueIndex < report.issues.length
       ) {
         report.issues.splice(deleteIssueIndex, 1);
         issuesChanged = true;
       } else {
         return NextResponse.json(
-          { error: 'Неверный индекс для удаления issue' },
-          { status: 400 }
+            { error: 'Неверный индекс для удаления issue' },
+            { status: 400 }
         );
       }
     }
@@ -225,7 +207,7 @@ export async function PATCH(
       });
     }
 
-    // Сохраняем
+    // Сохраняем сам отчёт
     await report.save();
 
     // Синхронизируем статус с задачей
@@ -233,6 +215,8 @@ export async function PATCH(
     if (relatedTask && relatedTask.status !== report.status) {
       const oldTaskStatus = relatedTask.status;
       relatedTask.status = report.status;
+
+      relatedTask.events = relatedTask.events || [];
       relatedTask.events.push({
         action: 'STATUS_CHANGED',
         author: name,
@@ -244,6 +228,7 @@ export async function PATCH(
           comment: 'Статус синхронизирован с фотоотчетом',
         },
       });
+
       await relatedTask.save();
     }
 
@@ -251,8 +236,8 @@ export async function PATCH(
   } catch (error) {
     console.error('Ошибка при обновлении отчёта:', error);
     return NextResponse.json(
-      { error: 'Не удалось обновить отчёт' },
-      { status: 500 }
+        { error: 'Не удалось обновить отчёт' },
+        { status: 500 }
     );
   }
 }
