@@ -51,7 +51,6 @@ function safeBasename(name: string): string {
 }
 
 export default async function handler(req: NextApiRequest, res: NextApiResponse) {
-
     if (req.method === 'DELETE') {
         const { userId } = getAuth(req);
         if (!userId) {
@@ -68,10 +67,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
         try {
             await dbConnect();
             // убираем URL из attachments
-            await TaskModel.updateOne(
-                { taskId },
-                { $pull: { attachments: url } }
-            ).exec();
+            await TaskModel.updateOne({ taskId }, { $pull: { attachments: url } }).exec();
 
             // удаляем сам файл
             await deleteTaskFile(url);
@@ -107,7 +103,9 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
 
         bb.on('file', (_field: string, stream, info: FileInfo) => {
             const filename = info?.filename ?? 'file';
-            const mimeType = (info as FileInfo & { mimeType?: string }).mimeType ?? 'application/octet-stream';
+            const mimeType =
+                (info as FileInfo & { mimeType?: string }).mimeType ??
+                'application/octet-stream';
 
             const chunks: Buffer[] = [];
             stream.on('data', (c: Buffer) => chunks.push(c));
@@ -144,10 +142,11 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
         try {
             await dbConnect();
 
-            // пробуем найти юзера — если нет, пишем варнинг
             const user = await User.findOne({ clerkUserId: userId }).lean().exec();
             if (!user) {
-                console.warn('[upload attachments] user not found in database, but continuing upload for task attachments');
+                console.warn(
+                    '[upload attachments] user not found in database, but continuing upload for task attachments'
+                );
             }
 
             const uploadedUrls: string[] = [];
@@ -155,7 +154,6 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
             for (const f of files) {
                 const filename = safeBasename(f.filename || 'file');
 
-                // путь в хранилище
                 const key = orgSlug
                     ? path.posix.join(
                         'uploads',
@@ -171,7 +169,6 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
                         filename
                     );
 
-                // физическая загрузка (S3 или локально)
                 const url = await uploadBuffer(
                     f.buffer,
                     key,
@@ -243,7 +240,9 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
 
     try {
         if (initiatorIdFromForm) {
-            const initiatorUser = await User.findOne({ clerkUserId: initiatorIdFromForm });
+            const initiatorUser = await User.findOne({
+                clerkUserId: initiatorIdFromForm,
+            });
             if (initiatorUser) {
                 initiatorId = initiatorUser.clerkUserId;
                 initiatorName = initiatorUser.name;
@@ -278,8 +277,16 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
                 longitudeRaw.length === 3 &&
                 Array.isArray(longitudeRaw[0])
             ) {
-                const latitude = latitudeRaw as [[number, number], [number, number], [number, number]];
-                const longitude = longitudeRaw as [[number, number], [number, number], [number, number]];
+                const latitude = latitudeRaw as [
+                    [number, number],
+                    [number, number],
+                    [number, number]
+                ];
+                const longitude = longitudeRaw as [
+                    [number, number],
+                    [number, number],
+                    [number, number]
+                ];
 
                 const latDeg = latitude[0][0];
                 const latMin = latitude[1][0];
@@ -383,6 +390,12 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
         if (relatedTask) {
             const oldStatus = relatedTask.status;
             relatedTask.status = 'Pending';
+
+            // гарантируем массив событий у связанной задачи
+            if (!Array.isArray(relatedTask.events)) {
+                relatedTask.events = [];
+            }
+
             relatedTask.events.push({
                 action: 'STATUS_CHANGED',
                 author: name,
@@ -394,6 +407,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
                     comment: 'Статус изменен после загрузки фотоотчета',
                 },
             });
+
             await relatedTask.save();
         }
 

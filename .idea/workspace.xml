@@ -4,10 +4,7 @@
     <option name="autoReloadType" value="SELECTIVE" />
   </component>
   <component name="ChangeListManager">
-    <list default="true" id="b3c91f45-fbe1-4477-9fd9-38d0fcaf660d" name="Changes" comment="fix: инициализировать массив событий у связанной задачи при синхронизации статуса отчёта (isolated app)">
-      <change beforePath="$PROJECT_DIR$/.idea/workspace.xml" beforeDir="false" afterPath="$PROJECT_DIR$/.idea/workspace.xml" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/src/app/api/tasks/[taskId]/route.ts" beforeDir="false" afterPath="$PROJECT_DIR$/src/app/api/tasks/[taskId]/route.ts" afterDir="false" />
-    </list>
+    <list default="true" id="b3c91f45-fbe1-4477-9fd9-38d0fcaf660d" name="Changes" comment="fix: инициализированы массивы событий и вложений в PATCH задачи, приведение статуса к типу поля и убраны ошибки TS/ESLint при загрузке файлов и удалении order/ncw (isolated app)" />
     <option name="SHOW_DIALOG" value="false" />
     <option name="HIGHLIGHT_CONFLICTS" value="true" />
     <option name="HIGHLIGHT_NON_ACTIVE_CHANGELIST" value="false" />
@@ -114,15 +111,7 @@
       <workItem from="1761720378244" duration="633000" />
       <workItem from="1761887562972" duration="15306000" />
       <workItem from="1762422367880" duration="27839000" />
-      <workItem from="1762582926294" duration="11182000" />
-    </task>
-    <task id="LOCAL-00007" summary="TaskMap page has been modified">
-      <option name="closed" value="true" />
-      <created>1752121971051</created>
-      <option name="number" value="00007" />
-      <option name="presentableId" value="LOCAL-00007" />
-      <option name="project" value="LOCAL" />
-      <updated>1752121971051</updated>
+      <workItem from="1762582926294" duration="11505000" />
     </task>
     <task id="LOCAL-00008" summary="docker-compose.yml has been modofied">
       <option name="closed" value="true" />
@@ -508,14 +497,21 @@
       <option name="project" value="LOCAL" />
       <updated>1762598460957</updated>
     </task>
-    <option name="localTasksCounter" value="56" />
+    <task id="LOCAL-00056" summary="fix: инициализированы массивы событий и вложений в PATCH задачи, приведение статуса к типу поля и убраны ошибки TS/ESLint при загрузке файлов и удалении order/ncw (isolated app)">
+      <option name="closed" value="true" />
+      <created>1762599093308</created>
+      <option name="number" value="00056" />
+      <option name="presentableId" value="LOCAL-00056" />
+      <option name="project" value="LOCAL" />
+      <updated>1762599093308</updated>
+    </task>
+    <option name="localTasksCounter" value="57" />
     <servers />
   </component>
   <component name="TypeScriptGeneratedFilesManager">
     <option name="version" value="3" />
   </component>
   <component name="VcsManagerConfiguration">
-    <MESSAGE value="Status changing lojic bug has been fixed" />
     <MESSAGE value="Status changing logics bug has been fixed" />
     <MESSAGE value="Documents on the task page are hidden for the executor" />
     <MESSAGE value="changed the display of maps on the task page" />
@@ -540,6 +536,7 @@
     <MESSAGE value="feat: сохраняем clerkUserId для исполнителя и добавляем поле стоимости в задачу" />
     <MESSAGE value="fix: исправление импортов MUI чтобы починить сборку Docker/Next.js" />
     <MESSAGE value="fix: инициализировать массив событий у связанной задачи при синхронизации статуса отчёта (isolated app)" />
-    <option name="LAST_COMMIT_MESSAGE" value="fix: инициализировать массив событий у связанной задачи при синхронизации статуса отчёта (isolated app)" />
+    <MESSAGE value="fix: инициализированы массивы событий и вложений в PATCH задачи, приведение статуса к типу поля и убраны ошибки TS/ESLint при загрузке файлов и удалении order/ncw (isolated app)" />
+    <option name="LAST_COMMIT_MESSAGE" value="fix: инициализированы массивы событий и вложений в PATCH задачи, приведение статуса к типу поля и убраны ошибки TS/ESLint при загрузке файлов и удалении order/ncw (isolated app)" />
   </component>
 </project>
