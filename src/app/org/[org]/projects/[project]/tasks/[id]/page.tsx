@@ -295,7 +295,6 @@ export default function TaskDetailsPage() {
     const renderEventDetails = (ev: TaskEvent): React.ReactNode => {
         const d: TaskEventDetails = ev.details || {};
 
-        // создание
         if (ev.action === 'created') {
             const taskNameStr = getDetailString(d, 'taskName');
             const bsNumberStr = getDetailString(d, 'bsNumber');
@@ -320,7 +319,6 @@ export default function TaskDetailsPage() {
             );
         }
 
-        // назначили исполнителя
         if (ev.action === 'status_changed_assigned') {
             const executorStr = getDetailString(d, 'executorName');
             const executorEmailStr = getDetailString(d, 'executorEmail');
@@ -339,7 +337,6 @@ export default function TaskDetailsPage() {
             );
         }
 
-        // обновление полей
         if (ev.action === 'updated') {
             return Object.entries(d).map(([key, value]) => {
                 if (isChange(value)) {
@@ -357,7 +354,6 @@ export default function TaskDetailsPage() {
             });
         }
 
-        // fallback
         return Object.entries(d).map(([key, value]) => (
             <Typography key={key} variant="caption" display="block">
                 {key}: {value === null || typeof value === 'undefined' ? '—' : String(value)}
@@ -365,9 +361,9 @@ export default function TaskDetailsPage() {
         ));
     };
 
-
     return (
         <Box sx={{ p: 2, display: 'flex', flexDirection: 'column', gap: 2 }}>
+            {/* Header */}
             <Stack direction="row" alignItems="center" justifyContent="space-between" gap={1}>
                 <Stack direction="row" spacing={1} alignItems="center" sx={{ minWidth: 0 }}>
                     <Tooltip title="Назад">
@@ -463,6 +459,7 @@ export default function TaskDetailsPage() {
                 </Stack>
             </Stack>
 
+            {/* Content */}
             {loading ? (
                 <Box sx={{ display: 'flex', justifyContent: 'center', mt: 4 }}>
                     <CircularProgress />
@@ -483,8 +480,8 @@ export default function TaskDetailsPage() {
             ) : (
                 <Box sx={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
                     <Grid container spacing={2}>
-                        {/* Информация */}
-                        <Grid item xs={12} md={6} lg={3}>
+                        {/* Информация: 1/2 экрана на desktop */}
+                        <Grid item xs={12} md={6} lg={6}>
                             <Paper variant="outlined" sx={{ p: 2 }}>
                                 <Typography
                                     variant="subtitle1"
@@ -586,8 +583,8 @@ export default function TaskDetailsPage() {
                             </Paper>
                         </Grid>
 
-                        {/* Описание */}
-                        <Grid item xs={12} md={6} lg={3}>
+                        {/* Описание: 1/4 */}
+                        <Grid item xs={12} md={3} lg={3}>
                             <Paper variant="outlined" sx={{ p: 2 }}>
                                 <Typography
                                     variant="subtitle1"
@@ -609,9 +606,9 @@ export default function TaskDetailsPage() {
                             </Paper>
                         </Grid>
 
-                        {/* Вложения */}
+                        {/* Вложения: 1/4 (если есть) */}
                         {hasAttachments && (
-                            <Grid item xs={12} md={6} lg={3}>
+                            <Grid item xs={12} md={3} lg={3}>
                                 <Paper variant="outlined" sx={{ p: 2 }}>
                                     <Typography
                                         variant="subtitle1"
@@ -643,7 +640,9 @@ export default function TaskDetailsPage() {
                                                 rel="noreferrer"
                                                 underline="hover"
                                             >
-                                                {decodeURIComponent(url.split('/').pop() || `Вложение ${idx + 1}`)}
+                                                {decodeURIComponent(
+                                                    url.split('/').pop() || `Вложение ${idx + 1}`
+                                                )}
                                             </Link>
                                         ))}
                                     </Stack>
@@ -651,83 +650,108 @@ export default function TaskDetailsPage() {
                             </Grid>
                         )}
 
-                        {/* Геолокация */}
-                        <Grid item xs={12} md={6} lg={3}>
+                        {/* Геолокация: 1/4 */}
+                        <Grid item xs={12} md={3} lg={3}>
                             <Paper variant="outlined" sx={{ p: 2 }}>
                                 <TaskGeoLocation locations={task.bsLocation} />
                             </Paper>
                         </Grid>
-                    </Grid>
 
-                    {(task.orderNumber ||
-                        task.orderUrl ||
-                        task.orderDate ||
-                        task.orderSignDate) && (
-                        <Paper variant="outlined" sx={{ p: 2 }}>
-                            <Typography variant="subtitle1" fontWeight={600} gutterBottom>
-                                Заказ / договор
-                            </Typography>
-                            <Divider sx={{ mb: 1.5 }} />
-                            <Stack gap={0.5}>
-                                {task.orderNumber && <Typography>Номер: {task.orderNumber}</Typography>}
-                                {task.orderDate && (
-                                    <Typography>Дата заказа: {formatDate(task.orderDate)}</Typography>
-                                )}
-                                {task.orderSignDate && (
-                                    <Typography>Дата подписания: {formatDate(task.orderSignDate)}</Typography>
-                                )}
-                                {task.orderUrl && (
-                                    <Button
-                                        href={task.orderUrl}
-                                        target="_blank"
-                                        rel="noreferrer"
-                                        variant="text"
-                                        sx={{ alignSelf: 'flex-start' }}
-                                    >
-                                        Открыть заказ
-                                    </Button>
-                                )}
-                            </Stack>
-                        </Paper>
-                    )}
-
-                    {/* История */}
-                    <Paper variant="outlined" sx={{ p: 2 }}>
-                        <Typography variant="subtitle1" fontWeight={600} gutterBottom>
-                            История
-                        </Typography>
-                        <Divider sx={{ mb: 1.5 }} />
-                        {sortedEvents.length === 0 ? (
-                            <Typography color="text.secondary">История пуста</Typography>
-                        ) : (
-                            <Timeline sx={{ p: 0 }}>
-                                {sortedEvents.map((ev, idx) => (
-                                    <TimelineItem key={idx}>
-                                        <TimelineOppositeContent sx={{ flex: 0.25 }}>
-                                            <Typography variant="caption" color="text.secondary">
-                                                {formatDateTime(ev.date)}
+                        {/* Заказ/договор: 1/4, если есть */}
+                        {(task.orderNumber ||
+                            task.orderUrl ||
+                            task.orderDate ||
+                            task.orderSignDate) && (
+                            <Grid item xs={12} md={3} lg={3}>
+                                <Paper variant="outlined" sx={{ p: 2 }}>
+                                    <Typography variant="subtitle1" fontWeight={600} gutterBottom>
+                                        Заказ / договор
+                                    </Typography>
+                                    <Divider sx={{ mb: 1.5 }} />
+                                    <Stack gap={0.5}>
+                                        {task.orderNumber && (
+                                            <Typography>Номер: {task.orderNumber}</Typography>
+                                        )}
+                                        {task.orderDate && (
+                                            <Typography>
+                                                Дата заказа: {formatDate(task.orderDate)}
                                             </Typography>
-                                        </TimelineOppositeContent>
-                                        <TimelineSeparator>
-                                            <TimelineDot
-                                                color={ev.action === 'created' ? 'primary' : 'success'}
-                                            />
-                                            {idx < sortedEvents.length - 1 && <TimelineConnector />}
-                                        </TimelineSeparator>
-                                        <TimelineContent sx={{ py: 1 }}>
-                                            <Typography variant="body2" fontWeight={600}>
-                                                {getEventTitle(ev.action)}
+                                        )}
+                                        {task.orderSignDate && (
+                                            <Typography>
+                                                Дата подписания: {formatDate(task.orderSignDate)}
                                             </Typography>
-                                            <Typography variant="body2" color="text.secondary">
-                                                {ev.author}
-                                            </Typography>
-                                            <Box sx={{ mt: 0.5 }}>{renderEventDetails(ev)}</Box>
-                                        </TimelineContent>
-                                    </TimelineItem>
-                                ))}
-                            </Timeline>
+                                        )}
+                                        {task.orderUrl && (
+                                            <Button
+                                                href={task.orderUrl}
+                                                target="_blank"
+                                                rel="noreferrer"
+                                                variant="text"
+                                                sx={{ alignSelf: 'flex-start' }}
+                                            >
+                                                Открыть заказ
+                                            </Button>
+                                        )}
+                                    </Stack>
+                                </Paper>
+                            </Grid>
                         )}
-                    </Paper>
+
+                        {/* История */}
+                        <Grid item xs={12} md={6} lg={6}>
+                            <Paper variant="outlined" sx={{ p: 2 }}>
+                                <Typography variant="subtitle1" fontWeight={600} gutterBottom>
+                                    История
+                                </Typography>
+                                <Divider sx={{ mb: 1.5 }} />
+                                {sortedEvents.length === 0 ? (
+                                    <Typography color="text.secondary">История пуста</Typography>
+                                ) : (
+                                    <Timeline sx={{ p: 0, m: 0 }}>
+                                        {sortedEvents.map((ev, idx) => (
+                                            <TimelineItem key={idx}>
+                                                <TimelineOppositeContent sx={{ flex: 0.25 }}>
+                                                    <Typography
+                                                        variant="caption"
+                                                        color="text.secondary"
+                                                    >
+                                                        {formatDateTime(ev.date)}
+                                                    </Typography>
+                                                </TimelineOppositeContent>
+                                                <TimelineSeparator>
+                                                    <TimelineDot
+                                                        color={
+                                                            ev.action === 'created'
+                                                                ? 'primary'
+                                                                : 'success'
+                                                        }
+                                                    />
+                                                    {idx < sortedEvents.length - 1 && (
+                                                        <TimelineConnector />
+                                                    )}
+                                                </TimelineSeparator>
+                                                <TimelineContent sx={{ py: 1 }}>
+                                                    <Typography variant="body2" fontWeight={600}>
+                                                        {getEventTitle(ev.action)}
+                                                    </Typography>
+                                                    <Typography
+                                                        variant="body2"
+                                                        color="text.secondary"
+                                                    >
+                                                        {ev.author}
+                                                    </Typography>
+                                                    <Box sx={{ mt: 0.5 }}>
+                                                        {renderEventDetails(ev)}
+                                                    </Box>
+                                                </TimelineContent>
+                                            </TimelineItem>
+                                        ))}
+                                    </Timeline>
+                                )}
+                            </Paper>
+                        </Grid>
+                    </Grid>
                 </Box>
             )}
 

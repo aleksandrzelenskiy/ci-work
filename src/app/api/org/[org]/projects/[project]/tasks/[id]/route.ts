@@ -66,35 +66,59 @@ function toObjectId(id: unknown): Types.ObjectId {
     return new Types.ObjectId(String(id));
 }
 
-// типы из helper'а
-type OrgDocLean = { _id: unknown };
-type ProjectDocLean = {
-    _id: unknown;
-    operatorCode?: string;
-    regionCode?: string;
-};
-type GetOrgProjectOk = { orgDoc: OrgDocLean; projectDoc: ProjectDocLean };
-type GetOrgProjectErr = { error: string };
-
-// проверяем успешный ответ
-function isGetOrgProjectOk(x: unknown): x is GetOrgProjectOk {
-    if (typeof x !== 'object' || x === null) return false;
-    const obj = x as Record<string, unknown>;
-    return 'orgDoc' in obj && 'projectDoc' in obj;
-}
-
-// извлекаем строку ошибки
-function extractError(x: unknown): string | undefined {
-    if (typeof x !== 'object' || x === null) return undefined;
-    const maybe = x as Partial<GetOrgProjectErr>;
-    return typeof maybe.error === 'string' ? maybe.error : undefined;
-}
-
 // элемент массива bsLocation
 interface TaskBsLocationItem {
     name: string;
     coordinates: string;
     address?: string;
+}
+
+// нормализуем bsLocation для сравнения
+function normalizeBsLocation(list: TaskBsLocationItem[] | undefined | null): TaskBsLocationItem[] {
+    if (!Array.isArray(list)) return [];
+    return list.map((item) => ({
+        name: item.name ?? '',
+        coordinates: item.coordinates ?? '',
+        address: item.address ?? '',
+    }));
+}
+
+// аккуратное сравнение для логов
+function isSameValue(a: unknown, b: unknown): boolean {
+    // оба null/undefined
+    if (a == null && b == null) return true;
+
+    // спец. случай: bsLocation (массив объектов)
+    const isBsLocArray = (v: unknown) =>
+        Array.isArray(v) && v.every((x) => typeof x === 'object' && x !== null && 'coordinates' in x);
+
+    if (isBsLocArray(a) && isBsLocArray(b)) {
+        const na = normalizeBsLocation(a as TaskBsLocationItem[]);
+        const nb = normalizeBsLocation(b as TaskBsLocationItem[]);
+        return JSON.stringify(na) === JSON.stringify(nb);
+    }
+
+    // числовые/строковые координаты
+    const isNumLike = (v: unknown) =>
+        typeof v === 'number' || (typeof v === 'string' && v.trim() !== '' && !Number.isNaN(Number(v)));
+
+    if (isNumLike(a) && isNumLike(b)) {
+        const na = Number(a);
+        const nb = Number(b);
+        return Number(na.toFixed(6)) === Number(nb.toFixed(6));
+    }
+
+    // объекты/массивы — для остальных случаев
+    if (typeof a === 'object' && typeof b === 'object') {
+        return JSON.stringify(a) === JSON.stringify(b);
+    }
+
+    // даты
+    if (a instanceof Date && b instanceof Date) {
+        return a.getTime() === b.getTime();
+    }
+
+    return a === b;
 }
 
 // строим bsLocation из документа БС
@@ -129,6 +153,30 @@ function buildBsLocationFromStation(
             address: bs.address ?? '',
         },
     ];
+}
+
+// типы из helper'а
+type OrgDocLean = { _id: unknown };
+type ProjectDocLean = {
+    _id: unknown;
+    operatorCode?: string;
+    regionCode?: string;
+};
+type GetOrgProjectOk = { orgDoc: OrgDocLean; projectDoc: ProjectDocLean };
+type GetOrgProjectErr = { error: string };
+
+// проверяем успешный ответ
+function isGetOrgProjectOk(x: unknown): x is GetOrgProjectOk {
+    if (typeof x !== 'object' || x === null) return false;
+    const obj = x as Record<string, unknown>;
+    return 'orgDoc' in obj && 'projectDoc' in obj;
+}
+
+// извлекаем строку ошибки
+function extractError(x: unknown): string | undefined {
+    if (typeof x !== 'object' || x === null) return undefined;
+    const maybe = x as Partial<GetOrgProjectErr>;
+    return typeof maybe.error === 'string' ? maybe.error : undefined;
 }
 
 // получаем org/project и их ObjectId
@@ -237,10 +285,8 @@ export async function PUT(
         const { orgId, projectId, projectDoc } = ensured;
 
         const body = (await req.json().catch(() => ({}))) as Record<string, unknown>;
-
         const taskQuery = buildTaskQuery(orgId, projectId, id);
 
-        // текущая задача
         const currentTask = await TaskModel.findOne(taskQuery);
         if (!currentTask) {
             return NextResponse.json({ error: 'Task not found' }, { status: 404 });
@@ -249,14 +295,9 @@ export async function PUT(
         const allowedPatch: Record<string, unknown> = {};
         const changed: Record<string, { from: unknown; to: unknown }> = {};
 
-        // фиксируем только реально изменившиеся поля
         function markChange(field: string, from: unknown, to: unknown) {
-            const same =
-                (from instanceof Date && to instanceof Date && from.getTime() === to.getTime()) ||
-                from === to;
-            if (!same) {
-                changed[field] = { from, to };
-            }
+            if (isSameValue(from, to)) return;
+            changed[field] = { from, to };
         }
 
         // имя
@@ -311,21 +352,85 @@ export async function PUT(
             allowedPatch.dueDate = due;
         }
 
-        // доп. координаты с фронта
-        const ctCoords = currentTask as unknown as { bsLatitude?: number; bsLongitude?: number };
+        // --- bsLocation, БС и флаг изменения ---
+        const clientBsLocation: TaskBsLocationItem[] | null = Array.isArray(body.bsLocation)
+            ? (body.bsLocation as TaskBsLocationItem[])
+            : null;
+
+        const bsNumberChanged = newBsNumber !== currentTask.bsNumber;
+        let bsLocationChanged = false;
+
+        const operatorCode = projectDoc.operatorCode;
+        const regionCode = projectDoc.regionCode;
+
+        if (bsNumberChanged) {
+            // подтягиваем из своей БС
+            const bsQuery: { name: string; operatorCode?: string; regionCode?: string } = {
+                name: newBsNumber,
+            };
+            if (operatorCode) bsQuery.operatorCode = operatorCode;
+            if (regionCode) bsQuery.regionCode = regionCode;
+
+            const bs = (await BaseStation.findOne(bsQuery).lean()) as
+                | (IBaseStation & { lat?: number; lon?: number; address?: string })
+                | null;
+
+            if (bs) {
+                const newLoc = buildBsLocationFromStation(bs, newBsNumber);
+                const prevNorm = normalizeBsLocation(currentTask.bsLocation as TaskBsLocationItem[]);
+                const nextNorm = normalizeBsLocation(newLoc);
+                if (!isSameValue(prevNorm, nextNorm)) {
+                    markChange('bsLocation', prevNorm, nextNorm);
+                    allowedPatch.bsLocation = newLoc;
+                    bsLocationChanged = true;
+                }
+            } else if (clientBsLocation) {
+                const prevNorm = normalizeBsLocation(currentTask.bsLocation as TaskBsLocationItem[]);
+                const nextNorm = normalizeBsLocation(clientBsLocation);
+                if (!isSameValue(prevNorm, nextNorm)) {
+                    markChange('bsLocation', prevNorm, nextNorm);
+                    allowedPatch.bsLocation = clientBsLocation;
+                    bsLocationChanged = true;
+                }
+            } else {
+                const prevNorm = normalizeBsLocation(currentTask.bsLocation as TaskBsLocationItem[]);
+                if (!isSameValue(prevNorm, [])) {
+                    markChange('bsLocation', prevNorm, []);
+                    allowedPatch.bsLocation = [];
+                    bsLocationChanged = true;
+                }
+            }
+        } else if (clientBsLocation) {
+            // номер не менялся, но клиент прислал — проверим реально ли другое
+            const prevNorm = normalizeBsLocation(currentTask.bsLocation as TaskBsLocationItem[]);
+            const nextNorm = normalizeBsLocation(clientBsLocation);
+            if (!isSameValue(prevNorm, nextNorm)) {
+                markChange('bsLocation', prevNorm, nextNorm);
+                allowedPatch.bsLocation = clientBsLocation;
+                bsLocationChanged = true;
+            }
+        }
+
+        // --- координаты: только если менялся номер БС ИЛИ мы реально поменяли bsLocation ---
+        const ctCoords = currentTask as unknown as { bsLatitude?: number | string; bsLongitude?: number | string };
 
         const lat = parseMaybeNumber(body.bsLatitude);
-        if (typeof lat !== 'undefined') {
-            markChange('bsLatitude', ctCoords.bsLatitude, lat);
-            allowedPatch.bsLatitude = lat;
-        }
-        const lon = parseMaybeNumber(body.bsLongitude);
-        if (typeof lon !== 'undefined') {
-            markChange('bsLongitude', ctCoords.bsLongitude, lon);
-            allowedPatch.bsLongitude = lon;
+        if (typeof lat !== 'undefined' && (bsNumberChanged || bsLocationChanged)) {
+            if (!isSameValue(ctCoords.bsLatitude, lat)) {
+                markChange('bsLatitude', ctCoords.bsLatitude, lat);
+                allowedPatch.bsLatitude = lat;
+            }
         }
 
-        // сюда положим доп. события (например, назначили исполнителя)
+        const lon = parseMaybeNumber(body.bsLongitude);
+        if (typeof lon !== 'undefined' && (bsNumberChanged || bsLocationChanged)) {
+            if (!isSameValue(ctCoords.bsLongitude, lon)) {
+                markChange('bsLongitude', ctCoords.bsLongitude, lon);
+                allowedPatch.bsLongitude = lon;
+            }
+        }
+
+        // --- исполнитель и деньги как у тебя ---
         const extraEvents: Array<{
             action: string;
             author: string;
@@ -334,7 +439,6 @@ export async function PUT(
             details?: Record<string, unknown>;
         }> = [];
 
-// исполнитель
         if (typeof body.executorId === 'string' && body.executorId.trim()) {
             const trimmedId = body.executorId.trim();
             const hadExecutorBefore = !!currentTask.executorId;
@@ -353,7 +457,6 @@ export async function PUT(
                 allowedPatch.executorEmail = body.executorEmail;
             }
 
-            // если исполнителя не было и теперь есть — пишем событие "назначена"
             if (!hadExecutorBefore) {
                 extraEvents.push({
                     action: 'status_changed_assigned',
@@ -368,7 +471,6 @@ export async function PUT(
                 });
             }
         } else if (body.executorId === null) {
-            // сняли исполнителя
             if (currentTask.executorId || currentTask.executorName || currentTask.executorEmail) {
                 markChange('executorId', currentTask.executorId, undefined);
                 markChange('executorName', currentTask.executorName, undefined);
@@ -379,7 +481,6 @@ export async function PUT(
             allowedPatch.executorEmail = undefined;
         }
 
-        // сумма
         if (typeof body.totalCost !== 'undefined') {
             const tc = parseMaybeNumber(body.totalCost);
             const prev = typeof currentTask.totalCost === 'number' ? currentTask.totalCost : undefined;
@@ -392,50 +493,8 @@ export async function PUT(
             }
         }
 
-        // геолокация, которую прислал клиент
-        const clientBsLocation: TaskBsLocationItem[] | null = Array.isArray(body.bsLocation)
-            ? (body.bsLocation as TaskBsLocationItem[])
-            : null;
-
-        const bsNumberChanged = newBsNumber !== currentTask.bsNumber;
-
-        const operatorCode = projectDoc.operatorCode;
-        const regionCode = projectDoc.regionCode;
-
-        // если номер БС поменялся — пытаемся подтянуть координаты из своей коллекции БС
-        if (bsNumberChanged) {
-            const bsQuery: {
-                name: string;
-                operatorCode?: string;
-                regionCode?: string;
-            } = { name: newBsNumber };
-            if (operatorCode) bsQuery.operatorCode = operatorCode;
-            if (regionCode) bsQuery.regionCode = regionCode;
-
-            const bs = (await BaseStation.findOne(bsQuery).lean()) as
-                | (IBaseStation & { lat?: number; lon?: number; address?: string })
-                | null;
-
-            if (bs) {
-                const newLoc = buildBsLocationFromStation(bs, newBsNumber);
-                markChange('bsLocation', currentTask.bsLocation, newLoc);
-                allowedPatch.bsLocation = newLoc;
-            } else if (clientBsLocation) {
-                markChange('bsLocation', currentTask.bsLocation, clientBsLocation);
-                allowedPatch.bsLocation = clientBsLocation;
-            } else {
-                markChange('bsLocation', currentTask.bsLocation, []);
-                allowedPatch.bsLocation = [];
-            }
-        } else if (clientBsLocation) {
-            // номер не менялся, но клиент прислал точки — обновим
-            markChange('bsLocation', currentTask.bsLocation, clientBsLocation);
-            allowedPatch.bsLocation = clientBsLocation;
-        }
-
         const hasChanges = Object.keys(changed).length > 0;
 
-        // формируем запрос на обновление
         const updateQuery: Record<string, unknown> = { $set: allowedPatch };
 
         if (hasChanges || extraEvents.length > 0) {
