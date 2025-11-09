@@ -146,21 +146,21 @@ export async function DELETE(
 
         const { org: orgSlug, project: projectRef, id } = await ctx.params;
 
-        if (!Types.ObjectId.isValid(id)) {
-            return NextResponse.json({ error: 'Invalid task id' }, { status: 400 });
-        }
-
         const ensured = await requireOrgProject(orgSlug, projectRef);
         if (!ensured.ok) {
             return NextResponse.json({ error: ensured.error }, { status: ensured.status });
         }
         const { orgId, projectId } = ensured;
 
-        const del = await TaskModel.deleteOne({
-            _id: new Types.ObjectId(String(id)),
-            orgId,
-            projectId,
-        });
+        const query: Record<string, unknown> = { orgId, projectId };
+        if (Types.ObjectId.isValid(id)) {
+            query._id = new Types.ObjectId(String(id));
+        } else {
+            // удаляем по taskId (короткий код задачи)
+            query.taskId = id;
+        }
+
+        const del = await TaskModel.deleteOne(query);
 
         if (del.deletedCount === 0) {
             return NextResponse.json({ error: 'Task not found' }, { status: 404 });
@@ -172,6 +172,7 @@ export async function DELETE(
         return NextResponse.json({ error: errorMessage(err) }, { status: 500 });
     }
 }
+
 
 export async function PUT(
     req: NextRequest,
@@ -185,10 +186,6 @@ export async function PUT(
 
         const { org: orgSlug, project: projectRef, id } = await ctx.params;
 
-        if (!Types.ObjectId.isValid(id)) {
-            return NextResponse.json({ error: 'Invalid task id' }, { status: 400 });
-        }
-
         const ensured = await requireOrgProject(orgSlug, projectRef);
         if (!ensured.ok) {
             return NextResponse.json({ error: ensured.error }, { status: ensured.status });
@@ -197,20 +194,21 @@ export async function PUT(
 
         const body = (await req.json().catch(() => ({}))) as Record<string, unknown>;
 
-        // читаем текущую задачу, чтобы понять, менялся ли bsNumber
-        const currentTask = await TaskModel.findOne({
-            _id: new Types.ObjectId(String(id)),
-            orgId,
-            projectId,
-        });
+        // ищем текущую задачу либо по _id, либо по taskId
+        const taskQuery: Record<string, unknown> = { orgId, projectId };
+        if (Types.ObjectId.isValid(id)) {
+            taskQuery._id = new Types.ObjectId(String(id));
+        } else {
+            taskQuery.taskId = id;
+        }
 
+        const currentTask = await TaskModel.findOne(taskQuery);
         if (!currentTask) {
             return NextResponse.json({ error: 'Task not found' }, { status: 404 });
         }
 
         const allowedPatch: Record<string, unknown> = {};
 
-        // --- обычные поля ---
         if (typeof body.taskName === 'string') {
             allowedPatch.taskName = body.taskName;
         }
@@ -226,36 +224,30 @@ export async function PUT(
             allowedPatch.taskDescription = trimmed || undefined;
         }
 
-        // статус
         const status = normalizeStatus(body.status as string | undefined);
         if (status) {
             allowedPatch.status = status;
         }
 
-        // приоритет
         const pr = normalizePriority(body.priority as string | undefined);
         if (pr) {
             allowedPatch.priority = pr;
         }
 
-        // срок
         const due = parseMaybeISODate(body.dueDate);
         if (due) {
             allowedPatch.dueDate = due;
         }
 
-        // координаты
         const lat = parseMaybeNumber(body.bsLatitude);
         if (typeof lat !== 'undefined') {
             allowedPatch.bsLatitude = lat;
         }
-
         const lon = parseMaybeNumber(body.bsLongitude);
         if (typeof lon !== 'undefined') {
             allowedPatch.bsLongitude = lon;
         }
 
-        // исполнитель — ВСЕГДА строка (clerkUserId), не ObjectId
         if (typeof body.executorId === 'string' && body.executorId.trim()) {
             allowedPatch.executorId = body.executorId.trim();
             if (typeof body.executorName === 'string') {
@@ -265,19 +257,16 @@ export async function PUT(
                 allowedPatch.executorEmail = body.executorEmail;
             }
         } else if (body.executorId === null) {
-            // если на фронте сняли исполнителя
             allowedPatch.executorId = undefined;
             allowedPatch.executorName = undefined;
             allowedPatch.executorEmail = undefined;
         }
 
-        // стоимость
         if (typeof body.totalCost !== 'undefined') {
             const tc = parseMaybeNumber(body.totalCost);
             if (typeof tc !== 'undefined') {
                 allowedPatch.totalCost = tc;
             } else {
-                // если пришло пустое/некорректное — можно обнулить
                 allowedPatch.totalCost = undefined;
             }
         }
@@ -298,13 +287,11 @@ export async function PUT(
         const regionCode: string | undefined = projectDoc.regionCode;
 
         if (bsNumberChanged) {
-            // формируем запрос к универсальной коллекции базовых станций
             const bsQuery: {
                 name: string;
                 operatorCode?: string;
                 regionCode?: string;
             } = { name: newBsNumber };
-
             if (operatorCode) bsQuery.operatorCode = operatorCode;
             if (regionCode) bsQuery.regionCode = regionCode;
 
@@ -319,7 +306,7 @@ export async function PUT(
                             name: newBsNumber,
                             coordinates: bs.coordinates,
                             address: bs.address ?? '',
-                        } satisfies TaskBsLocationItem,
+                        },
                     ];
                 } else if (typeof bs.lat === 'number' && typeof bs.lon === 'number') {
                     allowedPatch.bsLocation = [
@@ -327,34 +314,24 @@ export async function PUT(
                             name: newBsNumber,
                             coordinates: `${bs.lat} ${bs.lon}`,
                             address: bs.address ?? '',
-                        } satisfies TaskBsLocationItem,
+                        },
                     ];
                 } else if (clientBsLocation) {
-                    // БС нашлась, но без координат — берём то, что прислал клиент
                     allowedPatch.bsLocation = clientBsLocation;
                 } else {
-                    // БС нашлась, но координат нет и клиент ничего не прислал
                     allowedPatch.bsLocation = [];
                 }
             } else if (clientBsLocation) {
-                // в нашей базе такой БС нет, но клиент прислал координаты
                 allowedPatch.bsLocation = clientBsLocation;
             } else {
-                // нет ни в базе, ни у клиента
                 allowedPatch.bsLocation = [];
             }
         } else if (clientBsLocation) {
-            // номер БС не меняли, но координаты руками обновили — сохраняем то, что прислал клиент
             allowedPatch.bsLocation = clientBsLocation;
         }
 
-        // сохраняем
         const updated = await TaskModel.findOneAndUpdate(
-            {
-                _id: currentTask._id,
-                orgId,
-                projectId,
-            },
+            taskQuery,
             { $set: allowedPatch },
             { new: true, lean: true }
         );

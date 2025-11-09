@@ -24,7 +24,7 @@ import {
 import ArrowBackIcon from '@mui/icons-material/ArrowBack';
 import RefreshIcon from '@mui/icons-material/Refresh';
 import EditNoteIcon from '@mui/icons-material/EditNote';
-import DeleteIcon from '@mui/icons-material/Delete';
+import DeleteOutlineIcon from '@mui/icons-material/DeleteOutline';
 import InfoOutlinedIcon from '@mui/icons-material/InfoOutlined';
 import DescriptionOutlinedIcon from '@mui/icons-material/DescriptionOutlined';
 import AttachFileOutlinedIcon from '@mui/icons-material/AttachFileOutlined';
@@ -297,7 +297,7 @@ export default function TaskDetailsPage() {
                                 onClick={() => task && setDeleteOpen(true)}
                                 disabled={loading || !task}
                             >
-                                <DeleteIcon />
+                                <DeleteOutlineIcon />
                             </IconButton>
                         </span>
                     </Tooltip>
