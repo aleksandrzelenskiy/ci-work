@@ -4,8 +4,7 @@
     <option name="autoReloadType" value="SELECTIVE" />
   </component>
   <component name="ChangeListManager">
-    <list default="true" id="b3c91f45-fbe1-4477-9fd9-38d0fcaf660d" name="Changes" comment="feat(task-api, TaskDetailPage): Не логируем координаты и bsLocation, если они фактически не менялись при обновлении задачи.">
-      <change beforePath="$PROJECT_DIR$/.idea/workspace.xml" beforeDir="false" afterPath="$PROJECT_DIR$/.idea/workspace.xml" afterDir="false" />
+    <list default="true" id="b3c91f45-fbe1-4477-9fd9-38d0fcaf660d" name="Changes" comment="feat(TaskDetailPage): MUI Grid заменен на адаптивный Masonry для карточек. История помещена в Accordion MUI">
       <change beforePath="$PROJECT_DIR$/src/app/org/[org]/projects/[project]/tasks/[id]/page.tsx" beforeDir="false" afterPath="$PROJECT_DIR$/src/app/org/[org]/projects/[project]/tasks/[id]/page.tsx" afterDir="false" />
     </list>
     <option name="SHOW_DIALOG" value="false" />
@@ -114,15 +113,7 @@
       <workItem from="1761720378244" duration="633000" />
       <workItem from="1761887562972" duration="15306000" />
       <workItem from="1762422367880" duration="27839000" />
-      <workItem from="1762582926294" duration="24421000" />
-    </task>
-    <task id="LOCAL-00012" summary="switch to Busboy streaming, add adaptive SVG watermark &amp; fix type errors">
-      <option name="closed" value="true" />
-      <created>1752294372134</created>
-      <option name="number" value="00012" />
-      <option name="presentableId" value="LOCAL-00012" />
-      <option name="project" value="LOCAL" />
-      <updated>1752294372134</updated>
+      <workItem from="1762582926294" duration="24712000" />
     </task>
     <task id="LOCAL-00013" summary="fix(upload): support large files and prevent SVG overlay errors">
       <option name="closed" value="true" />
@@ -508,14 +499,21 @@
       <option name="project" value="LOCAL" />
       <updated>1762692519426</updated>
     </task>
-    <option name="localTasksCounter" value="61" />
+    <task id="LOCAL-00061" summary="feat(TaskDetailPage): MUI Grid заменен на адаптивный Masonry для карточек. История помещена в Accordion MUI">
+      <option name="closed" value="true" />
+      <created>1762698379328</created>
+      <option name="number" value="00061" />
+      <option name="presentableId" value="LOCAL-00061" />
+      <option name="project" value="LOCAL" />
+      <updated>1762698379328</updated>
+    </task>
+    <option name="localTasksCounter" value="62" />
     <servers />
   </component>
   <component name="TypeScriptGeneratedFilesManager">
     <option name="version" value="3" />
   </component>
   <component name="VcsManagerConfiguration">
-    <MESSAGE value="Creation Workspace conception was started." />
     <MESSAGE value="Creation Org/Project logic for project-managment workspace.&#10;Creation Workspace conNCW/Order: add confirm delete; unset DB fields on delete;." />
     <MESSAGE value="NCW Button hiden for all status before Done" />
     <MESSAGE value="Add Complete column after Due Date and render workCompletionDate as dd.mm.yyyy" />
@@ -540,6 +538,7 @@
     <MESSAGE value="feat(task-api): добавлена поддержка удаления и обновления по taskId" />
     <MESSAGE value="feat(task-api, TaskDetailPage): добавлена логика записи events при создании и редактировании задачи. Добавлено отображение блока история в UI" />
     <MESSAGE value="feat(task-api, TaskDetailPage): Не логируем координаты и bsLocation, если они фактически не менялись при обновлении задачи." />
-    <option name="LAST_COMMIT_MESSAGE" value="feat(task-api, TaskDetailPage): Не логируем координаты и bsLocation, если они фактически не менялись при обновлении задачи." />
+    <MESSAGE value="feat(TaskDetailPage): MUI Grid заменен на адаптивный Masonry для карточек. История помещена в Accordion MUI" />
+    <option name="LAST_COMMIT_MESSAGE" value="feat(TaskDetailPage): MUI Grid заменен на адаптивный Masonry для карточек. История помещена в Accordion MUI" />
   </component>
 </project>

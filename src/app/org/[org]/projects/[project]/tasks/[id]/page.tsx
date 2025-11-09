@@ -24,6 +24,7 @@ import {
     AccordionSummary,
     AccordionDetails,
 } from '@mui/material';
+import { styled } from '@mui/material/styles';
 import ArrowBackIcon from '@mui/icons-material/ArrowBack';
 import ExpandMoreIcon from '@mui/icons-material/ExpandMore';
 import RefreshIcon from '@mui/icons-material/Refresh';
@@ -98,6 +99,17 @@ type Task = {
     attachments?: string[];
     events?: TaskEvent[];
 };
+
+// карточка с тенью как в примере MUI
+const CardItem = styled(Paper)(({ theme }) => ({
+    backgroundColor: '#fff',
+    padding: theme.spacing(2),
+    borderRadius: theme.shape.borderRadius,
+    boxShadow: theme.shadows[3],
+    ...theme.applyStyles?.('dark', {
+        backgroundColor: '#1A2027',
+    }),
+}));
 
 export default function TaskDetailsPage() {
     const params = useParams<{ org: string; project: string; id: string }>() as {
@@ -426,7 +438,7 @@ export default function TaskDetailsPage() {
                                 size="small"
                                 sx={{
                                     bgcolor: getStatusColor(task.status),
-                                    color: 'rgba(0,0,0,0.87)',
+                                    color: '#fff',
                                     fontWeight: 500,
                                 }}
                             />
@@ -484,12 +496,9 @@ export default function TaskDetailsPage() {
                 </Paper>
             ) : (
                 <Box sx={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
-                    <Masonry
-                        columns={{ xs: 1, sm: 2, md: 3 }}
-                        spacing={2}
-                    >
+                    <Masonry columns={{ xs: 1, sm: 2, md: 3 }} spacing={2}>
                         {/* Информация */}
-                        <Paper variant="outlined" sx={{ p: 2 }}>
+                        <CardItem>
                             <Typography
                                 variant="subtitle1"
                                 fontWeight={600}
@@ -591,10 +600,10 @@ export default function TaskDetailsPage() {
                                     {task.updatedAt ? formatDate(task.updatedAt) : '—'}
                                 </Typography>
                             </Box>
-                        </Paper>
+                        </CardItem>
 
                         {/* Описание */}
-                        <Paper variant="outlined" sx={{ p: 2 }}>
+                        <CardItem>
                             <Typography
                                 variant="subtitle1"
                                 fontWeight={600}
@@ -612,11 +621,11 @@ export default function TaskDetailsPage() {
                             ) : (
                                 <Typography color="text.secondary">Нет описания</Typography>
                             )}
-                        </Paper>
+                        </CardItem>
 
                         {/* Вложения — если есть */}
                         {hasAttachments && (
-                            <Paper variant="outlined" sx={{ p: 2 }}>
+                            <CardItem>
                                 <Typography
                                     variant="subtitle1"
                                     fontWeight={600}
@@ -653,20 +662,20 @@ export default function TaskDetailsPage() {
                                         </Link>
                                     ))}
                                 </Stack>
-                            </Paper>
+                            </CardItem>
                         )}
 
                         {/* Геолокация */}
-                        <Paper variant="outlined" sx={{ p: 2 }}>
+                        <CardItem>
                             <TaskGeoLocation locations={task.bsLocation} />
-                        </Paper>
+                        </CardItem>
 
                         {/* Заказ / договор — если есть */}
                         {(task.orderNumber ||
                             task.orderUrl ||
                             task.orderDate ||
                             task.orderSignDate) && (
-                            <Paper variant="outlined" sx={{ p: 2 }}>
+                            <CardItem>
                                 <Typography variant="subtitle1" fontWeight={600} gutterBottom>
                                     Заказ / договор
                                 </Typography>
@@ -697,20 +706,18 @@ export default function TaskDetailsPage() {
                                         </Button>
                                     )}
                                 </Stack>
-                            </Paper>
+                            </CardItem>
                         )}
 
                         {/* История */}
-                        <Paper variant="outlined" sx={{ p: 0, minWidth: 0 }}>
+                        <CardItem sx={{ p: 0, minWidth: 0 }}>
                             <Accordion
                                 defaultExpanded
                                 disableGutters
                                 elevation={0}
                                 sx={{ '&:before': { display: 'none' } }}
                             >
-                                <AccordionSummary
-                                    expandIcon={<ExpandMoreIcon />}
-                                >
+                                <AccordionSummary expandIcon={<ExpandMoreIcon />}>
                                     <Typography variant="subtitle1" fontWeight={600}>
                                         История
                                     </Typography>
@@ -769,11 +776,8 @@ export default function TaskDetailsPage() {
                                     )}
                                 </AccordionDetails>
                             </Accordion>
-                        </Paper>
-
-
+                        </CardItem>
                     </Masonry>
-
                 </Box>
             )}
 
