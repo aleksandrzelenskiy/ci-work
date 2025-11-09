@@ -193,6 +193,49 @@ export async function POST(
         if (!bsNumber) return NextResponse.json({ error: 'bsNumber is required' }, { status: 400 });
         if (!bsAddress) return NextResponse.json({ error: 'bsAddress is required' }, { status: 400 });
 
+        const hasExecutor = typeof executorId === 'string' && executorId.trim().length > 0;
+        const finalStatus = hasExecutor ? 'Assigned' : normalizeStatus(status);
+
+        const creatorName =
+            user.fullName || user.username || user.emailAddresses?.[0]?.emailAddress || 'User';
+
+        // базовое событие "создано"
+        const events: Array<{
+            action: string;
+            author: string;
+            authorId: string;
+            date: Date;
+            details?: Record<string, unknown>;
+        }> = [
+            {
+                action: 'created',
+                author: creatorName,
+                authorId: user.id,
+                date: new Date(),
+                details: {
+                    taskName,
+                    bsNumber,
+                    status: finalStatus,
+                    priority,
+                },
+            },
+        ];
+
+        // если сразу выбрали исполнителя — отдельное событие "назначена"
+        if (hasExecutor) {
+            events.push({
+                action: 'status_changed_assigned',
+                author: creatorName,
+                authorId: user.id,
+                date: new Date(),
+                details: {
+                    taskName,
+                    bsNumber,
+                    executorName: executorName ?? '',
+                },
+            });
+        }
+
         const created = await TaskModel.create({
             orgId: orgObjId,
             projectId: projectObjId,
@@ -202,7 +245,6 @@ export async function POST(
             bsNumber,
             bsAddress,
             bsLocation,
-            // приводим в число
             totalCost:
                 typeof totalCost === 'number'
                     ? totalCost
@@ -210,7 +252,7 @@ export async function POST(
                         ? Number(totalCost)
                         : undefined,
             workItems,
-            status: normalizeStatus(status),
+            status: finalStatus,
             priority,
             dueDate: dueDate ? new Date(dueDate) : undefined,
 
@@ -222,17 +264,16 @@ export async function POST(
             orderSignDate: orderSignDate ? new Date(orderSignDate) : undefined,
             taskDescription,
 
-            // автор — всегда clerk
             authorId: user.id,
             authorEmail: user.emailAddresses?.[0]?.emailAddress,
-            authorName: user.fullName || user.username || 'User',
+            authorName: creatorName,
 
-            // исполнитель — тоже clerkId (то, что пришло с фронта)
-            executorId: typeof executorId === 'string' ? executorId : undefined,
-            executorName: executorName,
-            executorEmail: executorEmail,
+            executorId: hasExecutor ? executorId : undefined,
+            executorName: hasExecutor ? executorName : undefined,
+            executorEmail: hasExecutor ? executorEmail : undefined,
 
-            // безопасно докидываем остальные поля, если есть
+            events,
+
             ...rest,
         });
 

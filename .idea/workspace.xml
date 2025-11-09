@@ -4,9 +4,10 @@
     <option name="autoReloadType" value="SELECTIVE" />
   </component>
   <component name="ChangeListManager">
-    <list default="true" id="b3c91f45-fbe1-4477-9fd9-38d0fcaf660d" name="Changes" comment="fix: инициализировать relatedTask.events в API загрузки фотоотчётов и снять ошибку TS при пуше события">
+    <list default="true" id="b3c91f45-fbe1-4477-9fd9-38d0fcaf660d" name="Changes" comment="feat(task-api): добавлена поддержка удаления и обновления по taskId">
       <change beforePath="$PROJECT_DIR$/.idea/workspace.xml" beforeDir="false" afterPath="$PROJECT_DIR$/.idea/workspace.xml" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/src/app/api/org/[org]/projects/[project]/tasks/[id]/route.ts" beforeDir="false" afterPath="$PROJECT_DIR$/src/app/api/org/[org]/projects/[project]/tasks/[id]/route.ts" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/src/app/api/org/[org]/projects/[project]/tasks/route.ts" beforeDir="false" afterPath="$PROJECT_DIR$/src/app/api/org/[org]/projects/[project]/tasks/route.ts" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/src/app/org/[org]/projects/[project]/tasks/[id]/page.tsx" beforeDir="false" afterPath="$PROJECT_DIR$/src/app/org/[org]/projects/[project]/tasks/[id]/page.tsx" afterDir="false" />
     </list>
     <option name="SHOW_DIALOG" value="false" />
@@ -115,15 +116,7 @@
       <workItem from="1761720378244" duration="633000" />
       <workItem from="1761887562972" duration="15306000" />
       <workItem from="1762422367880" duration="27839000" />
-      <workItem from="1762582926294" duration="12770000" />
-    </task>
-    <task id="LOCAL-00009" summary="dockerfile has been modified">
-      <option name="closed" value="true" />
-      <created>1752143920385</created>
-      <option name="number" value="00009" />
-      <option name="presentableId" value="LOCAL-00009" />
-      <option name="project" value="LOCAL" />
-      <updated>1752143920385</updated>
+      <workItem from="1762582926294" duration="17614000" />
     </task>
     <task id="LOCAL-00010" summary="S3 settings  has been clear into docker-compose.yml">
       <option name="closed" value="true" />
@@ -509,14 +502,21 @@
       <option name="project" value="LOCAL" />
       <updated>1762599451566</updated>
     </task>
-    <option name="localTasksCounter" value="58" />
+    <task id="LOCAL-00058" summary="feat(task-api): добавлена поддержка удаления и обновления по taskId">
+      <option name="closed" value="true" />
+      <created>1762649922342</created>
+      <option name="number" value="00058" />
+      <option name="presentableId" value="LOCAL-00058" />
+      <option name="project" value="LOCAL" />
+      <updated>1762649922342</updated>
+    </task>
+    <option name="localTasksCounter" value="59" />
     <servers />
   </component>
   <component name="TypeScriptGeneratedFilesManager">
     <option name="version" value="3" />
   </component>
   <component name="VcsManagerConfiguration">
-    <MESSAGE value="Documents on the task page are hidden for the executor" />
     <MESSAGE value="changed the display of maps on the task page" />
     <MESSAGE value="Change events: log only TASK_ASSIGNED on executor set; remove EXECUTOR_ASSIGNED and redundant STATUS_CHANGED; hide legacy EXECUTOR_ASSIGNED on timeline" />
     <MESSAGE value="Creation Workspace conception was started." />
@@ -541,6 +541,7 @@
     <MESSAGE value="fix: инициализировать массив событий у связанной задачи при синхронизации статуса отчёта (isolated app)" />
     <MESSAGE value="fix: инициализированы массивы событий и вложений в PATCH задачи, приведение статуса к типу поля и убраны ошибки TS/ESLint при загрузке файлов и удалении order/ncw (isolated app)" />
     <MESSAGE value="fix: инициализировать relatedTask.events в API загрузки фотоотчётов и снять ошибку TS при пуше события" />
-    <option name="LAST_COMMIT_MESSAGE" value="fix: инициализировать relatedTask.events в API загрузки фотоотчётов и снять ошибку TS при пуше события" />
+    <MESSAGE value="feat(task-api): добавлена поддержка удаления и обновления по taskId" />
+    <option name="LAST_COMMIT_MESSAGE" value="feat(task-api): добавлена поддержка удаления и обновления по taskId" />
   </component>
 </project>

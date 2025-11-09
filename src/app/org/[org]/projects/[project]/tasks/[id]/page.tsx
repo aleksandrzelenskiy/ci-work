@@ -34,12 +34,37 @@ import WorkspaceTaskDialog, {
 import { getPriorityIcon, normalizePriority } from '@/utils/priorityIcons';
 import TaskGeoLocation from '@/app/workspace/components/TaskGeoLocation';
 import { getStatusColor } from '@/utils/statusColors';
-
+import {
+    Timeline,
+    TimelineItem,
+    TimelineSeparator,
+    TimelineDot,
+    TimelineConnector,
+    TimelineContent,
+    TimelineOppositeContent,
+} from '@mui/lab';
 
 type TaskFile = {
     url: string;
     name?: string;
     size?: number;
+};
+
+type TaskEventDetailsValue = string | number | boolean | null | undefined;
+
+type Change = {
+    from?: unknown;
+    to?: unknown;
+};
+
+type TaskEventDetails = Record<string, TaskEventDetailsValue | Change>;
+
+type TaskEvent = {
+    action: string;
+    author: string;
+    authorId: string;
+    date: string;
+    details?: TaskEventDetails;
 };
 
 type Task = {
@@ -66,6 +91,7 @@ type Task = {
     executorEmail?: string;
     files?: TaskFile[];
     attachments?: string[];
+    events?: TaskEvent[];
 };
 
 export default function TaskDetailsPage() {
@@ -89,8 +115,16 @@ export default function TaskDetailsPage() {
     const [deleteOpen, setDeleteOpen] = React.useState(false);
     const [deleting, setDeleting] = React.useState(false);
 
-    // новое: имя организации
     const [orgName, setOrgName] = React.useState<string | null>(null);
+
+    const asText = (x: unknown): string => {
+        if (x === null || typeof x === 'undefined') return '—';
+        if (typeof x === 'string') {
+            const d = new Date(x);
+            if (!Number.isNaN(d.getTime())) return d.toLocaleString('ru-RU');
+        }
+        return String(x);
+    };
 
     const formatDate = (v?: string) => {
         if (!v) return '—';
@@ -100,6 +134,13 @@ export default function TaskDetailsPage() {
         const mm = String(d.getMonth() + 1).padStart(2, '0');
         const yyyy = d.getFullYear();
         return `${dd}.${mm}.${yyyy}`;
+    };
+
+    const formatDateTime = (v?: string) => {
+        if (!v) return '—';
+        const d = new Date(v);
+        if (Number.isNaN(d.getTime())) return v;
+        return d.toLocaleString('ru-RU');
     };
 
     const formatPrice = (v?: number) => {
@@ -133,7 +174,6 @@ export default function TaskDetailsPage() {
         }
     }, [org, project, id]);
 
-    // отдельная загрузка организации по слагу
     const loadOrg = React.useCallback(async () => {
         if (!org) return;
         try {
@@ -146,7 +186,7 @@ export default function TaskDetailsPage() {
                 setOrgName(data.org.name);
             }
         } catch {
-            // тихо игнорируем, оставим слаг
+            // ignore
         }
     }, [org]);
 
@@ -212,6 +252,120 @@ export default function TaskDetailsPage() {
         }
     };
 
+    const sortedEvents = React.useMemo(() => {
+        if (!task?.events) return [];
+        return [...task.events].sort((a, b) => {
+            const da = new Date(a.date).getTime();
+            const db = new Date(b.date).getTime();
+            return db - da;
+        });
+    }, [task?.events]);
+
+    const getEventTitle = (action: string): string => {
+        if (action === 'created') return 'Задача создана';
+        if (action === 'status_changed_assigned') return 'Задача назначена исполнителю';
+        if (action === 'updated') return 'Задача изменена';
+        return action;
+    };
+
+    const isChange = (value: unknown): value is Change => {
+        return (
+            typeof value === 'object' &&
+            value !== null &&
+            ('from' in (value as Record<string, unknown>) ||
+                'to' in (value as Record<string, unknown>))
+        );
+    };
+
+    const getDetailString = (details: TaskEventDetails, key: string): string => {
+        const raw = details[key];
+        if (
+            typeof raw === 'string' ||
+            typeof raw === 'number' ||
+            typeof raw === 'boolean' ||
+            raw === null ||
+            typeof raw === 'undefined'
+        ) {
+            return raw === null || typeof raw === 'undefined' ? '—' : String(raw);
+        }
+
+        return '—';
+    };
+
+    const renderEventDetails = (ev: TaskEvent): React.ReactNode => {
+        const d: TaskEventDetails = ev.details || {};
+
+        // создание
+        if (ev.action === 'created') {
+            const taskNameStr = getDetailString(d, 'taskName');
+            const bsNumberStr = getDetailString(d, 'bsNumber');
+            const statusStr = getDetailString(d, 'status');
+            const priorityStr = getDetailString(d, 'priority');
+
+            return (
+                <>
+                    <Typography variant="caption" display="block">
+                        Задача: {taskNameStr}
+                    </Typography>
+                    <Typography variant="caption" display="block">
+                        BS: {bsNumberStr}
+                    </Typography>
+                    <Typography variant="caption" display="block">
+                        Статус: {statusStr}
+                    </Typography>
+                    <Typography variant="caption" display="block">
+                        Приоритет: {priorityStr}
+                    </Typography>
+                </>
+            );
+        }
+
+        // назначили исполнителя
+        if (ev.action === 'status_changed_assigned') {
+            const executorStr = getDetailString(d, 'executorName');
+            const executorEmailStr = getDetailString(d, 'executorEmail');
+
+            return (
+                <>
+                    <Typography variant="caption" display="block">
+                        Исполнитель: {executorStr}
+                    </Typography>
+                    {executorEmailStr !== '—' && (
+                        <Typography variant="caption" display="block">
+                            Email: {executorEmailStr}
+                        </Typography>
+                    )}
+                </>
+            );
+        }
+
+        // обновление полей
+        if (ev.action === 'updated') {
+            return Object.entries(d).map(([key, value]) => {
+                if (isChange(value)) {
+                    return (
+                        <Typography key={key} variant="caption" display="block">
+                            {key}: {asText(value.from)} → {asText(value.to)}
+                        </Typography>
+                    );
+                }
+                return (
+                    <Typography key={key} variant="caption" display="block">
+                        {key}: {asText(value)}
+                    </Typography>
+                );
+            });
+        }
+
+        // fallback
+        return Object.entries(d).map(([key, value]) => (
+            <Typography key={key} variant="caption" display="block">
+                {key}: {value === null || typeof value === 'undefined' ? '—' : String(value)}
+            </Typography>
+        ));
+    };
+
+
     return (
         <Box sx={{ p: 2, display: 'flex', flexDirection: 'column', gap: 2 }}>
             <Stack direction="row" alignItems="center" justifyContent="space-between" gap={1}>
@@ -227,9 +381,7 @@ export default function TaskDetailsPage() {
                                 {task?.taskName || 'Задача'}
                             </Typography>
                             {task?.bsNumber && (
-                                <Typography variant="h6">
-                                    {task.bsNumber}
-                                </Typography>
+                                <Typography variant="h6">{task.bsNumber}</Typography>
                             )}
 
                             {task?.taskId && (
@@ -242,7 +394,11 @@ export default function TaskDetailsPage() {
                             )}
                         </Stack>
 
-                        <Typography variant="body2" color="text.secondary" sx={{ display: 'flex', gap: 0.5, flexWrap: 'wrap', mb: 1 }}>
+                        <Typography
+                            variant="body2"
+                            color="text.secondary"
+                            sx={{ display: 'flex', gap: 0.5, flexWrap: 'wrap', mb: 1 }}
+                        >
                             Организация:{' '}
                             <Link
                                 href={`/org/${encodeURIComponent(org)}`}
@@ -251,10 +407,11 @@ export default function TaskDetailsPage() {
                             >
                                 {orgName || org}
                             </Link>
-                            •
-                            Проект:{' '}
+                            • Проект:{' '}
                             <Link
-                                href={`/org/${encodeURIComponent(org)}/projects/${encodeURIComponent(project)}/tasks`}
+                                href={`/org/${encodeURIComponent(org)}/projects/${encodeURIComponent(
+                                    project
+                                )}/tasks`}
                                 underline="hover"
                                 color="inherit"
                             >
@@ -273,7 +430,6 @@ export default function TaskDetailsPage() {
                                 }}
                             />
                         )}
-
                     </Box>
                 </Stack>
                 <Stack direction="row" spacing={1}>
@@ -286,7 +442,10 @@ export default function TaskDetailsPage() {
                     </Tooltip>
                     <Tooltip title="Редактировать">
                         <span>
-                            <IconButton onClick={() => task && setEditOpen(true)} disabled={loading || !task}>
+                            <IconButton
+                                onClick={() => task && setEditOpen(true)}
+                                disabled={loading || !task}
+                            >
                                 <EditNoteIcon />
                             </IconButton>
                         </span>
@@ -436,7 +595,7 @@ export default function TaskDetailsPage() {
                                     gutterBottom
                                     sx={{ display: 'flex', alignItems: 'center', gap: 1 }}
                                 >
-                                    <DescriptionOutlinedIcon fontSize="small"/>
+                                    <DescriptionOutlinedIcon fontSize="small" />
                                     Описание
                                 </Typography>
                                 <Divider sx={{ mb: 1.5 }} />
@@ -450,7 +609,7 @@ export default function TaskDetailsPage() {
                             </Paper>
                         </Grid>
 
-                        {/* Вложения — только если есть */}
+                        {/* Вложения */}
                         {hasAttachments && (
                             <Grid item xs={12} md={6} lg={3}>
                                 <Paper variant="outlined" sx={{ p: 2 }}>
@@ -460,7 +619,7 @@ export default function TaskDetailsPage() {
                                         gutterBottom
                                         sx={{ display: 'flex', alignItems: 'center', gap: 1 }}
                                     >
-                                        <AttachFileOutlinedIcon fontSize="small"/>
+                                        <AttachFileOutlinedIcon fontSize="small" />
                                         Вложения
                                     </Typography>
                                     <Divider sx={{ mb: 1.5 }} />
@@ -500,7 +659,10 @@ export default function TaskDetailsPage() {
                         </Grid>
                     </Grid>
 
-                    {(task.orderNumber || task.orderUrl || task.orderDate || task.orderSignDate) && (
+                    {(task.orderNumber ||
+                        task.orderUrl ||
+                        task.orderDate ||
+                        task.orderSignDate) && (
                         <Paper variant="outlined" sx={{ p: 2 }}>
                             <Typography variant="subtitle1" fontWeight={600} gutterBottom>
                                 Заказ / договор
@@ -528,6 +690,44 @@ export default function TaskDetailsPage() {
                             </Stack>
                         </Paper>
                     )}
+
+                    {/* История */}
+                    <Paper variant="outlined" sx={{ p: 2 }}>
+                        <Typography variant="subtitle1" fontWeight={600} gutterBottom>
+                            История
+                        </Typography>
+                        <Divider sx={{ mb: 1.5 }} />
+                        {sortedEvents.length === 0 ? (
+                            <Typography color="text.secondary">История пуста</Typography>
+                        ) : (
+                            <Timeline sx={{ p: 0 }}>
+                                {sortedEvents.map((ev, idx) => (
+                                    <TimelineItem key={idx}>
+                                        <TimelineOppositeContent sx={{ flex: 0.25 }}>
+                                            <Typography variant="caption" color="text.secondary">
+                                                {formatDateTime(ev.date)}
+                                            </Typography>
+                                        </TimelineOppositeContent>
+                                        <TimelineSeparator>
+                                            <TimelineDot
+                                                color={ev.action === 'created' ? 'primary' : 'success'}
+                                            />
+                                            {idx < sortedEvents.length - 1 && <TimelineConnector />}
+                                        </TimelineSeparator>
+                                        <TimelineContent sx={{ py: 1 }}>
+                                            <Typography variant="body2" fontWeight={600}>
+                                                {getEventTitle(ev.action)}
+                                            </Typography>
+                                            <Typography variant="body2" color="text.secondary">
+                                                {ev.author}
+                                            </Typography>
+                                            <Box sx={{ mt: 0.5 }}>{renderEventDetails(ev)}</Box>
+                                        </TimelineContent>
+                                    </TimelineItem>
+                                ))}
+                            </Timeline>
+                        )}
+                    </Paper>
                 </Box>
             )}
 
