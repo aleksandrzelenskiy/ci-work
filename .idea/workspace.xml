@@ -4,9 +4,8 @@
     <option name="autoReloadType" value="SELECTIVE" />
   </component>
   <component name="ChangeListManager">
-    <list default="true" id="b3c91f45-fbe1-4477-9fd9-38d0fcaf660d" name="Changes" comment="feat(task-api, TaskDetailPage): добавлена логика записи events при создании и редактировании задачи. Добавлено отображение блока история в UI">
+    <list default="true" id="b3c91f45-fbe1-4477-9fd9-38d0fcaf660d" name="Changes" comment="feat(task-api, TaskDetailPage): Не логируем координаты и bsLocation, если они фактически не менялись при обновлении задачи.">
       <change beforePath="$PROJECT_DIR$/.idea/workspace.xml" beforeDir="false" afterPath="$PROJECT_DIR$/.idea/workspace.xml" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/src/app/api/org/[org]/projects/[project]/tasks/[id]/route.ts" beforeDir="false" afterPath="$PROJECT_DIR$/src/app/api/org/[org]/projects/[project]/tasks/[id]/route.ts" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/src/app/org/[org]/projects/[project]/tasks/[id]/page.tsx" beforeDir="false" afterPath="$PROJECT_DIR$/src/app/org/[org]/projects/[project]/tasks/[id]/page.tsx" afterDir="false" />
     </list>
     <option name="SHOW_DIALOG" value="false" />
@@ -115,15 +114,7 @@
       <workItem from="1761720378244" duration="633000" />
       <workItem from="1761887562972" duration="15306000" />
       <workItem from="1762422367880" duration="27839000" />
-      <workItem from="1762582926294" duration="21461000" />
-    </task>
-    <task id="LOCAL-00011" summary="console.log has been added into upload route">
-      <option name="closed" value="true" />
-      <created>1752290652423</created>
-      <option name="number" value="00011" />
-      <option name="presentableId" value="LOCAL-00011" />
-      <option name="project" value="LOCAL" />
-      <updated>1752290652423</updated>
+      <workItem from="1762582926294" duration="24421000" />
     </task>
     <task id="LOCAL-00012" summary="switch to Busboy streaming, add adaptive SVG watermark &amp; fix type errors">
       <option name="closed" value="true" />
@@ -509,14 +500,21 @@
       <option name="project" value="LOCAL" />
       <updated>1762684004995</updated>
     </task>
-    <option name="localTasksCounter" value="60" />
+    <task id="LOCAL-00060" summary="feat(task-api, TaskDetailPage): Не логируем координаты и bsLocation, если они фактически не менялись при обновлении задачи.">
+      <option name="closed" value="true" />
+      <created>1762692519423</created>
+      <option name="number" value="00060" />
+      <option name="presentableId" value="LOCAL-00060" />
+      <option name="project" value="LOCAL" />
+      <updated>1762692519426</updated>
+    </task>
+    <option name="localTasksCounter" value="61" />
     <servers />
   </component>
   <component name="TypeScriptGeneratedFilesManager">
     <option name="version" value="3" />
   </component>
   <component name="VcsManagerConfiguration">
-    <MESSAGE value="Change events: log only TASK_ASSIGNED on executor set; remove EXECUTOR_ASSIGNED and redundant STATUS_CHANGED; hide legacy EXECUTOR_ASSIGNED on timeline" />
     <MESSAGE value="Creation Workspace conception was started." />
     <MESSAGE value="Creation Org/Project logic for project-managment workspace.&#10;Creation Workspace conNCW/Order: add confirm delete; unset DB fields on delete;." />
     <MESSAGE value="NCW Button hiden for all status before Done" />
@@ -541,6 +539,7 @@
     <MESSAGE value="fix: инициализировать relatedTask.events в API загрузки фотоотчётов и снять ошибку TS при пуше события" />
     <MESSAGE value="feat(task-api): добавлена поддержка удаления и обновления по taskId" />
     <MESSAGE value="feat(task-api, TaskDetailPage): добавлена логика записи events при создании и редактировании задачи. Добавлено отображение блока история в UI" />
-    <option name="LAST_COMMIT_MESSAGE" value="feat(task-api, TaskDetailPage): добавлена логика записи events при создании и редактировании задачи. Добавлено отображение блока история в UI" />
+    <MESSAGE value="feat(task-api, TaskDetailPage): Не логируем координаты и bsLocation, если они фактически не менялись при обновлении задачи." />
+    <option name="LAST_COMMIT_MESSAGE" value="feat(task-api, TaskDetailPage): Не логируем координаты и bsLocation, если они фактически не менялись при обновлении задачи." />
   </component>
 </project>
