@@ -4,9 +4,11 @@
     <option name="autoReloadType" value="SELECTIVE" />
   </component>
   <component name="ChangeListManager">
-    <list default="true" id="b3c91f45-fbe1-4477-9fd9-38d0fcaf660d" name="Changes" comment="TaskDetailsPage - измене UI отображения информации о задаче">
+    <list default="true" id="b3c91f45-fbe1-4477-9fd9-38d0fcaf660d" name="Changes" comment="fix (server-actions users): корректный поиск пользователя в Mongo">
       <change beforePath="$PROJECT_DIR$/.idea/workspace.xml" beforeDir="false" afterPath="$PROJECT_DIR$/.idea/workspace.xml" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/src/app/api/current-user/route.ts" beforeDir="false" afterPath="$PROJECT_DIR$/src/app/api/current-user/route.ts" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/src/app/org/[org]/projects/[project]/tasks/[id]/page.tsx" beforeDir="false" afterPath="$PROJECT_DIR$/src/app/org/[org]/projects/[project]/tasks/[id]/page.tsx" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/src/server-actions/users.ts" beforeDir="false" afterPath="$PROJECT_DIR$/src/server-actions/users.ts" afterDir="false" />
     </list>
     <option name="SHOW_DIALOG" value="false" />
     <option name="HIGHLIGHT_CONFLICTS" value="true" />
@@ -114,15 +116,7 @@
       <workItem from="1761720378244" duration="633000" />
       <workItem from="1761887562972" duration="15306000" />
       <workItem from="1762422367880" duration="27839000" />
-      <workItem from="1762582926294" duration="31557000" />
-    </task>
-    <task id="LOCAL-00016" summary="upload route has been modified">
-      <option name="closed" value="true" />
-      <created>1752311562118</created>
-      <option name="number" value="00016" />
-      <option name="presentableId" value="LOCAL-00016" />
-      <option name="project" value="LOCAL" />
-      <updated>1752311562119</updated>
+      <workItem from="1762582926294" duration="37204000" />
     </task>
     <task id="LOCAL-00017" summary="change .pro to .ru">
       <option name="closed" value="true" />
@@ -508,14 +502,21 @@
       <option name="project" value="LOCAL" />
       <updated>1762751794035</updated>
     </task>
-    <option name="localTasksCounter" value="65" />
+    <task id="LOCAL-00065" summary="TaskDetailsPage - измене UI отображения информации о задаче">
+      <option name="closed" value="true" />
+      <created>1762753988380</created>
+      <option name="number" value="00065" />
+      <option name="presentableId" value="LOCAL-00065" />
+      <option name="project" value="LOCAL" />
+      <updated>1762753988380</updated>
+    </task>
+    <option name="localTasksCounter" value="66" />
     <servers />
   </component>
   <component name="TypeScriptGeneratedFilesManager">
     <option name="version" value="3" />
   </component>
   <component name="VcsManagerConfiguration">
-    <MESSAGE value="OrgSettingsPage - добавлены проекты организации с возможностью добавления и ссылкой на  /projects/&#10;InviteMemberForm - добавлена проверка уже действующих пользователей&#10;+ UI доработки" />
     <MESSAGE value="OrgSettingsPage - добавлена логика удаления проектов" />
     <MESSAGE value="OrgSettingsPage - доработка UI" />
     <MESSAGE value="OrgSettingsPage - добавлена логика изменения роли пользвоателя (участника организации)" />
@@ -540,6 +541,7 @@
     <MESSAGE value="(task id api) - добавлена смена статуса при выборе исполнителя на этапе редактирования (To do &gt; Assigned)" />
     <MESSAGE value="(task id api) - добавлена смена статуса при удалении исполнителя на этапе редактирования (Assigned &gt; To do) изменен UI отображения истории событий назначения и удаления исполнителя" />
     <MESSAGE value="TaskDetailsPage - измене UI отображения информации о задаче" />
-    <option name="LAST_COMMIT_MESSAGE" value="TaskDetailsPage - измене UI отображения информации о задаче" />
+    <MESSAGE value="fix (server-actions users): корректный поиск пользователя в Mongo" />
+    <option name="LAST_COMMIT_MESSAGE" value="fix (server-actions users): корректный поиск пользователя в Mongo" />
   </component>
 </project>

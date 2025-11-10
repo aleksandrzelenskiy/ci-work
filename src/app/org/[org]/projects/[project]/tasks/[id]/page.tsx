@@ -811,7 +811,6 @@ export default function TaskDetailsPage() {
                         {/* История */}
                         <CardItem sx={{ p: 0, minWidth: 0 }}>
                             <Accordion
-                                defaultExpanded
                                 disableGutters
                                 elevation={0}
                                 sx={{ '&:before': { display: 'none' } }}

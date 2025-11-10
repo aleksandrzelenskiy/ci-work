@@ -5,6 +5,7 @@
 import UserModel from 'src/app/models/UserModel';
 import dbConnect from 'src/utils/mongoose';
 import { currentUser } from '@clerk/nextjs/server';
+import { MongoServerError } from 'mongodb';
 
 dbConnect();
 
@@ -18,7 +19,19 @@ export const GetCurrentUserFromMongoDB = async () => {
       };
     }
 
-    const user = await UserModel.findOne({ clerkUserId: clerkUser.id });
+    const primaryEmail = clerkUser.emailAddresses?.[0]?.emailAddress?.toLowerCase();
+    let user = await UserModel.findOne({ clerkUserId: clerkUser.id });
+
+    if (!user && primaryEmail) {
+      // Support legacy rows that were created before clerkUserId existed
+      user = await UserModel.findOne({ email: primaryEmail });
+      if (user && !user.clerkUserId) {
+        user.clerkUserId = clerkUser.id;
+        user.name = user.name || `${clerkUser?.firstName ?? ''} ${clerkUser?.lastName ?? ''}`.trim();
+        user.profilePic = user.profilePic || clerkUser?.imageUrl || '';
+        await user.save();
+      }
+    }
 
     if (user) {
       return {
@@ -27,16 +40,33 @@ export const GetCurrentUserFromMongoDB = async () => {
       };
     }
 
-    // Если пользователя в БД нет — создаём
+    const fullName = `${clerkUser?.firstName ?? ''} ${clerkUser?.lastName ?? ''}`.trim();
     const newUser = new UserModel({
-      name: clerkUser?.firstName + ' ' + clerkUser?.lastName,
-      email: clerkUser?.emailAddresses[0]?.emailAddress,
+      name: fullName || clerkUser?.username || primaryEmail || 'Unknown User',
+      email: primaryEmail || '',
       clerkUserId: clerkUser?.id,
-      profilePic: clerkUser?.imageUrl,
+      profilePic: clerkUser?.imageUrl || '',
       role: 'executor',
     });
 
-    await newUser.save();
+    try {
+      await newUser.save();
+    } catch (error) {
+      if (
+        error instanceof MongoServerError &&
+        error.code === 11000 &&
+        primaryEmail
+      ) {
+        const existingUser = await UserModel.findOne({ email: primaryEmail });
+        if (existingUser) {
+          return {
+            success: true,
+            data: JSON.parse(JSON.stringify(existingUser)),
+          };
+        }
+      }
+      throw error;
+    }
 
     return {
       success: true,
