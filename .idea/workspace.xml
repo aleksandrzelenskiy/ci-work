@@ -4,11 +4,9 @@
     <option name="autoReloadType" value="SELECTIVE" />
   </component>
   <component name="ChangeListManager">
-    <list default="true" id="b3c91f45-fbe1-4477-9fd9-38d0fcaf660d" name="Changes" comment="(task id api) - добавлена смена статуса при удалении исполнителя на этапе редактирования (Assigned &gt; To do) изменен UI отображения истории событий назначения и удаления исполнителя">
+    <list default="true" id="b3c91f45-fbe1-4477-9fd9-38d0fcaf660d" name="Changes" comment="TaskDetailsPage - измене UI отображения информации о задаче">
       <change beforePath="$PROJECT_DIR$/.idea/workspace.xml" beforeDir="false" afterPath="$PROJECT_DIR$/.idea/workspace.xml" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/src/app/api/org/[org]/projects/[project]/tasks/[id]/route.ts" beforeDir="false" afterPath="$PROJECT_DIR$/src/app/api/org/[org]/projects/[project]/tasks/[id]/route.ts" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/src/app/org/[org]/projects/[project]/tasks/[id]/page.tsx" beforeDir="false" afterPath="$PROJECT_DIR$/src/app/org/[org]/projects/[project]/tasks/[id]/page.tsx" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/src/app/workspace/components/WorkspaceTaskDialog.tsx" beforeDir="false" afterPath="$PROJECT_DIR$/src/app/workspace/components/WorkspaceTaskDialog.tsx" afterDir="false" />
     </list>
     <option name="SHOW_DIALOG" value="false" />
     <option name="HIGHLIGHT_CONFLICTS" value="true" />
@@ -116,15 +114,7 @@
       <workItem from="1761720378244" duration="633000" />
       <workItem from="1761887562972" duration="15306000" />
       <workItem from="1762422367880" duration="27839000" />
-      <workItem from="1762582926294" duration="29548000" />
-    </task>
-    <task id="LOCAL-00015" summary="upload route has been modified">
-      <option name="closed" value="true" />
-      <created>1752309571897</created>
-      <option name="number" value="00015" />
-      <option name="presentableId" value="LOCAL-00015" />
-      <option name="project" value="LOCAL" />
-      <updated>1752309571897</updated>
+      <workItem from="1762582926294" duration="31557000" />
     </task>
     <task id="LOCAL-00016" summary="upload route has been modified">
       <option name="closed" value="true" />
@@ -510,14 +500,21 @@
       <option name="project" value="LOCAL" />
       <updated>1762748269840</updated>
     </task>
-    <option name="localTasksCounter" value="64" />
+    <task id="LOCAL-00064" summary="(task id api) - добавлена смена статуса при удалении исполнителя на этапе редактирования (Assigned &gt; To do) изменен UI отображения истории событий назначения и удаления исполнителя">
+      <option name="closed" value="true" />
+      <created>1762751794035</created>
+      <option name="number" value="00064" />
+      <option name="presentableId" value="LOCAL-00064" />
+      <option name="project" value="LOCAL" />
+      <updated>1762751794035</updated>
+    </task>
+    <option name="localTasksCounter" value="65" />
     <servers />
   </component>
   <component name="TypeScriptGeneratedFilesManager">
     <option name="version" value="3" />
   </component>
   <component name="VcsManagerConfiguration">
-    <MESSAGE value="Add Complete date to TaskColumnPage ExecutorFinancialMetrics UI to English" />
     <MESSAGE value="OrgSettingsPage - добавлены проекты организации с возможностью добавления и ссылкой на  /projects/&#10;InviteMemberForm - добавлена проверка уже действующих пользователей&#10;+ UI доработки" />
     <MESSAGE value="OrgSettingsPage - добавлена логика удаления проектов" />
     <MESSAGE value="OrgSettingsPage - доработка UI" />
@@ -542,6 +539,7 @@
     <MESSAGE value="TaskDetailPage изменен стиль Masonry для карточек." />
     <MESSAGE value="(task id api) - добавлена смена статуса при выборе исполнителя на этапе редактирования (To do &gt; Assigned)" />
     <MESSAGE value="(task id api) - добавлена смена статуса при удалении исполнителя на этапе редактирования (Assigned &gt; To do) изменен UI отображения истории событий назначения и удаления исполнителя" />
-    <option name="LAST_COMMIT_MESSAGE" value="(task id api) - добавлена смена статуса при удалении исполнителя на этапе редактирования (Assigned &gt; To do) изменен UI отображения истории событий назначения и удаления исполнителя" />
+    <MESSAGE value="TaskDetailsPage - измене UI отображения информации о задаче" />
+    <option name="LAST_COMMIT_MESSAGE" value="TaskDetailsPage - измене UI отображения информации о задаче" />
   </component>
 </project>

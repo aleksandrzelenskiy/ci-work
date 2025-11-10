@@ -33,6 +33,7 @@ import DeleteOutlineIcon from '@mui/icons-material/DeleteOutline';
 import InfoOutlinedIcon from '@mui/icons-material/InfoOutlined';
 import DescriptionOutlinedIcon from '@mui/icons-material/DescriptionOutlined';
 import AttachFileOutlinedIcon from '@mui/icons-material/AttachFileOutlined';
+import HistoryIcon from '@mui/icons-material/History';
 import WorkspaceTaskDialog, {
     type TaskForEdit,
 } from '@/app/workspace/components/WorkspaceTaskDialog';
@@ -422,13 +423,10 @@ export default function TaskDetailsPage() {
                     </Typography>
                 </>
             );
-        }
-
-        if (ev.action === 'status_changed_assigned') {
+        } else if (ev.action === 'status_changed_assigned') {
             const executorStr = getDetailString(d, 'executorName');
             const executorEmailStr = getDetailString(d, 'executorEmail');
 
-            // статус мы туда подливаем при слиянии с updated
             let statusLine: string | null = null;
             const maybeStatus = d.status;
             if (
@@ -458,11 +456,8 @@ export default function TaskDetailsPage() {
                     )}
                 </>
             );
-        }
-
-
-        if (ev.action === 'updated') {
-            // отдельный красивый вариант: сняли исполнителя
+        } else if (ev.action === 'updated') {
+            // твоя логика updated как была
             if (isExecutorRemovedEvent(ev)) {
                 const st = d.status;
                 let statusLine: string | null = null;
@@ -489,7 +484,6 @@ export default function TaskDetailsPage() {
                 );
             }
 
-            // обычный updated
             return Object.entries(d).map(([key, value]) => {
                 if (isChange(value)) {
                     return (
@@ -506,13 +500,14 @@ export default function TaskDetailsPage() {
             });
         }
 
-
+        // fallback
         return Object.entries(d).map(([key, value]) => (
             <Typography key={key} variant="caption" display="block">
                 {key}: {value === null || typeof value === 'undefined' ? '—' : String(value)}
             </Typography>
         ));
     };
+
 
     return (
         <Box sx={{ p: 2, display: 'flex', flexDirection: 'column', gap: 2 }}>
@@ -646,102 +641,70 @@ export default function TaskDetailsPage() {
                             </Typography>
                             <Divider sx={{ mb: 1.5 }} />
 
-                            <Box sx={{ mb: 1 }}>
-                                <Typography variant="body1" color="text.secondary">
-                                    Базовая станция
-                                </Typography>
+                            <Stack spacing={1}>
+                                {/* БС */}
                                 <Typography variant="body1">
-                                    {task.bsNumber ? `BS: ${task.bsNumber}` : '—'}
+                                    <strong>Базовая станция:</strong> {task.bsNumber || '—'}
                                 </Typography>
-                                <Typography variant="body1" color="text.secondary">
-                                    {task.bsAddress || 'Адрес не указан'}
-                                </Typography>
-                            </Box>
 
-                            <Box sx={{ mb: 1 }}>
-                                <Typography variant="body1" color="text.secondary">
-                                    Срок
-                                </Typography>
+                                {/* Адрес */}
                                 <Typography variant="body1">
-                                    {task.dueDate ? formatDate(task.dueDate) : '—'}
+                                    <strong>Адрес:</strong> {task.bsAddress || 'Адрес не указан'}
                                 </Typography>
-                            </Box>
 
-                            <Box sx={{ mb: 1 }}>
-                                <Typography variant="body1" color="text.secondary">
-                                    Приоритет
-                                </Typography>
-                                <Stack direction="row" spacing={0.75} alignItems="center">
-                                    {getPriorityIcon(
-                                        (normalizePriority(task.priority as string) ?? 'medium') as
-                                            | 'urgent'
-                                            | 'high'
-                                            | 'medium'
-                                            | 'low'
-                                    )}
+                                {/* Срок + приоритет в одну строку, как на скрине */}
+                                <Box sx={{ display: 'flex', gap: 3, alignItems: 'center', flexWrap: 'wrap' }}>
                                     <Typography variant="body1">
-                                        {task.priority || '—'}
+                                        <strong>Срок:</strong> {task.dueDate ? formatDate(task.dueDate) : '—'}
                                     </Typography>
-                                </Stack>
-                            </Box>
-
-                            <Box sx={{ mb: 1 }}>
-                                <Typography variant="body1" color="text.secondary">
-                                    Стоимость
-                                </Typography>
-                                <Typography variant="body1">
-                                    {formatPrice(task.totalCost)}
-                                </Typography>
-                            </Box>
-
-                            {(task.executorName || task.executorEmail) && (
-                                <Box sx={{ mb: 1 }}>
-                                    <Typography variant="body1" color="text.secondary">
-                                        Исполнитель
-                                    </Typography>
-                                    <Typography variant="body1">
-                                        {task.executorName || '—'}
-                                    </Typography>
-                                    {task.executorEmail && (
-                                        <Typography variant="body1" color="text.secondary">
-                                            {task.executorEmail}
+                                    <Box sx={{ display: 'flex', gap: 0.5, alignItems: 'center' }}>
+                                        <Typography variant="body1">
+                                            <strong>Приоритет:</strong>
                                         </Typography>
-                                    )}
+                                        {getPriorityIcon(
+                                            (normalizePriority(task.priority as string) ?? 'medium') as
+                                                'urgent' | 'high' | 'medium' | 'low'
+                                        )}
+                                        <Typography variant="body1">{task.priority || '—'}</Typography>
+                                    </Box>
                                 </Box>
-                            )}
 
-                            <Box sx={{ mb: 1 }}>
-                                <Typography variant="body1" color="text.secondary">
-                                    Тип задачи
-                                </Typography>
-                                <Typography variant="body1">
-                                    {task.taskType || '—'}
-                                </Typography>
-                            </Box>
+                                {/* Стоимость + тип задачи */}
+                                <Box sx={{ display: 'flex', gap: 3, alignItems: 'center', flexWrap: 'wrap' }}>
+                                    <Typography variant="body1">
+                                        <strong>Стоимость:</strong> {formatPrice(task.totalCost)}
+                                    </Typography>
+                                    <Typography variant="body1">
+                                        <strong>Тип задачи:</strong> {task.taskType || '—'}
+                                    </Typography>
+                                </Box>
 
-                            <Box sx={{ mb: 1 }}>
-                                <Typography variant="body1" color="text.secondary">
-                                    Создана
-                                </Typography>
-                                <Typography variant="body1">
-                                    {task.createdAt ? formatDate(task.createdAt) : '—'}
-                                </Typography>
-                            </Box>
+                                {/* Создана + обновлена */}
+                                <Box sx={{ display: 'flex', gap: 3, alignItems: 'center', flexWrap: 'wrap' }}>
+                                    <Typography variant="body1">
+                                        <strong>Создана:</strong> {task.createdAt ? formatDate(task.createdAt) : '—'}
+                                    </Typography>
+                                    <Typography variant="body1">
+                                        <strong>Обновлена:</strong> {task.updatedAt ? formatDate(task.updatedAt) : '—'}
+                                    </Typography>
+                                </Box>
 
-                            <Box>
-                                <Typography variant="body1" color="text.secondary">
-                                    Обновлена
-                                </Typography>
-                                <Typography variant="body1">
-                                    {task.updatedAt ? formatDate(task.updatedAt) : '—'}
-                                </Typography>
-                            </Box>
+                                {/* Исполнитель (если есть) */}
+                                {(task.executorName || task.executorEmail) && (
+                                    <Typography variant="body1">
+                                        <strong>Исполнитель:</strong> {task.executorName || task.executorEmail}
+                                    </Typography>
+                                )}
+                            </Stack>
+
+
                         </CardItem>
+
 
                         {/* Описание */}
                         <CardItem>
                             <Typography
-                                variant="subtitle1"
+                                variant="body1"
                                 fontWeight={600}
                                 gutterBottom
                                 sx={{ display: 'flex', alignItems: 'center', gap: 1 }}
@@ -854,7 +817,13 @@ export default function TaskDetailsPage() {
                                 sx={{ '&:before': { display: 'none' } }}
                             >
                                 <AccordionSummary expandIcon={<ExpandMoreIcon />}>
-                                    <Typography variant="subtitle1" fontWeight={600}>
+                                    <Typography
+                                        variant="subtitle1"
+                                        fontWeight={600}
+                                        gutterBottom
+                                        sx={{ display: 'flex', alignItems: 'center', gap: 1 }}
+                                    >
+                                        <HistoryIcon fontSize="small" />
                                         История
                                     </Typography>
                                 </AccordionSummary>
