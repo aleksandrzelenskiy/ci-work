@@ -271,12 +271,74 @@ export default function TaskDetailsPage() {
 
     const sortedEvents = React.useMemo(() => {
         if (!task?.events) return [];
-        return [...task.events].sort((a, b) => {
+
+        // сначала отсортируем как было
+        const raw = [...task.events].sort((a, b) => {
             const da = new Date(a.date).getTime();
             const db = new Date(b.date).getTime();
             return db - da;
         });
+
+        const result: TaskEvent[] = [];
+
+        for (const ev of raw) {
+            // если это "назначена исполнителю" — попробуем найти пару updated с тем же временем
+            if (ev.action === 'status_changed_assigned') {
+                const pair = raw.find(
+                    (p) =>
+                        p.action === 'updated' &&
+                        p.date === ev.date // у тебя они реально в один момент пишутся
+                );
+
+                if (pair && pair.details) {
+                    // из updated достанем статус (from → to) и, на всякий случай, executorEmail
+                    const mergedDetails: TaskEventDetails = {
+                        ...(ev.details || {}),
+                    };
+
+                    // статус может быть в формате { status: { from, to } }
+                    const st = pair.details.status;
+                    if (
+                        st &&
+                        typeof st === 'object' &&
+                        ('from' in st || 'to' in st)
+                    ) {
+                        mergedDetails.status = st as Change;
+                    }
+
+                    // executorEmail мог прийти в updated
+                    if (pair.details.executorEmail && !mergedDetails.executorEmail) {
+                        mergedDetails.executorEmail = pair.details.executorEmail as string;
+                    }
+
+                    result.push({
+                        ...ev,
+                        details: mergedDetails,
+                    });
+
+                    continue;
+                }
+
+                // если пары нет — просто кладём как есть
+                result.push(ev);
+                continue;
+            }
+
+            // если это updated, но у него есть "назначение исполнителя" с тем же временем — пропустим
+            const hasAssignWithSameTime = raw.some(
+                (p) => p.action === 'status_changed_assigned' && p.date === ev.date
+            );
+            if (ev.action === 'updated' && hasAssignWithSameTime) {
+                // пропускаем избыточный updated
+                continue;
+            }
+
+            result.push(ev);
+        }
+
+        return result;
     }, [task?.events]);
+
 
     const getEventTitle = (action: string): string => {
         if (action === 'created') return 'Задача создана';

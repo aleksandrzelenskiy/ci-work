@@ -430,7 +430,6 @@ export async function PUT(
             }
         }
 
-        // --- исполнитель и деньги как у тебя ---
         const extraEvents: Array<{
             action: string;
             author: string;
@@ -457,7 +456,18 @@ export async function PUT(
                 allowedPatch.executorEmail = body.executorEmail;
             }
 
+            // если исполнителя не было — считаем, что задача стала Assigned
             if (!hadExecutorBefore) {
+                // если в этом же запросе через body нам НЕ задали статус вручную,
+                // и в задаче он пустой или To do — выставляем Assigned
+                const statusAlreadySetInThisRequest = 'status' in allowedPatch;
+                const currentStatus = currentTask.status;
+
+                if (!statusAlreadySetInThisRequest && (!currentStatus || currentStatus === 'To do')) {
+                    markChange('status', currentStatus, 'Assigned');
+                    allowedPatch.status = 'Assigned';
+                }
+
                 extraEvents.push({
                     action: 'status_changed_assigned',
                     author: me.fullName || me.username || email,
@@ -480,6 +490,7 @@ export async function PUT(
             allowedPatch.executorName = undefined;
             allowedPatch.executorEmail = undefined;
         }
+
 
         if (typeof body.totalCost !== 'undefined') {
             const tc = parseMaybeNumber(body.totalCost);

@@ -4,8 +4,9 @@
     <option name="autoReloadType" value="SELECTIVE" />
   </component>
   <component name="ChangeListManager">
-    <list default="true" id="b3c91f45-fbe1-4477-9fd9-38d0fcaf660d" name="Changes" comment="feat(TaskDetailPage): MUI Grid заменен на адаптивный Masonry для карточек. История помещена в Accordion MUI">
-      <change beforePath="$PROJECT_DIR$/src/app/org/[org]/projects/[project]/tasks/[id]/page.tsx" beforeDir="false" afterPath="$PROJECT_DIR$/src/app/org/[org]/projects/[project]/tasks/[id]/page.tsx" afterDir="false" />
+    <list default="true" id="b3c91f45-fbe1-4477-9fd9-38d0fcaf660d" name="Changes" comment="TaskDetailPage изменен стиль Masonry для карточек.">
+      <change beforePath="$PROJECT_DIR$/.idea/workspace.xml" beforeDir="false" afterPath="$PROJECT_DIR$/.idea/workspace.xml" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/src/app/api/org/[org]/projects/[project]/tasks/[id]/route.ts" beforeDir="false" afterPath="$PROJECT_DIR$/src/app/api/org/[org]/projects/[project]/tasks/[id]/route.ts" afterDir="false" />
     </list>
     <option name="SHOW_DIALOG" value="false" />
     <option name="HIGHLIGHT_CONFLICTS" value="true" />
@@ -113,15 +114,7 @@
       <workItem from="1761720378244" duration="633000" />
       <workItem from="1761887562972" duration="15306000" />
       <workItem from="1762422367880" duration="27839000" />
-      <workItem from="1762582926294" duration="24712000" />
-    </task>
-    <task id="LOCAL-00013" summary="fix(upload): support large files and prevent SVG overlay errors">
-      <option name="closed" value="true" />
-      <created>1752295625033</created>
-      <option name="number" value="00013" />
-      <option name="presentableId" value="LOCAL-00013" />
-      <option name="project" value="LOCAL" />
-      <updated>1752295625033</updated>
+      <workItem from="1762582926294" duration="26956000" />
     </task>
     <task id="LOCAL-00014" summary="back to app route api for upload">
       <option name="closed" value="true" />
@@ -507,14 +500,21 @@
       <option name="project" value="LOCAL" />
       <updated>1762698379328</updated>
     </task>
-    <option name="localTasksCounter" value="62" />
+    <task id="LOCAL-00062" summary="TaskDetailPage изменен стиль Masonry для карточек.">
+      <option name="closed" value="true" />
+      <created>1762698765407</created>
+      <option name="number" value="00062" />
+      <option name="presentableId" value="LOCAL-00062" />
+      <option name="project" value="LOCAL" />
+      <updated>1762698765408</updated>
+    </task>
+    <option name="localTasksCounter" value="63" />
     <servers />
   </component>
   <component name="TypeScriptGeneratedFilesManager">
     <option name="version" value="3" />
   </component>
   <component name="VcsManagerConfiguration">
-    <MESSAGE value="Creation Org/Project logic for project-managment workspace.&#10;Creation Workspace conNCW/Order: add confirm delete; unset DB fields on delete;." />
     <MESSAGE value="NCW Button hiden for all status before Done" />
     <MESSAGE value="Add Complete column after Due Date and render workCompletionDate as dd.mm.yyyy" />
     <MESSAGE value="Add Complete date to TaskColumnPage ExecutorFinancialMetrics UI to English" />
@@ -539,6 +539,7 @@
     <MESSAGE value="feat(task-api, TaskDetailPage): добавлена логика записи events при создании и редактировании задачи. Добавлено отображение блока история в UI" />
     <MESSAGE value="feat(task-api, TaskDetailPage): Не логируем координаты и bsLocation, если они фактически не менялись при обновлении задачи." />
     <MESSAGE value="feat(TaskDetailPage): MUI Grid заменен на адаптивный Masonry для карточек. История помещена в Accordion MUI" />
-    <option name="LAST_COMMIT_MESSAGE" value="feat(TaskDetailPage): MUI Grid заменен на адаптивный Masonry для карточек. История помещена в Accordion MUI" />
+    <MESSAGE value="TaskDetailPage изменен стиль Masonry для карточек." />
+    <option name="LAST_COMMIT_MESSAGE" value="TaskDetailPage изменен стиль Masonry для карточек." />
   </component>
 </project>
