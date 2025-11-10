@@ -1,29 +1,23 @@
 // app/api/current-user/route.ts
 import { NextResponse } from 'next/server';
-import { auth } from '@clerk/nextjs/server';
-import dbConnect from '@/utils/mongoose';
-import UserModel from '@/app/models/UserModel';
+import { GetCurrentUserFromMongoDB } from '@/server-actions/users';
 
 export async function GET() {
-  // Устанавливаем подключение к MongoDB
-  await dbConnect();
+  const response = await GetCurrentUserFromMongoDB();
 
-  const { userId } = await auth();
-  if (!userId) {
-    return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
-  }
+  if (!response.success || !response.data) {
+    const status =
+      response.message === 'No user session found'
+        ? 401
+        : response.message?.toLowerCase().includes('unknown')
+        ? 500
+        : 404;
 
-  try {
-    const user = await UserModel.findOne({ clerkUserId: userId });
-    if (!user) {
-      return NextResponse.json({ error: 'User not found' }, { status: 404 });
-    }
-    return NextResponse.json({ role: user.role });
-  } catch (error) {
-    console.error('Error fetching user role:', error);
     return NextResponse.json(
-      { error: 'Internal server error' },
-      { status: 500 }
+      { error: response.message || 'User not found' },
+      { status }
     );
   }
+
+  return NextResponse.json({ role: response.data.role });
 }
