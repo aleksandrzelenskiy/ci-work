@@ -512,9 +512,10 @@ export default function WorkspaceTaskDialog({
                 bsLatitude: bsLatitude === '' ? undefined : Number(bsLatitude),
                 bsLongitude: bsLongitude === '' ? undefined : Number(bsLongitude),
                 bsLocation: buildBsLocation(),
-                executorId: selectedExecutor?.id, // теперь это clerkId
-                executorName: selectedExecutor?.name,
-                executorEmail: selectedExecutor?.email,
+                executorId: selectedExecutor ? selectedExecutor.id : null, // null, если не выбрали
+                executorName: selectedExecutor ? selectedExecutor.name : null,
+                executorEmail: selectedExecutor ? selectedExecutor.email : null,
+
                 totalCost: totalCost.trim() ? Number(totalCost.trim()) : undefined,
             };
 
@@ -562,9 +563,9 @@ export default function WorkspaceTaskDialog({
                 bsLatitude: bsLatitude === '' ? undefined : Number(bsLatitude),
                 bsLongitude: bsLongitude === '' ? undefined : Number(bsLongitude),
                 bsLocation: buildBsLocation(),
-                executorId: selectedExecutor?.id, // теперь это clerkId
-                executorName: selectedExecutor?.name,
-                executorEmail: selectedExecutor?.email,
+                executorId: selectedExecutor ? selectedExecutor.id : null,
+                executorName: selectedExecutor ? selectedExecutor.name : null,
+                executorEmail: selectedExecutor ? selectedExecutor.email : null,
                 totalCost: totalCost.trim() ? Number(totalCost.trim()) : undefined,
             };
 

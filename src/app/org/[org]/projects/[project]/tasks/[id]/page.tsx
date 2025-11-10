@@ -340,12 +340,16 @@ export default function TaskDetailsPage() {
     }, [task?.events]);
 
 
-    const getEventTitle = (action: string): string => {
+    const getEventTitle = (action: string, ev?: TaskEvent): string => {
         if (action === 'created') return 'Задача создана';
         if (action === 'status_changed_assigned') return 'Задача назначена исполнителю';
+        if (action === 'updated' && ev && isExecutorRemovedEvent(ev)) {
+            return 'Исполнитель снят с задачи';
+        }
         if (action === 'updated') return 'Задача изменена';
         return action;
     };
+
 
     const isChange = (value: unknown): value is Change => {
         return (
@@ -355,6 +359,28 @@ export default function TaskDetailsPage() {
                 'to' in (value as Record<string, unknown>))
         );
     };
+
+    const isExecutorRemovedEvent = (ev: TaskEvent): boolean => {
+        if (ev.action !== 'updated') return false;
+        const d = ev.details || {};
+
+        // исполнителя могли снять по любому из этих полей
+        const candidates = [d.executorId, d.executorName, d.executorEmail];
+
+        const isRemovedChange = (val: unknown): val is { from?: unknown; to?: unknown } => {
+            if (typeof val !== 'object' || val === null) return false;
+            const obj = val as { from?: unknown; to?: unknown };
+            // вариант 1: был to и он undefined
+            if ('to' in obj && typeof obj.to === 'undefined') return true;
+            // вариант 2: было только from (значит стало пусто)
+            if ('from' in obj && !('to' in obj)) return true;
+            return false;
+        };
+
+        return candidates.some((c) => isRemovedChange(c));
+    };
+
+
 
     const getDetailString = (details: TaskEventDetails, key: string): string => {
         const raw = details[key];
@@ -402,6 +428,19 @@ export default function TaskDetailsPage() {
             const executorStr = getDetailString(d, 'executorName');
             const executorEmailStr = getDetailString(d, 'executorEmail');
 
+            // статус мы туда подливаем при слиянии с updated
+            let statusLine: string | null = null;
+            const maybeStatus = d.status;
+            if (
+                maybeStatus &&
+                typeof maybeStatus === 'object' &&
+                ('from' in (maybeStatus as Record<string, unknown>) ||
+                    'to' in (maybeStatus as Record<string, unknown>))
+            ) {
+                const st = maybeStatus as { from?: unknown; to?: unknown };
+                statusLine = `Статус: ${asText(st.from)} → ${asText(st.to)}`;
+            }
+
             return (
                 <>
                     <Typography variant="caption" display="block">
@@ -412,11 +451,45 @@ export default function TaskDetailsPage() {
                             Email: {executorEmailStr}
                         </Typography>
                     )}
+                    {statusLine && (
+                        <Typography variant="caption" display="block">
+                            {statusLine}
+                        </Typography>
+                    )}
                 </>
             );
         }
 
+
         if (ev.action === 'updated') {
+            // отдельный красивый вариант: сняли исполнителя
+            if (isExecutorRemovedEvent(ev)) {
+                const st = d.status;
+                let statusLine: string | null = null;
+                if (
+                    st &&
+                    typeof st === 'object' &&
+                    ('from' in (st as Record<string, unknown>) || 'to' in (st as Record<string, unknown>))
+                ) {
+                    const ch = st as Change;
+                    statusLine = `Статус: ${asText(ch.from)} → ${asText(ch.to)}`;
+                }
+
+                return (
+                    <>
+                        <Typography variant="caption" display="block">
+                            Исполнитель: —
+                        </Typography>
+                        {statusLine && (
+                            <Typography variant="caption" display="block">
+                                {statusLine}
+                            </Typography>
+                        )}
+                    </>
+                );
+            }
+
+            // обычный updated
             return Object.entries(d).map(([key, value]) => {
                 if (isChange(value)) {
                     return (
@@ -432,6 +505,7 @@ export default function TaskDetailsPage() {
                 );
             });
         }
+
 
         return Object.entries(d).map(([key, value]) => (
             <Typography key={key} variant="caption" display="block">
@@ -823,7 +897,7 @@ export default function TaskDetailsPage() {
                                                     </TimelineSeparator>
                                                     <TimelineContent sx={{ py: 1, minWidth: 0 }}>
                                                         <Typography variant="body2" fontWeight={600}>
-                                                            {getEventTitle(ev.action)}
+                                                            {getEventTitle(ev.action, ev)}
                                                         </Typography>
                                                         <Typography variant="body2" color="text.secondary">
                                                             {ev.author}

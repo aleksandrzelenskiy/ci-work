@@ -293,7 +293,9 @@ export async function PUT(
         }
 
         const allowedPatch: Record<string, unknown> = {};
+        const unsetPatch: Record<string, 1> = {};
         const changed: Record<string, { from: unknown; to: unknown }> = {};
+
 
         function markChange(field: string, from: unknown, to: unknown) {
             if (isSameValue(from, to)) return;
@@ -480,16 +482,29 @@ export async function PUT(
                     },
                 });
             }
+
         } else if (body.executorId === null) {
+            // был исполнитель — убираем
             if (currentTask.executorId || currentTask.executorName || currentTask.executorEmail) {
                 markChange('executorId', currentTask.executorId, undefined);
                 markChange('executorName', currentTask.executorName, undefined);
                 markChange('executorEmail', currentTask.executorEmail, undefined);
             }
-            allowedPatch.executorId = undefined;
-            allowedPatch.executorName = undefined;
-            allowedPatch.executorEmail = undefined;
+
+            // именно удаляем поля
+            unsetPatch.executorId = 1;
+            unsetPatch.executorName = 1;
+            unsetPatch.executorEmail = 1;
+
+            // если статус был Assigned и в этом запросе его не поменяли явно — откатываем в To do
+            const statusAlreadySetInThisRequest = 'status' in allowedPatch;
+            if (!statusAlreadySetInThisRequest && currentTask.status === 'Assigned') {
+                markChange('status', currentTask.status, 'To do');
+                allowedPatch.status = 'To do';
+            }
         }
+
+
 
 
         if (typeof body.totalCost !== 'undefined') {
@@ -507,6 +522,10 @@ export async function PUT(
         const hasChanges = Object.keys(changed).length > 0;
 
         const updateQuery: Record<string, unknown> = { $set: allowedPatch };
+
+        if (Object.keys(unsetPatch).length > 0) {
+            updateQuery.$unset = unsetPatch;
+        }
 
         if (hasChanges || extraEvents.length > 0) {
             updateQuery.$push = {
@@ -528,6 +547,7 @@ export async function PUT(
                 },
             };
         }
+
 
         const updated = await TaskModel.findOneAndUpdate(taskQuery, updateQuery, {
             new: true,
