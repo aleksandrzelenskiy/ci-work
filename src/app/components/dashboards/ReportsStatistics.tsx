@@ -10,9 +10,10 @@ import TrendingUpIcon from '@mui/icons-material/TrendingUp';
 import TrendingDownIcon from '@mui/icons-material/TrendingDown';
 import dbConnect from '@/utils/mongoose';
 import ReportModel from '@/app/models/ReportModel';
+import type { EffectiveOrgRole } from '@/app/types/roles';
 
 interface ReportsStatisticsProps {
-  role: string;
+  role: EffectiveOrgRole | null;
   clerkUserId: string;
 }
 
@@ -27,10 +28,8 @@ const ReportsStatistics = async ({
   let matchCondition: Record<string, string> = {};
   if (role === 'executor') {
     matchCondition = { executorId: clerkUserId };
-  } else if (role === 'initiator') {
-    matchCondition = { initiatorId: clerkUserId };
   } else {
-    // admin, author и т.п.: показываем все
+    // остальные роли видят всё
     matchCondition = {};
   }
 

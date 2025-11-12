@@ -4,11 +4,44 @@
     <option name="autoReloadType" value="SELECTIVE" />
   </component>
   <component name="ChangeListManager">
-    <list default="true" id="b3c91f45-fbe1-4477-9fd9-38d0fcaf660d" name="Changes" comment="fix (server-actions users): корректный поиск пользователя в Mongo">
+    <list default="true" id="b3c91f45-fbe1-4477-9fd9-38d0fcaf660d" name="Changes" comment="fix (current-users route &amp; server-actions users): корректный поиск пользователя в Mongo">
+      <change afterPath="$PROJECT_DIR$/src/app/org/[org]/projects/[project]/page.tsx" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/src/app/settings/page.tsx" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/.idea/workspace.xml" beforeDir="false" afterPath="$PROJECT_DIR$/.idea/workspace.xml" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/src/app/ClientApp.tsx" beforeDir="false" afterPath="$PROJECT_DIR$/src/app/ClientApp.tsx" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/src/app/api/current-user/route.ts" beforeDir="false" afterPath="$PROJECT_DIR$/src/app/api/current-user/route.ts" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/src/app/org/[org]/projects/[project]/tasks/[id]/page.tsx" beforeDir="false" afterPath="$PROJECT_DIR$/src/app/org/[org]/projects/[project]/tasks/[id]/page.tsx" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/src/app/api/org/[org]/projects/[project]/route.ts" beforeDir="false" afterPath="$PROJECT_DIR$/src/app/api/org/[org]/projects/[project]/route.ts" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/src/app/api/org/[org]/projects/route.ts" beforeDir="false" afterPath="$PROJECT_DIR$/src/app/api/org/[org]/projects/route.ts" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/src/app/api/reports/[task]/[baseid]/route.ts" beforeDir="false" afterPath="$PROJECT_DIR$/src/app/api/reports/[task]/[baseid]/route.ts" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/src/app/api/reports/route.ts" beforeDir="false" afterPath="$PROJECT_DIR$/src/app/api/reports/route.ts" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/src/app/api/tasks/route.ts" beforeDir="false" afterPath="$PROJECT_DIR$/src/app/api/tasks/route.ts" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/src/app/components/TaskCalendarPage.tsx" beforeDir="false" afterPath="$PROJECT_DIR$/src/app/components/TaskCalendarPage.tsx" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/src/app/components/TaskColumnPage.tsx" beforeDir="false" afterPath="$PROJECT_DIR$/src/app/components/TaskColumnPage.tsx" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/src/app/components/TaskForm.tsx" beforeDir="false" afterPath="$PROJECT_DIR$/src/app/components/TaskForm.tsx" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/src/app/components/TaskListPage.tsx" beforeDir="false" afterPath="$PROJECT_DIR$/src/app/components/TaskListPage.tsx" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/src/app/components/dashboards/AdminDashboard.tsx" beforeDir="false" afterPath="$PROJECT_DIR$/src/app/components/dashboards/AdminDashboard.tsx" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/src/app/components/dashboards/AuthorDashboard.tsx" beforeDir="false" afterPath="$PROJECT_DIR$/src/app/components/dashboards/AuthorDashboard.tsx" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/src/app/components/dashboards/ExecutorDashboard.tsx" beforeDir="false" afterPath="$PROJECT_DIR$/src/app/components/dashboards/ExecutorDashboard.tsx" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/src/app/components/dashboards/InitiatorDashboard.tsx" beforeDir="false" afterPath="$PROJECT_DIR$/src/app/components/dashboards/InitiatorDashboard.tsx" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/src/app/components/dashboards/ManagerDashboard.tsx" beforeDir="false" afterPath="$PROJECT_DIR$/src/app/components/dashboards/ManagerDashboard.tsx" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/src/app/components/dashboards/MiniMap.tsx" beforeDir="false" afterPath="$PROJECT_DIR$/src/app/components/dashboards/MiniMap.tsx" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/src/app/components/dashboards/MiniReportsList.tsx" beforeDir="false" afterPath="$PROJECT_DIR$/src/app/components/dashboards/MiniReportsList.tsx" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/src/app/components/dashboards/MiniTaskTable.tsx" beforeDir="false" afterPath="$PROJECT_DIR$/src/app/components/dashboards/MiniTaskTable.tsx" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/src/app/components/dashboards/ReportsStatistics.tsx" beforeDir="false" afterPath="$PROJECT_DIR$/src/app/components/dashboards/ReportsStatistics.tsx" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/src/app/components/dashboards/TaskMetricDiagram.tsx" beforeDir="false" afterPath="$PROJECT_DIR$/src/app/components/dashboards/TaskMetricDiagram.tsx" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/src/app/layout.tsx" beforeDir="false" afterPath="$PROJECT_DIR$/src/app/layout.tsx" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/src/app/models/ProjectModel.ts" beforeDir="false" afterPath="$PROJECT_DIR$/src/app/models/ProjectModel.ts" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/src/app/models/UserModel.ts" beforeDir="false" afterPath="$PROJECT_DIR$/src/app/models/UserModel.ts" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/src/app/org/[org]/projects/[project]/tasks/page.tsx" beforeDir="false" afterPath="$PROJECT_DIR$/src/app/org/[org]/projects/[project]/tasks/page.tsx" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/src/app/org/[org]/projects/page.tsx" beforeDir="false" afterPath="$PROJECT_DIR$/src/app/org/[org]/projects/page.tsx" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/src/app/page.tsx" beforeDir="false" afterPath="$PROJECT_DIR$/src/app/page.tsx" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/src/app/tasks/[taskId]/page.tsx" beforeDir="false" afterPath="$PROJECT_DIR$/src/app/tasks/[taskId]/page.tsx" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/src/app/tasks/page.tsx" beforeDir="false" afterPath="$PROJECT_DIR$/src/app/tasks/page.tsx" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/src/app/types/taskTypes.ts" beforeDir="false" afterPath="$PROJECT_DIR$/src/app/types/taskTypes.ts" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/src/app/workspace/components/ProjectTaskBoard.tsx" beforeDir="false" afterPath="$PROJECT_DIR$/src/app/workspace/components/ProjectTaskBoard.tsx" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/src/app/workspace/components/ProjectTaskList.tsx" beforeDir="false" afterPath="$PROJECT_DIR$/src/app/workspace/components/ProjectTaskList.tsx" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/src/server-actions/users.ts" beforeDir="false" afterPath="$PROJECT_DIR$/src/server-actions/users.ts" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/src/utils/priorityIcons.tsx" beforeDir="false" afterPath="$PROJECT_DIR$/src/utils/priorityIcons.tsx" afterDir="false" />
     </list>
     <option name="SHOW_DIALOG" value="false" />
     <option name="HIGHLIGHT_CONFLICTS" value="true" />
@@ -116,23 +149,8 @@
       <workItem from="1761720378244" duration="633000" />
       <workItem from="1761887562972" duration="15306000" />
       <workItem from="1762422367880" duration="27839000" />
-      <workItem from="1762582926294" duration="37204000" />
-    </task>
-    <task id="LOCAL-00017" summary="change .pro to .ru">
-      <option name="closed" value="true" />
-      <created>1752312594812</created>
-      <option name="number" value="00017" />
-      <option name="presentableId" value="LOCAL-00017" />
-      <option name="project" value="LOCAL" />
-      <updated>1752312594812</updated>
-    </task>
-    <task id="LOCAL-00018" summary="upload page has been modified">
-      <option name="closed" value="true" />
-      <created>1752326489428</created>
-      <option name="number" value="00018" />
-      <option name="presentableId" value="LOCAL-00018" />
-      <option name="project" value="LOCAL" />
-      <updated>1752326489428</updated>
+      <workItem from="1762582926294" duration="56251000" />
+      <workItem from="1762942475051" duration="5163000" />
     </task>
     <task id="LOCAL-00019" summary="Fix body parsing: pass req directly to Busboy">
       <option name="closed" value="true" />
@@ -510,14 +528,29 @@
       <option name="project" value="LOCAL" />
       <updated>1762753988380</updated>
     </task>
-    <option name="localTasksCounter" value="66" />
+    <task id="LOCAL-00066" summary="fix (current-users route &amp; server-actions users): корректный поиск пользователя в Mongo">
+      <option name="closed" value="true" />
+      <created>1762764574651</created>
+      <option name="number" value="00066" />
+      <option name="presentableId" value="LOCAL-00066" />
+      <option name="project" value="LOCAL" />
+      <updated>1762764574651</updated>
+    </task>
+    <task id="LOCAL-00067" summary="fix (current-users route &amp; server-actions users): корректный поиск пользователя в Mongo">
+      <option name="closed" value="true" />
+      <created>1762764594513</created>
+      <option name="number" value="00067" />
+      <option name="presentableId" value="LOCAL-00067" />
+      <option name="project" value="LOCAL" />
+      <updated>1762764594513</updated>
+    </task>
+    <option name="localTasksCounter" value="68" />
     <servers />
   </component>
   <component name="TypeScriptGeneratedFilesManager">
     <option name="version" value="3" />
   </component>
   <component name="VcsManagerConfiguration">
-    <MESSAGE value="OrgSettingsPage - добавлена логика удаления проектов" />
     <MESSAGE value="OrgSettingsPage - доработка UI" />
     <MESSAGE value="OrgSettingsPage - добавлена логика изменения роли пользвоателя (участника организации)" />
     <MESSAGE value="OrgSettingsPage InviteMemberForm - добавлена нормализация ссылки приглашения (исключено дублирование &quot;/&quot;)" />
@@ -542,6 +575,7 @@
     <MESSAGE value="(task id api) - добавлена смена статуса при удалении исполнителя на этапе редактирования (Assigned &gt; To do) изменен UI отображения истории событий назначения и удаления исполнителя" />
     <MESSAGE value="TaskDetailsPage - измене UI отображения информации о задаче" />
     <MESSAGE value="fix (server-actions users): корректный поиск пользователя в Mongo" />
-    <option name="LAST_COMMIT_MESSAGE" value="fix (server-actions users): корректный поиск пользователя в Mongo" />
+    <MESSAGE value="fix (current-users route &amp; server-actions users): корректный поиск пользователя в Mongo" />
+    <option name="LAST_COMMIT_MESSAGE" value="fix (current-users route &amp; server-actions users): корректный поиск пользователя в Mongo" />
   </component>
 </project>

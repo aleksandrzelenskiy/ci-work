@@ -1,6 +1,10 @@
 // src/app/models/ProjectModel.ts
 import mongoose, { Schema, Document, Model } from 'mongoose';
 import type { UpdateQuery } from 'mongoose';
+import { RUSSIAN_REGIONS } from '@/app/utils/regions';
+import { OPERATORS } from '@/app/utils/operators';
+
+const DEFAULT_OPERATOR_VALUE = OPERATORS[0]?.value ?? '250001';
 
 export interface Project extends Document {
     orgId: mongoose.Types.ObjectId;
@@ -9,6 +13,8 @@ export interface Project extends Document {
     description?: string;
     managers: string[];
     createdByEmail: string;
+    regionCode: typeof RUSSIAN_REGIONS[number]['code'];
+    operator: typeof OPERATORS[number]['value'];
     createdAt: Date;
     updatedAt: Date;
 }
@@ -20,6 +26,16 @@ const ProjectSchema = new Schema<Project>(
         key:  { type: String, required: true },
         description: { type: String },
         managers: { type: [String], default: [] },
+        regionCode: {
+            type: String,
+            enum: RUSSIAN_REGIONS.map((region) => region.code),
+            required: true,
+        },
+        operator: {
+            type: String,
+            enum: OPERATORS.map((operator) => operator.value),
+            default: DEFAULT_OPERATOR_VALUE,
+        },
         createdByEmail: { type: String, required: true },
     },
     { timestamps: true }

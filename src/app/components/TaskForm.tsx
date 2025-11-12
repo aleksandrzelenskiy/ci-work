@@ -40,7 +40,6 @@ interface User {
   clerkUserId: string;
   name: string;
   email: string;
-  role: string;
 }
 
 interface TaskFormProps {

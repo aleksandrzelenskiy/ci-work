@@ -137,6 +137,9 @@ function TaskCard({
                 </Typography>
 
                 <Typography variant="body2">BS: {t.bsNumber || '—'}</Typography>
+                <Typography variant="caption" color="text.secondary">
+                    Проект: {t.projectKey || '—'}
+                </Typography>
 
                 <Box sx={{ mt: 0.5, minHeight: 28 }}>
                     {execLabel ? (

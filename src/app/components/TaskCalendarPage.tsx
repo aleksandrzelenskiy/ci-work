@@ -44,7 +44,9 @@ import {
     Today,
 } from '@mui/icons-material';
 import { getStatusColor } from '@/utils/statusColors';
-import { GetCurrentUserFromMongoDB } from 'src/server-actions/users';
+import { fetchUserContext, resolveRoleFromContext } from '@/app/utils/userContext';
+import type { EffectiveOrgRole } from '@/app/types/roles';
+import { canViewCalendar, isExecutorRole } from '@/app/utils/roleGuards';
 
 /* ---------- Типы ---------- */
 
@@ -66,9 +68,17 @@ interface Task {
     dueDate: string;
     status: string;
     priority: Priority;
+    projectKey?: string;
+    projectName?: string;
 }
 
 type CalendarEvent = RBCEvent<{ priority: Priority; status: string }>;
+
+interface TaskCalendarPageProps {
+    searchQuery?: string;
+    projectFilter?: string;
+    refreshToken?: number;
+}
 
 /* ---------- helpers (цвета, иконки) ---------- */
 
@@ -159,12 +169,16 @@ const localizer = dateFnsLocalizer({
 
 /* ---------- компонент ---------- */
 
-export default function TaskCalendarPage() {
+export default function TaskCalendarPage({
+    searchQuery = '',
+    projectFilter = '',
+    refreshToken = 0,
+}: TaskCalendarPageProps) {
     const [tasks, setTasks] = useState<Task[]>([]);
     const [loading, setLoading] = useState(true);
 
     const [selected, setSelected] = useState<Task | null>(null);
-    const [role, setRole] = useState<'admin' | 'executor' | 'other'>('other');
+    const [role, setRole] = useState<EffectiveOrgRole | null>(null);
     const [showCompleted, setShowCompleted] = useState(false);
 
     const [currentDate, setCurrentDate] = useState<Date>(new Date());
@@ -174,30 +188,58 @@ export default function TaskCalendarPage() {
     useEffect(() => {
         (async () => {
             try {
-                const [taskRes, userRes] = await Promise.all([
+                setLoading(true);
+                const [taskRes, userContext] = await Promise.all([
                     fetch('/api/tasks'),
-                    GetCurrentUserFromMongoDB(),
+                    fetchUserContext(),
                 ]);
 
                 const { tasks: rawTasks } = await taskRes.json();
-                const userData = userRes.success ? userRes.data : null;
+                const userRole = resolveRoleFromContext(userContext);
 
-                if (userData) setRole(userData.role as 'admin' | 'executor' | 'other');
-
+                setRole(userRole);
                 setTasks(rawTasks as Task[]);
             } finally {
                 setLoading(false);
             }
         })();
-    }, []);
+    }, [refreshToken]);
+
+    const normalizedSearch = searchQuery.trim().toLowerCase();
+    const normalizedProject = projectFilter.trim().toLowerCase();
+
+    const filteredTasks = useMemo(() => {
+        let list = tasks;
+        if (normalizedProject) {
+            list = list.filter(
+                (t) => (t.projectKey || '').toLowerCase() === normalizedProject
+            );
+        }
+        if (normalizedSearch) {
+            list = list.filter((t) => {
+                const haystack = [
+                    t.taskId,
+                    t.taskName,
+                    t.bsNumber,
+                    t.projectKey,
+                    t.projectName,
+                ]
+                    .filter(Boolean)
+                    .join(' ')
+                    .toLowerCase();
+                return haystack.includes(normalizedSearch);
+            });
+        }
+        return list;
+    }, [tasks, normalizedSearch, normalizedProject]);
 
     /* --- вычисляем события (hook всегда вызывается) --- */
     const events = useMemo<CalendarEvent[]>(() => {
-        if (role === 'executor') return []; // executor календарь всё равно не видит
+        if (isExecutorRole(role)) return []; // executor календарь всё равно не видит
 
         const list = showCompleted
-            ? tasks
-            : tasks.filter((t) => !['Done', 'Fixed', 'Agreed'].includes(t.status));
+            ? filteredTasks
+            : filteredTasks.filter((t) => !['Done', 'Fixed', 'Agreed'].includes(t.status));
 
         return list.map((t) => ({
             id: t._id,
@@ -206,7 +248,7 @@ export default function TaskCalendarPage() {
             end: addHours(new Date(t.dueDate), 1),
             resource: { priority: t.priority, status: t.status },
         }));
-    }, [tasks, showCompleted, role]);
+    }, [filteredTasks, showCompleted, role]);
 
     /* --- лоадер --- */
     if (loading)
@@ -217,7 +259,7 @@ export default function TaskCalendarPage() {
         );
 
     /* --- календарь недоступен для executor --- */
-    if (role === 'executor')
+    if (!canViewCalendar(role))
         return (
             <Alert severity="info" sx={{ m: 4 }}>
                 Календарь недоступен для вашей роли.

@@ -3,8 +3,8 @@
 import { NextResponse } from 'next/server';
 import dbConnect from '@/utils/mongoose';
 import Report from '@/app/models/ReportModel';
-import UserModel from '@/app/models/UserModel';
-import { currentUser } from '@clerk/nextjs/server';
+import { GetUserContext } from '@/server-actions/user-context';
+import { mapRoleToLegacy } from '@/utils/roleMapping';
 import type { PipelineStage } from 'mongoose';
 
 export async function GET() {
@@ -19,31 +19,27 @@ export async function GET() {
     );
   }
 
-  const clerkUser = await currentUser();
-  if (!clerkUser) {
+  const userContext = await GetUserContext();
+  if (!userContext.success || !userContext.data) {
     return NextResponse.json(
-      { error: 'No active user session found' },
+      { error: userContext.message || 'No active user session found' },
       { status: 401 }
     );
   }
 
-  const existingUser = await UserModel.findOne({ clerkUserId: clerkUser.id });
-  if (!existingUser) {
-    return NextResponse.json(
-      { error: 'User not found in MongoDB' },
-      { status: 404 }
-    );
-  }
-
-  const userRole = existingUser.role;
+  const {
+    user,
+    effectiveOrgRole,
+    isSuperAdmin,
+    activeMembership,
+  } = userContext.data;
+  const clerkUserId = user.clerkUserId;
+  const userRole = effectiveOrgRole || activeMembership?.role || null;
 
   const pipeline: PipelineStage[] = [];
 
-  if (userRole === 'executor') {
-    pipeline.push({ $match: { executorId: clerkUser.id } });
-  }
-  if (userRole === 'initiator') {
-    pipeline.push({ $match: { initiatorId: clerkUser.id } });
+  if (!isSuperAdmin && userRole === 'executor') {
+    pipeline.push({ $match: { executorId: clerkUserId } });
   }
 
   pipeline.push(
@@ -121,5 +117,5 @@ export async function GET() {
     ),
   }));
 
-  return NextResponse.json({ reports, userRole });
+  return NextResponse.json({ reports, userRole: mapRoleToLegacy(userRole) });
 }

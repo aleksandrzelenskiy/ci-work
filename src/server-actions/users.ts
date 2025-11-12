@@ -29,11 +29,57 @@ export const GetCurrentUserFromMongoDB = async () => {
         user.clerkUserId = clerkUser.id;
         user.name = user.name || `${clerkUser?.firstName ?? ''} ${clerkUser?.lastName ?? ''}`.trim();
         user.profilePic = user.profilePic || clerkUser?.imageUrl || '';
+        if (!user.platformRole) {
+          user.platformRole = 'user';
+        }
+        if (!user.profileType) {
+          user.profileType = 'client';
+        }
+        if (!user.subscriptionTier) {
+          user.subscriptionTier = 'free';
+        }
+        if (!user.billingStatus) {
+          user.billingStatus = 'trial';
+        }
+        if (typeof user.activeOrgId === 'undefined') {
+          user.activeOrgId = null;
+        }
+        if (typeof user.regionCode === 'undefined') {
+          user.regionCode = '';
+        }
         await user.save();
       }
     }
 
     if (user) {
+      let needsSave = false;
+      if (!user.platformRole) {
+        user.platformRole = 'user';
+        needsSave = true;
+      }
+      if (!user.profileType) {
+        user.profileType = 'client';
+        needsSave = true;
+      }
+      if (!user.subscriptionTier) {
+        user.subscriptionTier = 'free';
+        needsSave = true;
+      }
+      if (!user.billingStatus) {
+        user.billingStatus = 'trial';
+        needsSave = true;
+      }
+      if (typeof user.activeOrgId === 'undefined') {
+        user.activeOrgId = null;
+        needsSave = true;
+      }
+      if (typeof user.regionCode === 'undefined') {
+        user.regionCode = '';
+        needsSave = true;
+      }
+      if (needsSave) {
+        await user.save();
+      }
       return {
         success: true,
         data: JSON.parse(JSON.stringify(user)),
@@ -46,7 +92,12 @@ export const GetCurrentUserFromMongoDB = async () => {
       email: primaryEmail || '',
       clerkUserId: clerkUser?.id,
       profilePic: clerkUser?.imageUrl || '',
-      role: 'executor',
+      platformRole: 'user',
+      profileType: 'client',
+      subscriptionTier: 'free',
+      billingStatus: 'trial',
+      activeOrgId: null,
+      regionCode: '',
     });
 
     try {

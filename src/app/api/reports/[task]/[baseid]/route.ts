@@ -3,9 +3,10 @@
 import { NextResponse } from 'next/server';
 import dbConnect from '@/utils/mongoose';
 import ReportModel from '@/app/models/ReportModel';
-import UserModel from '@/app/models/UserModel';
 import TaskModel from '@/app/models/TaskModel';
 import { currentUser } from '@clerk/nextjs/server';
+import { GetUserContext } from '@/server-actions/user-context';
+import { mapRoleToLegacy } from '@/utils/roleMapping';
 
 /**
  * GET обработчик для получения информации о конкретном отчёте.
@@ -29,19 +30,11 @@ export async function GET(
       );
     }
 
-    const clerkUser = await currentUser();
-    if (!clerkUser) {
+    const userContext = await GetUserContext();
+    if (!userContext.success || !userContext.data) {
       return NextResponse.json(
-          { error: 'Нет активной сессии пользователя' },
+          { error: userContext.message || 'Нет активной сессии пользователя' },
           { status: 401 }
-      );
-    }
-
-    const dbUser = await UserModel.findOne({ clerkUserId: clerkUser.id });
-    if (!dbUser) {
-      return NextResponse.json(
-          { error: 'Пользователь не найден в базе данных' },
-          { status: 404 }
       );
     }
 
@@ -54,6 +47,13 @@ export async function GET(
       return NextResponse.json({ error: 'Отчёт не найден' }, { status: 404 });
     }
 
+    const role =
+        mapRoleToLegacy(
+            userContext.data.effectiveOrgRole ||
+            userContext.data.activeMembership?.role ||
+            null
+        );
+
     return NextResponse.json({
       reportId: report.reportId,
       files: report.files,
@@ -64,7 +64,7 @@ export async function GET(
       issues: report.issues || [],
       fixedFiles: report.fixedFiles || [],
       events: report.events || [],
-      role: dbUser.role,
+      role,
     });
   } catch (error) {
     console.error('Ошибка при получении отчёта:', error);

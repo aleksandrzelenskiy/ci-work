@@ -79,14 +79,15 @@ import {
     TaskEvent,
 } from '@/app/types/taskTypes';
 import { TransitionProps } from '@mui/material/transitions';
-import { GetCurrentUserFromMongoDB } from '@/server-actions/users';
+import { fetchUserContext, resolveRoleFromContext, type UserContextResponse } from '@/app/utils/userContext';
 import TaskForm from '@/app/components/TaskForm';
 import { getStatusColor } from '@/utils/statusColors';
 import { useDropzone } from 'react-dropzone';
 import LinearProgress from '@mui/material/LinearProgress';
+import type { EffectiveOrgRole } from '@/app/types/roles';
+import { isAdminRole, isExecutorRole } from '@/app/utils/roleGuards';
 
-type UserRole = 'admin' | 'author' | 'executor' | 'initiator';
-type LoadedRole = UserRole | null;
+type LoadedRole = EffectiveOrgRole | null;
 
 type TaskComment = Task['comments'] extends Array<infer T> ? T : never;
 
@@ -127,6 +128,7 @@ export default function TaskDetailPage() {
     const router = useRouter();
 
     const [userRole, setUserRole] = useState<LoadedRole>(null);
+    const [userContext, setUserContext] = useState<UserContextResponse | null>(null);
 
     const [task, setTask] = useState<Task | null>(null);
     const [loading, setLoading] = useState(true);
@@ -216,12 +218,24 @@ export default function TaskDetailPage() {
 
     useEffect(() => {
         const fetchUserRole = async () => {
-            const user = await GetCurrentUserFromMongoDB();
-            if (user.success) setUserRole(user.data.role as UserRole);
-            else setUserRole('executor'); // безопасный дефолт
+            const context = await fetchUserContext();
+            setUserContext(context);
+            const resolvedRole = resolveRoleFromContext(context) as UserRole | null;
+            if (resolvedRole) {
+                setUserRole(resolvedRole);
+            } else {
+                setUserRole('executor');
+            }
         };
         void fetchUserRole();
     }, []);
+
+    const ensureUserContext = async () => {
+        if (userContext) return userContext;
+        const ctx = await fetchUserContext();
+        setUserContext(ctx);
+        return ctx;
+    };
 
 
     const agreedEvent = task?.events?.find(
@@ -232,18 +246,19 @@ export default function TaskDetailPage() {
     const updateStatus = async (newStatus: CurrentStatus) => {
         setLoadingStatus(true);
         try {
-            const user = await GetCurrentUserFromMongoDB();
-            if (!user.success) {
+            const context = await ensureUserContext();
+            if (!context || !context.user) {
                 setSnackbarMessage('Failed to fetch user data');
                 setSnackbarSeverity('error');
                 setSnackbarOpen(true);
                 return;
             }
 
+            const currentUser = context.user as { name?: string; _id?: string };
             const event = {
                 action: 'STATUS_CHANGED',
-                author: user.data.name,
-                authorId: user.data._id,
+                author: currentUser.name,
+                authorId: currentUser._id,
                 details: { oldStatus: task?.status, newStatus },
             };
 
@@ -557,7 +572,8 @@ export default function TaskDetailPage() {
         );
     }
 
-    const isExecutor  = userRole === 'executor';
+    const isExecutor = isExecutorRole(userRole);
+    const isAdmin = isAdminRole(userRole);
 
     const isTaskAssigned = task.status === 'Assigned';
     const isTaskAtWork = task.status === 'At work';
@@ -605,7 +621,7 @@ export default function TaskDetailPage() {
 
             <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, mb: 3, flexWrap: 'wrap' }}>
                 <Chip label={String(task.taskId)} color="default" />
-                {roleLoaded && userRole !== 'executor' && (
+                {roleLoaded && !isExecutor && (
                     <Button
                         size="small"
                         variant="outlined"
@@ -662,7 +678,7 @@ export default function TaskDetailPage() {
 
                                 <Typography>
                                     <strong>
-                                          {!roleLoaded ? ' ' : userRole === 'executor' ? 'Cost:' : 'Total Cost:'}
+                                          {!roleLoaded ? ' ' : isExecutor ? 'Cost:' : 'Total Cost:'}
                                     </strong>{' '}
                                      {!roleLoaded ? (
                                        <Skeleton variant="text" width={100} sx={{ display: 'inline-block' }} />
@@ -676,7 +692,7 @@ export default function TaskDetailPage() {
                                                 FINANCE_CONFIG.TAX_PERCENT_OF_REMAINING;
                                             const profit = total - (commission + sumToPay + tax);
 
-                                            if (userRole === 'executor') {
+                                            if (isExecutor) {
                                                 return formatRuble(sumToPay);
                                             } else {
                                                 return (
@@ -735,7 +751,7 @@ export default function TaskDetailPage() {
                                     </Typography>
                                 )}
 
-                                {roleLoaded && userRole !== 'executor' && task.orderNumber && task.orderDate && (
+                                {roleLoaded && !isExecutor && task.orderNumber && task.orderDate && (
                                     <>
                                         <Typography>
                                             <strong>Order Number:</strong> {task.orderNumber}
@@ -750,7 +766,7 @@ export default function TaskDetailPage() {
                                     </>
                                 )}
 
-                                {userRole === 'admin' && (
+                                {isAdmin && (
                                     <Box
                                         sx={{
                                             mt: 1,
@@ -828,7 +844,7 @@ export default function TaskDetailPage() {
                     </Box>
 
                     {/* Admin-only Documents */}
-                    {userRole === 'admin' && (
+                    {isAdmin && (
                         <Box sx={{ mb: 3 }}>
                             <Accordion defaultExpanded>
                                 <AccordionSummary expandIcon={<ExpandMoreIcon />}>
@@ -1551,7 +1567,7 @@ export default function TaskDetailPage() {
 
 
             {/* Диалог заказа (admin) */}
-            {userRole === 'admin' && (
+            {isAdmin && (
                 <Dialog open={openOrderDialog} onClose={() => setOpenOrderDialog(false)} fullWidth maxWidth="sm">
                     <DialogTitle>{task.orderNumber ? 'Edit Order Details' : 'Add Order Details'}</DialogTitle>
                     <DialogContent>

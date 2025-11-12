@@ -10,8 +10,10 @@ import MiniReportsList from '@/app/components/dashboards/MiniReportsList';
 import TaskMetricDiagram from '@/app/components/dashboards/TaskMetricDiagram';
 import ExecutorFinancialMetrics from '@/app/components/dashboards/ExecutorFinancialMetrics';
 
+import type { EffectiveOrgRole } from '@/app/types/roles';
+
 interface ExecutorDashboardProps {
-  role: string;
+  role: EffectiveOrgRole | null;
   clerkUserId: string;
 }
 

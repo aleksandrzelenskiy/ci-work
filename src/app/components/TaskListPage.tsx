@@ -2,12 +2,11 @@
 
 'use client';
 
-import React, { useState, useEffect, useMemo } from 'react';
+import React, { useState, useEffect, useMemo, forwardRef, useImperativeHandle, useCallback } from 'react';
 import { useSearchParams } from 'next/navigation';
-import { v4 as uuidv4 } from 'uuid';
 import {
+  Avatar,
   Box,
-  Collapse,
   IconButton,
   Table,
   TableBody,
@@ -19,13 +18,11 @@ import {
   CircularProgress,
   Select,
   MenuItem,
-  TextField,
   InputLabel,
   FormControl,
   Button,
   Popover,
   Tooltip,
-  Link,
   Chip,
   Checkbox,
   List,
@@ -33,43 +30,41 @@ import {
   ListItemIcon,
   ListItemText,
   Alert,
+  Stack,
+  TextField,
 } from '@mui/material';
+import Autocomplete from '@mui/material/Autocomplete';
 import { DateRangePicker } from '@mui/x-date-pickers-pro/DateRangePicker';
 import { SingleInputDateRangeField } from '@mui/x-date-pickers-pro/SingleInputDateRangeField';
 import { DateRange } from '@mui/x-date-pickers-pro/models';
 import Pagination from '@mui/material/Pagination';
 import {
-  KeyboardDoubleArrowUp as KeyboardDoubleArrowUpIcon,
-  KeyboardArrowUp as KeyboardArrowUpIcon,
-  DragHandle as DragHandleIcon,
-  Remove as RemoveIcon,
   ViewColumn as ViewColumnIcon,
   FilterList as FilterListIcon,
-  Search as SearchIcon,
-  KeyboardArrowDown as KeyboardArrowDownIcon,
-  Task as TaskIcon
+  FilterAlt as FilterAltIcon,
 } from '@mui/icons-material';
+import PersonSearchIcon from '@mui/icons-material/PersonSearch';
 import { LocalizationProvider } from '@mui/x-date-pickers/LocalizationProvider';
 import { AdapterDateFns } from '@mui/x-date-pickers/AdapterDateFns';
-import { Task, WorkItem } from '../types/taskTypes';
-import { GetCurrentUserFromMongoDB } from 'src/server-actions/users';
+import { Task } from '../types/taskTypes';
 import { getStatusColor } from '@/utils/statusColors';
+import { useRouter } from 'next/navigation';
+import { getPriorityIcon, getPriorityLabelRu } from '@/utils/priorityIcons';
 
-/* ───────────── вспомогательные элементы ───────────── */
-const getPriorityIcon = (priority: string) => {
-  switch (priority) {
-    case 'low':
-      return <RemoveIcon sx={{ color: '#28a0e9' }} />;
-    case 'medium':
-      return <DragHandleIcon sx={{ color: '#df9b18' }} />;
-    case 'high':
-      return <KeyboardArrowUpIcon sx={{ color: '#ca3131' }} />;
-    case 'urgent':
-      return <KeyboardDoubleArrowUpIcon sx={{ color: '#ff0000' }} />;
-    default:
-      return null;
-  }
-};
+interface TaskListPageProps {
+  searchQuery?: string;
+  projectFilter?: string;
+  refreshToken?: number;
+  hideToolbarControls?: boolean;
+  onFilterToggleChange?: (visible: boolean) => void;
+}
+
+export interface TaskListPageHandle {
+  toggleFilters: () => void;
+  openColumns: (anchor: HTMLElement) => void;
+  closeColumns: () => void;
+  showFilters: boolean;
+}
 
 /* ───────────── формат даты dd.mm.yyyy ───────────── */
 const formatDateRU = (value?: Date | string) => {
@@ -79,283 +74,235 @@ const formatDateRU = (value?: Date | string) => {
   return d.toLocaleDateString('ru-RU'); // dd.mm.yyyy
 };
 
+const STATUS_LABELS: Record<string, string> = {
+  'To do': 'К выполнению',
+  Assigned: 'Назначена',
+  'At work': 'В работе',
+  Pending: 'На проверке',
+  Issues: 'Есть замечания',
+  Done: 'Выполнено',
+  Agreed: 'Согласовано',
+  Cancelled: 'Отменено',
+};
 
-/* ───────────── утилита скачивания order и ncw ───────────── */
-async function downloadFile(url: string, fallbackName: string) {
-  // 1) fetch без throw
-  const res = await fetch(url, { credentials: 'include' }).catch((e) => {
-    console.error('Download failed: fetch error', e);
-    return null;
-  });
+const getStatusLabel = (status: string) => STATUS_LABELS[status] ?? status;
 
-  if (!res || !res.ok) {
-    console.error(`Download failed: ${res ? `HTTP ${res.status}` : 'no response'}`);
-    return;
-  }
+const DEFAULT_COLUMN_VISIBILITY = {
+  taskId: true,
+  task: true,
+  project: true,
+  author: true,
+  created: true,
+  due: true,
+  complete: true,
+  status: true,
+  priority: true,
+} as const;
 
-  // 2) получаем blob
-  const blob = await res.blob();
+type ColumnKey = keyof typeof DEFAULT_COLUMN_VISIBILITY;
 
-  // 3) безопасно достаём имя файла из URL
-  let nameFromUrl = fallbackName;
-  try {
-    const u = new URL(url);
-    const last = u.pathname.split('/').filter(Boolean).pop();
-    if (last) nameFromUrl = last;
-  } catch {
-    /* ignore bad URL, keep fallback */
-  }
+const COLUMN_LABELS: Record<ColumnKey, string> = {
+  taskId: 'ID',
+  task: 'Задача',
+  project: 'Проект',
+  author: 'Менеджер',
+  created: 'Создана',
+  due: 'Срок',
+  complete: 'Завершено',
+  status: 'Статус',
+  priority: 'Приоритет',
+};
 
-  // 4) скачивание
-  const a = document.createElement('a');
-  const objUrl = URL.createObjectURL(blob);
-  a.href = objUrl;
-  a.download = nameFromUrl;
-  document.body.appendChild(a);
-  a.click();
-  URL.revokeObjectURL(objUrl);
-  a.remove();
-}
+const COLUMN_KEYS = Object.keys(DEFAULT_COLUMN_VISIBILITY) as ColumnKey[];
+
+const getInitials = (value?: string) => {
+  if (!value) return '—';
+  return value
+    .split(/[\s@._-]+/)
+    .filter(Boolean)
+    .slice(0, 2)
+    .map((word) => word[0]?.toUpperCase() ?? '')
+    .join('') || '—';
+};
+
 
 /* ───────────── строка задачи ───────────── */
 function Row({
-               task,
-               columnVisibility,
-               role,
-             }: {
+  task,
+  columnVisibility,
+}: {
   task: Task;
-  columnVisibility: Record<string, boolean>;
-  role: string;
+  columnVisibility: Record<ColumnKey, boolean>;
 }) {
-  const [open, setOpen] = useState(false);
+  const router = useRouter();
 
-  const parseUserInfo = (userString?: string) => {
-    if (!userString) return { name: 'N/A', email: 'N/A' };
-    const cleanedString = userString.replace(/\)$/, '');
-    const parts = cleanedString.split(' (');
-    return {
-      name: parts[0] || 'N/A',
-      email: parts[1] || 'N/A',
-    };
+  const buildUserInfo = (name?: string, email?: string) => {
+    const trimmedName = name?.trim() ?? '';
+    const trimmedEmail = email?.trim() ?? '';
+    const primary = trimmedName || trimmedEmail || '—';
+    const secondary =
+      trimmedEmail && trimmedEmail.toLowerCase() !== primary.toLowerCase()
+        ? trimmedEmail
+        : '';
+    const initials = getInitials(trimmedName || trimmedEmail);
+    return { primary, secondary, initials };
   };
 
-  // Считаем видимые колонки с учётом роли (executor не видит order/ncw,
-  // роль author не видит author-колонку; роль executor не видит executor-колонку — уже учтено в разметке)
-  const visibleColsCount = Object.entries(columnVisibility).filter(([key, val]) =>
-      val &&
-      !(role === 'executor' && (key === 'order' || key === 'ncw' || key === 'executor')) &&
-      !(role === 'author' && key === 'author')
-  ).length;
+  const handleRowClick = () => {
+    const slug = task.taskId ? task.taskId.toLowerCase() : task._id;
+    if (slug) {
+      void router.push(`/tasks/${slug}`);
+    }
+  };
 
+  const statusLabel = getStatusLabel(task.status);
+  const priorityLabel = getPriorityLabelRu(task.priority) || 'Не задан';
+  const authorInfo = buildUserInfo(task.authorName, task.authorEmail);
 
+  const renderUserCell = (info: { primary: string; secondary: string; initials: string }) => {
+    if (!info.primary || info.primary === '—') {
+      return (
+        <Typography variant='body2' color='text.secondary' align='center'>
+          —
+        </Typography>
+      );
+    }
+    return (
+      <Stack direction='row' spacing={1} alignItems='center'>
+        <Avatar sx={{ width: 32, height: 32, fontSize: 14 }}>
+          {info.initials}
+        </Avatar>
+        <Box>
+          <Typography variant='body2'>{info.primary}</Typography>
+          {info.secondary && (
+            <Typography variant='caption' color='text.secondary'>
+              {info.secondary}
+            </Typography>
+          )}
+        </Box>
+      </Stack>
+    );
+  };
 
   return (
-      <>
-        <TableRow sx={{ '& > *': { borderBottom: 'unset' } }}>
-          <TableCell>
-            <IconButton size='small' onClick={() => setOpen(!open)}>
-              {open ? <KeyboardArrowDownIcon /> : <KeyboardArrowDownIcon sx={{ transform: 'rotate(-90deg)' }} />}
-            </IconButton>
-          </TableCell>
+    <TableRow hover sx={{ cursor: 'pointer' }} onClick={handleRowClick}>
+      {columnVisibility.taskId && (
+        <TableCell align='center'>
+          <Typography variant='body2' fontWeight={600}>
+            {task.taskId}
+          </Typography>
+        </TableCell>
+      )}
 
-          {columnVisibility.taskId && (
-              <TableCell align="center">
-                <Typography variant="body2">
-                  {task.taskId}
-                </Typography>
-              </TableCell>
-          )}
+      {columnVisibility.task && (
+        <TableCell>
+          <Typography variant='subtitle2'>{task.taskName}</Typography>
+          <Typography variant='body2' color='text.secondary'>
+            {task.bsNumber || '—'}
+          </Typography>
+        </TableCell>
+      )}
 
+      {columnVisibility.project && (
+        <TableCell align='center'>
+          <Typography variant='subtitle2'>
+            {task.projectKey || '—'}
+          </Typography>
+          <Typography variant='caption' color='text.secondary'>
+            {task.projectName || ''}
+          </Typography>
+        </TableCell>
+      )}
 
-          {columnVisibility.task && (
-              <TableCell>
-                <Box sx={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-                  <Link href={`/tasks/${task.taskId.toLowerCase()}`} sx={{ cursor: 'pointer' }}>
-                    {task.taskName} | {task.bsNumber}
-                  </Link>
-                </Box>
-              </TableCell>
-          )}
+      {columnVisibility.author && (
+        <TableCell>{renderUserCell(authorInfo)}</TableCell>
+      )}
 
-          {columnVisibility.author && (
-              <TableCell align='center'>
-                <Typography variant='subtitle2'>{parseUserInfo(task.authorName).name}</Typography>
-              </TableCell>
-          )}
+      {columnVisibility.created && (
+        <TableCell align='center'>{formatDateRU(task.createdAt)}</TableCell>
+      )}
 
-          {columnVisibility.initiator && (
-              <TableCell align='center'>
-                <Typography variant='subtitle2'>{parseUserInfo(task.initiatorName).name}</Typography>
-              </TableCell>
-          )}
+      {columnVisibility.due && (
+        <TableCell align='center'>{formatDateRU(task.dueDate)}</TableCell>
+      )}
 
-          {role !== 'executor' && columnVisibility.executor && (
-              <TableCell align='center'>
-                <Typography variant='subtitle2'>{parseUserInfo(task.executorName).name}</Typography>
-              </TableCell>
-          )}
+      {columnVisibility.complete && (
+        <TableCell align='center'>
+          {formatDateRU(task.workCompletionDate) || '—'}
+        </TableCell>
+      )}
 
-          {columnVisibility.created && (
-              <TableCell align='center'>{new Date(task.createdAt).toLocaleDateString()}</TableCell>
-          )}
+      {columnVisibility.status && (
+        <TableCell align='center'>
+          <Chip
+            label={statusLabel}
+            size='small'
+            sx={{
+              backgroundColor: getStatusColor(task.status),
+              color: '#fff',
+              fontWeight: 600,
+            }}
+          />
+        </TableCell>
+      )}
 
-          {columnVisibility.due && (
-              <TableCell align='center'>{formatDateRU(task.dueDate)}</TableCell>
-          )}
-
-          {columnVisibility.complete && (
-              <TableCell align='center'>
-                {formatDateRU(task.workCompletionDate)}
-              </TableCell>
-          )}
-
-
-          {columnVisibility.status && (
-              <TableCell align='center'>
-                <Chip label={task.status} sx={{ backgroundColor: getStatusColor(task.status), color: '#fff' }} />
-              </TableCell>
-          )}
-
-          {role !== 'executor' && columnVisibility.order && (
-              <TableCell align="center">
-                {!!task.orderUrl && (
-                    <Tooltip title="Download Order">
-                      <IconButton
-                          size="small"
-                          onClick={() => downloadFile(task.orderUrl!, `${task.taskId}_order.pdf`)}
-                      >
-                        <TaskIcon sx={{ color: 'success.main' }} />
-                      </IconButton>
-                    </Tooltip>
-                )}
-              </TableCell>
-          )}
-
-
-          {role !== 'executor' && columnVisibility.ncw && (
-              <TableCell align="center">
-                {!!task.ncwUrl && (
-                    <Tooltip title="Download NCW">
-                      <IconButton
-                          size="small"
-                          onClick={() => downloadFile(task.ncwUrl!, `${task.taskId}_ncw.pdf`)}
-                      >
-                        <TaskIcon sx={{ color: 'success.main' }} />
-                      </IconButton>
-                    </Tooltip>
-                )}
-              </TableCell>
-          )}
-
-
-          {columnVisibility.priority && (
-              <TableCell align='center'>
+      {columnVisibility.priority && (
+        <TableCell align='center'>
+          {getPriorityIcon(task.priority) ? (
+            <Tooltip title={priorityLabel}>
+              <Box
+                component='span'
+                sx={{ display: 'inline-flex', alignItems: 'center' }}
+              >
                 {getPriorityIcon(task.priority)}
-                {task.priority}
-              </TableCell>
-          )}
-        </TableRow>
-
-        <TableRow>
-          <TableCell
-              colSpan={1 + visibleColsCount}
-              sx={{ p: 0 }}
-          >
-          <Collapse in={open} timeout='auto' unmountOnExit>
-              <Box sx={{ ml: 3, mt: 2 }}>
-                <Typography variant='subtitle1'>BS Number</Typography>
-                <Typography variant='body2' color='text.secondary'>
-                  {task.bsNumber}
-                </Typography>
-
-                <Typography variant='subtitle1'>Address</Typography>
-                <Typography variant='body2' color='text.secondary'>
-                  {task.bsAddress}
-                </Typography>
-
-                {role !== 'executor' && (
-                    <>
-                      <Typography variant='subtitle1'>Cost</Typography>
-                      <Typography variant='body2'>{task.totalCost}</Typography>
-                    </>
-                )}
-
-                <Typography variant='h6' sx={{ mt: 2 }}>
-                  Work Items
-                </Typography>
-                <Table size='small'>
-                  <TableHead>
-                    <TableRow>
-                      <TableCell>Work Type</TableCell>
-                      <TableCell>Quantity</TableCell>
-                      <TableCell>Unit</TableCell>
-                      <TableCell>Note</TableCell>
-                    </TableRow>
-                  </TableHead>
-                  <TableBody>
-                    {task.workItems.map((item: WorkItem) => (
-                        <TableRow key={item.id}>
-                          <TableCell>{item.workType}</TableCell>
-                          <TableCell>{item.quantity}</TableCell>
-                          <TableCell>{item.unit}</TableCell>
-                          <TableCell>{item.note}</TableCell>
-                        </TableRow>
-                    ))}
-                  </TableBody>
-                </Table>
-
-                <Box sx={{ display: 'flex', mt: 2, mb: 1 }}>
-                  <Button href={`/tasks/${task.taskId.toLowerCase()}`} variant='contained' size='small'>
-                    More
-                  </Button>
-                </Box>
               </Box>
-            </Collapse>
-          </TableCell>
-        </TableRow>
-      </>
+            </Tooltip>
+          ) : (
+            <Typography variant='body2' color='text.secondary'>
+              —
+            </Typography>
+          )}
+        </TableCell>
+      )}
+    </TableRow>
   );
 }
 
 /* ───────────── основной компонент ───────────── */
-export default function TaskListPage() {
+const TaskListPage = forwardRef<TaskListPageHandle, TaskListPageProps>(function TaskListPageInner(
+  {
+    searchQuery = '',
+    projectFilter = '',
+    refreshToken = 0,
+    hideToolbarControls = false,
+    onFilterToggleChange,
+  },
+  ref
+) {
   const [tasks, setTasks] = useState<Task[]>([]);
   const [filteredTasks, setFilteredTasks] = useState<Task[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
-  const [role, setRole] = useState<string>('');
 
   /* ----- фильтры ----- */
-  const [authorFilter, setAuthorFilter] = useState('');
-  const [initiatorFilter, setInitiatorFilter] = useState('');
-  const [executorFilter, setExecutorFilter] = useState('');
+  const [authorFilter, setAuthorFilter] = useState<string | null>(null);
   const [statusFilter, setStatusFilter] = useState('');
   const [priorityFilter, setPriorityFilter] = useState('');
   const [createdDateRange, setCreatedDateRange] = useState<DateRange<Date>>([null, null]);
   const [dueDateRange, setDueDateRange] = useState<DateRange<Date>>([null, null]);
-  const [bsSearch, setBsSearch] = useState('');
 
   /* ----- видимость колонок ----- */
-  const [columnVisibility, setColumnVisibility] = useState<Record<string, boolean>>({
-    taskId: true,
-    task: true,
-    author: true,
-    initiator: true,
-    executor: true,
-    created: true,
-    due: true,
-    complete: true,
-    status: true,
-    priority: true,
-    order: true,
-    ncw: true,
-  });
+  const [columnVisibility, setColumnVisibility] = useState<Record<
+    ColumnKey,
+    boolean
+  >>({ ...DEFAULT_COLUMN_VISIBILITY });
 
   /* ----- popover / пагинация ----- */
   const [anchorEl, setAnchorEl] = useState<HTMLElement | null>(null);
   const [currentFilter, setCurrentFilter] = useState<string>('');
   const [currentPage, setCurrentPage] = useState(1);
   const [rowsPerPage, setRowsPerPage] = useState<number>(10); // -1 = All
+  const [showFilters, setShowFilters] = useState(false);
 
   /* ----- пагинация ----- */
   const paginatedTasks = useMemo(() => {
@@ -369,38 +316,33 @@ export default function TaskListPage() {
     return Math.ceil(filteredTasks.length / rowsPerPage);
   }, [filteredTasks, rowsPerPage]);
 
-  const isDateString = (s: string) => !Number.isNaN(Date.parse(s));
-
-
   const activeFiltersCount = useMemo(
       () =>
           [
             authorFilter,
-            initiatorFilter,
-            executorFilter,
             statusFilter,
             priorityFilter,
             createdDateRange[0] || createdDateRange[1] ? createdDateRange : null,
             dueDateRange[0] || dueDateRange[1] ? dueDateRange : null,
-            bsSearch,
           ].filter(Boolean).length,
       [
         authorFilter,
-        initiatorFilter,
-        executorFilter,
         statusFilter,
         priorityFilter,
         createdDateRange,
         dueDateRange,
-        bsSearch,
       ]
   );
 
   const uniqueValues = useMemo(
       () => ({
-        authors: Array.from(new Set(tasks.map((t) => t.authorName))),
-        initiators: Array.from(new Set(tasks.map((t) => t.initiatorName))),
-        executors: Array.from(new Set(tasks.map((t) => t.executorName))),
+        authors: Array.from(
+          new Set(
+            tasks
+              .map((t) => (t.authorName || t.authorEmail)?.trim())
+              .filter((name): name is string => Boolean(name))
+          )
+        ),
         statuses: Array.from(new Set(tasks.map((t) => t.status))),
         priorities: Array.from(new Set(tasks.map((t) => t.priority))),
       }),
@@ -419,11 +361,7 @@ export default function TaskListPage() {
         }
 
 
-        const tasksWithId = data.tasks.map((task: Task) => ({
-          ...task,
-          workItems: task.workItems.map((wi: WorkItem) => ({ ...wi, id: uuidv4() })),
-        }));
-        setTasks(tasksWithId);
+        setTasks(Array.isArray(data.tasks) ? data.tasks : []);
       } catch (err) {
         setError(err instanceof Error ? err.message : 'Unknown error');
       } finally {
@@ -431,19 +369,9 @@ export default function TaskListPage() {
       }
     };
 
-    const fetchUserRole = async () => {
-      try {
-        const res = await GetCurrentUserFromMongoDB();
-        if (res.success && res.data) setRole(res.data.role);
-      } catch (err) {
-        console.error('Error fetching user role:', err);
-      }
-    };
-
     void fetchTasks();
-    void fetchUserRole();
 
-  }, []);
+  }, [refreshToken]);
 
   /* ----- читаем статус из query-строки безопасно ----- */
   const searchParams = useSearchParams();
@@ -454,14 +382,24 @@ export default function TaskListPage() {
   }, [searchParams]);
 
   /* ----- применение фильтров ----- */
+  const normalizedSearch = searchQuery.trim().toLowerCase();
+  const normalizedProject = projectFilter.trim().toLowerCase();
+
   useEffect(() => {
     let filtered = [...tasks];
 
-    if (authorFilter)    filtered = filtered.filter((t) => t.authorName    === authorFilter);
-    if (initiatorFilter) filtered = filtered.filter((t) => t.initiatorName === initiatorFilter);
-    if (executorFilter)  filtered = filtered.filter((t) => t.executorName  === executorFilter);
+    if (authorFilter) {
+      filtered = filtered.filter(
+        (t) => ((t.authorName || t.authorEmail)?.trim() || '') === authorFilter
+      );
+    }
     if (statusFilter)    filtered = filtered.filter((t) => t.status        === statusFilter);
     if (priorityFilter)  filtered = filtered.filter((t) => t.priority      === priorityFilter);
+    if (normalizedProject) {
+      filtered = filtered.filter(
+        (t) => (t.projectKey || '').toLowerCase() === normalizedProject
+      );
+    }
 
     if (createdDateRange[0] && createdDateRange[1]) {
       filtered = filtered.filter((t) => {
@@ -475,7 +413,21 @@ export default function TaskListPage() {
         return d >= dueDateRange[0]! && d <= dueDateRange[1]!;
       });
     }
-    if (bsSearch) filtered = filtered.filter((t) => t.bsNumber.toLowerCase().includes(bsSearch.toLowerCase()));
+    if (normalizedSearch) {
+      filtered = filtered.filter((t) => {
+        const haystack = [
+          t.taskId,
+          t.taskName,
+          t.bsNumber,
+          t.projectKey,
+          t.projectName,
+        ]
+          .filter(Boolean)
+          .join(' ')
+          .toLowerCase();
+        return haystack.includes(normalizedSearch);
+      });
+    }
 
     setFilteredTasks(filtered);
     setCurrentPage(1);
@@ -484,15 +436,15 @@ export default function TaskListPage() {
     createdDateRange,
     dueDateRange,
     authorFilter,
-    initiatorFilter,
-    executorFilter,
     statusFilter,
     priorityFilter,
-    bsSearch,
+    normalizedSearch,
+    normalizedProject,
   ]);
 
   /* ----- popover helpers ----- */
   const handleFilterClick = (e: React.MouseEvent<HTMLElement>, type: string) => {
+    if (!showFilters && type !== 'columns') return;
     setAnchorEl(e.currentTarget);
     setCurrentFilter(type);
   };
@@ -501,8 +453,43 @@ export default function TaskListPage() {
     setCurrentFilter('');
   };
   const handleColumnVisibilityChange =
-      (col: string) => (e: React.ChangeEvent<HTMLInputElement>) =>
-          setColumnVisibility((prev) => ({ ...prev, [col]: e.target.checked }));
+    (col: ColumnKey) => (e: React.ChangeEvent<HTMLInputElement>) =>
+      setColumnVisibility((prev) => ({ ...prev, [col]: e.target.checked }));
+
+  const toggleFilters = useCallback(() => {
+    setShowFilters((prev) => {
+      const next = !prev;
+      if (!next) {
+        setAnchorEl(null);
+        setCurrentFilter('');
+      }
+      onFilterToggleChange?.(next);
+      return next;
+    });
+  }, [onFilterToggleChange]);
+
+  const openColumns = useCallback((anchor: HTMLElement) => {
+    if (anchor) {
+      setAnchorEl(anchor);
+      setCurrentFilter('columns');
+    }
+  }, []);
+
+  const closeColumns = useCallback(() => {
+    setAnchorEl(null);
+    setCurrentFilter((prev) => (prev === 'columns' ? '' : prev));
+  }, []);
+
+  useImperativeHandle(
+    ref,
+    () => ({
+      toggleFilters,
+      openColumns,
+      closeColumns,
+      showFilters,
+    }),
+    [toggleFilters, openColumns, closeColumns, showFilters]
+  );
 
   /* ----- loading / error UI ----- */
   if (loading)
@@ -515,52 +502,41 @@ export default function TaskListPage() {
   return (
     <LocalizationProvider dateAdapter={AdapterDateFns}>
       <Box sx={{ width: '100%', margin: '0 auto' }}>
-        {activeFiltersCount > 0 && (
+        {showFilters && activeFiltersCount > 0 && (
           <Box sx={{ p: 2, mb: 2 }}>
             <Typography variant='subtitle1'>
-              Active filters {activeFiltersCount}
+              Активные фильтры: {activeFiltersCount}
             </Typography>
             <Box sx={{ display: 'flex', gap: 1, flexWrap: 'wrap', my: 1 }}>
               {[
                 {
-                  label: 'Author',
+                  label: 'Менеджер',
                   value: authorFilter,
-                  reset: () => setAuthorFilter(''),
+                  reset: () => setAuthorFilter(null),
                 },
                 {
-                  label: 'Initiator',
-                  value: initiatorFilter,
-                  reset: () => setInitiatorFilter(''),
-                },
-                {
-                  label: 'Executor',
-                  value: executorFilter,
-                  reset: () => setExecutorFilter(''),
-                },
-                {
-                  label: 'Status',
+                  label: 'Статус',
                   value: statusFilter,
                   reset: () => setStatusFilter(''),
+                  format: getStatusLabel,
                 },
                 {
-                  label: 'Priority',
+                  label: 'Приоритет',
                   value: priorityFilter,
                   reset: () => setPriorityFilter(''),
-                },
-                {
-                  label: 'BS Number',
-                  value: bsSearch,
-                  reset: () => setBsSearch(''),
+                  format: getPriorityLabelRu,
                 },
               ].map(
-                ({ label, value, reset }) =>
+                ({ label, value, reset, format }) =>
                   value && (
                     <Chip
                       key={label}
                       label={`${label}: ${
-                          label !== 'BS Number' && isDateString(value as string)
-                              ? new Date(value as string).toLocaleDateString()
-                              : value
+                        typeof value === 'string'
+                          ? format
+                            ? format(value)
+                            : value
+                          : value
                       }`}
 
                       onDelete={reset}
@@ -573,7 +549,7 @@ export default function TaskListPage() {
               {createdDateRange[0] && createdDateRange[1] && (
                 <Chip
                   key='created-range'
-                  label={`Created: ${createdDateRange[0].toLocaleDateString()} - ${createdDateRange[1].toLocaleDateString()}`}
+                  label={`Создано: ${createdDateRange[0].toLocaleDateString()} - ${createdDateRange[1].toLocaleDateString()}`}
                   onDelete={() => setCreatedDateRange([null, null])}
                   color='primary'
                   size='small'
@@ -582,7 +558,7 @@ export default function TaskListPage() {
               {dueDateRange[0] && dueDateRange[1] && (
                 <Chip
                   key='due-range'
-                  label={`Due Date: ${dueDateRange[0].toLocaleDateString()} - ${dueDateRange[1].toLocaleDateString()}`}
+                  label={`Срок: ${dueDateRange[0].toLocaleDateString()} - ${dueDateRange[1].toLocaleDateString()}`}
                   onDelete={() => setDueDateRange([null, null])}
                   color='primary'
                   size='small'
@@ -591,18 +567,33 @@ export default function TaskListPage() {
             </Box>
             <Button
               onClick={() => {
-                setAuthorFilter('');
-                setInitiatorFilter('');
-                setExecutorFilter('');
+                setAuthorFilter(null);
                 setStatusFilter('');
                 setPriorityFilter('');
                 setCreatedDateRange([null, null]);
                 setDueDateRange([null, null]);
-                setBsSearch('');
               }}
             >
-              Clear All
+              Сбросить фильтры
             </Button>
+          </Box>
+        )}
+
+        {!hideToolbarControls && (
+          <Box sx={{ display: 'flex', justifyContent: 'flex-end', gap: 1, mb: 1 }}>
+            <Tooltip title={showFilters ? 'Скрыть фильтры' : 'Показать фильтры'}>
+              <IconButton
+                onClick={toggleFilters}
+                color={showFilters ? 'primary' : 'default'}
+              >
+                <FilterAltIcon />
+              </IconButton>
+            </Tooltip>
+            <Tooltip title='Настроить колонки'>
+              <IconButton onClick={(e) => handleFilterClick(e, 'columns')}>
+                <ViewColumnIcon />
+              </IconButton>
+            </Tooltip>
           </Box>
         )}
 
@@ -610,22 +601,6 @@ export default function TaskListPage() {
           <Table>
             <TableHead>
               <TableRow>
-                <TableCell
-                  sx={{
-                    whiteSpace: 'nowrap',
-                    padding: '16px',
-                    textAlign: 'center',
-                  }}
-                >
-                  <Tooltip title='Manage columns'>
-                    <IconButton
-                      onClick={(e) => handleFilterClick(e, 'columns')}
-                    >
-                      <ViewColumnIcon />
-                    </IconButton>
-                  </Tooltip>
-                </TableCell>
-
                 {columnVisibility.taskId && (
                     <TableCell
                         sx={{
@@ -647,20 +622,11 @@ export default function TaskListPage() {
                       textAlign: 'center',
                     }}
                   >
-                    <strong>Task</strong>
-                    <Tooltip title='Search BS Number'>
-                      <IconButton
-                        onClick={(e) => handleFilterClick(e, 'bs')}
-                        color={bsSearch ? 'primary' : 'default'}
-                      >
-                        <SearchIcon />
-                      </IconButton>
-                    </Tooltip>
+                    <strong>{COLUMN_LABELS.task}</strong>
                   </TableCell>
                 )}
 
-                {/* Скрываем столбец Author для роли author */}
-                {role !== 'author' && columnVisibility.author && (
+                {columnVisibility.project && (
                   <TableCell
                     sx={{
                       whiteSpace: 'nowrap',
@@ -668,19 +634,11 @@ export default function TaskListPage() {
                       textAlign: 'center',
                     }}
                   >
-                    <strong>Author</strong>
-                    <Tooltip title='Filter by Author'>
-                      <IconButton
-                        onClick={(e) => handleFilterClick(e, 'author')}
-                        color={authorFilter ? 'primary' : 'default'}
-                      >
-                        <FilterListIcon />
-                      </IconButton>
-                    </Tooltip>
+                    <strong>Проект</strong>
                   </TableCell>
                 )}
 
-                {columnVisibility.initiator && (
+                {columnVisibility.author && (
                   <TableCell
                     sx={{
                       whiteSpace: 'nowrap',
@@ -688,36 +646,17 @@ export default function TaskListPage() {
                       textAlign: 'center',
                     }}
                   >
-                    <strong>Initiator</strong>
-                    <Tooltip title='Filter by Initiator'>
-                      <IconButton
-                        onClick={(e) => handleFilterClick(e, 'initiator')}
-                        color={initiatorFilter ? 'primary' : 'default'}
-                      >
-                        <FilterListIcon />
-                      </IconButton>
-                    </Tooltip>
-                  </TableCell>
-                )}
-
-                {/* Скрываем столбец Executor для роли executor */}
-                {role !== 'executor' && columnVisibility.executor && (
-                  <TableCell
-                    sx={{
-                      whiteSpace: 'nowrap',
-                      padding: '16px',
-                      textAlign: 'center',
-                    }}
-                  >
-                    <strong>Executor</strong>
-                    <Tooltip title='Filter by Executor'>
-                      <IconButton
-                        onClick={(e) => handleFilterClick(e, 'executor')}
-                        color={executorFilter ? 'primary' : 'default'}
-                      >
-                        <FilterListIcon />
-                      </IconButton>
-                    </Tooltip>
+                    <strong>{COLUMN_LABELS.author}</strong>
+                    {showFilters && (
+                      <Tooltip title='Фильтр по менеджеру'>
+                        <IconButton
+                          onClick={(e) => handleFilterClick(e, 'author')}
+                          color={authorFilter ? 'primary' : 'default'}
+                        >
+                          <PersonSearchIcon fontSize='small' />
+                        </IconButton>
+                      </Tooltip>
+                    )}
                   </TableCell>
                 )}
 
@@ -729,19 +668,21 @@ export default function TaskListPage() {
                       textAlign: 'center',
                     }}
                   >
-                    <strong>Created</strong>
-                    <Tooltip title='Filter by Creation Date'>
-                      <IconButton
-                        onClick={(e) => handleFilterClick(e, 'created')}
-                        color={
-                          createdDateRange[0] || createdDateRange[1]
-                            ? 'primary'
-                            : 'default'
-                        }
-                      >
-                        <FilterListIcon />
-                      </IconButton>
-                    </Tooltip>
+                    <strong>{COLUMN_LABELS.created}</strong>
+                    {showFilters && (
+                      <Tooltip title='Фильтр по дате создания'>
+                        <IconButton
+                          onClick={(e) => handleFilterClick(e, 'created')}
+                          color={
+                            createdDateRange[0] || createdDateRange[1]
+                              ? 'primary'
+                              : 'default'
+                          }
+                        >
+                          <FilterListIcon fontSize='small' />
+                        </IconButton>
+                      </Tooltip>
+                    )}
                   </TableCell>
                 )}
 
@@ -753,19 +694,21 @@ export default function TaskListPage() {
                       textAlign: 'center',
                     }}
                   >
-                    <strong>Due Date</strong>
-                    <Tooltip title='Filter by Due Date'>
-                      <IconButton
-                        onClick={(e) => handleFilterClick(e, 'due')}
-                        color={
-                          dueDateRange[0] || dueDateRange[1]
-                            ? 'primary'
-                            : 'default'
-                        }
-                      >
-                        <FilterListIcon />
-                      </IconButton>
-                    </Tooltip>
+                    <strong>{COLUMN_LABELS.due}</strong>
+                    {showFilters && (
+                      <Tooltip title='Фильтр по сроку'>
+                        <IconButton
+                          onClick={(e) => handleFilterClick(e, 'due')}
+                          color={
+                            dueDateRange[0] || dueDateRange[1]
+                              ? 'primary'
+                              : 'default'
+                          }
+                        >
+                          <FilterListIcon fontSize='small' />
+                        </IconButton>
+                      </Tooltip>
+                    )}
                   </TableCell>
                 )}
 
@@ -773,7 +716,7 @@ export default function TaskListPage() {
                     <TableCell
                         sx={{ whiteSpace: 'nowrap', padding: '16px', textAlign: 'center' }}
                     >
-                      <strong>Complete</strong>
+                      <strong>{COLUMN_LABELS.complete}</strong>
                     </TableCell>
                 )}
 
@@ -785,30 +728,19 @@ export default function TaskListPage() {
                       textAlign: 'center',
                     }}
                   >
-                    <strong>Status</strong>
-                    <Tooltip title='Filter by Status'>
-                      <IconButton
-                        onClick={(e) => handleFilterClick(e, 'status')}
-                        color={statusFilter ? 'primary' : 'default'}
-                      >
-                        <FilterListIcon />
-                      </IconButton>
-                    </Tooltip>
+                    <strong>{COLUMN_LABELS.status}</strong>
+                    {showFilters && (
+                      <Tooltip title='Фильтр по статусу'>
+                        <IconButton
+                          onClick={(e) => handleFilterClick(e, 'status')}
+                          color={statusFilter ? 'primary' : 'default'}
+                        >
+                          <FilterListIcon fontSize='small' />
+                        </IconButton>
+                      </Tooltip>
+                    )}
                   </TableCell>
                 )}
-
-                {role !== 'executor' && columnVisibility.order && (
-                    <TableCell sx={{ whiteSpace: 'nowrap', padding: '16px', textAlign: 'center' }}>
-                      <strong>Order</strong>
-                    </TableCell>
-                )}
-                {role !== 'executor' && columnVisibility.ncw && (
-                    <TableCell sx={{ whiteSpace: 'nowrap', padding: '16px', textAlign: 'center' }}>
-                      <strong>NCW</strong>
-                    </TableCell>
-                )}
-
-
 
                 {columnVisibility.priority && (
                   <TableCell
@@ -818,15 +750,17 @@ export default function TaskListPage() {
                       textAlign: 'center',
                     }}
                   >
-                    <strong>Priority</strong>
-                    <Tooltip title='Filter by Priority'>
-                      <IconButton
-                        onClick={(e) => handleFilterClick(e, 'priority')}
-                        color={priorityFilter ? 'primary' : 'default'}
-                      >
-                        <FilterListIcon />
-                      </IconButton>
-                    </Tooltip>
+                    <strong>{COLUMN_LABELS.priority}</strong>
+                    {showFilters && (
+                      <Tooltip title='Фильтр по приоритету'>
+                        <IconButton
+                          onClick={(e) => handleFilterClick(e, 'priority')}
+                          color={priorityFilter ? 'primary' : 'default'}
+                        >
+                          <FilterListIcon fontSize='small' />
+                        </IconButton>
+                      </Tooltip>
+                    )}
                   </TableCell>
                 )}
               </TableRow>
@@ -838,7 +772,6 @@ export default function TaskListPage() {
                   key={task.taskId}
                   task={task}
                   columnVisibility={columnVisibility}
-                  role={role}
                 />
               ))}
             </TableBody>
@@ -848,7 +781,9 @@ export default function TaskListPage() {
         {/* Селект для выбора количества строк */}
         <Box sx={{ display: 'flex', justifyContent: 'center', mt: 2 }}>
           <FormControl sx={{ minWidth: 120 }} size='small'>
-            <InputLabel id='rows-per-page-label'>Items number</InputLabel>
+            <InputLabel id='rows-per-page-label'>
+              Записей на странице
+            </InputLabel>
             <Select
               labelId='rows-per-page-label'
               id='rows-per-page'
@@ -858,7 +793,7 @@ export default function TaskListPage() {
                 setRowsPerPage(value);
                 setCurrentPage(1);
               }}
-              label='Items number'
+              label='Записей на странице'
             >
               <MenuItem value={10}>10</MenuItem>
               <MenuItem value={50}>50</MenuItem>
@@ -885,74 +820,35 @@ export default function TaskListPage() {
           anchorEl={anchorEl}
           onClose={handleClose}
           anchorOrigin={{ vertical: 'bottom', horizontal: 'left' }}
+          slotProps={{ paper: { sx: { overflow: 'visible' } } }}
         >
-          <Box sx={{ p: 2, minWidth: 200 }}>
-            {currentFilter === 'bs' && (
-              <TextField
-                label='Search'
-                value={bsSearch}
-                onChange={(e) => setBsSearch(e.target.value)}
-                fullWidth
-                autoFocus
-              />
-            )}
-
+          <Box
+            sx={{
+              p: 2,
+              minWidth: currentFilter === 'author' ? 360 : 200,
+            }}
+          >
             {currentFilter === 'author' && (
-              <FormControl fullWidth>
-                <InputLabel>Author</InputLabel>
-                <Select
+              <Box sx={{ width: 360 }}>
+                <Autocomplete<string, false, false, false>
+                  options={uniqueValues.authors}
                   value={authorFilter}
-                  onChange={(e) => setAuthorFilter(e.target.value)}
-                >
-                  <MenuItem value=''>
-                    <em>All</em>
-                  </MenuItem>
-                  {uniqueValues.authors.map((author) => (
-                    <MenuItem key={author} value={author}>
-                      {author}
-                    </MenuItem>
-                  ))}
-                </Select>
-              </FormControl>
+                  onChange={(_e, value) => setAuthorFilter(value)}
+                  clearOnEscape
+                  handleHomeEndKeys
+                  fullWidth
+                  renderInput={(params) => (
+                    <TextField {...params} label='Менеджер' size='small' autoFocus />
+                  )}
+                  slotProps={{
+                    popper: { disablePortal: true },
+                    paper: { sx: { overflow: 'visible', maxHeight: 'none' } },
+                  }}
+                  ListboxProps={{ style: { maxHeight: 'none' } }}
+                />
+              </Box>
             )}
 
-            {currentFilter === 'initiator' && (
-              <FormControl fullWidth>
-                <InputLabel>Initiator</InputLabel>
-                <Select
-                  value={initiatorFilter}
-                  onChange={(e) => setInitiatorFilter(e.target.value)}
-                >
-                  <MenuItem value=''>
-                    <em>All</em>
-                  </MenuItem>
-                  {uniqueValues.initiators.map((initiator) => (
-                    <MenuItem key={initiator} value={initiator}>
-                      {initiator}
-                    </MenuItem>
-                  ))}
-                </Select>
-              </FormControl>
-            )}
-
-            {currentFilter === 'executor' && (
-              <FormControl fullWidth>
-                <InputLabel>Executor</InputLabel>
-                <Select
-                  value={executorFilter}
-                  onChange={(e) => setExecutorFilter(e.target.value)}
-                >
-                  <MenuItem value=''>
-                    <em>All</em>
-                  </MenuItem>
-                  {uniqueValues.executors.map((executor) => (
-                    <MenuItem key={executor} value={executor}>
-                      {executor}
-                    </MenuItem>
-                  ))}
-                </Select>
-              </FormControl>
-            )}
 
             {currentFilter === 'created' && (
               <DateRangePicker
@@ -972,17 +868,17 @@ export default function TaskListPage() {
 
             {currentFilter === 'status' && (
               <FormControl fullWidth>
-                <InputLabel>Status</InputLabel>
+                <InputLabel>Статус</InputLabel>
                 <Select
                   value={statusFilter}
                   onChange={(e) => setStatusFilter(e.target.value)}
                 >
                   <MenuItem value=''>
-                    <em>All</em>
+                    <em>Все</em>
                   </MenuItem>
                   {uniqueValues.statuses.map((status) => (
                     <MenuItem key={status} value={status}>
-                      {status}
+                      {getStatusLabel(status)}
                     </MenuItem>
                   ))}
                 </Select>
@@ -991,17 +887,17 @@ export default function TaskListPage() {
 
             {currentFilter === 'priority' && (
               <FormControl fullWidth>
-                <InputLabel>Priority</InputLabel>
+                <InputLabel>Приоритет</InputLabel>
                 <Select
                   value={priorityFilter}
                   onChange={(e) => setPriorityFilter(e.target.value)}
                 >
                   <MenuItem value=''>
-                    <em>All</em>
+                    <em>Все</em>
                   </MenuItem>
                   {uniqueValues.priorities.map((priority) => (
                     <MenuItem key={priority} value={priority}>
-                      {priority}
+                      {getPriorityLabelRu(priority)}
                     </MenuItem>
                   ))}
                 </Select>
@@ -1011,24 +907,20 @@ export default function TaskListPage() {
             {currentFilter === 'columns' && (
               <>
                 <List>
-                  {Object.keys(columnVisibility)
-                      .filter((column) => !(role === 'executor' && (column === 'order' || column === 'ncw')))
-                      .map((column) => (
-                          <ListItem key={column} dense component='button'>
-                            <ListItemIcon>
-                              <Checkbox
-                                  edge='start'
-                                  checked={columnVisibility[column]}
-                                  onChange={handleColumnVisibilityChange(column)}
-                                  tabIndex={-1}
-                                  disableRipple
-                              />
-                            </ListItemIcon>
-                            <ListItemText
-                                primary={column.charAt(0).toUpperCase() + column.slice(1)}
-                            />
-                          </ListItem>
-                      ))}
+                  {COLUMN_KEYS.map((column) => (
+                      <ListItem key={column} dense component='button'>
+                        <ListItemIcon>
+                          <Checkbox
+                            edge='start'
+                            checked={columnVisibility[column]}
+                            onChange={handleColumnVisibilityChange(column)}
+                            tabIndex={-1}
+                            disableRipple
+                          />
+                        </ListItemIcon>
+                        <ListItemText primary={COLUMN_LABELS[column]} />
+                      </ListItem>
+                    ))}
 
                 </List>
                 <Box
@@ -1039,30 +931,28 @@ export default function TaskListPage() {
                   }}
                 >
                   <Button
-                    onClick={() => {
-                      setColumnVisibility((prev) => {
-                        const newVisibility = { ...prev };
-                        Object.keys(newVisibility).forEach((key) => {
-                          newVisibility[key] = true;
-                        });
-                        return newVisibility;
-                      });
-                    }}
+                    onClick={() =>
+                      setColumnVisibility(
+                        COLUMN_KEYS.reduce(
+                          (acc, key) => ({ ...acc, [key]: true }),
+                          {} as Record<ColumnKey, boolean>
+                        )
+                      )
+                    }
                   >
-                    All
+                    Все
                   </Button>
                   <Button
-                    onClick={() => {
-                      setColumnVisibility((prev) => {
-                        const newVisibility = { ...prev };
-                        Object.keys(newVisibility).forEach((key) => {
-                          newVisibility[key] = false;
-                        });
-                        return newVisibility;
-                      });
-                    }}
+                    onClick={() =>
+                      setColumnVisibility(
+                        COLUMN_KEYS.reduce(
+                          (acc, key) => ({ ...acc, [key]: false }),
+                          {} as Record<ColumnKey, boolean>
+                        )
+                      )
+                    }
                   >
-                    Clear
+                    Очистить
                   </Button>
                 </Box>
               </>
@@ -1076,4 +966,6 @@ export default function TaskListPage() {
       </Box>
     </LocalizationProvider>
   );
-}
+});
+
+export default TaskListPage;

@@ -18,11 +18,14 @@ import {
     Stack,
     CircularProgress,
     Tooltip,
+    Autocomplete,
 } from '@mui/material';
 import Grid from '@mui/material/Grid';
 import EditIcon from '@mui/icons-material/Edit';
 import DeleteIcon from '@mui/icons-material/Delete';
 import { useRouter, useParams } from 'next/navigation';
+import { RUSSIAN_REGIONS } from '@/app/utils/regions';
+import { OPERATORS } from '@/app/utils/operators';
 
 type OrgRole = 'owner' | 'org_admin' | 'manager' | 'executor' | 'viewer';
 
@@ -33,6 +36,8 @@ type Project = {
     description?: string;
     managers?: string[];
     managerEmail?: string;
+    regionCode: string;
+    operator: string;
 };
 
 type GetProjectsSuccess = { projects: Project[] };
@@ -116,6 +121,8 @@ export default function OrgProjectsPage() {
     const [name, setName] = useState('');
     const [key, setKey] = useState('');
     const [description, setDescription] = useState('');
+    const [regionCode, setRegionCode] = useState<string>(RUSSIAN_REGIONS[0]?.code ?? '');
+    const [operator, setOperator] = useState<string>(OPERATORS[0]?.value ?? '');
 
     const handleCreate = async (): Promise<void> => {
         setErr(null);
@@ -123,7 +130,7 @@ export default function OrgProjectsPage() {
             const res = await fetch(`/api/org/${encodeURIComponent(orgSlug)}/projects`, {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ name, key, description }),
+                body: JSON.stringify({ name, key, description, regionCode, operator }),
             });
             const data: { ok: true; project: Project } | ApiError = await res.json();
 
@@ -138,6 +145,8 @@ export default function OrgProjectsPage() {
             setName('');
             setKey('');
             setDescription('');
+            setRegionCode(RUSSIAN_REGIONS[0]?.code ?? '');
+            setOperator(OPERATORS[0]?.value ?? '');
             showSnack('Проект создан', 'success');
             void loadProjects();
         } catch (e: unknown) {
@@ -153,12 +162,16 @@ export default function OrgProjectsPage() {
     const [editName, setEditName] = useState('');
     const [editKey, setEditKey] = useState('');
     const [editDescription, setEditDescription] = useState('');
+    const [editRegionCode, setEditRegionCode] = useState<string>(RUSSIAN_REGIONS[0]?.code ?? '');
+    const [editOperator, setEditOperator] = useState<string>(OPERATORS[0]?.value ?? '');
 
     const openEditDialog = (p: Project) => {
         setEditProjectId(p._id);
         setEditName(p.name);
         setEditKey(p.key);
         setEditDescription(p.description ?? '');
+        setEditRegionCode(p.regionCode);
+        setEditOperator(p.operator);
         setOpenEdit(true);
     };
 
@@ -168,7 +181,13 @@ export default function OrgProjectsPage() {
             const res = await fetch(`/api/org/${encodeURIComponent(orgSlug)}/projects/${editProjectId}`, {
                 method: 'PATCH',
                 headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ name: editName, key: editKey, description: editDescription }),
+                body: JSON.stringify({
+                    name: editName,
+                    key: editKey,
+                    description: editDescription,
+                    regionCode: editRegionCode,
+                    operator: editOperator,
+                }),
             });
             const data: { ok: true; project: Project } | ApiError = await res.json();
 
@@ -243,8 +262,14 @@ export default function OrgProjectsPage() {
         setSnackOpen(true);
     };
 
-    const isCreateDisabled = useMemo(() => !name || !key, [name, key]);
-    const isEditDisabled = useMemo(() => !editName || !editKey, [editName, editKey]);
+    const isCreateDisabled = useMemo(
+        () => !name || !key || !regionCode || !operator,
+        [name, key, regionCode, operator]
+    );
+    const isEditDisabled = useMemo(
+        () => !editName || !editKey || !editRegionCode || !editOperator,
+        [editName, editKey, editRegionCode, editOperator]
+    );
 
     // ---- Рендер с учётом доступа ----
     if (!accessChecked) {
@@ -295,6 +320,8 @@ export default function OrgProjectsPage() {
                         const manager =
                             p.managerEmail ??
                             (Array.isArray(p.managers) && p.managers.length > 0 ? p.managers[0] : '—');
+                        const regionLabel = RUSSIAN_REGIONS.find((region) => region.code === p.regionCode)?.name ?? p.regionCode;
+                        const operatorLabel = OPERATORS.find((item) => item.value === p.operator)?.label ?? p.operator;
 
                         return (
                             <Grid key={p._id} item xs={12} md={6} lg={4}>
@@ -356,6 +383,12 @@ export default function OrgProjectsPage() {
                                         <Typography variant="body2" color="text.secondary">
                                             Менеджер: <strong>{manager}</strong>
                                         </Typography>
+                                        <Typography variant="body2" color="text.secondary" sx={{ mt: 0.5 }}>
+                                            Регион: <strong>{regionLabel}</strong>
+                                        </Typography>
+                                        <Typography variant="body2" color="text.secondary">
+                                            Оператор: <strong>{operatorLabel}</strong>
+                                        </Typography>
                                     </Box>
                                 </Paper>
                             </Grid>
@@ -391,6 +424,42 @@ export default function OrgProjectsPage() {
                         value={description}
                         onChange={(e) => setDescription(e.target.value)}
                     />
+                    <Box sx={{ mt: 3 }}>
+                        <Autocomplete
+                            options={RUSSIAN_REGIONS}
+                            value={
+                                RUSSIAN_REGIONS.find((region) => region.code === regionCode) ?? null
+                            }
+                            onChange={(_, value) => setRegionCode(value?.code ?? '')}
+                            getOptionLabel={(option) => option.name}
+                            renderInput={(params) => <TextField {...params} label="Регион" />}
+                        />
+                    </Box>
+                    <Box sx={{ mt: 2 }}>
+                        <Autocomplete
+                            options={OPERATORS}
+                            value={OPERATORS.find((item) => item.value === operator) ?? null}
+                            onChange={(_, value) => setOperator(value?.value ?? '')}
+                            getOptionLabel={(option) => option.name}
+                            renderOption={(props, option) => (
+                                <li {...props} key={option.value}>
+                                    <Stack
+                                        direction="row"
+                                        spacing={1}
+                                        alignItems="center"
+                                        justifyContent="space-between"
+                                        sx={{ width: '100%' }}
+                                    >
+                                        <Typography>{option.name}</Typography>
+                                        <Typography variant="body2" color="text.secondary">
+                                            {option.visibleCode}
+                                        </Typography>
+                                    </Stack>
+                                </li>
+                            )}
+                            renderInput={(params) => <TextField {...params} label="Оператор" />}
+                        />
+                    </Box>
                 </DialogContent>
                 <DialogActions>
                     <Button onClick={() => setOpenCreate(false)}>Отмена</Button>
@@ -427,6 +496,43 @@ export default function OrgProjectsPage() {
                         value={editDescription}
                         onChange={(e) => setEditDescription(e.target.value)}
                     />
+                    <Box sx={{ mt: 3 }}>
+                        <Autocomplete
+                            options={RUSSIAN_REGIONS}
+                            value={
+                                RUSSIAN_REGIONS.find((region) => region.code === editRegionCode) ??
+                                null
+                            }
+                            onChange={(_, value) => setEditRegionCode(value?.code ?? '')}
+                            getOptionLabel={(option) => option.name}
+                            renderInput={(params) => <TextField {...params} label="Регион" />}
+                        />
+                    </Box>
+                    <Box sx={{ mt: 2 }}>
+                        <Autocomplete
+                            options={OPERATORS}
+                            value={OPERATORS.find((item) => item.value === editOperator) ?? null}
+                            onChange={(_, value) => setEditOperator(value?.value ?? '')}
+                            getOptionLabel={(option) => option.name}
+                            renderOption={(props, option) => (
+                                <li {...props} key={option.value}>
+                                    <Stack
+                                        direction="row"
+                                        spacing={1}
+                                        alignItems="center"
+                                        justifyContent="space-between"
+                                        sx={{ width: '100%' }}
+                                    >
+                                        <Typography>{option.name}</Typography>
+                                        <Typography variant="body2" color="text.secondary">
+                                            {option.visibleCode}
+                                        </Typography>
+                                    </Stack>
+                                </li>
+                            )}
+                            renderInput={(params) => <TextField {...params} label="Оператор" />}
+                        />
+                    </Box>
                 </DialogContent>
                 <DialogActions>
                     <Button onClick={() => setOpenEdit(false)}>Отмена</Button>

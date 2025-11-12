@@ -1,7 +1,7 @@
 // src/app/workspace/components/ProjectTaskList.tsx
 'use client';
 
-import React, { useMemo, useState, useEffect } from 'react';
+import React, { useMemo, useState, useEffect, forwardRef, useImperativeHandle } from 'react';
 import { useRouter } from 'next/navigation';
 import {
     Box, Table, TableBody, TableCell, TableContainer, TableHead, TableRow, Typography,
@@ -11,16 +11,14 @@ import {
     ListItemIcon as MListItemIcon, ListItemText as MListItemText,
 } from '@mui/material';
 import Autocomplete from '@mui/material/Autocomplete';
-import ViewColumnIcon from '@mui/icons-material/ViewColumn';
 import FilterListIcon from '@mui/icons-material/FilterList';
-import FilterAltIcon from '@mui/icons-material/FilterAlt';
 import PersonSearchIcon from '@mui/icons-material/PersonSearch';
 import OpenInNewIcon from '@mui/icons-material/OpenInNew';
 import EditIcon from '@mui/icons-material/Edit';
 import DeleteOutlineIcon from '@mui/icons-material/DeleteOutline';
 
 import { getStatusColor } from '@/utils/statusColors';
-import { getPriorityIcon, normalizePriority, type Priority as Pri } from '@/utils/priorityIcons';
+import { getPriorityIcon, getPriorityLabelRu, normalizePriority, type Priority as Pri } from '@/utils/priorityIcons';
 
 import { LocalizationProvider } from '@mui/x-date-pickers/LocalizationProvider';
 import { AdapterDateFns } from '@mui/x-date-pickers/AdapterDateFns';
@@ -49,6 +47,17 @@ const STATUS_ORDER: StatusTitle[] = [
     'Fixed',
     'Agreed',
 ];
+
+const STATUS_LABELS_RU: Record<StatusTitle, string> = {
+    'To do': 'К выполнению',
+    Assigned: 'Назначена',
+    'At work': 'В работе',
+    Done: 'Выполнено',
+    Pending: 'На проверке',
+    Issues: 'Есть замечания',
+    Fixed: 'Исправлено',
+    Agreed: 'Согласовано',
+};
 
 type Priority = 'urgent' | 'high' | 'medium' | 'low';
 
@@ -115,22 +124,26 @@ const getInitials = (s?: string) =>
         .map((w) => w[0]?.toUpperCase())
         .join('') || '•';
 
-/* ───────────── компонент ───────────── */
-export default function ProjectTaskList({
-                                            items,
-                                            loading,
-                                            error,
-                                            org,
-                                            project,
-                                            onReloadAction,
-                                        }: {
+export interface ProjectTaskListHandle {
+    toggleFilters: () => void;
+    openColumns: (anchor: HTMLElement) => void;
+    closeColumns: () => void;
+    showFilters: boolean;
+}
+
+type ProjectTaskListProps = {
     items: Task[];
     loading: boolean;
     error: string | null;
     org: string;
     project: string;
     onReloadAction?: () => void;
-}) {
+    onFilterToggleChange?: (visible: boolean) => void;
+};
+
+/* ───────────── компонент ───────────── */
+const ProjectTaskList = forwardRef<ProjectTaskListHandle, ProjectTaskListProps>(
+    ({ items, loading, error, org, project, onReloadAction, onFilterToggleChange }, ref) => {
 
     const router = useRouter();
 
@@ -165,7 +178,6 @@ export default function ProjectTaskList({
         setAnchorEl(null);
         setCurrentFilter('');
     };
-    const handleColumnsIconClick = (e: React.MouseEvent<HTMLElement>) => setColumnsAnchor(e.currentTarget);
     const closeColumnsPopover = () => setColumnsAnchor(null);
 
     const [page, setPage] = useState(1);
@@ -295,6 +307,21 @@ export default function ProjectTaskList({
         }
     };
 
+    useImperativeHandle(
+        ref,
+        () => ({
+            toggleFilters: () => setShowFilters((v) => !v),
+            openColumns: (anchor) => setColumnsAnchor(anchor),
+            closeColumns: () => setColumnsAnchor(null),
+            showFilters,
+        }),
+        [showFilters]
+    );
+
+    useEffect(() => {
+        onFilterToggleChange?.(showFilters);
+    }, [showFilters, onFilterToggleChange]);
+
     if (loading) {
         return (
             <Box sx={{ p: 3, textAlign: 'center' }}>
@@ -309,64 +336,46 @@ export default function ProjectTaskList({
     return (
         <LocalizationProvider dateAdapter={AdapterDateFns}>
             <Box>
-                {/* верхняя панель */}
-                <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.5, px: 1, pb: 1 }}>
-                    <Tooltip title="Управление колонками">
-                        <IconButton onClick={handleColumnsIconClick}>
-                            <ViewColumnIcon />
-                        </IconButton>
-                    </Tooltip>
 
-                    <Tooltip title="Добавить фильтр">
-                        <IconButton
-                            onClick={() => setShowFilters((v) => !v)}
-                            color={showFilters ? 'primary' : 'default'}
-                            aria-label="toggle filters"
-                        >
-                            <FilterAltIcon />
-                        </IconButton>
-                    </Tooltip>
-
-                    {activeFiltersCount > 0 && (
-                        <Box sx={{ display: 'flex', gap: 1, flexWrap: 'wrap' }}>
-                            {statusFilter && (
-                                <Chip
-                                    size="small"
-                                    color="primary"
-                                    label={`Status: ${statusFilter}`}
-                                    onDelete={() => setStatusFilter('')}
-                                />
-                            )}
-                            {priorityFilter && (
-                                <Chip
-                                    size="small"
-                                    color="primary"
-                                    label={`Priority: ${priorityFilter}`}
-                                    onDelete={() => setPriorityFilter('')}
-                                />
-                            )}
-                            {executorFilter && (
-                                <Chip
-                                    size="small"
-                                    color="primary"
-                                    label={`Executor: ${executorFilter}`}
-                                    onDelete={() => setExecutorFilter(null)}
-                                />
-                            )}
-                            {(dueFrom || dueTo) && (
-                                <Chip
-                                    size="small"
-                                    color="primary"
-                                    label={`Due: ${dueFrom ? dueFrom.toLocaleDateString() : '…'} – ${dueTo ? dueTo.toLocaleDateString() : '…'}`}
-                                    onDelete={() => {
-                                        setDueFrom(null);
-                                        setDueTo(null);
-                                    }}
-                                />
-                            )}
-                        </Box>
-                    )}
-                </Box>
+                {showFilters && activeFiltersCount > 0 && (
+                    <Box sx={{ display: 'flex', gap: 1, flexWrap: 'wrap', px: 1, pb: 1 }}>
+                        {statusFilter && (
+                            <Chip
+                                size="small"
+                                color="primary"
+                                label={`Статус: ${STATUS_LABELS_RU[statusFilter] ?? statusFilter}`}
+                                onDelete={() => setStatusFilter('')}
+                            />
+                        )}
+                        {priorityFilter && (
+                            <Chip
+                                size="small"
+                                color="primary"
+                                label={`Priority: ${priorityFilter}`}
+                                onDelete={() => setPriorityFilter('')}
+                            />
+                        )}
+                        {executorFilter && (
+                            <Chip
+                                size="small"
+                                color="primary"
+                                label={`Executor: ${executorFilter}`}
+                                onDelete={() => setExecutorFilter(null)}
+                            />
+                        )}
+                        {(dueFrom || dueTo) && (
+                            <Chip
+                                size="small"
+                                color="primary"
+                                label={`Due: ${dueFrom ? dueFrom.toLocaleDateString() : '…'} – ${dueTo ? dueTo.toLocaleDateString() : '…'}`}
+                                onDelete={() => {
+                                    setDueFrom(null);
+                                    setDueTo(null);
+                                }}
+                            />
+                        )}
+                    </Box>
+                )}
 
                 <TableContainer component={Box}>
                     <Table size="small">
@@ -377,7 +386,11 @@ export default function ProjectTaskList({
                                         <strong>ID</strong>
                                     </TableCell>
                                 )}
-                                {columnVisibility.task && <TableCell><strong>Задача</strong></TableCell>}
+                                {columnVisibility.task && (
+                                    <TableCell sx={{ minWidth: 280, width: '28%' }}>
+                                        <strong>Задача</strong>
+                                    </TableCell>
+                                )}
                                 {columnVisibility.status && (
                                     <TableCell width={200} align="center">
                                         <Box sx={{ display: 'inline-flex', alignItems: 'center', gap: 0.5 }}>
@@ -508,7 +521,7 @@ export default function ProjectTaskList({
                                             <TableCell align="center">
                                                 <Chip
                                                     size="small"
-                                                    label={statusTitle}
+                                                    label={STATUS_LABELS_RU[statusTitle] ?? statusTitle}
                                                     variant="outlined"
                                                     sx={{ backgroundColor: getStatusColor(statusTitle), color: '#fff', borderColor: 'transparent' }}
                                                 />
@@ -517,10 +530,17 @@ export default function ProjectTaskList({
 
                                         {columnVisibility.priority && (
                                             <TableCell align="center">
-                                                <Stack direction="row" spacing={0.5} alignItems="center" justifyContent="center">
-                                                    {getPriorityIcon(safePriority)}
-                                                    <Typography variant="body2">{safePriority}</Typography>
-                                                </Stack>
+                                                {getPriorityIcon(safePriority) ? (
+                                                    <Tooltip title={getPriorityLabelRu(safePriority)}>
+                                                        <Box component="span" sx={{ display: 'inline-flex', alignItems: 'center' }}>
+                                                            {getPriorityIcon(safePriority)}
+                                                        </Box>
+                                                    </Tooltip>
+                                                ) : (
+                                                    <Typography variant="body2" color="text.secondary">
+                                                        —
+                                                    </Typography>
+                                                )}
                                             </TableCell>
                                         )}
 
@@ -606,11 +626,11 @@ export default function ProjectTaskList({
                                     autoFocus
                                 >
                                     <MenuItem value="">
-                                        <em>All</em>
+                                        <em>Все</em>
                                     </MenuItem>
                                     {STATUS_ORDER.map((s) => (
                                         <MenuItem key={s} value={s}>
-                                            {s}
+                                            {STATUS_LABELS_RU[s] ?? s}
                                         </MenuItem>
                                     ))}
                                 </Select>
@@ -818,7 +838,11 @@ export default function ProjectTaskList({
             </Box>
         </LocalizationProvider>
     );
-}
+});
+
+ProjectTaskList.displayName = 'ProjectTaskList';
+
+export default ProjectTaskList;
 
 /* helpers */
 function startOfDay(d: Date) {

@@ -6,6 +6,8 @@ import dbConnect from '@/utils/mongoose';
 import Project from '@/app/models/ProjectModel';
 import Subscription from '@/app/models/SubscriptionModel';
 import { requireOrgRole } from '@/app/utils/permissions';
+import { RUSSIAN_REGIONS } from '@/app/utils/regions';
+import { OPERATORS } from '@/app/utils/operators';
 
 export const runtime = 'nodejs';
 export const dynamic = 'force-dynamic';
@@ -24,10 +26,18 @@ type ProjectDTO = {
     description?: string;
     managers?: string[];
     managerEmail?: string | null;
+    regionCode: string;
+    operator: string;
 };
 
 type ProjectsResponse = { projects: ProjectDTO[] } | { error: string };
-type CreateProjectBody = { name: string; key: string; description?: string };
+type CreateProjectBody = {
+    name: string;
+    key: string;
+    description?: string;
+    regionCode: string;
+    operator: string;
+};
 type CreateProjectResponse = { ok: true; project: ProjectDTO } | { error: string };
 
 // Lean-тип для документов проекта
@@ -37,6 +47,8 @@ interface ProjectLean {
     key: string;
     description?: string;
     managers?: string[];
+    regionCode: string;
+    operator: string;
 }
 
 export async function GET(
@@ -61,7 +73,7 @@ export async function GET(
 
         const rows = await Project.find(
             { orgId: orgDoc._id },
-            { name: 1, key: 1, description: 1, managers: 1 }
+            { name: 1, key: 1, description: 1, managers: 1, regionCode: 1, operator: 1 }
         ).lean<ProjectLean[]>();
 
         const projects: ProjectDTO[] = rows.map((p: ProjectLean) => {
@@ -73,6 +85,8 @@ export async function GET(
                 description: p.description,
                 managers,
                 managerEmail: managers[0] ?? null,
+                regionCode: p.regionCode,
+                operator: p.operator,
             };
         });
 
@@ -106,8 +120,11 @@ export async function POST(
         const body = (await request.json()) as CreateProjectBody;
         const name = body?.name?.trim();
         const key = body?.key?.trim();
-        if (!name || !key) {
-            return NextResponse.json({ error: 'name и key обязательны' }, { status: 400 });
+        const isValidRegion = RUSSIAN_REGIONS.some((region) => region.code === body.regionCode);
+        const isValidOperator = OPERATORS.some((operator) => operator.value === body.operator);
+
+        if (!name || !key || !isValidRegion || !isValidOperator) {
+            return NextResponse.json({ error: 'Укажите name, key, regionCode и operator' }, { status: 400 });
         }
 
         const created = await Project.create({
@@ -117,6 +134,8 @@ export async function POST(
             description: body?.description,
             managers: [email],
             createdByEmail: email,
+            regionCode: body.regionCode,
+            operator: body.operator,
         });
 
         // Извлекаем managers
@@ -131,6 +150,8 @@ export async function POST(
             description: created.description,
             managers: createdManagers,
             managerEmail: createdManagers[0] ?? email,
+            regionCode: created.regionCode,
+            operator: created.operator,
         };
 
         return NextResponse.json({ ok: true, project });

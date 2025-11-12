@@ -11,7 +11,6 @@ import {
   CircularProgress,
   Chip,
   Link,
-  TextField,
 } from '@mui/material';
 import {
   draggable,
@@ -28,7 +27,9 @@ import {
 import TaskOutlinedIcon from '@mui/icons-material/TaskOutlined';
 import Tooltip from '@mui/material/Tooltip';
 import { getStatusColor } from '@/utils/statusColors';
-import { GetCurrentUserFromMongoDB } from '@/server-actions/users';
+import { fetchUserContext, resolveRoleFromContext } from '@/app/utils/userContext';
+import type { EffectiveOrgRole } from '@/app/types/roles';
+import { isAdminRole } from '@/app/utils/roleGuards';
 
 // Формат dd.mm.yyyy (ru-RU)
 const formatDateRU = (value?: Date | string) => {
@@ -60,15 +61,20 @@ type CurrentStatus =
   | 'Fixed'
   | 'Agreed';
 
-function DraggableTask({ task, role }: { task: Task; role: string }) {
+interface TaskColumnPageProps {
+  searchQuery?: string;
+  projectFilter?: string;
+  refreshToken?: number;
+}
+
+function DraggableTask({ task, role }: { task: Task; role: EffectiveOrgRole | null }) {
   const ref = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
     const element = ref.current;
     if (!element) return;
 
-    // Отключаем DnD для не-админов
-    if (role !== 'admin') return;
+    if (!isAdminRole(role)) return;
 
     return draggable({
       element,
@@ -101,8 +107,8 @@ function DraggableTask({ task, role }: { task: Task; role: string }) {
         ref={ref}
         sx={{
           mb: 2,
-          cursor: role === 'admin' ? 'grab' : 'default',
-          '&:active': { cursor: role === 'admin' ? 'grabbing' : 'default' },
+          cursor: isAdminRole(role) ? 'grab' : 'default',
+          '&:active': { cursor: isAdminRole(role) ? 'grabbing' : 'default' },
           boxShadow: 2,
         }}
       >
@@ -119,6 +125,9 @@ function DraggableTask({ task, role }: { task: Task; role: string }) {
           <Box sx={{ display: 'flex', justifyContent: 'space-between', mb: 1 }}>
             <Typography variant='body2'>BS: {task.bsNumber}</Typography>
           </Box>
+          <Typography variant='caption' color='text.secondary'>
+            Проект: {task.projectKey || '—'}
+          </Typography>
           <Typography variant='caption' color='text.primary'>
             Due date: {formatDateRU(task.dueDate) || '—'}
           </Typography>
@@ -159,7 +168,7 @@ function DroppableColumn({
 }: {
   status: CurrentStatus;
   tasks: Task[];
-  role: string;
+  role: EffectiveOrgRole | null;
 }) {
   const ref = useRef<HTMLDivElement>(null);
   const [isDraggingOver, setIsDraggingOver] = useState(false);
@@ -168,8 +177,7 @@ function DroppableColumn({
     const element = ref.current;
     if (!element) return;
 
-    // Отключаем DnD для не-админов
-    if (role !== 'admin') return;
+    if (!isAdminRole(role)) return;
 
     return dropTargetForElements({
       element,
@@ -204,16 +212,20 @@ function DroppableColumn({
   );
 }
 
-export default function TaskColumnPage() {
+export default function TaskColumnPage({
+  searchQuery = '',
+  projectFilter = '',
+  refreshToken = 0,
+}: TaskColumnPageProps) {
   const [tasks, setTasks] = useState<Task[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
-  const [role, setRole] = useState<string>('');
-  const [searchQuery, setSearchQuery] = useState('');
+  const [role, setRole] = useState<EffectiveOrgRole | null>(null);
 
   useEffect(() => {
     const fetchTasks = async () => {
       try {
+        setLoading(true);
         const response = await fetch('/api/tasks');
         const data = await response.json();
 
@@ -234,10 +246,9 @@ export default function TaskColumnPage() {
 
     const fetchUserRole = async () => {
       try {
-        const userResponse = await GetCurrentUserFromMongoDB();
-        if (userResponse.success && userResponse.data) {
-          setRole(userResponse.data.role);
-        }
+        const userContext = await fetchUserContext();
+        const resolvedRole = resolveRoleFromContext(userContext);
+        setRole(resolvedRole ?? null);
       } catch (error) {
         console.error('Error fetching user role:', error);
       }
@@ -246,13 +257,12 @@ export default function TaskColumnPage() {
     void fetchTasks();
     void fetchUserRole();
 
-  }, []);
+  }, [refreshToken]);
 
   useEffect(() => {
     return monitorForElements({
       onDrop: ({ source, location }) => {
-        // Проверяем роль пользователя
-        if (role !== 'admin') return;
+        if (!isAdminRole(role)) return;
 
         const destination = location.current.dropTargets[0];
         if (!destination) return;
@@ -275,16 +285,36 @@ export default function TaskColumnPage() {
     });
   }, [role]);
 
-  const filteredTasks = useMemo(() => {
-    if (!searchQuery) return tasks;
+  const normalizedSearch = searchQuery.trim().toLowerCase();
+  const normalizedProject = projectFilter.trim().toLowerCase();
 
-    const query = searchQuery.toLowerCase();
-    return tasks.filter(
-      (task) =>
-        task.bsNumber.toLowerCase().includes(query) ||
-        task.taskName.toLowerCase().includes(query)
-    );
-  }, [tasks, searchQuery]);
+  const filteredTasks = useMemo(() => {
+    let result = tasks;
+
+    if (normalizedProject) {
+      result = result.filter(
+        (task) => (task.projectKey || '').toLowerCase() === normalizedProject
+      );
+    }
+
+    if (normalizedSearch) {
+      result = result.filter((task) => {
+        const haystack = [
+          task.taskId,
+          task.taskName,
+          task.bsNumber,
+          task.projectKey,
+          task.projectName,
+        ]
+          .filter(Boolean)
+          .join(' ')
+          .toLowerCase();
+        return haystack.includes(normalizedSearch);
+      });
+    }
+
+    return result;
+  }, [tasks, normalizedSearch, normalizedProject]);
 
   if (loading)
     return (
@@ -303,19 +333,6 @@ export default function TaskColumnPage() {
 
   return (
     <Box>
-      {/* Добавляем поле поиска */}
-      <Box sx={{ p: 2 }}>
-        <TextField
-          label='Search by BS number or task name'
-          variant='outlined'
-          fullWidth
-          size='small'
-          value={searchQuery}
-          onChange={(e) => setSearchQuery(e.target.value)}
-          sx={{ mb: 0 }}
-        />
-      </Box>
-
       <Box
         sx={{
           display: 'flex',

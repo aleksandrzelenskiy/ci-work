@@ -32,9 +32,11 @@ import FolderIcon from '@mui/icons-material/Folder';
 
 import { getStatusColor } from '@/utils/statusColors';
 import { BaseStatus, ReportClient, ApiResponse } from '@/app/types/reportTypes';
+import type { EffectiveOrgRole } from '@/app/types/roles';
+import { isAdminRole } from '@/app/utils/roleGuards';
 
 interface MiniReportsListProps {
-  role: string; // 'admin' | 'author' | 'initiator' | 'executor'
+  role: EffectiveOrgRole | null;
   clerkUserId: string; // текущий userId (из Clerk)
 }
 
@@ -84,21 +86,14 @@ export default function MiniReportsList({
 
   // 2) Фильтрация по роли
   const filteredReports = useMemo(() => {
-    if (role === 'admin' || role === 'manager') {
-      // Админ и Менеджер видит все отчеты
+    if (!role) return reports;
+    if (isAdminRole(role) || role === 'manager' || role === 'viewer') {
       return reports;
-    } else if (role === 'author') {
-      // Author видит те, где report.authorId === clerkUserId
-      return reports.filter((rep) => rep.authorId === clerkUserId);
-    } else if (role === 'initiator') {
-      // Initiator видит те, где initiatorId === clerkUserId
-      return reports.filter((rep) => rep.initiatorId === clerkUserId);
-    } else if (role === 'executor') {
-      // Executor видит те, где executorId === clerkUserId
+    }
+    if (role === 'executor') {
       return reports.filter((rep) => rep.executorId === clerkUserId);
     }
-    // Если какая-то иная роль – можно вернуть []
-    return [];
+    return reports;
   }, [role, clerkUserId, reports]);
 
   // 3) Сортируем по createdAt (самые свежие – сверху)

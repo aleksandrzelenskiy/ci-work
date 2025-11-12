@@ -71,6 +71,8 @@ export interface Task {
   _id?: string;
   orgId?: string;
   projectId?: string;
+  projectKey?: string;
+  projectName?: string;
   taskId: string;
   taskName: string;
 

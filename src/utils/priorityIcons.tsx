@@ -18,6 +18,13 @@ const PRIORITY_COLOR: Record<Priority, string> = {
 
 export const PRIORITY_ORDER: Priority[] = ['urgent', 'high', 'medium', 'low'];
 
+const PRIORITY_LABEL_RU: Record<Priority, string> = {
+    urgent: 'Срочный',
+    high: 'Высокий',
+    medium: 'Средний',
+    low: 'Низкий',
+};
+
 export function normalizePriority(p?: string): Priority | null {
     if (!p) return null;
     const v = p.toString().trim().toLowerCase();
@@ -43,4 +50,10 @@ export function getPriorityIcon(priority?: string | null, sx?: SxProps<Theme>) {
         default:
             return null;
     }
+}
+
+export function getPriorityLabelRu(priority?: string | null): string {
+    const normalized = normalizePriority(priority ?? '');
+    if (!normalized) return '';
+    return PRIORITY_LABEL_RU[normalized];
 }

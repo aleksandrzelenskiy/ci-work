@@ -37,6 +37,9 @@ import StorageIcon from '@mui/icons-material/Storage';
 import Badge from '@mui/material/Badge'
 import { useRouter } from 'next/navigation';
 import UserMenu from './components/UserMenu';
+import { fetchUserContext, resolveRoleFromContext } from '@/app/utils/userContext';
+import type { EffectiveOrgRole } from '@/app/types/roles';
+import { isExecutorRole } from '@/app/utils/roleGuards';
 
 const ThemeContext = createContext({
   toggleTheme: () => {},
@@ -47,16 +50,13 @@ export const useThemeContext = () => useContext(ThemeContext);
 
 export default function ClientApp({ children }: { children: React.ReactNode }) {
   const [mode, setMode] = useState<'light' | 'dark'>('light');
-  const [userRole, setUserRole] = useState<string | null>(null);
+  const [userRole, setUserRole] = useState<EffectiveOrgRole | null>(null);
 
   useEffect(() => {
     const fetchUserRole = async () => {
-      try {
-        const response = await fetch('/api/current-user');
-        const data = await response.json();
-        setUserRole(data.role);
-      } catch (error) {
-        console.error('Error fetching user role:', error);
+      const data = await fetchUserContext();
+      if (data) {
+        setUserRole(resolveRoleFromContext(data));
       }
     };
 
@@ -170,7 +170,7 @@ export default function ClientApp({ children }: { children: React.ReactNode }) {
           <ListItemText primary='T2 IR Objects' />
         </ListItemButton>
 
-        {userRole !== 'executor' && (
+        {!isExecutorRole(userRole) && (
           <ListItemButton
             onClick={() => handleNavigation('/estimates')}
             sx={{ paddingLeft: 5 }}

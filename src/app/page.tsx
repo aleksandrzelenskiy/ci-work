@@ -2,15 +2,13 @@
 
 import React from 'react';
 import { Box, Typography } from '@mui/material';
-import { GetCurrentUserFromMongoDB } from 'src/server-actions/users';
+import { GetUserContext } from '@/server-actions/user-context';
 import AdminDashboard from '@/app/components/dashboards/AdminDashboard';
 import ManagerDashboard from '@/app/components/dashboards/ManagerDashboard';
-import AuthorDashboard from '@/app/components/dashboards/AuthorDashboard';
-import InitiatorDashboard from '@/app/components/dashboards/InitiatorDashboard';
 import ExecutorDashboard from '@/app/components/dashboards/ExecutorDashboard';
 
 const DashboardPage: React.FC = async () => {
-  const response = await GetCurrentUserFromMongoDB();
+  const response = await GetUserContext();
   if (!response || !response.success) {
     return (
       <Box className='p-4 md:p-8' sx={{ minHeight: '100vh' }}>
@@ -21,8 +19,10 @@ const DashboardPage: React.FC = async () => {
     );
   }
 
-  const user = response.data;
-  const { name, email, clerkUserId, role } = user;
+  const { user, activeMembership, effectiveOrgRole } = response.data;
+  const { name, email, clerkUserId } = user;
+  const role = effectiveOrgRole || activeMembership?.role || 'viewer';
+  const adminRoles = new Set(['super_admin', 'owner', 'org_admin']);
 
   return (
     <Box sx={{ minHeight: '100vh' }}>
@@ -37,21 +37,15 @@ const DashboardPage: React.FC = async () => {
       </Box>
 
       {/* Рендерим нужный Dashboard с передачей role и clerkUserId */}
-      {role === 'admin' && (
+      {adminRoles.has(role) && (
         <AdminDashboard role={role} clerkUserId={clerkUserId} />
       )}
       {role === 'manager' && (
         <ManagerDashboard role={role} clerkUserId={clerkUserId} />
       )}
-      {role === 'author' && (
-        <AuthorDashboard role={role} clerkUserId={clerkUserId} />
-      )}
-      {role === 'initiator' && (
-        <InitiatorDashboard role={role} clerkUserId={clerkUserId} />
-      )}
-      {role === 'executor' && (
+      {role === 'executor' || role === 'viewer' ? (
         <ExecutorDashboard role={role} clerkUserId={clerkUserId} />
-      )}
+      ) : null}
     </Box>
   );
 };

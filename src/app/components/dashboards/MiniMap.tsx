@@ -9,9 +9,11 @@ import Link from 'next/link';
 import MapIcon from '@mui/icons-material/Map';
 
 import { Task, BsLocation } from '@/app/types/taskTypes';
+import type { EffectiveOrgRole } from '@/app/types/roles';
+import { isAdminRole } from '@/app/utils/roleGuards';
 
 interface MiniMapProps {
-  role: string; // admin | manager | author | initiator | executor
+  role: EffectiveOrgRole | null; // admin | manager | executor | viewer
   clerkUserId: string; // Текущий userId пользователя (из Clerk)
 }
 
@@ -45,21 +47,14 @@ export default function MiniMap({ role, clerkUserId }: MiniMapProps) {
 
   // 2. Фильтруем задачи на клиенте
   const filteredTasks = useMemo(() => {
-    if (role === 'admin' || role === 'manager') {
-      // Админ и Менеджер видит все задачи
+    if (!role) return tasks;
+    if (isAdminRole(role) || role === 'manager' || role === 'viewer') {
       return tasks;
-    } else if (role === 'author') {
-      // Author видит задачи, где authorId совпадает с clerkUserId
-      return tasks.filter((t) => t.authorId === clerkUserId);
-    } else if (role === 'initiator') {
-      // Initiator видит задачи, где initiatorId совпадает с clerkUserId
-      return tasks.filter((t) => t.initiatorId === clerkUserId);
-    } else if (role === 'executor') {
-      // Executor видит задачи, где executorId совпадает с clerkUserId
+    }
+    if (role === 'executor') {
       return tasks.filter((t) => t.executorId === clerkUserId);
     }
-    // если какая-то иная роль, вернём пустой массив
-    return [];
+    return tasks;
   }, [role, clerkUserId, tasks]);
 
   if (loading) {

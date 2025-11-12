@@ -9,9 +9,10 @@ import MiniTaskTable from '@/app/components/dashboards/MiniTaskTable';
 import MiniReportsList from '@/app/components/dashboards/MiniReportsList';
 import FinancialMetrics from '@/app/components/dashboards/FinancialMetrics';
 import TaskMetricDiagram from './TaskMetricDiagram';
+import type { EffectiveOrgRole } from '@/app/types/roles';
 
 interface AdminDashboardProps {
-  role: string;
+  role: EffectiveOrgRole | null;
   clerkUserId: string;
 }
 

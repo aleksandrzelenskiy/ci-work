@@ -27,9 +27,11 @@ import KeyboardDoubleArrowUpIcon from '@mui/icons-material/KeyboardDoubleArrowUp
 
 import { Task } from '@/app/types/taskTypes';
 import { getStatusColor } from '@/utils/statusColors';
+import type { EffectiveOrgRole } from '@/app/types/roles';
+import { isAdminRole } from '@/app/utils/roleGuards';
 
 interface MiniTaskTableProps {
-  role: string;
+  role: EffectiveOrgRole | null;
   clerkUserId: string;
 }
 
@@ -82,20 +84,14 @@ export default function MiniTaskTable({
 
   // 2. Фильтруем задачи
   const filteredTasks = useMemo(() => {
-    if (role === 'admin' || role === 'manager') {
-      // Админ и Менеджер видит все задачи
+    if (!role) return tasks;
+    if (isAdminRole(role) || role === 'manager' || role === 'viewer') {
       return tasks;
-    } else if (role === 'author') {
-      // Автор видит задачи, где authorId == clerkUserId
-      return tasks.filter((t) => t.authorId === clerkUserId);
-    } else if (role === 'initiator') {
-      // Инициатор видит задачи, где initiatorId == clerkUserId
-      return tasks.filter((t) => t.initiatorId === clerkUserId);
-    } else if (role === 'executor') {
-      // Исполнитель видит задачи, где executorId == clerkUserId
+    }
+    if (role === 'executor') {
       return tasks.filter((t) => t.executorId === clerkUserId);
     }
-    return [];
+    return tasks;
   }, [role, clerkUserId, tasks]);
 
   // 3. Сортируем по дате создания (createdAt) в убывающем порядке (самые свежие сверху)

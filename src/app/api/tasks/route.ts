@@ -3,7 +3,9 @@
 import { NextResponse } from 'next/server';
 import dbConnect from '@/utils/mongoose';
 import TaskModel from '@/app/models/TaskModel';
-import { GetCurrentUserFromMongoDB } from '@/server-actions/users';
+import ProjectModel from '@/app/models/ProjectModel';
+import mongoose from 'mongoose';
+import { GetUserContext } from '@/server-actions/user-context';
 
 interface Location {
   coordinates: [number, number];
@@ -22,33 +24,74 @@ export async function GET() {
   }
 
   try {
-    const userResponse = await GetCurrentUserFromMongoDB();
+    const userContext = await GetUserContext();
 
-    if (!userResponse.success || !userResponse.data) {
+    if (!userContext.success || !userContext.data) {
       return NextResponse.json(
         { error: 'Failed to fetch user data' },
         { status: 500 }
       );
     }
 
-    const user = userResponse.data;
+    const { user, effectiveOrgRole, isSuperAdmin, activeOrgId } =
+      userContext.data;
     const clerkUserId = user.clerkUserId;
-    const role = user.role;
+    const userEmail = user.email?.toLowerCase();
 
-    let filter = {};
+    const matchStage: Record<string, unknown> = {};
 
-    // В зависимости от роли пользователя добавляем соответствующий фильтр
-    if (role === 'executor') {
-      filter = { executorId: clerkUserId };
-    } else if (role === 'initiator') {
-      filter = { initiatorId: clerkUserId };
-    } else if (role === 'author') {
-      filter = { authorId: clerkUserId };
+    if (isSuperAdmin) {
+      // полный доступ, без ограничений
+    } else if (effectiveOrgRole === 'executor') {
+      matchStage.executorId = clerkUserId;
+    } else {
+      if (!activeOrgId || !effectiveOrgRole) {
+        return NextResponse.json({ tasks: [] });
+      }
+
+      let orgObjectId: mongoose.Types.ObjectId;
+      try {
+        orgObjectId = new mongoose.Types.ObjectId(activeOrgId);
+      } catch (error) {
+        console.error('Invalid activeOrgId provided', error);
+        return NextResponse.json({ tasks: [] });
+      }
+
+      matchStage.orgId = orgObjectId;
+
+      switch (effectiveOrgRole) {
+        case 'owner':
+        case 'org_admin':
+          break;
+        case 'manager': {
+          if (!userEmail) {
+            return NextResponse.json({ tasks: [] });
+          }
+
+          const projectDocs = await ProjectModel.find({
+            orgId: orgObjectId,
+            managers: userEmail,
+          })
+            .select('_id')
+            .lean();
+
+          if (projectDocs.length === 0) {
+            return NextResponse.json({ tasks: [] });
+          }
+
+          matchStage.projectId = {
+            $in: projectDocs.map((p) => p._id),
+          };
+          break;
+        }
+        default:
+          return NextResponse.json({ tasks: [] });
+      }
     }
 
     const tasks = await TaskModel.aggregate([
       {
-        $match: filter, // Применяем фильтр
+        $match: matchStage,
       },
       {
         $addFields: {
@@ -74,13 +117,36 @@ export async function GET() {
         },
       },
       {
+        $lookup: {
+          from: 'projects',
+          localField: 'projectId',
+          foreignField: '_id',
+          as: 'projectDoc',
+        },
+      },
+      {
+        $addFields: {
+          projectKey: { $arrayElemAt: ['$projectDoc.key', 0] },
+          projectName: { $arrayElemAt: ['$projectDoc.name', 0] },
+        },
+      },
+      {
+        $project: {
+          projectDoc: 0,
+        },
+      },
+      {
         $sort: { createdAt: -1 },
       },
     ]);
 
     // Фильтруем задачи, чтобы оставить только те, у которых есть координаты
-    const filteredTasks = tasks.filter((task) =>
-      task.bsLocation.some((location: Location) => location.coordinates)
+    const filteredTasks = tasks.filter(
+      (task) =>
+        Array.isArray(task.bsLocation) &&
+        task.bsLocation.some(
+          (location: Location) => location && location.coordinates
+        )
     );
 
     return NextResponse.json({ tasks: filteredTasks });
@@ -92,4 +158,3 @@ export async function GET() {
     );
   }
 }
-

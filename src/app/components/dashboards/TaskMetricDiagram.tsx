@@ -14,6 +14,8 @@ import Link from 'next/link';
 import { Task } from '@/app/types/taskTypes';
 import { getStatusColor } from '@/utils/statusColors';
 import { useRouter } from 'next/navigation';
+import type { EffectiveOrgRole } from '@/app/types/roles';
+import { isAdminRole } from '@/app/utils/roleGuards';
 
 interface ChartData {
   name: string;
@@ -21,7 +23,7 @@ interface ChartData {
 }
 
 interface TaskMetricDiagramProps {
-  role: string;
+  role: EffectiveOrgRole | null;
   clerkUserId: string;
 }
 
@@ -94,12 +96,11 @@ export default function TaskMetricDiagram({
     );
   }
 
-  // Фильтрация задач по роли (для admin оставляем все)
   let tasksForMetrics = tasks;
-  if (role === 'author') {
-    tasksForMetrics = tasks.filter((t) => t.authorId === clerkUserId);
-  } else if (role === 'initiator') {
-    tasksForMetrics = tasks.filter((t) => t.initiatorId === clerkUserId);
+  if (!role) {
+    tasksForMetrics = tasks;
+  } else if (isAdminRole(role) || role === 'manager' || role === 'viewer') {
+    tasksForMetrics = tasks;
   } else if (role === 'executor') {
     tasksForMetrics = tasks.filter((t) => t.executorId === clerkUserId);
   }

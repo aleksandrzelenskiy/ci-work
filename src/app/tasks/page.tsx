@@ -1,96 +1,263 @@
 // app/tasks/page.tsx
 'use client';
 
-import { useState, useEffect } from 'react';
-import { useRouter } from 'next/navigation';
+import { useState, useEffect, useRef, useCallback, MouseEvent } from 'react';
 import {
     Box,
     Paper,
-    ToggleButtonGroup,
-    ToggleButton,
     Typography,
-    Fab,
+    Tabs,
+    Tab,
+    Stack,
+    TextField,
+    FormControl,
+    InputLabel,
+    Select,
+    MenuItem,
+    IconButton,
+    Tooltip,
+    Popover,
+    InputAdornment,
 } from '@mui/material';
-import AddIcon from '@mui/icons-material/Add';
+import RefreshIcon from '@mui/icons-material/Refresh';
+import SearchIcon from '@mui/icons-material/Search';
+import FilterListIcon from '@mui/icons-material/FilterList';
+import ViewColumnOutlinedIcon from '@mui/icons-material/ViewColumnOutlined';
+import CloseIcon from '@mui/icons-material/Close';
 
-import TaskListPage from '../components/TaskListPage';
+import TaskListPage, { TaskListPageHandle } from '../components/TaskListPage';
 import TaskColumnPage from '../components/TaskColumnPage';
-import TaskCalendarPage from '../components/TaskCalendarPage';
 
-type ViewMode = 'table' | 'kanban' | 'calendar';
+type ViewMode = 'table' | 'kanban';
 
 export default function TasksPage() {
-    const [viewMode, setViewMode] = useState<ViewMode>('table');
-    const [userRole, setUserRole] = useState<string | null>(null);
-    const router = useRouter();
+    const [tab, setTab] = useState<ViewMode>('table');
+    const [searchQuery, setSearchQuery] = useState('');
+    const [projectFilter, setProjectFilter] = useState('');
+    const [projectOptions, setProjectOptions] = useState<string[]>([]);
+    const [refreshToken, setRefreshToken] = useState(0);
+    const [searchAnchor, setSearchAnchor] = useState<HTMLElement | null>(null);
+    const taskListRef = useRef<TaskListPageHandle>(null);
+    const [listFiltersVisible, setListFiltersVisible] = useState(false);
 
-    /* ---- получаем роль пользователя ---- */
+    const searchOpen = Boolean(searchAnchor);
+
+    const handleSearchIconClick = (event: MouseEvent<HTMLElement>) => {
+        if (searchAnchor && event.currentTarget === searchAnchor) {
+            setSearchAnchor(null);
+            return;
+        }
+        setSearchAnchor(event.currentTarget);
+    };
+
+    const handleSearchClose = () => {
+        setSearchAnchor(null);
+    };
+
+    const handleSearchReset = () => {
+        setSearchQuery('');
+        handleSearchClose();
+    };
+
+    const handleFilterToggle = useCallback(() => {
+        if (tab !== 'table') return;
+        taskListRef.current?.toggleFilters();
+    }, [tab]);
+
+    const handleColumnsClick = useCallback(
+        (event: MouseEvent<HTMLElement>) => {
+            if (tab !== 'table') return;
+            taskListRef.current?.openColumns(event.currentTarget);
+        },
+        [tab]
+    );
+
     useEffect(() => {
         (async () => {
             try {
-                const res = await fetch('/api/current-user');
+                const res = await fetch('/api/tasks');
                 const data = await res.json();
-                setUserRole(data.role);
-
-                /* если роль — executor и включён календарь → переключаем на table */
-                if (data.role === 'executor' && viewMode === 'calendar') {
-                    setViewMode('table');
+                const tasks = Array.isArray(data.tasks) ? (data.tasks as Array<{ projectKey?: string | null }>) : [];
+                if (tasks.length > 0) {
+                    const unique = Array.from(
+                        new Set(
+                            tasks
+                                .map((task) => task.projectKey?.trim())
+                                .filter((key): key is string => Boolean(key))
+                        )
+                    );
+                    setProjectOptions(unique);
+                } else {
+                    setProjectOptions([]);
                 }
             } catch (err) {
-                console.error('Error fetching user role:', err);
+                console.error('Error fetching project list', err);
             }
         })();
-    }, [viewMode]);
+    }, [refreshToken]);
+    useEffect(() => {
+        if (projectFilter && projectOptions.length && !projectOptions.includes(projectFilter)) {
+            setProjectFilter('');
+        }
+    }, [projectOptions, projectFilter]);
 
-    /* ---- переход к estimates ---- */
-    const handleAddClick = () => router.push('/estimates');
+    useEffect(() => {
+        if (tab !== 'table' && listFiltersVisible) {
+            setListFiltersVisible(false);
+        }
+    }, [tab, listFiltersVisible]);
 
     return (
-        <Box>
-            {/* ---- переключатель вида ---- */}
-            <Box sx={{ display: 'flex', alignItems: 'center', gap: 2, mb: 2 }}>
-                <Typography variant="body2">Select Mode:</Typography>
-                <ToggleButtonGroup
-                    value={viewMode}
-                    exclusive
-                    onChange={(_, newMode) => newMode && setViewMode(newMode as ViewMode)}
-                    size="small"
-                >
-                    <ToggleButton value="table">Table</ToggleButton>
-                    <ToggleButton value="kanban">Kanban</ToggleButton>
-                    {/* Календарь виден всем, КРОМЕ executor */}
-                    {userRole !== 'executor' && (
-                        <ToggleButton value="calendar">Calendar</ToggleButton>
-                    )}
-                </ToggleButtonGroup>
-            </Box>
-
-            {/* ---- контент ---- */}
-            <Paper
-                sx={{
-                    width: '100%',
-                    boxSizing: 'border-box',
-                    minWidth: { xs: '100%', sm: 600 },
-                }}
+        <Box sx={{ p: 2 }}>
+            <Stack
+                direction={{ xs: 'column', md: 'row' }}
+                spacing={2}
+                alignItems={{ xs: 'flex-start', md: 'center' }}
+                justifyContent="space-between"
+                sx={{ mb: 2 }}
             >
-                {viewMode === 'table' && <TaskListPage />}
-                {viewMode === 'kanban' && <TaskColumnPage />}
-                {viewMode === 'calendar' && userRole !== 'executor' && (
-                    <TaskCalendarPage />
+                <Box>
+                    <Typography variant="h5" fontWeight={700}>
+                        Все задачи
+                    </Typography>
+                    <Typography variant="body2" color="text.secondary">
+                        {projectFilter ? `Проект: ${projectFilter}` : 'Агрегация задач из всех проектов'}
+                    </Typography>
+                </Box>
+                <Stack direction="row" spacing={1} alignItems="center">
+                    <Tooltip title="Поиск">
+                        <IconButton
+                            color={searchOpen || searchQuery ? 'primary' : 'default'}
+                            onClick={handleSearchIconClick}
+                        >
+                            <SearchIcon />
+                        </IconButton>
+                    </Tooltip>
+                    <Tooltip
+                        title={
+                            tab === 'table'
+                                ? listFiltersVisible
+                                    ? 'Скрыть фильтры'
+                                    : 'Показать фильтры'
+                                : 'Фильтры доступны только в списке'
+                        }
+                    >
+                        <span>
+                            <IconButton
+                                color={listFiltersVisible ? 'primary' : 'default'}
+                                disabled={tab !== 'table'}
+                                onClick={handleFilterToggle}
+                            >
+                                <FilterListIcon />
+                            </IconButton>
+                        </span>
+                    </Tooltip>
+                    {tab === 'table' && (
+                        <Tooltip title="Настроить колонки">
+                            <IconButton onClick={handleColumnsClick}>
+                                <ViewColumnOutlinedIcon />
+                            </IconButton>
+                        </Tooltip>
+                    )}
+                    <Tooltip title="Обновить">
+                        <span>
+                            <IconButton
+                                onClick={() => setRefreshToken((prev) => prev + 1)}
+                                disabled={false}
+                            >
+                                <RefreshIcon />
+                            </IconButton>
+                        </span>
+                    </Tooltip>
+                </Stack>
+            </Stack>
+
+            <Popover
+                open={searchOpen}
+                anchorEl={searchAnchor}
+                onClose={handleSearchClose}
+                anchorOrigin={{ vertical: 'bottom', horizontal: 'left' }}
+                transformOrigin={{ vertical: 'top', horizontal: 'left' }}
+            >
+                <Box sx={{ p: 2, width: 320 }}>
+                    <TextField
+                        label="Поиск (ID, название, БС)"
+                        value={searchQuery}
+                        onChange={(e) => setSearchQuery(e.target.value)}
+                        onKeyDown={(event) => {
+                            if (event.key === 'Enter') {
+                                event.preventDefault();
+                                handleSearchClose();
+                            }
+                        }}
+                        autoFocus
+                        fullWidth
+                        InputProps={{
+                            endAdornment: searchQuery ? (
+                                <InputAdornment position="end">
+                                    <IconButton size="small" onClick={handleSearchReset} edge="end">
+                                        <CloseIcon fontSize="small" />
+                                    </IconButton>
+                                </InputAdornment>
+                            ) : null,
+                        }}
+                    />
+                </Box>
+            </Popover>
+
+            <Paper variant="outlined" sx={{ p: 2 }}>
+                <Stack
+                    direction={{ xs: 'column', md: 'row' }}
+                    spacing={2}
+                    alignItems={{ xs: 'stretch', md: 'center' }}
+                    sx={{ mb: 2 }}
+                >
+                    <FormControl sx={{ minWidth: 200 }}>
+                        <InputLabel>Проект</InputLabel>
+                        <Select
+                            label="Проект"
+                            value={projectFilter}
+                            onChange={(e) => setProjectFilter(e.target.value)}
+                        >
+                            <MenuItem value="">
+                                <em>Все проекты</em>
+                            </MenuItem>
+                            {projectOptions.map((option) => (
+                                <MenuItem key={option} value={option}>
+                                    {option}
+                                </MenuItem>
+                            ))}
+                        </Select>
+                    </FormControl>
+                </Stack>
+                <Tabs
+                    value={tab}
+                    onChange={(_, newValue) => setTab(newValue as ViewMode)}
+                    variant="scrollable"
+                    scrollButtons="auto"
+                >
+                    <Tab value="table" label="Список" />
+                    <Tab value="kanban" label="Доска" />
+                </Tabs>
+
+                {tab === 'table' && (
+                    <TaskListPage
+                        ref={taskListRef}
+                        searchQuery={searchQuery}
+                        projectFilter={projectFilter}
+                        refreshToken={refreshToken}
+                        hideToolbarControls
+                        onFilterToggleChange={setListFiltersVisible}
+                    />
+                )}
+                {tab === 'kanban' && (
+                    <TaskColumnPage
+                        searchQuery={searchQuery}
+                        projectFilter={projectFilter}
+                        refreshToken={refreshToken}
+                    />
                 )}
             </Paper>
-
-            {/* ---- кнопка «Add» (не для executor) ---- */}
-            {userRole !== 'executor' && (
-                <Fab
-                    color="primary"
-                    aria-label="add"
-                    sx={{ position: 'fixed', bottom: 16, right: 16 }}
-                    onClick={handleAddClick}
-                >
-                    <AddIcon />
-                </Fab>
-            )}
         </Box>
     );
 }

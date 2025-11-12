@@ -25,8 +25,14 @@ export default function RootLayout({
                                    }: {
     children: React.ReactNode;
 }) {
+    const publishableKey = process.env.NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY;
+
+    if (!publishableKey) {
+        throw new Error('Missing NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY. Check your .env.local configuration.');
+    }
+
     return (
-        <ClerkProvider>
+        <ClerkProvider publishableKey={publishableKey} dynamic>
             <html lang="ru">
             <body className={inter.className}>
             <ThemeProvider theme={theme}>
