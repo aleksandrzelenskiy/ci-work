@@ -10,7 +10,7 @@ export interface BsCoordinate extends Document {
     mnc?: string;
 }
 
-const BsCoordinateSchema = new Schema<BsCoordinate>(
+const schema = new Schema<BsCoordinate>(
     {
         op: { type: String },
         num: { type: Number },
@@ -19,14 +19,17 @@ const BsCoordinateSchema = new Schema<BsCoordinate>(
         mcc: { type: String },
         mnc: { type: String },
     },
-    {
-        collection: '38-t2-bs-coords',
-        versionKey: false,
-    }
+    { versionKey: false }
 );
 
-const BsCoordinateModel: Model<BsCoordinate> =
-    (mongoose.models.BsCoordinate as Model<BsCoordinate>) ||
-    mongoose.model<BsCoordinate>('BsCoordinate', BsCoordinateSchema, '38-t2-bs-coords');
+const MODEL_CACHE: Record<string, Model<BsCoordinate>> = {};
 
-export default BsCoordinateModel;
+export function getBsCoordinateModel(collectionName: string): Model<BsCoordinate> {
+    if (!MODEL_CACHE[collectionName]) {
+        const modelName = `BsCoordinate_${collectionName}`;
+        MODEL_CACHE[collectionName] =
+            (mongoose.models[modelName] as Model<BsCoordinate>) ||
+            mongoose.model<BsCoordinate>(modelName, schema, collectionName);
+    }
+    return MODEL_CACHE[collectionName];
+}

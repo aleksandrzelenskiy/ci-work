@@ -1,0 +1,1432 @@
+'use client';
+
+import * as React from 'react';
+import { renderToStaticMarkup } from 'react-dom/server';
+import {
+    Box,
+    CircularProgress,
+    Alert,
+    TextField,
+    IconButton,
+    InputAdornment,
+    FormControl,
+    InputLabel,
+    Select,
+    MenuItem,
+    Autocomplete,
+    Tooltip,
+    Dialog,
+    DialogTitle,
+    DialogContent,
+    DialogActions,
+    Button,
+} from '@mui/material';
+import {
+    YMaps,
+    Map,
+    Placemark,
+    ZoomControl,
+    FullscreenControl,
+    Clusterer,
+    Polygon,
+} from '@pbe/react-yandex-maps';
+import SearchIcon from '@mui/icons-material/Search';
+import CloseIcon from '@mui/icons-material/Close';
+import TravelExploreIcon from '@mui/icons-material/TravelExplore';
+import AddLocationOutlinedIcon from '@mui/icons-material/AddLocationOutlined';
+import DeleteOutlineIcon from '@mui/icons-material/DeleteOutline';
+import EditLocationAltOutlinedIcon from '@mui/icons-material/EditLocationAltOutlined';
+
+type BaseStation = {
+    _id: string;
+    op: string | null;
+    num: number | null;
+    lat: number;
+    lon: number;
+    mcc: string | null;
+    mnc: string | null;
+};
+
+type YMapsLang = 'tr_TR' | 'en_US' | 'en_RU' | 'ru_RU' | 'ru_UA' | 'uk_UA';
+type YMapsQuery = {
+    lang?: YMapsLang;
+    apikey?: string;
+    suggest_apikey?: string;
+    coordorder?: 'latlong' | 'longlat';
+    load?: string;
+    mode?: 'release' | 'debug';
+    csp?: boolean;
+    ns?: string;
+};
+type YMapInstance = {
+    events?: {
+        add: (eventName: string, handler: () => void) => void;
+        remove: (eventName: string, handler: () => void) => void;
+    };
+};
+
+const DEFAULT_CENTER: [number, number] = [55.751244, 37.618423];
+const OPERATORS = [
+    { value: 't2', label: 'T2' },
+    { value: 'beeline', label: 'Билайн' },
+    { value: 'megafon', label: 'Мегафон' },
+    { value: 'mts', label: 'МТС' },
+] as const;
+const OPERATOR_COLORS: Record<typeof OPERATORS[number]['value'], string> = {
+    t2: '#1f1f1f',
+    beeline: '#fbc02d',
+    megafon: '#388e3c',
+    mts: '#d32f2f',
+};
+const OPERATOR_CLUSTER_PRESETS: Record<typeof OPERATORS[number]['value'], string> = {
+    t2: 'islands#blackClusterIcons',
+    beeline: 'islands#yellowClusterIcons',
+    megafon: 'islands#greenClusterIcons',
+    mts: 'islands#redClusterIcons',
+};
+const ACTION_ICON_WRAPPER_STYLE = 'display:flex;align-items:center;gap:12px;margin-top:12px;';
+const ACTION_ICON_STYLE =
+    'display:inline-flex;align-items:center;justify-content:center;width:32px;height:32px;border-radius:50%;border:1px solid #d1d5db;background:#fff;color:#1976d2;cursor:pointer;';
+const EDIT_ICON_SVG = renderToStaticMarkup(<EditLocationAltOutlinedIcon fontSize="small" />);
+const DELETE_ICON_SVG = renderToStaticMarkup(<DeleteOutlineIcon fontSize="small" />);
+const normalizeOperator = (value: string | null | undefined): typeof OPERATORS[number]['value'] => {
+    const normalized = (value ?? '').toLowerCase();
+    if (normalized === 't2' || normalized === 'beeline' || normalized === 'megafon' || normalized === 'mts') {
+        return normalized;
+    }
+    return 't2';
+};
+type RegionOption = { code: string; label: string };
+const ALL_REGIONS_OPTION: RegionOption = { code: 'ALL', label: 'Все регионы' };
+const RUSSIAN_REGIONS: readonly RegionOption[] = [
+    { code: '01', label: 'Республика Адыгея (Адыгея)' },
+    { code: '02', label: 'Республика Башкортостан' },
+    { code: '03', label: 'Республика Бурятия' },
+    { code: '04', label: 'Республика Алтай' },
+    { code: '05', label: 'Республика Дагестан' },
+    { code: '06', label: 'Республика Ингушетия' },
+    { code: '07', label: 'Кабардино-Балкарская Республика' },
+    { code: '08', label: 'Республика Калмыкия' },
+    { code: '09', label: 'Карачаево-Черкесская Республика' },
+    { code: '10', label: 'Республика Карелия' },
+    { code: '11', label: 'Республика Коми' },
+    { code: '12', label: 'Республика Марий Эл' },
+    { code: '13', label: 'Республика Мордовия' },
+    { code: '14', label: 'Республика Саха (Якутия)' },
+    { code: '15', label: 'Республика Северная Осетия - Алания' },
+    { code: '16', label: 'Республика Татарстан (Татарстан)' },
+    { code: '17', label: 'Республика Тыва' },
+    { code: '18', label: 'Удмуртская Республика' },
+    { code: '19', label: 'Республика Хакасия' },
+    { code: '20', label: 'Чеченская Республика' },
+    { code: '21', label: 'Чувашская Республика - Чувашия' },
+    { code: '22', label: 'Алтайский край' },
+    { code: '23', label: 'Краснодарский край' },
+    { code: '24', label: 'Красноярский край' },
+    { code: '25', label: 'Приморский край' },
+    { code: '26', label: 'Ставропольский край' },
+    { code: '27', label: 'Хабаровский край' },
+    { code: '28', label: 'Амурская область' },
+    { code: '29', label: 'Архангельская область' },
+    { code: '30', label: 'Астраханская область' },
+    { code: '31', label: 'Белгородская область' },
+    { code: '32', label: 'Брянская область' },
+    { code: '33', label: 'Владимирская область' },
+    { code: '34', label: 'Волгоградская область' },
+    { code: '35', label: 'Вологодская область' },
+    { code: '36', label: 'Воронежская область' },
+    { code: '37', label: 'Ивановская область' },
+    { code: '38', label: 'Иркутская область' },
+    { code: '39', label: 'Калининградская область' },
+    { code: '40', label: 'Калужская область' },
+    { code: '41', label: 'Камчатский край' },
+    { code: '42', label: 'Кемеровская область' },
+    { code: '43', label: 'Кировская область' },
+    { code: '44', label: 'Костромская область' },
+    { code: '45', label: 'Курганская область' },
+    { code: '46', label: 'Курская область' },
+    { code: '47', label: 'Ленинградская область' },
+    { code: '48', label: 'Липецкая область' },
+    { code: '49', label: 'Магаданская область' },
+    { code: '50', label: 'Московская область' },
+    { code: '51', label: 'Мурманская область' },
+    { code: '52', label: 'Нижегородская область' },
+    { code: '53', label: 'Новгородская область' },
+    { code: '54', label: 'Новосибирская область' },
+    { code: '55', label: 'Омская область' },
+    { code: '56', label: 'Оренбургская область' },
+    { code: '57', label: 'Орловская область' },
+    { code: '58', label: 'Пензенская область' },
+    { code: '59', label: 'Пермский край' },
+    { code: '60', label: 'Псковская область' },
+    { code: '61', label: 'Ростовская область' },
+    { code: '62', label: 'Рязанская область' },
+    { code: '63', label: 'Самарская область' },
+    { code: '64', label: 'Саратовская область' },
+    { code: '65', label: 'Сахалинская область' },
+    { code: '66', label: 'Свердловская область' },
+    { code: '67', label: 'Смоленская область' },
+    { code: '68', label: 'Тамбовская область' },
+    { code: '69', label: 'Тверская область' },
+    { code: '70', label: 'Томская область' },
+    { code: '71', label: 'Тульская область' },
+    { code: '72', label: 'Тюменская область' },
+    { code: '73', label: 'Ульяновская область' },
+    { code: '74', label: 'Челябинская область' },
+    { code: '75', label: 'Забайкальский край' },
+    { code: '76', label: 'Ярославская область' },
+    { code: '77', label: 'г. Москва' },
+    { code: '78', label: 'Санкт-Петербург' },
+    { code: '79', label: 'Еврейская автономная область' },
+    { code: '83', label: 'Ненецкий автономный округ' },
+    { code: '86', label: 'Ханты-Мансийский автономный округ - Югра' },
+    { code: '87', label: 'Чукотский автономный округ' },
+    { code: '89', label: 'Ямало-Ненецкий автономный округ' },
+    { code: '99', label: 'Иные территории, включая город и космодром Байконур' },
+] as const;
+const REGION_OPTIONS: readonly RegionOption[] = [ALL_REGIONS_OPTION, ...RUSSIAN_REGIONS];
+const REGION_OPTION_MAP: Record<string, RegionOption> = REGION_OPTIONS.reduce(
+    (acc, option) => {
+        acc[option.code] = option;
+        return acc;
+    },
+    {} as Record<string, RegionOption>
+);
+const IRKUTSK_REGION_CODE = '38';
+const IRKUTSK_POLYGON_COORDINATES: number[][][] = [
+    [
+        [54.32, 95.62],
+        [54.46, 95.86],
+        [54.59, 96],
+        [54.6, 96.34],
+        [54.63, 96.54],
+        [54.79, 96.59],
+        [54.87, 96.66],
+        [55.02, 96.55],
+        [55.12, 96.61],
+        [55.21, 96.62],
+        [55.31, 96.75],
+        [55.33, 96.87],
+        [55.49, 96.8],
+        [55.62, 96.72],
+        [55.74, 96.71],
+        [55.83, 96.79],
+        [55.9, 96.9],
+        [56.04, 96.97],
+        [56.14, 97.22],
+        [56.08, 97.35],
+        [56.18, 97.37],
+        [56.23, 97.53],
+        [56.42, 97.84],
+        [56.54, 97.7],
+        [56.61, 97.7],
+        [56.76, 97.71],
+        [56.79, 97.44],
+        [56.96, 97.48],
+        [57.04, 97.3],
+        [57.87, 98.13],
+        [57.81, 98.63],
+        [57.77, 98.88],
+        [57.78, 99.03],
+        [57.84, 99.33],
+        [57.96, 99.47],
+        [58.02, 99.57],
+        [58.08, 99.6],
+        [58.12, 100.05],
+        [57.99, 100.12],
+        [57.87, 100.2],
+        [57.84, 100.34],
+        [57.78, 100.4],
+        [57.69, 100.42],
+        [57.56, 100.48],
+        [57.5, 100.69],
+        [57.48, 100.79],
+        [57.55, 100.9],
+        [57.64, 100.77],
+        [57.8, 100.81],
+        [57.89, 100.78],
+        [57.97, 101.02],
+        [58.04, 101.08],
+        [58.14, 101.09],
+        [58.17, 101.2],
+        [58.27, 101.34],
+        [58.35, 101.61],
+        [58.48, 101.74],
+        [58.56, 102.15],
+        [58.76, 102.51],
+        [58.91, 102.41],
+        [59.17, 102.39],
+        [59.23, 102.53],
+        [59.26, 102.81],
+        [59.35, 103.06],
+        [59.33, 103.21],
+        [59.22, 103.4],
+        [59.16, 103.35],
+        [59.07, 103.42],
+        [59.04, 103.58],
+        [58.95, 103.77],
+        [58.82, 104.01],
+        [58.83, 104.18],
+        [58.76, 104.26],
+        [58.72, 104.43],
+        [58.68, 104.51],
+        [58.72, 104.79],
+        [58.8, 104.71],
+        [58.94, 104.82],
+        [59.05, 105.07],
+        [59.12, 105.29],
+        [59.2, 105.28],
+        [59.29, 105.13],
+        [59.38, 105.16],
+        [59.48, 104.91],
+        [59.58, 104.81],
+        [59.74, 104.76],
+        [59.81, 104.94],
+        [59.89, 104.96],
+        [59.92, 105.06],
+        [59.89, 105.3],
+        [60.03, 105.44],
+        [60.21, 105.43],
+        [60.25, 105.27],
+        [60.26, 104.88],
+        [60.37, 104.63],
+        [60.49, 104.59],
+        [60.67, 104.48],
+        [60.72, 104.55],
+        [60.81, 104.43],
+        [60.91, 104.55],
+        [61.07, 104.57],
+        [61.15, 104.69],
+        [61.23, 104.95],
+        [61.29, 104.9],
+        [61.39, 104.76],
+        [61.46, 105.12],
+        [61.5, 105.23],
+        [61.56, 105.33],
+        [61.65, 105.55],
+        [61.7, 105.67],
+        [61.7, 105.82],
+        [61.85, 105.85],
+        [61.99, 106.07],
+        [62.08, 106.35],
+        [62.19, 106.39],
+        [62.3, 106.31],
+        [62.43, 106.41],
+        [62.49, 106.59],
+        [62.57, 106.63],
+        [62.69, 106.42],
+        [62.78, 106.42],
+        [62.83, 106.31],
+        [62.93, 106.15],
+        [63.02, 106.1],
+        [63.13, 106.1],
+        [63.2, 106.36],
+        [63.3, 106.31],
+        [63.37, 106.37],
+        [63.36, 106.54],
+        [63.38, 106.65],
+        [63.49, 106.47],
+        [63.61, 106.54],
+        [63.73, 106.56],
+        [63.85, 106.66],
+        [63.92, 106.62],
+        [64.05, 106.61],
+        [64.06, 106.82],
+        [64.01, 107],
+        [64.02, 107.17],
+        [63.95, 107.41],
+        [64.02, 107.61],
+        [64.06, 107.88],
+        [64.04, 108.04],
+        [64.06, 108.24],
+        [64.09, 108.31],
+        [64.21, 108.06],
+        [64.32, 108.17],
+        [64.36, 108.39],
+        [64.28, 108.62],
+        [64.15, 108.61],
+        [64.08, 108.75],
+        [64.04, 108.8],
+        [63.91, 108.84],
+        [63.78, 108.69],
+        [63.78, 108.47],
+        [63.7, 108.34],
+        [63.67, 108.63],
+        [63.62, 108.88],
+        [63.52, 109.23],
+        [63.45, 109.31],
+        [63.42, 109.41],
+        [63.25, 109.52],
+        [63.08, 109.54],
+        [62.99, 109.57],
+        [62.9, 109.68],
+        [62.79, 109.7],
+        [62.69, 109.53],
+        [62.59, 109.43],
+        [62.54, 109.35],
+        [62.49, 109.52],
+        [62.42, 109.97],
+        [62.3, 110.04],
+        [62.16, 110.04],
+        [62.02, 109.89],
+        [61.97, 109.76],
+        [61.93, 109.7],
+        [61.89, 109.64],
+        [61.81, 109.66],
+        [61.74, 109.7],
+        [61.69, 109.77],
+        [61.48, 109.88],
+        [61.38, 109.85],
+        [61.32, 110.12],
+        [61.25, 110.39],
+        [61.12, 110.59],
+        [60.98, 110.52],
+        [60.83, 110.31],
+        [60.7, 110.34],
+        [60.65, 110.17],
+        [60.55, 110.14],
+        [60.48, 109.98],
+        [60.36, 109.92],
+        [60.27, 109.86],
+        [60.21, 109.77],
+        [60.09, 109.77],
+        [59.96, 109.72],
+        [59.86, 109.7],
+        [59.75, 109.52],
+        [59.65, 109.58],
+        [59.52, 109.41],
+        [59.45, 109.39],
+        [59.35, 109.52],
+        [59.26, 109.57],
+        [59.13, 109.68],
+        [59.04, 109.83],
+        [59.03, 110.11],
+        [59.04, 110.21],
+        [59.1, 110.39],
+        [59.15, 110.51],
+        [59.28, 110.61],
+        [59.29, 110.9],
+        [59.26, 111.02],
+        [59.25, 111.15],
+        [59.32, 111.28],
+        [59.26, 111.64],
+        [59.34, 111.92],
+        [59.4, 111.98],
+        [59.46, 112.08],
+        [59.54, 112.17],
+        [59.54, 112.34],
+        [59.41, 112.38],
+        [59.38, 112.41],
+        [59.36, 112.66],
+        [59.24, 112.66],
+        [59.1, 112.5],
+        [59.12, 112.66],
+        [59.11, 112.71],
+        [59.18, 113.01],
+        [59.22, 113.13],
+        [59.25, 113.3],
+        [59.36, 113.39],
+        [59.54, 113.57],
+        [59.63, 113.57],
+        [59.68, 113.82],
+        [59.76, 113.97],
+        [59.86, 114.19],
+        [59.94, 114.29],
+        [60.09, 114.46],
+        [60.16, 114.53],
+        [60.24, 114.72],
+        [60.29, 115],
+        [60.44, 115.06],
+        [60.53, 115.19],
+        [60.53, 115.37],
+        [60.58, 115.58],
+        [60.59, 115.76],
+        [60.5, 115.95],
+        [60.47, 116.18],
+        [60.41, 116.35],
+        [60.37, 116.66],
+        [60.28, 116.81],
+        [60.2, 116.98],
+        [60.13, 117.05],
+        [60.09, 117.17],
+        [60.02, 117.4],
+        [59.95, 117.25],
+        [59.91, 117.11],
+        [59.74, 117.27],
+        [59.63, 117.2],
+        [59.57, 117.3],
+        [59.55, 117.5],
+        [59.58, 117.63],
+        [59.49, 117.84],
+        [59.6, 117.95],
+        [59.68, 118.04],
+        [59.67, 118.29],
+        [59.55, 118.4],
+        [59.48, 118.67],
+        [59.37, 118.8],
+        [59.23, 118.82],
+        [59.09, 118.75],
+        [59, 118.91],
+        [58.85, 118.91],
+        [58.71, 118.9],
+        [58.64, 118.88],
+        [58.6, 118.98],
+        [58.56, 119.13],
+        [58.41, 119.15],
+        [58.21, 119.15],
+        [58.18, 118.86],
+        [58.14, 118.7],
+        [58.17, 118.59],
+        [58.24, 118.43],
+        [58.32, 118.31],
+        [58.36, 118.14],
+        [58.35, 118.02],
+        [58.39, 117.83],
+        [58.33, 117.63],
+        [58.14, 117.63],
+        [58.08, 117.47],
+        [57.99, 117.43],
+        [57.88, 117.44],
+        [57.82, 117.19],
+        [57.67, 117.26],
+        [57.54, 117.38],
+        [57.4, 117.39],
+        [57.31, 117.49],
+        [57.39, 117.55],
+        [57.37, 117.77],
+        [57.21, 117.79],
+        [57.14, 117.66],
+        [57.01, 117.72],
+        [56.86, 117.61],
+        [56.82, 117.5],
+        [56.85, 117.35],
+        [56.88, 117.28],
+        [56.8, 117.18],
+        [56.79, 117.07],
+        [56.75, 116.91],
+        [56.71, 116.82],
+        [56.72, 116.68],
+        [56.77, 116.48],
+        [56.79, 116.25],
+        [56.84, 115.94],
+        [56.98, 115.69],
+        [57.07, 115.91],
+        [57.13, 116.07],
+        [57.2, 116.11],
+        [57.19, 115.94],
+        [57.17, 115.8],
+        [57.08, 115.67],
+        [57.06, 115.45],
+        [57.07, 115.1],
+        [56.96, 115.12],
+        [56.91, 115.02],
+        [56.82, 114.89],
+        [56.66, 114.66],
+        [56.65, 114.54],
+        [56.61, 114.39],
+        [56.63, 114.14],
+        [56.56, 114.04],
+        [56.49, 113.96],
+        [56.48, 113.83],
+        [56.58, 113.66],
+        [56.63, 113.56],
+        [56.61, 113.41],
+        [56.61, 113.29],
+        [56.6, 113.13],
+        [56.69, 112.83],
+        [56.73, 112.7],
+        [56.92, 112.67],
+        [56.88, 112.5],
+        [56.82, 112.2],
+        [56.9, 112.05],
+        [56.87, 111.77],
+        [56.97, 111.6],
+        [57.08, 111.56],
+        [57, 111.42],
+        [56.87, 111.38],
+        [56.8, 111.22],
+        [56.78, 111.06],
+        [56.8, 110.9],
+        [56.83, 110.69],
+        [56.82, 110.47],
+        [56.91, 110.34],
+        [56.94, 110.02],
+        [56.85, 109.92],
+        [56.76, 109.92],
+        [56.7, 109.53],
+        [56.66, 109.35],
+        [56.63, 109.28],
+        [56.57, 109.08],
+        [56.54, 108.92],
+        [56.46, 108.76],
+        [56.37, 108.64],
+        [56.29, 108.79],
+        [56.24, 108.85],
+        [56.18, 108.94],
+        [56.09, 108.99],
+        [56.05, 109.11],
+        [56.06, 109.25],
+        [55.97, 109.31],
+        [55.86, 109.13],
+        [55.84, 108.93],
+        [55.73, 108.85],
+        [55.6, 108.82],
+        [55.48, 108.74],
+        [55.42, 108.71],
+        [55.28, 108.76],
+        [55.17, 108.84],
+        [55.01, 108.73],
+        [54.88, 108.76],
+        [54.63, 108.74],
+        [54.46, 109.09],
+        [53.74, 108.4],
+        [52.34, 106.21],
+        [51.79, 105.57],
+        [51.65, 105.04],
+        [51.44, 104.68],
+        [51.32, 104.71],
+        [51.28, 104.49],
+        [51.24, 104.19],
+        [51.16, 104.07],
+        [51.11, 103.87],
+        [51.11, 103.77],
+        [51.44, 103.56],
+        [51.41, 103.43],
+        [51.43, 103.3],
+        [51.49, 103.2],
+        [51.66, 103.16],
+        [51.82, 103.05],
+        [51.91, 102.83],
+        [51.99, 102.72],
+        [52.07, 102.6],
+        [52.19, 102.44],
+        [52.19, 102.29],
+        [52.22, 102.19],
+        [52.2, 102.12],
+        [52.18, 101.91],
+        [52.34, 101.74],
+        [52.37, 101.66],
+        [52.49, 101.53],
+        [52.59, 101.41],
+        [52.67, 101.16],
+        [52.74, 100.9],
+        [52.9, 100.6],
+        [53.03, 100.45],
+        [53.14, 100.3],
+        [53.24, 100.35],
+        [53.31, 100.16],
+        [53.27, 100.02],
+        [53.27, 99.92],
+        [53.16, 99.86],
+        [53.11, 99.74],
+        [53.07, 99.57],
+        [52.97, 99.36],
+        [52.92, 99.24],
+        [52.98, 99.03],
+        [53.08, 98.97],
+        [53.08, 98.82],
+        [53.07, 98.51],
+        [53.09, 98.26],
+        [53.17, 98.22],
+        [53.24, 97.96],
+        [53.31, 97.92],
+        [53.33, 97.58],
+        [53.41, 97.48],
+        [53.49, 97.35],
+        [53.54, 97.25],
+        [53.61, 97.06],
+        [53.68, 96.75],
+        [53.63, 96.52],
+        [53.72, 96.38],
+        [53.81, 96.31],
+        [53.86, 96.17],
+        [54.04, 96.02],
+        [54.13, 95.87],
+        [54.17, 95.76],
+        [54.27, 95.61],
+    ],
+    [
+        [58.82, 104.01],
+        [58.82, 104],
+        [58.81, 104],
+        [58.82, 104.01],
+    ],
+    [
+        [59, 112.5],
+        [58.96, 112.48],
+        [58.93, 112.49],
+        [58.97, 112.54],
+        [59, 112.52],
+        [59, 112.5],
+    ],
+];
+
+export default function BSMap(): React.ReactElement {
+    const [stations, setStations] = React.useState<BaseStation[]>([]);
+    const [loading, setLoading] = React.useState(true);
+    const [error, setError] = React.useState<string | null>(null);
+    const [searchNumber, setSearchNumber] = React.useState('');
+    const [operator, setOperator] = React.useState<typeof OPERATORS[number]['value']>('t2');
+    const [filtersOpen, setFiltersOpen] = React.useState(false);
+    const [selectedRegionCode, setSelectedRegionCode] = React.useState<string>(ALL_REGIONS_OPTION.code);
+    const [isFullscreen, setIsFullscreen] = React.useState(false);
+    const [editingStationId, setEditingStationId] = React.useState<string | null>(null);
+    const [editForm, setEditForm] = React.useState({ num: '', lat: '', lon: '' });
+    const [deletingStationId, setDeletingStationId] = React.useState<string | null>(null);
+    const [editDialogLoading, setEditDialogLoading] = React.useState(false);
+    const [editDialogError, setEditDialogError] = React.useState<string | null>(null);
+    const [deleteDialogLoading, setDeleteDialogLoading] = React.useState(false);
+    const [deleteDialogError, setDeleteDialogError] = React.useState<string | null>(null);
+    const [createDialogOpen, setCreateDialogOpen] = React.useState(false);
+    const [createForm, setCreateForm] = React.useState({ num: '', lat: '', lon: '' });
+    const [createDialogLoading, setCreateDialogLoading] = React.useState(false);
+    const [createDialogError, setCreateDialogError] = React.useState<string | null>(null);
+
+    const mapRef = React.useRef<YMapInstance | null>(null);
+
+    React.useEffect(() => {
+        setSearchNumber('');
+    }, [operator]);
+
+    React.useEffect(() => {
+        let cancelled = false;
+        const controller = new AbortController();
+
+        async function loadStations(): Promise<void> {
+            try {
+                setLoading(true);
+                setError(null);
+                const res = await fetch(`/api/bsmap?operator=${encodeURIComponent(operator)}`, {
+                    cache: 'no-store',
+                    signal: controller.signal,
+                });
+                const data = (await res.json().catch(() => null)) as
+                    | { stations: BaseStation[] }
+                    | { error: string }
+                    | null;
+
+                if (!res.ok || !data || 'error' in data) {
+                    if (!cancelled) {
+                        setStations([]);
+                        setError(
+                            !data || !('error' in data)
+                                ? `Не удалось загрузить базовые станции (${res.status})`
+                                : data.error
+                        );
+                    }
+                    return;
+                }
+
+                if (!cancelled) {
+                    setStations(data.stations ?? []);
+                }
+            } catch (e) {
+                if (!cancelled) {
+                    setStations([]);
+                    setError(e instanceof Error ? e.message : 'Ошибка сети');
+                }
+            } finally {
+                if (!cancelled) {
+                    setLoading(false);
+                }
+            }
+        }
+
+        void loadStations();
+        return () => {
+            cancelled = true;
+            controller.abort();
+        };
+    }, [operator]);
+
+    const selectedRegion = REGION_OPTION_MAP[selectedRegionCode] ?? ALL_REGIONS_OPTION;
+
+    const getStationRegionCode = React.useCallback(
+        (station: BaseStation) => {
+            if (station.num == null) return null;
+            const numString = station.num.toString();
+            if (!numString.length) return null;
+            if (numString.length < 2) return numString.padStart(2, '0');
+            return numString.slice(0, 2);
+        },
+        []
+    );
+
+    const regionFilteredStations = React.useMemo(() => {
+        return stations.filter((station) => {
+            if (selectedRegion.code === ALL_REGIONS_OPTION.code) {
+                return false;
+            }
+            const stationRegion = getStationRegionCode(station);
+            if (!stationRegion) return false;
+            return normalizeOperator(station.op) === operator && stationRegion === selectedRegion.code;
+        });
+    }, [stations, selectedRegion, getStationRegionCode, operator]);
+
+    const filteredStations = React.useMemo(() => {
+        const term = searchNumber.trim();
+        if (!term) return regionFilteredStations;
+        return regionFilteredStations.filter((station) => station.num?.toString().includes(term));
+    }, [regionFilteredStations, searchNumber]);
+
+    const mapCenter = React.useMemo<[number, number]>(() => {
+        if (!filteredStations.length) return DEFAULT_CENTER;
+        const sums = filteredStations.reduce(
+            (acc, station) => {
+                acc.lat += station.lat;
+                acc.lon += station.lon;
+                return acc;
+            },
+            { lat: 0, lon: 0 }
+        );
+        return [sums.lat / filteredStations.length, sums.lon / filteredStations.length];
+    }, [filteredStations]);
+
+    const zoom = React.useMemo(() => {
+        if (!filteredStations.length) return 4;
+        return filteredStations.length > 1 ? 5 : 12;
+    }, [filteredStations.length]);
+
+    const ymapsQuery = React.useMemo<YMapsQuery>(() => {
+        const apiKey =
+            process.env.NEXT_PUBLIC_YANDEX_MAPS_APIKEY ?? process.env.NEXT_PUBLIC_YMAPS_API_KEY;
+        const base: YMapsQuery = { lang: 'ru_RU' };
+        return apiKey ? { ...base, apikey: apiKey } : base;
+    }, []);
+
+    const mapKey = `${mapCenter[0].toFixed(4)}-${mapCenter[1].toFixed(4)}-${filteredStations.length}`;
+    const noSearchResults =
+        !loading && !error && Boolean(searchNumber.trim()) && filteredStations.length === 0;
+    const noStationsAfterFilters =
+        !loading && !error && selectedRegion.code !== ALL_REGIONS_OPTION.code && !regionFilteredStations.length;
+    const selectedOperatorLabel = React.useMemo(
+        () => OPERATORS.find((item) => item.value === operator)?.label ?? '',
+        [operator]
+    );
+    const isIrkutskRegionSelected = selectedRegion.code === IRKUTSK_REGION_CODE;
+    const canCreateStation = selectedRegion.code !== ALL_REGIONS_OPTION.code;
+    React.useEffect(() => {
+        if (error || noSearchResults || noStationsAfterFilters) {
+            setFiltersOpen(true);
+        }
+    }, [error, noSearchResults, noStationsAfterFilters]);
+
+    const handleFullscreenEnter = React.useCallback(() => setIsFullscreen(true), []);
+    const handleFullscreenExit = React.useCallback(() => setIsFullscreen(false), []);
+
+    const mapInstanceRef = React.useCallback(
+        (instance: YMapInstance | null) => {
+            if (mapRef.current) {
+                mapRef.current.events?.remove('fullscreenenter', handleFullscreenEnter);
+                mapRef.current.events?.remove('fullscreenexit', handleFullscreenExit);
+            }
+            if (instance) {
+                mapRef.current = instance;
+                instance.events?.add('fullscreenenter', handleFullscreenEnter);
+                instance.events?.add('fullscreenexit', handleFullscreenExit);
+            } else {
+                mapRef.current = null;
+            }
+        },
+        [handleFullscreenEnter, handleFullscreenExit]
+    );
+
+    const handleExternalClick = React.useCallback(
+        (event: MouseEvent) => {
+            const target = event.target as HTMLElement | null;
+            if (!target) return;
+            const actionEl = target.closest('[data-bsmap-action]') as HTMLElement | null;
+            if (actionEl) {
+                event.preventDefault();
+                const stationId = actionEl.getAttribute('data-bsmap-station');
+                const action = actionEl.getAttribute('data-bsmap-action');
+                if (!stationId || !action) return;
+                if (action === 'edit') {
+                    setEditingStationId(stationId);
+                } else if (action === 'delete') {
+                    setDeletingStationId(stationId);
+                }
+                return;
+            }
+            const linkEl = target.closest('[data-bsmap-link]') as HTMLElement | null;
+            if (linkEl) {
+                event.preventDefault();
+            }
+        },
+        []
+    );
+
+    React.useEffect(() => {
+        document.addEventListener('click', handleExternalClick);
+        return () => document.removeEventListener('click', handleExternalClick);
+    }, [handleExternalClick]);
+
+    const editingStation = React.useMemo(
+        () => (editingStationId ? stations.find((station) => station._id === editingStationId) ?? null : null),
+        [editingStationId, stations]
+    );
+
+    const deletingStation = React.useMemo(
+        () => (deletingStationId ? stations.find((station) => station._id === deletingStationId) ?? null : null),
+        [deletingStationId, stations]
+    );
+
+    React.useEffect(() => {
+        if (editingStation) {
+            setEditForm({
+                num: editingStation.num?.toString() ?? '',
+                lat: editingStation.lat.toString(),
+                lon: editingStation.lon.toString(),
+            });
+        } else {
+            setEditForm({ num: '', lat: '', lon: '' });
+        }
+    }, [editingStation]);
+
+    React.useEffect(() => {
+        setEditDialogError(null);
+        setEditDialogLoading(false);
+    }, [editingStationId]);
+
+    React.useEffect(() => {
+        setDeleteDialogError(null);
+        setDeleteDialogLoading(false);
+    }, [deletingStationId]);
+
+    React.useEffect(() => {
+        if (!createDialogOpen) {
+            setCreateForm({ num: '', lat: '', lon: '' });
+            setCreateDialogError(null);
+            setCreateDialogLoading(false);
+        }
+    }, [createDialogOpen]);
+
+    const closeEditDialog = React.useCallback(() => {
+        setEditingStationId(null);
+        setEditDialogError(null);
+        setEditDialogLoading(false);
+    }, []);
+
+    const closeDeleteDialog = React.useCallback(() => {
+        setDeletingStationId(null);
+        setDeleteDialogError(null);
+        setDeleteDialogLoading(false);
+    }, []);
+
+    const openCreateDialog = React.useCallback(() => {
+        setCreateDialogOpen(true);
+    }, []);
+
+    const closeCreateDialog = React.useCallback(() => {
+        setCreateDialogOpen(false);
+        setCreateDialogError(null);
+        setCreateDialogLoading(false);
+    }, []);
+
+    const handleEditFieldChange = React.useCallback(
+        (field: keyof typeof editForm) =>
+            (event: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => {
+                const value = event.target.value;
+                setEditForm((prev) => ({ ...prev, [field]: value }));
+            },
+        []
+    );
+
+    const handleCreateFieldChange = React.useCallback(
+        (field: keyof typeof createForm) =>
+            (event: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => {
+                const value = event.target.value;
+                setCreateForm((prev) => ({ ...prev, [field]: value }));
+            },
+        []
+    );
+
+    const handleEditSave = React.useCallback(async () => {
+        if (!editingStation) return;
+
+        const editingOperator = normalizeOperator(editingStation.op ?? operator);
+        const numValue = editForm.num.trim() ? Number(editForm.num) : null;
+        if (editForm.num.trim() && (numValue === null || Number.isNaN(numValue))) {
+            setEditDialogError('Некорректный номер БС');
+            return;
+        }
+
+        const latNumber = Number(editForm.lat);
+        const lonNumber = Number(editForm.lon);
+        if (!Number.isFinite(latNumber) || !Number.isFinite(lonNumber)) {
+            setEditDialogError('Некорректные координаты');
+            return;
+        }
+
+        setEditDialogLoading(true);
+        setEditDialogError(null);
+
+        try {
+            const response = await fetch('/api/bsmap', {
+                method: 'PUT',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    id: editingStation._id,
+                    operator: editingOperator,
+                    num: numValue,
+                    lat: latNumber,
+                    lon: lonNumber,
+                }),
+            });
+            const payload = (await response.json().catch(() => null)) as
+                | { station?: BaseStation; error?: string }
+                | null;
+
+            if (!response.ok || !payload || !payload.station) {
+                throw new Error(payload?.error ?? 'Не удалось сохранить изменения');
+            }
+
+            setStations((prev) =>
+                prev.map((station) => (station._id === payload.station!._id ? payload.station! : station))
+            );
+            closeEditDialog();
+        } catch (error) {
+            setEditDialogError(error instanceof Error ? error.message : 'Не удалось сохранить изменения');
+        } finally {
+            setEditDialogLoading(false);
+        }
+    }, [closeEditDialog, editForm, editingStation, operator]);
+
+    const handleDeleteConfirm = React.useCallback(async () => {
+        if (!deletingStation) return;
+        const deletingOperator = normalizeOperator(deletingStation.op ?? operator);
+        setDeleteDialogLoading(true);
+        setDeleteDialogError(null);
+
+        try {
+            const response = await fetch('/api/bsmap', {
+                method: 'DELETE',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    id: deletingStation._id,
+                    operator: deletingOperator,
+                }),
+            });
+            const payload = (await response.json().catch(() => null)) as { success?: boolean; error?: string } | null;
+
+            if (!response.ok || !payload?.success) {
+                throw new Error(payload?.error ?? 'Не удалось удалить базовую станцию');
+            }
+
+            setStations((prev) => prev.filter((station) => station._id !== deletingStation._id));
+            closeDeleteDialog();
+        } catch (error) {
+            setDeleteDialogError(error instanceof Error ? error.message : 'Не удалось удалить базовую станцию');
+        } finally {
+            setDeleteDialogLoading(false);
+        }
+    }, [closeDeleteDialog, deletingStation, operator]);
+
+    const handleCreateSave = React.useCallback(async () => {
+        if (selectedRegion.code === ALL_REGIONS_OPTION.code) {
+            setCreateDialogError('Выберите регион перед добавлением объекта');
+            return;
+        }
+        if (!createForm.num.trim()) {
+            setCreateDialogError('Введите номер БС');
+            return;
+        }
+
+        const numberValue = Number(createForm.num);
+        if (!Number.isFinite(numberValue)) {
+            setCreateDialogError('Некорректный номер БС');
+            return;
+        }
+        const regionCodeFromNumber = createForm.num.trim().padStart(2, '0').slice(0, 2);
+        if (regionCodeFromNumber !== selectedRegion.code) {
+            setCreateDialogError(`Номер должен начинаться с кода региона ${selectedRegion.code}`);
+            return;
+        }
+
+        const latNumber = Number(createForm.lat);
+        const lonNumber = Number(createForm.lon);
+        if (!Number.isFinite(latNumber) || !Number.isFinite(lonNumber)) {
+            setCreateDialogError('Некорректные координаты');
+            return;
+        }
+
+        setCreateDialogLoading(true);
+        setCreateDialogError(null);
+
+        try {
+            const response = await fetch('/api/bsmap', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    operator,
+                    num: numberValue,
+                    lat: latNumber,
+                    lon: lonNumber,
+                }),
+            });
+            const payload = (await response.json().catch(() => null)) as
+                | { station?: BaseStation; error?: string }
+                | null;
+
+            if (!response.ok || !payload?.station) {
+                throw new Error(payload?.error ?? 'Не удалось создать базовую станцию');
+            }
+
+            setStations((prev) => [...prev, payload.station!]);
+            closeCreateDialog();
+        } catch (error) {
+            setCreateDialogError(error instanceof Error ? error.message : 'Не удалось создать базовую станцию');
+        } finally {
+            setCreateDialogLoading(false);
+        }
+    }, [closeCreateDialog, createForm, operator, selectedRegion.code]);
+
+    const buildBalloonContent = React.useCallback((station: BaseStation) => {
+        const hintTitle = station.num ? `БС №${station.num}` : 'Базовая станция';
+        const operatorLabel = station.op ? station.op.toUpperCase() : '—';
+        const mccMnc = station.mcc && station.mnc ? ` (${station.mcc}/${station.mnc})` : '';
+        const linkStyle = 'color:#1976d2;text-decoration:none;font-weight:500;';
+        return `<div style="font-family:Inter,Arial,sans-serif;min-width:240px;">
+            <div style="font-weight:600;margin-bottom:4px;">${hintTitle}</div>
+            <div style="margin-bottom:4px;">Оператор: ${operatorLabel}${mccMnc}</div>
+            <div style="margin-bottom:4px;">Координаты: ${station.lat.toFixed(5)}, ${station.lon.toFixed(5)}</div>
+            <div style="margin-top:12px;display:flex;gap:16px;">
+                <a href="#" data-bsmap-link="history" data-bsmap-station="${station._id}" style="${linkStyle}">История работ</a>
+                <a href="#" data-bsmap-link="task" data-bsmap-station="${station._id}" style="${linkStyle}">Создать задачу</a>
+            </div>
+            <div style="${ACTION_ICON_WRAPPER_STYLE}">
+                <span data-bsmap-action="edit" data-bsmap-station="${station._id}" title="Редактировать" style="${ACTION_ICON_STYLE}">${EDIT_ICON_SVG}</span>
+                <span data-bsmap-action="delete" data-bsmap-station="${station._id}" title="Удалить" style="${ACTION_ICON_STYLE}">${DELETE_ICON_SVG}</span>
+            </div>
+        </div>`;
+    }, []);
+
+    return (
+        <Box
+            sx={{
+                position: 'relative',
+                width: '100%',
+                height: '100%',
+                overflow: 'hidden',
+            }}
+        >
+            <Box
+                sx={{
+                    position: isFullscreen ? 'fixed' : 'absolute',
+                    top: isFullscreen ? 24 : 16,
+                    left: isFullscreen ? 24 : 16,
+                    zIndex: 5,
+                    pointerEvents: 'none',
+                    width: { xs: 'calc(100% - 48px)', sm: 360 },
+                }}
+            >
+                <Box sx={{ display: 'flex', gap: 1, pointerEvents: 'auto' }}>
+                    <Tooltip title="Фильтры по базовым станциям">
+                        <IconButton
+                            color="primary"
+                            onClick={() => setFiltersOpen((prev) => !prev)}
+                            sx={{
+                                bgcolor: 'background.paper',
+                                boxShadow: 3,
+                                '&:hover': { bgcolor: 'background.paper' },
+                            }}
+                            aria-label="Открыть фильтры"
+                        >
+                            <TravelExploreIcon />
+                        </IconButton>
+                    </Tooltip>
+                    <Tooltip title={canCreateStation ? 'Добавить объект' : 'Выберите регион'}>
+                        <span>
+                            <IconButton
+                                color="primary"
+                                onClick={openCreateDialog}
+                                disabled={!canCreateStation}
+                                sx={{
+                                    bgcolor: 'background.paper',
+                                    boxShadow: 3,
+                                    '&:hover': { bgcolor: 'background.paper' },
+                                }}
+                                aria-label="Добавить объект"
+                            >
+                                <AddLocationOutlinedIcon />
+                            </IconButton>
+                        </span>
+                    </Tooltip>
+                </Box>
+                {filtersOpen && (
+                    <Box
+                        sx={{
+                            backgroundColor: 'background.paper',
+                            borderRadius: 1,
+                            boxShadow: 3,
+                            p: 1.5,
+                            pointerEvents: 'auto',
+                            mt: 1.5,
+                        }}
+                    >
+                        <FormControl size="small" fullWidth sx={{ mb: 1 }}>
+                            <InputLabel id="operator-select-label">Оператор</InputLabel>
+                            <Select
+                                labelId="operator-select-label"
+                                label="Оператор"
+                                value={operator}
+                                onChange={(event) => setOperator(event.target.value as typeof operator)}
+                            >
+                                {OPERATORS.map((item) => (
+                                    <MenuItem key={item.value} value={item.value}>
+                                        {item.label}
+                                    </MenuItem>
+                                ))}
+                            </Select>
+                        </FormControl>
+                        <Autocomplete
+                            options={REGION_OPTIONS}
+                            value={selectedRegion}
+                            onChange={(_event, value) =>
+                                setSelectedRegionCode((value ?? ALL_REGIONS_OPTION).code)
+                            }
+                            disableClearable
+                            size="small"
+                            fullWidth
+                            getOptionLabel={(option) =>
+                                option.code === ALL_REGIONS_OPTION.code
+                                    ? option.label
+                                    : `${option.code} — ${option.label}`
+                            }
+                            isOptionEqualToValue={(option, value) => option.code === value.code}
+                            sx={{ mb: 1 }}
+                            renderInput={(params) => <TextField {...params} label="Регион" />}
+                        />
+                        <TextField
+                            label="Поиск по номеру БС"
+                            value={searchNumber}
+                            onChange={(event) => setSearchNumber(event.target.value)}
+                            type="text"
+                            fullWidth
+                            size="small"
+                            disabled={loading || !!error || !regionFilteredStations.length}
+                            InputProps={{
+                                startAdornment: (
+                                    <InputAdornment position="start">
+                                        <SearchIcon fontSize="small" />
+                                    </InputAdornment>
+                                ),
+                                endAdornment: searchNumber ? (
+                                    <InputAdornment position="end">
+                                        <IconButton size="small" onClick={() => setSearchNumber('')}>
+                                            <CloseIcon fontSize="small" />
+                                        </IconButton>
+                                    </InputAdornment>
+                                ) : undefined,
+                            }}
+                        />
+                        {error && (
+                            <Alert severity="error" sx={{ mt: 1 }}>
+                                {error}
+                            </Alert>
+                        )}
+                        {noSearchResults && (
+                            <Alert severity="warning" sx={{ mt: 1 }}>
+                                БС «{searchNumber.trim()}» для оператора {selectedOperatorLabel} не найдена.
+                            </Alert>
+                        )}
+                        {noStationsAfterFilters && (
+                            <Alert severity="info" sx={{ mt: 1 }}>
+                                Базовые станции не найдены для выбранных фильтров.
+                            </Alert>
+                        )}
+                    </Box>
+                )}
+            </Box>
+            <Box sx={{ width: '100%', height: '100%' }}>
+                {loading ? (
+                    <Box
+                        sx={{
+                            width: '100%',
+                            height: '100%',
+                            display: 'flex',
+                            alignItems: 'center',
+                            justifyContent: 'center',
+                        }}
+                    >
+                        <CircularProgress />
+                    </Box>
+                ) : (
+                    <YMaps query={ymapsQuery}>
+                        <Map
+                            key={mapKey}
+                            defaultState={{ center: mapCenter, zoom }}
+                            width="100%"
+                            height="100%"
+                            options={{
+                                suppressObsoleteBrowserNotifier: true,
+                                suppressMapOpenBlock: true,
+                            }}
+                            instanceRef={mapInstanceRef}
+                        >
+                            <FullscreenControl options={{ position: { right: 16, top: 16 } }} />
+                            <ZoomControl
+                                // YMaps controls accept numeric pixel offsets only, so we coerce a percentage value.
+                                options={{ position: { right: 16, top: 70 } as unknown as { right: number; top: number } }}
+                            />
+                            {isIrkutskRegionSelected && (
+                                <Polygon
+                                    geometry={IRKUTSK_POLYGON_COORDINATES}
+                                    options={{
+                                        fillColor: '#1976d220',
+                                        strokeColor: '#1976d2',
+                                        strokeWidth: 2,
+                                    }}
+                                />
+                            )}
+                            <Clusterer
+                                options={{
+                                    preset: OPERATOR_CLUSTER_PRESETS[operator],
+                                    groupByCoordinates: false,
+                                    gridSize: 80,
+                                }}
+                            >
+                                {filteredStations.map((station) => {
+                                    const hintTitle = station.num ? `БС №${station.num}` : 'Базовая станция';
+                                    const normalizedOperator = normalizeOperator(station.op);
+                                    const iconColor = OPERATOR_COLORS[normalizedOperator] ?? OPERATOR_COLORS.t2;
+
+                                    return (
+                                        <Placemark
+                                            key={station._id}
+                                            geometry={[station.lat, station.lon]}
+                                            properties={{
+                                                hintContent: hintTitle,
+                                                balloonContent: buildBalloonContent(station),
+                                            }}
+                                            options={{
+                                                preset: 'islands#circleIcon',
+                                                iconColor,
+                                            }}
+                                            modules={['geoObject.addon.balloon', 'geoObject.addon.hint']}
+                                        />
+                                    );
+                                })}
+                            </Clusterer>
+                        </Map>
+                    </YMaps>
+                )}
+            </Box>
+            <Dialog open={createDialogOpen} onClose={closeCreateDialog} fullWidth maxWidth="xs">
+                <DialogTitle>Добавление БС</DialogTitle>
+                <DialogContent dividers>
+                    <TextField
+                        margin="dense"
+                        label="Оператор"
+                        value={selectedOperatorLabel}
+                        fullWidth
+                        disabled
+                    />
+                    <TextField
+                        margin="dense"
+                        label="Номер БС"
+                        value={createForm.num}
+                        onChange={handleCreateFieldChange('num')}
+                        fullWidth
+                        autoFocus
+                    />
+                    <TextField
+                        margin="dense"
+                        label="Широта"
+                        value={createForm.lat}
+                        onChange={handleCreateFieldChange('lat')}
+                        type="number"
+                        fullWidth
+                    />
+                    <TextField
+                        margin="dense"
+                        label="Долгота"
+                        value={createForm.lon}
+                        onChange={handleCreateFieldChange('lon')}
+                        type="number"
+                        fullWidth
+                    />
+                    {createDialogError && (
+                        <Alert severity="error" sx={{ mt: 2 }}>
+                            {createDialogError}
+                        </Alert>
+                    )}
+                </DialogContent>
+                <DialogActions>
+                    <Button onClick={closeCreateDialog} disabled={createDialogLoading}>
+                        Отмена
+                    </Button>
+                    <Button variant="contained" onClick={handleCreateSave} disabled={createDialogLoading}>
+                        Сохранить
+                    </Button>
+                </DialogActions>
+            </Dialog>
+            <Dialog open={Boolean(editingStation)} onClose={closeEditDialog} fullWidth maxWidth="xs">
+                <DialogTitle>Редактирование БС</DialogTitle>
+                <DialogContent dividers>
+                    <TextField
+                        margin="dense"
+                        label="Номер БС"
+                        value={editForm.num}
+                        onChange={handleEditFieldChange('num')}
+                        fullWidth
+                    />
+                    <TextField
+                        margin="dense"
+                        label="Широта"
+                        value={editForm.lat}
+                        onChange={handleEditFieldChange('lat')}
+                        type="number"
+                        fullWidth
+                    />
+                    <TextField
+                        margin="dense"
+                        label="Долгота"
+                        value={editForm.lon}
+                        onChange={handleEditFieldChange('lon')}
+                        type="number"
+                        fullWidth
+                    />
+                    {editDialogError && (
+                        <Alert severity="error" sx={{ mt: 2 }}>
+                            {editDialogError}
+                        </Alert>
+                    )}
+                </DialogContent>
+                <DialogActions>
+                    <Button onClick={closeEditDialog} disabled={editDialogLoading}>
+                        Отмена
+                    </Button>
+                    <Button variant="contained" onClick={handleEditSave} disabled={editDialogLoading}>
+                        Сохранить
+                    </Button>
+                </DialogActions>
+            </Dialog>
+            <Dialog
+                open={Boolean(deletingStation)}
+                onClose={closeDeleteDialog}
+                fullWidth
+                maxWidth="xs"
+            >
+                <DialogTitle>Удаление БС</DialogTitle>
+                <DialogContent dividers>
+                    Вы уверены, что хотите удалить{' '}
+                    {deletingStation?.num ? `БС №${deletingStation.num}` : 'эту базовую станцию'}?
+                    {deleteDialogError && (
+                        <Alert severity="error" sx={{ mt: 2 }}>
+                            {deleteDialogError}
+                        </Alert>
+                    )}
+                </DialogContent>
+                <DialogActions>
+                    <Button onClick={closeDeleteDialog} disabled={deleteDialogLoading}>
+                        Отмена
+                    </Button>
+                    <Button color="error" variant="contained" onClick={handleDeleteConfirm} disabled={deleteDialogLoading}>
+                        Удалить
+                    </Button>
+                </DialogActions>
+            </Dialog>
+        </Box>
+    );
+}
