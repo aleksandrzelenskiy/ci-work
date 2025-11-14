@@ -1,6 +1,4 @@
 // src/app/org/[org]/projects/[project]/page.tsx
-'use client';
-
 import { Box, Typography } from '@mui/material';
 
 type PageProps = {
@@ -22,6 +20,6 @@ export default function ProjectPage({ params }: PageProps) {
                 Организация: {org}
             </Typography>
 
-           </Box>
+        </Box>
     );
 }
