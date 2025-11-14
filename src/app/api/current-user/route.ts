@@ -10,15 +10,18 @@ export async function GET() {
   const response = await GetUserContext();
 
   if (!response.success || !response.data) {
+    const message = !response.success
+      ? response.message
+      : 'User context not found';
     const status =
-      response.message === 'No user session found'
+      message === 'No user session found'
         ? 401
-        : response.message?.toLowerCase().includes('unknown')
+        : message?.toLowerCase().includes('unknown')
         ? 500
         : 404;
 
     return NextResponse.json(
-      { error: response.message || 'User context not found' },
+      { error: message || 'User context not found' },
       { status }
     );
   }
