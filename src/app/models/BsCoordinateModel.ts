@@ -3,21 +3,23 @@ import mongoose, { Schema, Document, Model } from 'mongoose';
 
 export interface BsCoordinate extends Document {
     op?: string;
-    num?: number;
+    num?: string | number;
     lat: number;
     lon: number;
     mcc?: string;
     mnc?: string;
+    region?: string;
 }
 
 const schema = new Schema<BsCoordinate>(
     {
         op: { type: String },
-        num: { type: Number },
+        num: { type: Schema.Types.Mixed },
         lat: { type: Number, required: true },
         lon: { type: Number, required: true },
         mcc: { type: String },
         mnc: { type: String },
+        region: { type: String },
     },
     { versionKey: false }
 );

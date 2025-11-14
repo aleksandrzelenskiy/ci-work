@@ -1,7 +1,6 @@
 'use client';
 
 import * as React from 'react';
-import { renderToStaticMarkup } from 'react-dom/server';
 import {
     Box,
     CircularProgress,
@@ -34,17 +33,16 @@ import SearchIcon from '@mui/icons-material/Search';
 import CloseIcon from '@mui/icons-material/Close';
 import TravelExploreIcon from '@mui/icons-material/TravelExplore';
 import AddLocationOutlinedIcon from '@mui/icons-material/AddLocationOutlined';
-import DeleteOutlineIcon from '@mui/icons-material/DeleteOutline';
-import EditLocationAltOutlinedIcon from '@mui/icons-material/EditLocationAltOutlined';
 
 type BaseStation = {
     _id: string;
     op: string | null;
-    num: number | null;
+    num: string | number | null;
     lat: number;
     lon: number;
     mcc: string | null;
     mnc: string | null;
+    region: string | null;
 };
 
 type YMapsLang = 'tr_TR' | 'en_US' | 'en_RU' | 'ru_RU' | 'ru_UA' | 'uk_UA';
@@ -65,7 +63,7 @@ type YMapInstance = {
     };
 };
 
-const DEFAULT_CENTER: [number, number] = [55.751244, 37.618423];
+const DEFAULT_CENTER: [number, number] = [56.0, 104.0];
 const OPERATORS = [
     { value: 't2', label: 'T2' },
     { value: 'beeline', label: 'Билайн' },
@@ -87,8 +85,10 @@ const OPERATOR_CLUSTER_PRESETS: Record<typeof OPERATORS[number]['value'], string
 const ACTION_ICON_WRAPPER_STYLE = 'display:flex;align-items:center;gap:12px;margin-top:12px;';
 const ACTION_ICON_STYLE =
     'display:inline-flex;align-items:center;justify-content:center;width:32px;height:32px;border-radius:50%;border:1px solid #d1d5db;background:#fff;color:#1976d2;cursor:pointer;';
-const EDIT_ICON_SVG = renderToStaticMarkup(<EditLocationAltOutlinedIcon fontSize="small" />);
-const DELETE_ICON_SVG = renderToStaticMarkup(<DeleteOutlineIcon fontSize="small" />);
+const EDIT_ICON_SVG =
+    '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" width="18" height="18" fill="currentColor"><path d="M11 11h2.12l6.16-6.16-2.12-2.12L11 8.88zm9.71-9L20 1.29a.996.996 0 0 0-1.41 0l-.72.72 2.12 2.12.72-.72c.39-.39.39-1.02 0-1.41M17.9 9.05c.06.36.1.74.1 1.15 0 1.71-1.08 4.64-6 9.14-4.92-4.49-6-7.43-6-9.14C6 6.17 9.09 4 12 4c.32 0 .65.03.97.08l1.65-1.65C13.78 2.16 12.9 2 12 2c-4.2 0-8 3.22-8 8.2 0 3.32 2.67 7.25 8 11.8 5.33-4.55 8-8.48 8-11.8 0-1.01-.16-1.94-.45-2.8z"/></svg>';
+const DELETE_ICON_SVG =
+    '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" width="18" height="18" fill="currentColor"><path d="M6 19c0 1.1.9 2 2 2h8c1.1 0 2-.9 2-2V7H6zm2-10h8v10H8zm7.5-5-1-1h-5l-1 1H5v2h14V4z"/></svg>';
 const normalizeOperator = (value: string | null | undefined): typeof OPERATORS[number]['value'] => {
     const normalized = (value ?? '').toLowerCase();
     if (normalized === 't2' || normalized === 'beeline' || normalized === 'megafon' || normalized === 'mts') {
@@ -740,16 +740,20 @@ export default function BSMap(): React.ReactElement {
     }, [operator]);
 
     const selectedRegion = REGION_OPTION_MAP[selectedRegionCode] ?? ALL_REGIONS_OPTION;
-
-    const getStationRegionCode = React.useCallback(
-        (station: BaseStation) => {
-            if (station.num == null) return null;
-            const numString = station.num.toString();
-            if (!numString.length) return null;
-            if (numString.length < 2) return numString.padStart(2, '0');
-            return numString.slice(0, 2);
+    const regionLabelByCode = React.useCallback(
+        (code: string | null | undefined) => {
+            if (!code) return null;
+            return REGION_OPTION_MAP[code]?.label ?? null;
         },
         []
+    );
+    const formatRegion = React.useCallback(
+        (code: string | null | undefined) => {
+            if (!code) return '—';
+            const label = regionLabelByCode(code);
+            return label ? `${label} (${code})` : code;
+        },
+        [regionLabelByCode]
     );
 
     const regionFilteredStations = React.useMemo(() => {
@@ -757,11 +761,9 @@ export default function BSMap(): React.ReactElement {
             if (selectedRegion.code === ALL_REGIONS_OPTION.code) {
                 return false;
             }
-            const stationRegion = getStationRegionCode(station);
-            if (!stationRegion) return false;
-            return normalizeOperator(station.op) === operator && stationRegion === selectedRegion.code;
+            return normalizeOperator(station.op) === operator && station.region === selectedRegion.code;
         });
-    }, [stations, selectedRegion, getStationRegionCode, operator]);
+    }, [stations, selectedRegion, operator]);
 
     const filteredStations = React.useMemo(() => {
         const term = searchNumber.trim();
@@ -945,12 +947,7 @@ export default function BSMap(): React.ReactElement {
         if (!editingStation) return;
 
         const editingOperator = normalizeOperator(editingStation.op ?? operator);
-        const numValue = editForm.num.trim() ? Number(editForm.num) : null;
-        if (editForm.num.trim() && (numValue === null || Number.isNaN(numValue))) {
-            setEditDialogError('Некорректный номер БС');
-            return;
-        }
-
+        const numValue = editForm.num.trim() || null;
         const latNumber = Number(editForm.lat);
         const lonNumber = Number(editForm.lon);
         if (!Number.isFinite(latNumber) || !Number.isFinite(lonNumber)) {
@@ -971,6 +968,7 @@ export default function BSMap(): React.ReactElement {
                     num: numValue,
                     lat: latNumber,
                     lon: lonNumber,
+                    region: editingStation.region ?? selectedRegion.code,
                 }),
             });
             const payload = (await response.json().catch(() => null)) as
@@ -990,7 +988,7 @@ export default function BSMap(): React.ReactElement {
         } finally {
             setEditDialogLoading(false);
         }
-    }, [closeEditDialog, editForm, editingStation, operator]);
+    }, [closeEditDialog, editForm, editingStation, operator, selectedRegion.code]);
 
     const handleDeleteConfirm = React.useCallback(async () => {
         if (!deletingStation) return;
@@ -1032,17 +1030,6 @@ export default function BSMap(): React.ReactElement {
             return;
         }
 
-        const numberValue = Number(createForm.num);
-        if (!Number.isFinite(numberValue)) {
-            setCreateDialogError('Некорректный номер БС');
-            return;
-        }
-        const regionCodeFromNumber = createForm.num.trim().padStart(2, '0').slice(0, 2);
-        if (regionCodeFromNumber !== selectedRegion.code) {
-            setCreateDialogError(`Номер должен начинаться с кода региона ${selectedRegion.code}`);
-            return;
-        }
-
         const latNumber = Number(createForm.lat);
         const lonNumber = Number(createForm.lon);
         if (!Number.isFinite(latNumber) || !Number.isFinite(lonNumber)) {
@@ -1059,9 +1046,10 @@ export default function BSMap(): React.ReactElement {
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({
                     operator,
-                    num: numberValue,
+                    num: createForm.num.trim(),
                     lat: latNumber,
                     lon: lonNumber,
+                    region: selectedRegion.code,
                 }),
             });
             const payload = (await response.json().catch(() => null)) as
@@ -1086,9 +1074,11 @@ export default function BSMap(): React.ReactElement {
         const operatorLabel = station.op ? station.op.toUpperCase() : '—';
         const mccMnc = station.mcc && station.mnc ? ` (${station.mcc}/${station.mnc})` : '';
         const linkStyle = 'color:#1976d2;text-decoration:none;font-weight:500;';
+        const regionInfo = formatRegion(station.region);
         return `<div style="font-family:Inter,Arial,sans-serif;min-width:240px;">
             <div style="font-weight:600;margin-bottom:4px;">${hintTitle}</div>
             <div style="margin-bottom:4px;">Оператор: ${operatorLabel}${mccMnc}</div>
+            <div style="margin-bottom:4px;">Регион: ${regionInfo}</div>
             <div style="margin-bottom:4px;">Координаты: ${station.lat.toFixed(5)}, ${station.lon.toFixed(5)}</div>
             <div style="margin-top:12px;display:flex;gap:16px;">
                 <a href="#" data-bsmap-link="history" data-bsmap-station="${station._id}" style="${linkStyle}">История работ</a>
@@ -1099,7 +1089,7 @@ export default function BSMap(): React.ReactElement {
                 <span data-bsmap-action="delete" data-bsmap-station="${station._id}" title="Удалить" style="${ACTION_ICON_STYLE}">${DELETE_ICON_SVG}</span>
             </div>
         </div>`;
-    }, []);
+    }, [formatRegion]);
 
     return (
         <Box
@@ -1265,10 +1255,7 @@ export default function BSMap(): React.ReactElement {
                             instanceRef={mapInstanceRef}
                         >
                             <FullscreenControl options={{ position: { right: 16, top: 16 } }} />
-                            <ZoomControl
-                                // YMaps controls accept numeric pixel offsets only, so we coerce a percentage value.
-                                options={{ position: { right: 16, top: 70 } as unknown as { right: number; top: number } }}
-                            />
+                            <ZoomControl options={{ position: { right: 16, top: 80 } }} />
                             {isIrkutskRegionSelected && (
                                 <Polygon
                                     geometry={IRKUTSK_POLYGON_COORDINATES}
@@ -1287,9 +1274,13 @@ export default function BSMap(): React.ReactElement {
                                 }}
                             >
                                 {filteredStations.map((station) => {
-                                    const hintTitle = station.num ? `БС №${station.num}` : 'Базовая станция';
+                                    const hintTitle = station.num ? `БС ${station.num}` : 'Базовая станция';
                                     const normalizedOperator = normalizeOperator(station.op);
                                     const iconColor = OPERATOR_COLORS[normalizedOperator] ?? OPERATOR_COLORS.t2;
+                                    const label =
+                                        station.num != null && station.num !== ''
+                                            ? String(station.num)
+                                            : station._id.slice(-4);
 
                                     return (
                                         <Placemark
@@ -1298,10 +1289,12 @@ export default function BSMap(): React.ReactElement {
                                             properties={{
                                                 hintContent: hintTitle,
                                                 balloonContent: buildBalloonContent(station),
+                                                iconCaption: label,
                                             }}
                                             options={{
                                                 preset: 'islands#circleIcon',
                                                 iconColor,
+                                                hideIconOnBalloonOpen: false,
                                             }}
                                             modules={['geoObject.addon.balloon', 'geoObject.addon.hint']}
                                         />
@@ -1319,6 +1312,13 @@ export default function BSMap(): React.ReactElement {
                         margin="dense"
                         label="Оператор"
                         value={selectedOperatorLabel}
+                        fullWidth
+                        disabled
+                    />
+                    <TextField
+                        margin="dense"
+                        label="Регион"
+                        value={formatRegion(selectedRegion.code)}
                         fullWidth
                         disabled
                     />

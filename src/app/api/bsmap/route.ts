@@ -24,7 +24,7 @@ export async function GET(request: NextRequest): Promise<NextResponse> {
 
         await dbConnect();
         const Model = getBsCoordinateModel(collection);
-        const stations = await Model.find({}, { op: 1, num: 1, lat: 1, lon: 1, mcc: 1, mnc: 1 })
+        const stations = await Model.find({}, { op: 1, num: 1, lat: 1, lon: 1, mcc: 1, mnc: 1, region: 1 })
             .lean()
             .exec();
 
@@ -38,6 +38,7 @@ export async function GET(request: NextRequest): Promise<NextResponse> {
                 lon: station.lon,
                 mcc: station.mcc ?? null,
                 mnc: station.mnc ?? null,
+                region: station.region ?? null,
             })),
         });
     } catch (error) {
@@ -48,11 +49,12 @@ export async function GET(request: NextRequest): Promise<NextResponse> {
 
 type StationPayload = {
     op: string | null;
-    num: number | null;
+    num: string | number | null;
     lat: number;
     lon: number;
     mcc: string | null;
     mnc: string | null;
+    region: string | null;
 };
 type StationDocument = StationPayload & { _id: Types.ObjectId | string };
 
@@ -73,13 +75,20 @@ function serializeStation(doc: StationDocument): StationPayload & { _id: string 
         lon: doc.lon,
         mcc: doc.mcc ?? null,
         mnc: doc.mnc ?? null,
+        region: doc.region ?? null,
     };
 }
 
 export async function POST(request: NextRequest): Promise<NextResponse> {
     try {
         const body = (await request.json().catch(() => null)) as
-            | { operator?: string; num?: number | null; lat?: number; lon?: number }
+            | {
+                  operator?: string;
+                  num?: string | number | null;
+                  lat?: number;
+                  lon?: number;
+                  region?: string;
+              }
             | null;
 
         if (!body || typeof body.lat !== 'number' || typeof body.lon !== 'number') {
@@ -88,7 +97,17 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
 
         const operatorKey = normalizeOperator(body.operator) ?? 't2';
         const collectionEntry = OPERATOR_COLLECTIONS[operatorKey];
-        const numValue = body.num === null || typeof body.num === 'number' ? body.num ?? null : null;
+        const numValue =
+            body.num === null || typeof body.num === 'undefined'
+                ? null
+                : typeof body.num === 'number'
+                ? body.num
+                : body.num.trim();
+        const regionValue = typeof body.region === 'string' && body.region.trim().length > 0 ? body.region.trim() : null;
+
+        if (!regionValue) {
+            return NextResponse.json({ error: 'Не указан регион' }, { status: 400 });
+        }
 
         await dbConnect();
         const Model = getBsCoordinateModel(collectionEntry.collection);
@@ -97,6 +116,7 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
             num: numValue,
             lat: body.lat,
             lon: body.lon,
+            region: regionValue,
         });
         const created = createdDoc.toObject() as StationDocument;
 
@@ -110,7 +130,14 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
 export async function PUT(request: NextRequest): Promise<NextResponse> {
     try {
         const body = (await request.json().catch(() => null)) as
-            | { id?: string; operator?: string; num?: number | null; lat?: number; lon?: number }
+            | {
+                  id?: string;
+                  operator?: string;
+                  num?: string | number | null;
+                  lat?: number;
+                  lon?: number;
+                  region?: string | null;
+              }
             | null;
 
         if (!body || !body.id || typeof body.id !== 'string') {
@@ -127,9 +154,15 @@ export async function PUT(request: NextRequest): Promise<NextResponse> {
         const updatePayload: Partial<StationPayload> = {
             lat: body.lat,
             lon: body.lon,
+            region:
+                typeof body.region === 'string' && body.region.trim().length > 0
+                    ? body.region.trim()
+                    : undefined,
         };
 
-        if (body.num === null || typeof body.num === 'number') {
+        if (typeof body.num === 'string') {
+            updatePayload.num = body.num.trim();
+        } else if (typeof body.num === 'number' || body.num === null) {
             updatePayload.num = body.num;
         }
 
