@@ -2,12 +2,10 @@
 
 'use server';
 
-import { GetCurrentUserFromMongoDB } from '@/server-actions/users';
+import { GetCurrentUserFromMongoDB, type GetCurrentUserResponse } from '@/server-actions/users';
 import MembershipModel, { type OrgRole } from '@/app/models/MembershipModel';
 import dbConnect from '@/utils/mongoose';
-
-type GetCurrentUserResult = Awaited<ReturnType<typeof GetCurrentUserFromMongoDB>>;
-type CurrentUser = GetCurrentUserResult extends { success: true; data: infer U } ? U : never;
+import type { IUser } from '@/app/models/UserModel';
 
 interface MembershipSummary {
   _id: string;
@@ -20,7 +18,7 @@ interface MembershipSummary {
 }
 
 interface UserContextPayload {
-  user: CurrentUser;
+  user: IUser;
   memberships: MembershipSummary[];
   activeOrgId: string | null;
   activeMembership: MembershipSummary | null;
@@ -32,9 +30,10 @@ export const GetUserContext = async (): Promise<
   | { success: true; data: UserContextPayload }
   | { success: false; message: string }
 > => {
-  const baseResponse = await GetCurrentUserFromMongoDB();
+  const baseResponse: GetCurrentUserResponse =
+    await GetCurrentUserFromMongoDB();
 
-  if (!baseResponse.success || !baseResponse.data) {
+  if (!baseResponse.success) {
     return { success: false, message: baseResponse.message || 'User not found' };
   }
 
