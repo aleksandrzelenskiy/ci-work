@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import dbConnect from '@/utils/mongoose';
-import BaseStation from '@/app/models/BaseStation';
+import BaseStation, { normalizeBsNumber } from '@/app/models/BaseStation';
 import AdmZip from 'adm-zip';
 import { parseStringPromise } from 'xml2js';
 
