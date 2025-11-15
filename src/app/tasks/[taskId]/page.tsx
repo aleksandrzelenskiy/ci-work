@@ -220,7 +220,7 @@ export default function TaskDetailPage() {
         const fetchUserRole = async () => {
             const context = await fetchUserContext();
             setUserContext(context);
-            const resolvedRole = resolveRoleFromContext(context) as UserRole | null;
+            const resolvedRole = resolveRoleFromContext(context);
             if (resolvedRole) {
                 setUserRole(resolvedRole);
             } else {
