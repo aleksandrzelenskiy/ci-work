@@ -107,26 +107,31 @@ export async function POST(req: NextRequest) {
         };
 
         if (rows.length) {
-            const ops = rows.map(r => ({
-                updateOne: {
-                    filter: { coordKey: r.key },
-                    update: {
-                        $set: {
-                            address: r.address || '',
-                            coordinates: r.coords,
-                            lat: r.lat,
-                            lon: r.lon,
-                            source: 'kmz',
-                            coordKey: r.key,
+            const ops = rows.map((r) => {
+                const normalizedName = normalizeBsNumber(r.name || '');
+                const finalName = normalizedName || r.name || '';
+                return {
+                    updateOne: {
+                        filter: { coordKey: r.key },
+                        update: {
+                            $set: {
+                                address: r.address || '',
+                                coordinates: r.coords,
+                                lat: r.lat,
+                                lon: r.lon,
+                                source: 'kmz',
+                                coordKey: r.key,
+                            },
+                            $setOnInsert: {
+                                name: finalName,
+                                num: finalName,
+                            },
                         },
-                        $setOnInsert: {
-                            name: r.name || '',
-                        },
-                    },
 
-                    upsert: true,
-                },
-            }));
+                        upsert: true,
+                    },
+                };
+            });
 
             const res = await BaseStation.bulkWrite(ops, { ordered: false });
             const upserts = res?.upsertedCount ?? 0;

@@ -5,6 +5,7 @@ import dbConnect from '@/utils/mongoose';
 import TaskModel from '@/app/models/TaskModel';
 import { Types } from 'mongoose';
 import { getOrgAndProjectByRef } from '../_helpers';
+import { ensureIrkutskT2Station } from '@/app/models/BaseStation';
 
 export const runtime = 'nodejs';
 export const dynamic = 'force-dynamic';
@@ -50,12 +51,28 @@ function sanitizeSortParam(raw: string) {
     return raw.startsWith('-') ? `-${field}` : field;
 }
 
+function parseCoordinatesPair(value?: string | null): { lat?: number; lon?: number } {
+    if (!value) return {};
+    const trimmed = value.trim();
+    if (!trimmed) return {};
+    const parts = trimmed.split(/\s+/);
+    if (parts.length < 2) return {};
+    const lat = Number(parts[0]);
+    const lon = Number(parts[1]);
+    return {
+        lat: Number.isFinite(lat) ? Number(lat.toFixed(6)) : undefined,
+        lon: Number.isFinite(lon) ? Number(lon.toFixed(6)) : undefined,
+    };
+}
+
 type CreateTaskBody = {
     taskId?: string;
     taskName: string;
     bsNumber?: string;
     bsAddress?: string;
     bsLocation?: Array<{ name: string; coordinates: string }>;
+    bsLatitude?: number;
+    bsLongitude?: number;
     totalCost?: number | string;
     workItems?: unknown[];
     status?: string;
@@ -171,6 +188,8 @@ export async function POST(
             bsNumber,
             bsAddress,
             bsLocation,
+            bsLatitude,
+            bsLongitude,
             totalCost,
             workItems,
             status,
@@ -276,6 +295,27 @@ export async function POST(
 
             ...rest,
         });
+
+        const coordsSource =
+            Array.isArray(bsLocation) && bsLocation.length > 0 ? bsLocation[0]?.coordinates : undefined;
+        const coordsPair = parseCoordinatesPair(coordsSource);
+        const latForSync = typeof bsLatitude === 'number' ? bsLatitude : coordsPair.lat;
+        const lonForSync = typeof bsLongitude === 'number' ? bsLongitude : coordsPair.lon;
+
+        if (bsNumber) {
+            try {
+                await ensureIrkutskT2Station({
+                    bsNumber,
+                    bsAddress,
+                    lat: latForSync,
+                    lon: lonForSync,
+                    regionCode: rel.projectDoc.regionCode,
+                    operatorCode: rel.projectDoc.operator,
+                });
+            } catch (syncErr) {
+                console.error('Failed to sync base station document:', syncErr);
+            }
+        }
 
         return NextResponse.json({ ok: true, task: created }, { status: 201 });
     } catch (err) {

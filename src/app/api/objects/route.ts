@@ -1,45 +1,63 @@
 // src/app/api/objects/route.ts
 import { NextRequest, NextResponse } from 'next/server';
 import dbConnect from '@/utils/mongoose';
-import mongoose, { Schema, Model } from 'mongoose';
+import mongoose from 'mongoose';
+import { getBaseStationModel, normalizeBsNumber } from '@/app/models/BaseStation';
+import { BASE_STATION_COLLECTIONS } from '@/app/constants/baseStations';
+import { REGION_MAP, REGION_ISO_MAP } from '@/app/utils/regions';
 
 export const runtime = 'nodejs';
 export const dynamic = 'force-dynamic';
 
-// Опишем минимальную модель под твою коллекцию
-interface IRegionObject {
-    _id: mongoose.Types.ObjectId;
-    name: string;        // "IR2506, Танар"
+type StationDoc = {
+    _id: mongoose.Types.ObjectId | string;
+    name?: string;
+    num?: string;
     address?: string;
-    lat?: number;
-    lon?: number;
-    coordKey?: string;
-    source?: string;
-}
+    lat?: number | null;
+    lon?: number | null;
+};
 
-let RegionObjectModel: Model<IRegionObject>;
+const normalizeRegionCode = (input?: string | null): string | null => {
+    if (!input) return null;
+    const trimmed = input.trim();
+    if (!trimmed) return null;
 
-try {
-    RegionObjectModel = mongoose.model<IRegionObject>('RegionObject');
-} catch {
-    RegionObjectModel = mongoose.model<IRegionObject>(
-        'RegionObject',
-        new Schema<IRegionObject>(
-            {
-                name: { type: String, required: true },
-                address: { type: String },
-                lat: { type: Number },
-                lon: { type: Number },
-                coordKey: { type: String },
-                source: { type: String },
-            },
-            {
-                collection: 'objects-t2-ir', // ВАЖНО: твоя коллекция
-                timestamps: true,
-            }
-        )
+    const directMatch = REGION_MAP.get(trimmed);
+    if (directMatch) return directMatch.code;
+
+    const isoMatch = REGION_ISO_MAP.get(trimmed);
+    if (isoMatch) return isoMatch.code;
+
+    return trimmed;
+};
+
+const findCollectionName = (region?: string | null, operator?: string | null): string | null => {
+    const normalizedRegion = normalizeRegionCode(region);
+    if (!normalizedRegion || !operator) return null;
+    const normalizedOperator = operator.trim();
+    if (!normalizedOperator) return null;
+
+    const entry = BASE_STATION_COLLECTIONS.find(
+        (item) =>
+            item.regionCode === normalizedRegion &&
+            item.operator === normalizedOperator
     );
-}
+
+    return entry?.collection ?? null;
+};
+
+const mapStation = (doc: StationDoc) => {
+    const id = typeof doc._id === 'string' ? doc._id : doc._id.toString();
+    const stationName = doc.num || doc.name || '';
+    return {
+        id,
+        name: normalizeBsNumber(stationName),
+        address: doc.address ?? '',
+        lat: typeof doc.lat === 'number' ? doc.lat : null,
+        lon: typeof doc.lon === 'number' ? doc.lon : null,
+    };
+};
 
 export async function GET(req: NextRequest) {
     try {
@@ -48,26 +66,32 @@ export async function GET(req: NextRequest) {
         const { searchParams } = new URL(req.url);
         const q = searchParams.get('q')?.trim() ?? '';
         const limit = Number(searchParams.get('limit') ?? 20);
+        const region = searchParams.get('region');
+        const operator = searchParams.get('operator');
+
+        const collectionName = findCollectionName(region, operator);
+        if (!collectionName) {
+            return NextResponse.json({ objects: [] });
+        }
+
+        const BaseStationModel = getBaseStationModel(collectionName);
 
         const filter: Record<string, unknown> = {};
         if (q) {
-            // ищем по началу или вхождению имени
-            filter.name = { $regex: q, $options: 'i' };
+            filter.$or = [
+                { num: { $regex: q, $options: 'i' } },
+                { name: { $regex: q, $options: 'i' } },
+                { address: { $regex: q, $options: 'i' } },
+            ];
         }
 
-        const docs = await RegionObjectModel.find(filter)
-            .sort({ name: 1 })
+        const docs = await BaseStationModel.find(filter)
+            .sort({ num: 1, name: 1 })
             .limit(limit)
             .lean();
 
         return NextResponse.json({
-            objects: docs.map((d) => ({
-                id: d._id.toString(),
-                name: d.name,
-                address: d.address ?? '',
-                lat: typeof d.lat === 'number' ? d.lat : null,
-                lon: typeof d.lon === 'number' ? d.lon : null,
-            })),
+            objects: docs.map(mapStation),
         });
     } catch (e: unknown) {
         console.error(e);

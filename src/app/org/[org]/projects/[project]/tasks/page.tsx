@@ -24,6 +24,7 @@ import SearchIcon from '@mui/icons-material/Search';
 import CloseIcon from '@mui/icons-material/Close';
 import FilterListIcon from '@mui/icons-material/FilterList';
 import ViewColumnOutlinedIcon from '@mui/icons-material/ViewColumnOutlined';
+import DriveFileMoveRtlOutlinedIcon from '@mui/icons-material/DriveFileMoveRtlOutlined';
 
 import WorkspaceTaskDialog from '@/app/workspace/components/WorkspaceTaskDialog';
 import ProjectTaskList, { ProjectTaskListHandle } from '@/app/workspace/components/ProjectTaskList';
@@ -208,9 +209,28 @@ React.useEffect(() => {
                 sx={{ mb: 2 }}
             >
                 <Box>
-                    <Typography variant="h5" fontWeight={700}>
-                        Задачи проекта {projectRef}
-                    </Typography>
+                    <Stack direction="row" spacing={1} alignItems="center">
+                        <Tooltip title="К списку проектов">
+                            <span>
+                                <IconButton
+                                    component="a"
+                                    href={
+                                        orgSlug
+                                            ? `/org/${encodeURIComponent(orgSlug)}/projects`
+                                            : '#'
+                                    }
+                                    disabled={!orgSlug}
+                                    size="small"
+                                    aria-label="Перейти к проектам"
+                                >
+                                    <DriveFileMoveRtlOutlinedIcon fontSize="small" />
+                                </IconButton>
+                            </span>
+                        </Tooltip>
+                        <Typography variant="h5" fontWeight={700}>
+                            Задачи проекта {projectRef}
+                        </Typography>
+                    </Stack>
                     <Typography variant="body1" color="text.secondary">
                         Организация: {orgInfo?.name ?? orgSlug}
                     </Typography>

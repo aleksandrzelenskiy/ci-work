@@ -12,16 +12,22 @@ import {
     MenuItem,
 } from '@mui/material';
 import RefreshIcon from '@mui/icons-material/Refresh';
-import DeleteOutlineIcon from '@mui/icons-material/DeleteOutline';
+import DeleteOutlineOutlinedIcon from '@mui/icons-material/DeleteOutlineOutlined';
+import EditOutlinedIcon from '@mui/icons-material/EditOutlined';
 import PersonAddIcon from '@mui/icons-material/PersonAdd';
 import LinkIcon from '@mui/icons-material/Link';
 import DriveFileMoveIcon from '@mui/icons-material/DriveFileMove';
-import CreateNewFolderIcon from '@mui/icons-material/CreateNewFolder';
+import CreateNewFolderOutlinedIcon from '@mui/icons-material/CreateNewFolderOutlined';
 import PersonSearchIcon from '@mui/icons-material/PersonSearch';
 import CancelIcon from '@mui/icons-material/Cancel';
 import ManageAccountsIcon from '@mui/icons-material/ManageAccounts';
 
 import InviteMemberForm from '@/app/workspace/components/InviteMemberForm';
+import ProjectDialog, {
+    ProjectDialogValues,
+    ProjectManagerOption,
+} from '@/app/workspace/components/ProjectDialog';
+import { REGION_MAP, REGION_ISO_MAP } from '@/app/utils/regions';
 
 type OrgRole = 'owner' | 'org_admin' | 'manager' | 'executor' | 'viewer';
 type MemberStatus = 'active' | 'invited';
@@ -44,6 +50,8 @@ type ProjectDTO = {
     description?: string;
     managers?: string[];
     managerEmail?: string;
+    regionCode: string;
+    operator: string;
 };
 
 type SnackState = { open: boolean; msg: string; sev: 'success' | 'error' | 'info' };
@@ -119,12 +127,90 @@ export default function OrgSettingsPage() {
     // снимок e-mail'ов на момент открытия
     const [inviteExistingEmails, setInviteExistingEmails] = React.useState<string[]>([]);
 
-    // диалог создания проекта
-    const [createOpen, setCreateOpen] = React.useState(false);
-    const [newProjectName, setNewProjectName] = React.useState('');
-    const [newProjectKey, setNewProjectKey] = React.useState('');
-    const [newProjectDescription, setNewProjectDescription] = React.useState('');
-    const isCreateDisabled = !newProjectName || !newProjectKey;
+    const managerOptions: ProjectManagerOption[] = React.useMemo(
+        () =>
+            members
+                .filter((member) => member.status === 'active')
+                .filter((member) => ['owner', 'org_admin', 'manager'].includes(member.role))
+                .map((member) => ({
+                    email: member.userEmail,
+                    name: member.userName,
+                    role: member.role,
+                })),
+        [members]
+    );
+
+    const [projectDialogOpen, setProjectDialogOpen] = React.useState(false);
+    const [projectDialogMode, setProjectDialogMode] = React.useState<'create' | 'edit'>('create');
+    const [projectDialogLoading, setProjectDialogLoading] = React.useState(false);
+    const [projectToEdit, setProjectToEdit] = React.useState<ProjectDTO | null>(null);
+    const resolveRegionCode = React.useCallback((code?: string | null) => {
+        if (!code) return '';
+        if (REGION_MAP.has(code)) return code;
+        const match = REGION_ISO_MAP.get(code);
+        return match?.code ?? code;
+    }, []);
+
+    const openProjectDialog = (project?: ProjectDTO) => {
+        if (project) {
+            setProjectDialogMode('edit');
+            setProjectToEdit(project);
+        } else {
+            setProjectDialogMode('create');
+            setProjectToEdit(null);
+        }
+        setProjectDialogOpen(true);
+    };
+
+    const handleProjectDialogClose = () => {
+        if (projectDialogLoading) return;
+        setProjectDialogOpen(false);
+        setProjectToEdit(null);
+    };
+
+    const handleProjectDialogSubmit = async (values: ProjectDialogValues) => {
+        if (!org) return;
+        setProjectDialogLoading(true);
+        try {
+            const payload = {
+                name: values.name,
+                key: values.key,
+                description: values.description,
+                regionCode: values.regionCode,
+                operator: values.operator,
+                managers: values.managers,
+            };
+            const url =
+                projectDialogMode === 'edit' && projectToEdit?._id
+                    ? `/api/org/${encodeURIComponent(org)}/projects/${projectToEdit._id}`
+                    : `/api/org/${encodeURIComponent(org)}/projects`;
+            const method = projectDialogMode === 'edit' ? 'PATCH' : 'POST';
+            const res = await fetch(url, {
+                method,
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify(payload),
+            });
+            const data = await res.json();
+            if (!res.ok || !data || data.error) {
+                const msg = data?.error || 'Не удалось сохранить проект';
+                setSnack({ open: true, msg, sev: 'error' });
+                return;
+            }
+            setSnack({
+                open: true,
+                msg: projectDialogMode === 'create' ? 'Проект создан' : 'Проект обновлён',
+                sev: 'success',
+            });
+            setProjectDialogOpen(false);
+            setProjectToEdit(null);
+            await fetchProjects();
+        } catch (e: unknown) {
+            const msg = e instanceof Error ? e.message : 'Ошибка сети';
+            setSnack({ open: true, msg, sev: 'error' });
+        } finally {
+            setProjectDialogLoading(false);
+        }
+    };
 
     // диалог удаления участника
     const [removeOpen, setRemoveOpen] = React.useState(false);
@@ -304,35 +390,6 @@ export default function OrgSettingsPage() {
         router.push(`/org/${encodeURIComponent(org)}/projects`);
     };
 
-    const handleCreateProject = async () => {
-        if (!org) return;
-        try {
-            const res = await fetch(`/api/org/${encodeURIComponent(org)}/projects`, {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({
-                    name: newProjectName,
-                    key: newProjectKey,
-                    description: newProjectDescription,
-                }),
-            });
-            const data = await res.json();
-            if (!res.ok || !data?.ok) {
-                setSnack({ open: true, msg: data?.error || 'Ошибка создания проекта', sev: 'error' });
-                return;
-            }
-            setSnack({ open: true, msg: 'Проект создан', sev: 'success' });
-            setCreateOpen(false);
-            setNewProjectName('');
-            setNewProjectKey('');
-            setNewProjectDescription('');
-            void fetchProjects();
-        } catch (e: unknown) {
-            const msg = e instanceof Error ? e.message : 'Ошибка сети';
-            setSnack({ open: true, msg, sev: 'error' });
-        }
-    };
-
     const filteredMembers = (() => {
         const q = memberSearch.trim().toLowerCase();
         if (!q) return members;
@@ -390,8 +447,8 @@ export default function OrgSettingsPage() {
                                 <Stack direction="row" spacing={1}>
                                     <Tooltip title="Создать проект">
                                         <span>
-                                            <IconButton onClick={() => setCreateOpen(true)}>
-                                                <CreateNewFolderIcon />
+                                            <IconButton onClick={() => openProjectDialog()}>
+                                                <CreateNewFolderOutlinedIcon />
                                             </IconButton>
                                         </span>
                                     </Tooltip>
@@ -494,9 +551,14 @@ export default function OrgSettingsPage() {
                                                         </Typography>
                                                     </TableCell>
                                                     <TableCell align="right">
+                                                        <Tooltip title="Редактировать проект">
+                                                            <IconButton onClick={() => openProjectDialog(p)}>
+                                                                <EditOutlinedIcon fontSize="small" />
+                                                            </IconButton>
+                                                        </Tooltip>
                                                         <Tooltip title="Удалить проект">
                                                             <IconButton onClick={() => openRemoveProjectDialog(p)}>
-                                                                <DeleteOutlineIcon fontSize="small" />
+                                                                <DeleteOutlineOutlinedIcon fontSize="small" />
                                                             </IconButton>
                                                         </Tooltip>
                                                     </TableCell>
@@ -665,9 +727,9 @@ export default function OrgSettingsPage() {
 
                                                         {m.role !== 'owner' && (
                                                             <Tooltip title="Удалить участника">
-                                                                <IconButton onClick={() => openRemoveDialog(m)}>
-                                                                    <DeleteOutlineIcon fontSize="small" />
-                                                                </IconButton>
+                                                            <IconButton onClick={() => openRemoveDialog(m)}>
+                                                                <DeleteOutlineOutlinedIcon fontSize="small" />
+                                                            </IconButton>
                                                             </Tooltip>
                                                         )}
                                                     </TableCell>
@@ -710,41 +772,27 @@ export default function OrgSettingsPage() {
                 </DialogActions>
             </Dialog>
 
-            {/* Диалог создания проекта */}
-            <Dialog open={createOpen} onClose={() => setCreateOpen(false)} maxWidth="sm" fullWidth>
-                <DialogTitle>Новый проект</DialogTitle>
-                <DialogContent dividers>
-                    <TextField
-                        label="Название"
-                        fullWidth
-                        sx={{ mt: 1 }}
-                        value={newProjectName}
-                        onChange={(e) => setNewProjectName(e.target.value)}
-                    />
-                    <TextField
-                        label="Код (KEY)"
-                        fullWidth
-                        sx={{ mt: 2 }}
-                        value={newProjectKey}
-                        onChange={(e) => setNewProjectKey(e.target.value)}
-                    />
-                    <TextField
-                        label="Описание"
-                        fullWidth
-                        multiline
-                        minRows={3}
-                        sx={{ mt: 2 }}
-                        value={newProjectDescription}
-                        onChange={(e) => setNewProjectDescription(e.target.value)}
-                    />
-                </DialogContent>
-                <DialogActions>
-                    <Button onClick={() => setCreateOpen(false)}>Отмена</Button>
-                    <Button variant="contained" onClick={handleCreateProject} disabled={isCreateDisabled}>
-                        Создать
-                    </Button>
-                </DialogActions>
-            </Dialog>
+            <ProjectDialog
+                open={projectDialogOpen}
+                mode={projectDialogMode}
+                loading={projectDialogLoading}
+                members={managerOptions}
+                onClose={handleProjectDialogClose}
+                onSubmit={handleProjectDialogSubmit}
+                initialData={
+                    projectDialogMode === 'edit' && projectToEdit
+                        ? {
+                              projectId: projectToEdit._id,
+                              name: projectToEdit.name,
+                              key: projectToEdit.key,
+                              description: projectToEdit.description ?? '',
+                              regionCode: resolveRegionCode(projectToEdit.regionCode),
+                              operator: projectToEdit.operator,
+                              managers: projectToEdit.managers ?? [],
+                          }
+                        : undefined
+                }
+            />
 
             {/* Диалог изменения роли участника */}
             <Dialog open={roleDialogOpen} onClose={() => setRoleDialogOpen(false)}>

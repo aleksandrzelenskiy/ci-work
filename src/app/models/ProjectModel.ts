@@ -4,8 +4,6 @@ import type { UpdateQuery } from 'mongoose';
 import { RUSSIAN_REGIONS } from '@/app/utils/regions';
 import { OPERATORS } from '@/app/utils/operators';
 
-const DEFAULT_OPERATOR_VALUE = OPERATORS[0]?.value ?? '250001';
-
 export interface Project extends Document {
     orgId: mongoose.Types.ObjectId;
     name: string;
@@ -34,7 +32,7 @@ const ProjectSchema = new Schema<Project>(
         operator: {
             type: String,
             enum: OPERATORS.map((operator) => operator.value),
-            default: DEFAULT_OPERATOR_VALUE,
+            required: true,
         },
         createdByEmail: { type: String, required: true },
     },

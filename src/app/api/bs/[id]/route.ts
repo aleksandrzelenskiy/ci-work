@@ -1,6 +1,6 @@
 // app/api/bs/[id]/route.ts
 import { NextRequest, NextResponse } from 'next/server';
-import BaseStation from '@/app/models/BaseStation';
+import BaseStation, { normalizeBsNumber } from '@/app/models/BaseStation';
 import dbConnect from '@/utils/mongoose';
 
 export async function PUT(req: NextRequest) {
@@ -28,8 +28,9 @@ export async function PUT(req: NextRequest) {
     }
 
     if (body.name) {
+      const normalizedName = normalizeBsNumber(body.name);
       const duplicateStation = await BaseStation.findOne({
-        name: body.name,
+        $or: [{ name: normalizedName }, { num: normalizedName }],
         _id: { $ne: id },
       });
       if (duplicateStation) {
@@ -38,9 +39,9 @@ export async function PUT(req: NextRequest) {
           { status: 400 }
         );
       }
+      existingStation.name = normalizedName;
+      existingStation.num = normalizedName;
     }
-
-    existingStation.name = body.name || existingStation.name;
     existingStation.coordinates =
       body.coordinates || existingStation.coordinates;
     await existingStation.save();

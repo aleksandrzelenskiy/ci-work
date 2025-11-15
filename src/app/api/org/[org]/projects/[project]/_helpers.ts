@@ -20,7 +20,7 @@ export async function getOrgAndProjectByRef(orgSlug: string, projectRef: string)
 
     const projectDoc = await Project
         .findOne(projQuery)
-        .select('_id name orgId key')
+        .select('_id name orgId key regionCode operator')
         .lean();
 
     if (!projectDoc) return { error: 'Project not found' as const };

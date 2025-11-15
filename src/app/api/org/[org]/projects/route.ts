@@ -5,6 +5,7 @@ import { currentUser } from '@clerk/nextjs/server';
 import dbConnect from '@/utils/mongoose';
 import Project from '@/app/models/ProjectModel';
 import Subscription from '@/app/models/SubscriptionModel';
+import Membership from '@/app/models/MembershipModel';
 import { requireOrgRole } from '@/app/utils/permissions';
 import { RUSSIAN_REGIONS } from '@/app/utils/regions';
 import { OPERATORS } from '@/app/utils/operators';
@@ -36,6 +37,7 @@ type CreateProjectBody = {
     description?: string;
     regionCode: string;
     operator: string;
+    managers?: string[];
 };
 type CreateProjectResponse = { ok: true; project: ProjectDTO } | { error: string };
 
@@ -55,6 +57,8 @@ type SubscriptionLean = {
     periodStart?: Date | string | null;
     periodEnd?: Date | string | null;
 };
+
+const escapeRegex = (value: string): string => value.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
 
 const parseDate = (value: Date | string | null | undefined): Date | null => {
     if (!value) return null;
@@ -85,6 +89,36 @@ const subscriptionBlockReason = (sub: SubscriptionLean | null): string => {
     return 'Тариф не активен';
 };
 
+const normalizeEmailsArray = (value: unknown): string[] => {
+    if (!Array.isArray(value)) return [];
+    const result: string[] = [];
+    value.forEach((item) => {
+        if (typeof item !== 'string') return;
+        const normalized = item.trim().toLowerCase();
+        if (normalized && !result.includes(normalized)) {
+            result.push(normalized);
+        }
+    });
+    return result;
+};
+
+async function resolveManagerEmails(
+    orgId: unknown,
+    candidates: string[],
+    fallbackEmail: string
+): Promise<string[]> {
+    const normalized = candidates.length > 0 ? candidates : [fallbackEmail];
+    const rows = await Membership.find(
+        { orgId, userEmail: { $in: normalized }, status: 'active' },
+        { userEmail: 1 }
+    ).lean<{ userEmail: string }[]>();
+    const allowed = rows.map((row) => row.userEmail);
+    if (allowed.length === 0) {
+        return [fallbackEmail];
+    }
+    return allowed;
+}
+
 export async function GET(
     _req: NextRequest,
     ctx: { params: Promise<{ org: string }> }
@@ -99,14 +133,28 @@ export async function GET(
         const email = user?.emailAddresses?.[0]?.emailAddress?.trim().toLowerCase();
         if (!email) return NextResponse.json({ error: 'Auth required' }, { status: 401 });
 
-        const { org: orgDoc } = await requireOrgRole(
+        const { org: orgDoc, membership } = await requireOrgRole(
             orgSlug,
             email,
             ['owner', 'org_admin', 'manager', 'executor', 'viewer']
         );
 
+        const role = membership.role;
+        if (!['owner', 'org_admin', 'manager'].includes(role)) {
+            return NextResponse.json({ error: 'Недостаточно прав' }, { status: 404 });
+        }
+
+        const normalizedManagerEmail = membership.userEmail?.trim().toLowerCase();
+        const projectFilter: Record<string, unknown> = { orgId: orgDoc._id };
+
+        if (role === 'manager' && normalizedManagerEmail) {
+            projectFilter.managers = {
+                $regex: new RegExp(`^${escapeRegex(normalizedManagerEmail)}$`, 'i'),
+            };
+        }
+
         const rows = await Project.find(
-            { orgId: orgDoc._id },
+            projectFilter,
             { name: 1, key: 1, description: 1, managers: 1, regionCode: 1, operator: 1 }
         ).lean<ProjectLean[]>();
 
@@ -161,12 +209,15 @@ export async function POST(
             return NextResponse.json({ error: 'Укажите name, key, regionCode и operator' }, { status: 400 });
         }
 
+        const normalizedManagers = normalizeEmailsArray(body.managers);
+        const managerEmails = await resolveManagerEmails(orgDoc._id, normalizedManagers, email);
+
         const created = await Project.create({
             orgId: orgDoc._id,
             name,
             key: key.toUpperCase(),
             description: body?.description,
-            managers: [email],
+            managers: managerEmails,
             createdByEmail: email,
             regionCode: body.regionCode,
             operator: body.operator,

@@ -3,7 +3,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { currentUser } from '@clerk/nextjs/server';
 import dbConnect from '@/utils/mongoose';
 import TaskModel from '@/app/models/TaskModel';
-import BaseStation, { IBaseStation } from '@/app/models/BaseStation';
+import BaseStation, { IBaseStation, ensureIrkutskT2Station, normalizeBsNumber } from '@/app/models/BaseStation';
 import { Types } from 'mongoose';
 import { getOrgAndProjectByRef } from '../../_helpers';
 
@@ -58,6 +58,20 @@ function parseMaybeISODate(v: unknown): Date | undefined {
     if (!v) return undefined;
     const d = new Date(String(v));
     return Number.isNaN(d.getTime()) ? undefined : d;
+}
+
+function parseCoordinatesPair(value?: string | null): { lat?: number; lon?: number } {
+    if (!value) return {};
+    const trimmed = value.trim();
+    if (!trimmed) return {};
+    const parts = trimmed.split(/\s+/);
+    if (parts.length < 2) return {};
+    const lat = Number(parts[0]);
+    const lon = Number(parts[1]);
+    return {
+        lat: Number.isFinite(lat) ? Number(lat.toFixed(6)) : undefined,
+        lon: Number.isFinite(lon) ? Number(lon.toFixed(6)) : undefined,
+    };
 }
 
 // приводим к ObjectId
@@ -159,7 +173,7 @@ function buildBsLocationFromStation(
 type OrgDocLean = { _id: unknown };
 type ProjectDocLean = {
     _id: unknown;
-    operatorCode?: string;
+    operator?: string;
     regionCode?: string;
 };
 type GetOrgProjectOk = { orgDoc: OrgDocLean; projectDoc: ProjectDocLean };
@@ -362,13 +376,14 @@ export async function PUT(
         const bsNumberChanged = newBsNumber !== currentTask.bsNumber;
         let bsLocationChanged = false;
 
-        const operatorCode = projectDoc.operatorCode;
+        const operatorCode = projectDoc.operator;
         const regionCode = projectDoc.regionCode;
 
         if (bsNumberChanged) {
             // подтягиваем из своей БС
-            const bsQuery: { name: string; operatorCode?: string; regionCode?: string } = {
-                name: newBsNumber,
+            const normalizedBs = normalizeBsNumber(newBsNumber);
+            const bsQuery: Record<string, unknown> = {
+                $or: [{ name: normalizedBs }, { num: normalizedBs }],
             };
             if (operatorCode) bsQuery.operatorCode = operatorCode;
             if (regionCode) bsQuery.regionCode = regionCode;
@@ -556,6 +571,37 @@ export async function PUT(
 
         if (!updated) {
             return NextResponse.json({ error: 'Task not found' }, { status: 404 });
+        }
+
+        const finalBsNumber =
+            typeof allowedPatch.bsNumber === 'string' ? allowedPatch.bsNumber : currentTask.bsNumber;
+        const finalBsAddress =
+            typeof allowedPatch.bsAddress === 'string' ? allowedPatch.bsAddress : currentTask.bsAddress;
+        const finalBsLocation = (allowedPatch.bsLocation ??
+            (currentTask.bsLocation as TaskBsLocationItem[] | undefined)) as
+            | TaskBsLocationItem[]
+            | undefined;
+        const coordsSource =
+            Array.isArray(finalBsLocation) && finalBsLocation.length > 0
+                ? finalBsLocation[0]?.coordinates
+                : undefined;
+        const coordsPair = parseCoordinatesPair(coordsSource);
+        const latForSync = typeof lat === 'number' ? lat : coordsPair.lat;
+        const lonForSync = typeof lon === 'number' ? lon : coordsPair.lon;
+
+        if (finalBsNumber) {
+            try {
+                await ensureIrkutskT2Station({
+                    bsNumber: finalBsNumber,
+                    bsAddress: finalBsAddress,
+                    lat: latForSync,
+                    lon: lonForSync,
+                    regionCode,
+                    operatorCode,
+                });
+            } catch (syncErr) {
+                console.error('Failed to sync base station document:', syncErr);
+            }
         }
 
         return NextResponse.json({ ok: true, task: updated });

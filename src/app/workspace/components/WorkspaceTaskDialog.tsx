@@ -170,6 +170,8 @@ export default function WorkspaceTaskDialog({
     // новое поле: стоимость
     const [totalCost, setTotalCost] = React.useState<string>('');
 
+    const [projectMeta, setProjectMeta] = React.useState<{ regionCode?: string; operator?: string } | null>(null);
+
     const [members, setMembers] = React.useState<MemberOption[]>([]);
     const [membersLoading, setMembersLoading] = React.useState(false);
     const [membersError, setMembersError] = React.useState<string | null>(null);
@@ -201,11 +203,44 @@ export default function WorkspaceTaskDialog({
     const [snackbarMsg, setSnackbarMsg] = React.useState('');
     const [snackbarSeverity, setSnackbarSeverity] = React.useState<'success' | 'error'>('success');
 
+    const loadProjectMeta = React.useCallback(async () => {
+        if (!projectRef) return;
+        try {
+            const res = await fetch(
+                apiPath(`/projects/${encodeURIComponent(projectRef)}`),
+                { method: 'GET', cache: 'no-store' }
+            );
+            const body = await res.json();
+            if (!res.ok || !body?.ok) {
+                setProjectMeta(null);
+                console.error('Failed to load project info:', extractErrorMessage(body, res.statusText));
+                return;
+            }
+            setProjectMeta({
+                regionCode: body.project?.regionCode,
+                operator: body.project?.operator,
+            });
+        } catch (e: unknown) {
+            setProjectMeta(null);
+            console.error(e);
+        }
+    }, [apiPath, projectRef]);
+
+    React.useEffect(() => {
+        if (!projectRef) return;
+        void loadProjectMeta();
+    }, [projectRef, loadProjectMeta]);
+
     const loadBsOptions = React.useCallback(async (term: string) => {
         setBsOptionsLoading(true);
         setBsOptionsError(null);
         try {
-            const url = `/api/objects${term ? `?q=${encodeURIComponent(term)}` : ''}`;
+            const qs = new URLSearchParams();
+            if (term) qs.set('q', term);
+            if (projectMeta?.regionCode) qs.set('region', projectMeta.regionCode);
+            if (projectMeta?.operator) qs.set('operator', projectMeta.operator);
+            const query = qs.toString();
+            const url = `/api/objects${query ? `?${query}` : ''}`;
             const res = await fetch(url, { method: 'GET', cache: 'no-store' });
             const body = await res.json();
             if (!res.ok) {
@@ -221,7 +256,7 @@ export default function WorkspaceTaskDialog({
         } finally {
             setBsOptionsLoading(false);
         }
-    }, []);
+    }, [projectMeta?.regionCode, projectMeta?.operator]);
 
     React.useEffect(() => {
         if (!open) return;

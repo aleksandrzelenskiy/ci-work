@@ -1,7 +1,7 @@
 // app/api/bs/route.ts
 
 import { NextRequest, NextResponse } from 'next/server';
-import BaseStation from '@/app/models/BaseStation';
+import BaseStation, { normalizeBsNumber } from '@/app/models/BaseStation';
 import dbConnect from '@/utils/mongoose';
 
 export async function GET() {
@@ -12,12 +12,17 @@ export async function GET() {
     const stations = await BaseStation.aggregate([
       {
         $group: {
-          _id: '$name',
+          _id: { $ifNull: ['$name', '$num'] },
           doc: { $first: '$$ROOT' },
         },
       },
       {
         $replaceRoot: { newRoot: '$doc' },
+      },
+      {
+        $addFields: {
+          name: { $ifNull: ['$name', '$num'] },
+        },
       },
     ]);
 
@@ -43,7 +48,10 @@ export async function POST(req: NextRequest) {
       );
     }
 
-    const existingStation = await BaseStation.findOne({ name: body.name });
+    const normalizedName = normalizeBsNumber(body.name);
+    const existingStation = await BaseStation.findOne({
+      $or: [{ name: normalizedName }, { num: normalizedName }],
+    });
     if (existingStation) {
       return NextResponse.json(
         { message: 'Базовая станция с таким номером уже существует' },
@@ -51,7 +59,11 @@ export async function POST(req: NextRequest) {
       );
     }
 
-    const newStation = new BaseStation(body);
+    const newStation = new BaseStation({
+      ...body,
+      name: normalizedName,
+      num: normalizedName,
+    });
     await newStation.save();
 
     return NextResponse.json(newStation, { status: 201 });

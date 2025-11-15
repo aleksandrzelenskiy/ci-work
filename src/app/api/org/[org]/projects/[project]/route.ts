@@ -5,6 +5,7 @@ import { currentUser } from '@clerk/nextjs/server';
 import dbConnect from '@/utils/mongoose';
 import Project from '@/app/models/ProjectModel';
 import { requireOrgRole } from '@/app/utils/permissions';
+import Membership from '@/app/models/MembershipModel';
 import { Types } from 'mongoose';
 import { RUSSIAN_REGIONS } from '@/app/utils/regions';
 import { OPERATORS } from '@/app/utils/operators';
@@ -16,6 +17,34 @@ function errorMessage(err: unknown): string {
     return err instanceof Error ? err.message : 'Server error';
 }
 
+const normalizeEmailsArray = (value: unknown): string[] => {
+    if (!Array.isArray(value)) return [];
+    const emails: string[] = [];
+    value.forEach((entry) => {
+        if (typeof entry !== 'string') return;
+        const normalized = entry.trim().toLowerCase();
+        if (normalized && !emails.includes(normalized)) {
+            emails.push(normalized);
+        }
+    });
+    return emails;
+};
+
+async function resolveManagerEmails(
+    orgId: Types.ObjectId,
+    candidates: string[],
+    fallbackEmail: string
+): Promise<string[]> {
+    const queryList = candidates.length > 0 ? candidates : [fallbackEmail];
+    const rows = await Membership.find(
+        { orgId, userEmail: { $in: queryList }, status: 'active' },
+        { userEmail: 1 }
+    ).lean<{ userEmail: string }[]>();
+    const allowed = rows.map((row) => row.userEmail);
+    if (allowed.length === 0) return [fallbackEmail];
+    return allowed;
+}
+
 type ProjectDTO = {
     _id: string;
     name: string;
@@ -23,6 +52,7 @@ type ProjectDTO = {
     description?: string;
     regionCode: string;
     operator: string;
+    managers?: string[];
 };
 
 type UpdateBody = {
@@ -31,6 +61,7 @@ type UpdateBody = {
     description?: string;
     regionCode?: string;
     operator?: string;
+    managers?: string[];
 };
 type UpdateResponse = { ok: true; project: ProjectDTO } | { error: string };
 type GetResponse = { ok: true; project: ProjectDTO } | { error: string };
@@ -43,6 +74,7 @@ type ProjectLean = {
     description?: string;
     regionCode: string;
     operator: string;
+    managers?: string[];
 };
 
 function getProjectMatch(projectRef: string, orgId: Types.ObjectId) {
@@ -60,6 +92,7 @@ function toProjectDto(doc: ProjectLean): ProjectDTO {
         description: doc.description,
         regionCode: doc.regionCode,
         operator: doc.operator,
+        managers: Array.isArray(doc.managers) ? doc.managers : undefined,
     };
 }
 
@@ -78,7 +111,7 @@ export async function GET(
         const email = user?.emailAddresses?.[0]?.emailAddress;
         if (!email) return NextResponse.json({ error: 'Auth required' }, { status: 401 });
 
-        const { org } = await requireOrgRole(orgSlug, email, [
+        const { org, membership } = await requireOrgRole(orgSlug, email, [
             'owner',
             'org_admin',
             'manager',
@@ -91,6 +124,23 @@ export async function GET(
 
         if (!found) {
             return NextResponse.json({ error: 'Проект не найден' }, { status: 404 });
+        }
+
+        const role = membership.role;
+        if (!['owner', 'org_admin', 'manager'].includes(role)) {
+            return NextResponse.json({ error: 'Недостаточно прав' }, { status: 404 });
+        }
+
+        if (role === 'manager') {
+            const normalizedEmail = membership.userEmail?.trim().toLowerCase() ?? '';
+            const managers = Array.isArray(found.managers) ? found.managers : [];
+            const managesProject = managers.some(
+                (m) => typeof m === 'string' && m.trim().toLowerCase() === normalizedEmail
+            );
+
+            if (!managesProject) {
+                return NextResponse.json({ error: 'Проект не найден' }, { status: 404 });
+            }
         }
 
         return NextResponse.json({ ok: true, project: toProjectDto(found) });
@@ -137,6 +187,12 @@ export async function PATCH(
                 return NextResponse.json({ error: 'Некорректный оператор' }, { status: 400 });
             }
             update.operator = body.operator;
+        }
+
+        if (Array.isArray(body.managers)) {
+            const normalizedManagers = normalizeEmailsArray(body.managers);
+            const managerEmails = await resolveManagerEmails(org._id, normalizedManagers, email);
+            update.managers = managerEmails;
         }
 
         if (Object.keys(update).length === 0) {

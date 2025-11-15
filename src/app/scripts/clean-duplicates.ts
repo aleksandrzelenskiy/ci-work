@@ -14,7 +14,7 @@ async function cleanDuplicates() {
     }>([
       {
         $group: {
-          _id: '$name',
+          _id: { $ifNull: ['$name', '$num'] },
           docs: { $push: '$$ROOT' },
           count: { $sum: 1 },
         },

@@ -1,7 +1,7 @@
 // app/api/addTasks/route.ts
 import { NextResponse } from 'next/server';
 import Task from '@/app/models/TaskModel';
-import ObjectModel from '@/app/models/ObjectModel';
+import BaseStation, { normalizeBsNumber as normalizeBsNumberModel } from '@/app/models/BaseStation';
 import dbConnect from '@/utils/mongoose';
 import { PriorityLevel, WorkItem } from '@/app/types/taskTypes';
 import { v4 as uuidv4 } from 'uuid';
@@ -40,10 +40,19 @@ export async function POST(request: Request) {
 
     const bsLocation = await Promise.all(
         bsNames.map(async (name) => {
-          const object = await ObjectModel.findOne({ name: new RegExp(`^${name}`) });
-          if (!object)
-            throw new Error(`Базовая станция ${name} не найдена в коллекции objects-t2-ir`);
-          return { name, coordinates: object.coordinates };
+          const normalized = normalizeBsNumberModel(name);
+          const station = await BaseStation.findOne({
+            $or: [{ name: normalized }, { num: normalized }],
+          }).lean();
+          const coordinates =
+            (station?.coordinates && station.coordinates.trim()) ||
+            (typeof station?.lat === 'number' && typeof station?.lon === 'number'
+              ? `${station.lat} ${station.lon}`
+              : '');
+          if (!station || !coordinates) {
+            throw new Error(`Базовая станция ${normalized} не найдена`);
+          }
+          return { name: normalized, coordinates };
         })
     );
 

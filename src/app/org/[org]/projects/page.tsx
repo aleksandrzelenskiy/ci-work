@@ -1,7 +1,7 @@
 // src/app/org/[org]/projects/page.tsx
 'use client';
 
-import { useCallback, useEffect, useMemo, useState } from 'react';
+import { useCallback, useEffect, useState } from 'react';
 import {
     Box,
     Button,
@@ -10,7 +10,6 @@ import {
     DialogContent,
     DialogTitle,
     Paper,
-    TextField,
     Typography,
     Alert,
     IconButton,
@@ -18,14 +17,23 @@ import {
     Stack,
     CircularProgress,
     Tooltip,
-    Autocomplete,
 } from '@mui/material';
 import Grid from '@mui/material/Grid';
-import EditIcon from '@mui/icons-material/Edit';
-import DeleteIcon from '@mui/icons-material/Delete';
+import EditOutlinedIcon from '@mui/icons-material/EditOutlined';
+import DeleteOutlineOutlinedIcon from '@mui/icons-material/DeleteOutlineOutlined';
+import CreateNewFolderOutlinedIcon from '@mui/icons-material/CreateNewFolderOutlined';
+import DriveFileMoveIcon from '@mui/icons-material/DriveFileMove';
 import { useRouter, useParams } from 'next/navigation';
-import { RUSSIAN_REGIONS } from '@/app/utils/regions';
+import { REGION_MAP, REGION_ISO_MAP } from '@/app/utils/regions';
 import { OPERATORS } from '@/app/utils/operators';
+import ProjectDialog, {
+    ProjectDialogValues,
+    ProjectManagerOption,
+} from '@/app/workspace/components/ProjectDialog';
+
+const getRegionInfo = (code: string) => REGION_MAP.get(code) ?? REGION_ISO_MAP.get(code);
+const getRegionLabel = (code: string): string => getRegionInfo(code)?.label ?? code;
+const normalizeRegionCode = (code: string): string => getRegionInfo(code)?.code ?? code;
 
 type OrgRole = 'owner' | 'org_admin' | 'manager' | 'executor' | 'viewer';
 
@@ -42,6 +50,14 @@ type Project = {
 
 type GetProjectsSuccess = { projects: Project[] };
 type ApiError = { error: string };
+type MemberDTO = {
+    _id: string;
+    userEmail: string;
+    userName?: string;
+    role: OrgRole;
+    status: 'active' | 'invited';
+};
+type MembersResponse = { members: MemberDTO[] } | { error: string };
 
 // Ответ /api/org/[org]
 type OrgInfoOk = { org: { _id: string; name: string; orgSlug: string }; role: OrgRole };
@@ -198,103 +214,126 @@ export default function OrgProjectsPage() {
             : 'Кнопка доступна после активации подписки или триала'
         : '';
 
-    // ---- Создание ----
-    const [openCreate, setOpenCreate] = useState(false);
-    const [name, setName] = useState('');
-    const [key, setKey] = useState('');
-    const [description, setDescription] = useState('');
-    const [regionCode, setRegionCode] = useState<string>(RUSSIAN_REGIONS[0]?.code ?? '');
-    const [operator, setOperator] = useState<string>(OPERATORS[0]?.value ?? '');
+    // ---- Участники для менеджеров ----
+    const [managerOptions, setManagerOptions] = useState<ProjectManagerOption[]>([]);
+    const [managerOptionsError, setManagerOptionsError] = useState<string | null>(null);
 
-    const handleCreate = async (): Promise<void> => {
-        setErr(null);
-        if (disableCreateButton) {
+    const loadManagerOptions = useCallback(async () => {
+        if (!orgSlug) return;
+        setManagerOptionsError(null);
+        try {
+            const res = await fetch(
+                `/api/org/${encodeURIComponent(orgSlug)}/members?status=active`,
+                { cache: 'no-store' }
+            );
+            const data: MembersResponse = await res.json();
+
+            if (!res.ok || !('members' in data)) {
+                const message = 'error' in data ? data.error : 'Не удалось загрузить участников';
+                setManagerOptionsError(message);
+                setManagerOptions([]);
+                return;
+            }
+
+            const filtered = data.members
+                .filter((member) => member.status === 'active')
+                .filter((member) => ['owner', 'org_admin', 'manager'].includes(member.role));
+
+            setManagerOptions(
+                filtered.map((member) => ({
+                    email: member.userEmail,
+                    name: member.userName,
+                    role: member.role,
+                }))
+            );
+        } catch (e: unknown) {
+            const msg = e instanceof Error ? e.message : 'Ошибка загрузки участников';
+            setManagerOptionsError(msg);
+            setManagerOptions([]);
+        }
+    }, [orgSlug]);
+
+    useEffect(() => {
+        void loadManagerOptions();
+    }, [loadManagerOptions]);
+
+    // ---- Диалог проекта ----
+    const [projectDialogOpen, setProjectDialogOpen] = useState(false);
+    const [projectDialogMode, setProjectDialogMode] = useState<'create' | 'edit'>('create');
+    const [projectDialogLoading, setProjectDialogLoading] = useState(false);
+    const [projectToEdit, setProjectToEdit] = useState<Project | null>(null);
+
+    const openCreateDialog = () => {
+        setProjectDialogMode('create');
+        setProjectToEdit(null);
+        setProjectDialogOpen(true);
+    };
+
+    const openEditDialog = (project: Project) => {
+        setProjectDialogMode('edit');
+        setProjectToEdit(project);
+        setProjectDialogOpen(true);
+    };
+
+    const handleProjectDialogClose = () => {
+        if (projectDialogLoading) return;
+        setProjectDialogOpen(false);
+        setProjectToEdit(null);
+    };
+
+    const handleProjectDialogSubmit = async (values: ProjectDialogValues) => {
+        if (!orgSlug) return;
+        if (projectDialogMode === 'create' && (subscriptionLoading || !isSubscriptionActive)) {
             const msg = subscriptionLoading
                 ? 'Подождите завершения проверки подписки'
                 : 'Подписка не активна. Активируйте тариф или триал';
             showSnack(msg, 'error');
             return;
         }
+        setProjectDialogLoading(true);
         try {
-            const res = await fetch(`/api/org/${encodeURIComponent(orgSlug)}/projects`, {
-                method: 'POST',
+            const payload = {
+                name: values.name,
+                key: values.key,
+                description: values.description,
+                regionCode: values.regionCode,
+                operator: values.operator,
+                managers: values.managers,
+            };
+
+            const url =
+                projectDialogMode === 'edit' && projectToEdit?._id
+                    ? `/api/org/${encodeURIComponent(orgSlug)}/projects/${projectToEdit._id}`
+                    : `/api/org/${encodeURIComponent(orgSlug)}/projects`;
+            const method = projectDialogMode === 'edit' ? 'PATCH' : 'POST';
+
+            const res = await fetch(url, {
+                method,
                 headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ name, key, description, regionCode, operator }),
+                body: JSON.stringify(payload),
             });
             const data: { ok: true; project: Project } | ApiError = await res.json();
 
             if (!res.ok || !('ok' in data) || !data.ok) {
-                const msg = 'error' in data ? data.error : 'Ошибка создания проекта';
+                const msg = 'error' in data ? data.error : 'Не удалось сохранить проект';
                 setErr(msg);
                 showSnack(msg, 'error');
                 return;
             }
 
-            setOpenCreate(false);
-            setName('');
-            setKey('');
-            setDescription('');
-            setRegionCode(RUSSIAN_REGIONS[0]?.code ?? '');
-            setOperator(OPERATORS[0]?.value ?? '');
-            showSnack('Проект создан', 'success');
+            showSnack(
+                projectDialogMode === 'create' ? 'Проект создан' : 'Проект обновлён',
+                'success'
+            );
+            setProjectDialogOpen(false);
+            setProjectToEdit(null);
             void loadProjects();
         } catch (e: unknown) {
             const msg = e instanceof Error ? e.message : 'Ошибка сети';
             setErr(msg);
             showSnack(msg, 'error');
-        }
-    };
-
-    // ---- Редактирование ----
-    const [openEdit, setOpenEdit] = useState(false);
-    const [editProjectId, setEditProjectId] = useState<string | null>(null);
-    const [editName, setEditName] = useState('');
-    const [editKey, setEditKey] = useState('');
-    const [editDescription, setEditDescription] = useState('');
-    const [editRegionCode, setEditRegionCode] = useState<string>(RUSSIAN_REGIONS[0]?.code ?? '');
-    const [editOperator, setEditOperator] = useState<string>(OPERATORS[0]?.value ?? '');
-
-    const openEditDialog = (p: Project) => {
-        setEditProjectId(p._id);
-        setEditName(p.name);
-        setEditKey(p.key);
-        setEditDescription(p.description ?? '');
-        setEditRegionCode(p.regionCode);
-        setEditOperator(p.operator);
-        setOpenEdit(true);
-    };
-
-    const handleEditSave = async (): Promise<void> => {
-        if (!editProjectId) return;
-        try {
-            const res = await fetch(`/api/org/${encodeURIComponent(orgSlug)}/projects/${editProjectId}`, {
-                method: 'PATCH',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({
-                    name: editName,
-                    key: editKey,
-                    description: editDescription,
-                    regionCode: editRegionCode,
-                    operator: editOperator,
-                }),
-            });
-            const data: { ok: true; project: Project } | ApiError = await res.json();
-
-            if (!res.ok || !('ok' in data) || !data.ok) {
-                const msg = 'error' in data ? data.error : 'Ошибка обновления проекта';
-                setErr(msg);
-                showSnack(msg, 'error');
-                return;
-            }
-
-            setOpenEdit(false);
-            setEditProjectId(null);
-            showSnack('Проект обновлён', 'success');
-            void loadProjects();
-        } catch (e: unknown) {
-            const msg = e instanceof Error ? e.message : 'Ошибка сети';
-            setErr(msg);
-            showSnack(msg, 'error');
+        } finally {
+            setProjectDialogLoading(false);
         }
     };
 
@@ -388,15 +427,6 @@ export default function OrgProjectsPage() {
         }
     };
 
-    const isCreateDisabled = useMemo(
-        () => !name || !key || !regionCode || !operator || disableCreateButton,
-        [name, key, regionCode, operator, disableCreateButton]
-    );
-    const isEditDisabled = useMemo(
-        () => !editName || !editKey || !editRegionCode || !editOperator,
-        [editName, editKey, editRegionCode, editOperator]
-    );
-
     // ---- Рендер с учётом доступа ----
     if (!accessChecked) {
         return (
@@ -427,9 +457,26 @@ export default function OrgProjectsPage() {
                 </Typography>
                 <Tooltip title={createButtonTooltip} disableHoverListener={!createButtonTooltip}>
                     <span style={{ display: 'inline-block' }}>
-                        <Button variant="contained" onClick={() => setOpenCreate(true)} disabled={disableCreateButton}>
-                            Новый проект
-                        </Button>
+                        <Stack direction="row" spacing={1}>
+                            <Button
+                                variant="outlined"
+                                startIcon={<DriveFileMoveIcon />}
+                                onClick={() => {
+                                    if (!orgSlug) return;
+                                    router.push(`/org/${encodeURIComponent(orgSlug)}`);
+                                }}
+                            >
+                                Организация
+                            </Button>
+                            <Button
+                                variant="contained"
+                                startIcon={<CreateNewFolderOutlinedIcon />}
+                                onClick={openCreateDialog}
+                                disabled={disableCreateButton}
+                            >
+                                Новый проект
+                            </Button>
+                        </Stack>
                     </span>
                 </Tooltip>
             </Box>
@@ -495,6 +542,12 @@ export default function OrgProjectsPage() {
                 </Alert>
             )}
 
+            {managerOptionsError && (
+                <Alert severity="warning" sx={{ mb: 2 }}>
+                    Не удалось загрузить список менеджеров: {managerOptionsError}
+                </Alert>
+            )}
+
             {err && (
                 <Alert severity="error" sx={{ mb: 2 }}>
                     {err}
@@ -511,7 +564,7 @@ export default function OrgProjectsPage() {
                         const manager =
                             p.managerEmail ??
                             (Array.isArray(p.managers) && p.managers.length > 0 ? p.managers[0] : '—');
-                        const regionLabel = RUSSIAN_REGIONS.find((region) => region.code === p.regionCode)?.name ?? p.regionCode;
+                        const regionLabel = getRegionLabel(p.regionCode);
                         const operatorLabel = OPERATORS.find((item) => item.value === p.operator)?.label ?? p.operator;
 
                         return (
@@ -540,7 +593,7 @@ export default function OrgProjectsPage() {
                                                     openEditDialog(p);
                                                 }}
                                             >
-                                                <EditIcon fontSize="small" />
+                                                <EditOutlinedIcon fontSize="small" />
                                             </IconButton>
                                         </Tooltip>
                                         <Tooltip title="Удалить">
@@ -552,7 +605,7 @@ export default function OrgProjectsPage() {
                                                     askDelete(p);
                                                 }}
                                             >
-                                                <DeleteIcon fontSize="small" />
+                                                <DeleteOutlineOutlinedIcon fontSize="small" />
                                             </IconButton>
                                         </Tooltip>
                                     </Stack>
@@ -588,150 +641,27 @@ export default function OrgProjectsPage() {
                 </Grid>
             )}
 
-            {/* Create */}
-            <Dialog open={openCreate} onClose={() => setOpenCreate(false)}>
-                <DialogTitle>Новый проект</DialogTitle>
-                <DialogContent sx={{ pt: 1 }}>
-                    <TextField
-                        label="Название"
-                        fullWidth
-                        sx={{ mt: 1 }}
-                        value={name}
-                        onChange={(e) => setName(e.target.value)}
-                    />
-                    <TextField
-                        label="Код (KEY)"
-                        fullWidth
-                        sx={{ mt: 2 }}
-                        value={key}
-                        onChange={(e) => setKey(e.target.value)}
-                    />
-                    <TextField
-                        label="Описание"
-                        fullWidth
-                        multiline
-                        minRows={3}
-                        sx={{ mt: 2 }}
-                        value={description}
-                        onChange={(e) => setDescription(e.target.value)}
-                    />
-                    <Box sx={{ mt: 3 }}>
-                        <Autocomplete
-                            options={RUSSIAN_REGIONS}
-                            value={
-                                RUSSIAN_REGIONS.find((region) => region.code === regionCode) ?? null
-                            }
-                            onChange={(_, value) => setRegionCode(value?.code ?? '')}
-                            getOptionLabel={(option) => option.name}
-                            renderInput={(params) => <TextField {...params} label="Регион" />}
-                        />
-                    </Box>
-                    <Box sx={{ mt: 2 }}>
-                        <Autocomplete
-                            options={OPERATORS}
-                            value={OPERATORS.find((item) => item.value === operator) ?? null}
-                            onChange={(_, value) => setOperator(value?.value ?? '')}
-                            getOptionLabel={(option) => option.name}
-                            renderOption={(props, option) => (
-                                <li {...props} key={option.value}>
-                                    <Stack
-                                        direction="row"
-                                        spacing={1}
-                                        alignItems="center"
-                                        justifyContent="space-between"
-                                        sx={{ width: '100%' }}
-                                    >
-                                        <Typography>{option.name}</Typography>
-                                        <Typography variant="body2" color="text.secondary">
-                                            {option.visibleCode}
-                                        </Typography>
-                                    </Stack>
-                                </li>
-                            )}
-                            renderInput={(params) => <TextField {...params} label="Оператор" />}
-                        />
-                    </Box>
-                </DialogContent>
-                <DialogActions>
-                    <Button onClick={() => setOpenCreate(false)}>Отмена</Button>
-                    <Button onClick={handleCreate} variant="contained" disabled={isCreateDisabled}>
-                        Создать
-                    </Button>
-                </DialogActions>
-            </Dialog>
-
-            {/* Edit */}
-            <Dialog open={openEdit} onClose={() => setOpenEdit(false)}>
-                <DialogTitle>Редактировать проект</DialogTitle>
-                <DialogContent sx={{ pt: 1 }}>
-                    <TextField
-                        label="Название"
-                        fullWidth
-                        sx={{ mt: 1 }}
-                        value={editName}
-                        onChange={(e) => setEditName(e.target.value)}
-                    />
-                    <TextField
-                        label="Код (KEY)"
-                        fullWidth
-                        sx={{ mt: 2 }}
-                        value={editKey}
-                        onChange={(e) => setEditKey(e.target.value)}
-                    />
-                    <TextField
-                        label="Описание"
-                        fullWidth
-                        multiline
-                        minRows={3}
-                        sx={{ mt: 2 }}
-                        value={editDescription}
-                        onChange={(e) => setEditDescription(e.target.value)}
-                    />
-                    <Box sx={{ mt: 3 }}>
-                        <Autocomplete
-                            options={RUSSIAN_REGIONS}
-                            value={
-                                RUSSIAN_REGIONS.find((region) => region.code === editRegionCode) ??
-                                null
-                            }
-                            onChange={(_, value) => setEditRegionCode(value?.code ?? '')}
-                            getOptionLabel={(option) => option.name}
-                            renderInput={(params) => <TextField {...params} label="Регион" />}
-                        />
-                    </Box>
-                    <Box sx={{ mt: 2 }}>
-                        <Autocomplete
-                            options={OPERATORS}
-                            value={OPERATORS.find((item) => item.value === editOperator) ?? null}
-                            onChange={(_, value) => setEditOperator(value?.value ?? '')}
-                            getOptionLabel={(option) => option.name}
-                            renderOption={(props, option) => (
-                                <li {...props} key={option.value}>
-                                    <Stack
-                                        direction="row"
-                                        spacing={1}
-                                        alignItems="center"
-                                        justifyContent="space-between"
-                                        sx={{ width: '100%' }}
-                                    >
-                                        <Typography>{option.name}</Typography>
-                                        <Typography variant="body2" color="text.secondary">
-                                            {option.visibleCode}
-                                        </Typography>
-                                    </Stack>
-                                </li>
-                            )}
-                            renderInput={(params) => <TextField {...params} label="Оператор" />}
-                        />
-                    </Box>
-                </DialogContent>
-                <DialogActions>
-                    <Button onClick={() => setOpenEdit(false)}>Отмена</Button>
-                    <Button onClick={handleEditSave} variant="contained" disabled={isEditDisabled}>
-                        Сохранить
-                    </Button>
-                </DialogActions>
-            </Dialog>
+            <ProjectDialog
+                open={projectDialogOpen}
+                mode={projectDialogMode}
+                loading={projectDialogLoading}
+                members={managerOptions}
+                onClose={handleProjectDialogClose}
+                onSubmit={handleProjectDialogSubmit}
+                initialData={
+                    projectDialogMode === 'edit' && projectToEdit
+                        ? {
+                              projectId: projectToEdit._id,
+                              name: projectToEdit.name,
+                              key: projectToEdit.key,
+                              description: projectToEdit.description ?? '',
+                              regionCode: normalizeRegionCode(projectToEdit.regionCode),
+                              operator: projectToEdit.operator,
+                              managers: projectToEdit.managers ?? [],
+                          }
+                        : undefined
+                }
+            />
 
             {/* Delete confirm */}
             <Dialog open={openDelete} onClose={() => setOpenDelete(false)}>
