@@ -24,7 +24,7 @@ import SearchIcon from '@mui/icons-material/Search';
 import CloseIcon from '@mui/icons-material/Close';
 import FilterListIcon from '@mui/icons-material/FilterList';
 import ViewColumnOutlinedIcon from '@mui/icons-material/ViewColumnOutlined';
-import DriveFileMoveRtlOutlinedIcon from '@mui/icons-material/DriveFileMoveRtlOutlined';
+import DriveFileMoveOutlinedIcon from '@mui/icons-material/DriveFileMoveOutlined';
 
 import WorkspaceTaskDialog from '@/app/workspace/components/WorkspaceTaskDialog';
 import ProjectTaskList, { ProjectTaskListHandle } from '@/app/workspace/components/ProjectTaskList';
@@ -223,7 +223,7 @@ React.useEffect(() => {
                                     size="small"
                                     aria-label="Перейти к проектам"
                                 >
-                                    <DriveFileMoveRtlOutlinedIcon fontSize="small" />
+                                    <DriveFileMoveOutlinedIcon fontSize="small" />
                                 </IconButton>
                             </span>
                         </Tooltip>
