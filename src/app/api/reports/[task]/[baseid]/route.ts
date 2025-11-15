@@ -32,8 +32,11 @@ export async function GET(
 
     const userContext = await GetUserContext();
     if (!userContext.success || !userContext.data) {
+      const errorMessage = userContext.success
+        ? 'Нет активной сессии пользователя'
+        : userContext.message || 'Нет активной сессии пользователя';
       return NextResponse.json(
-          { error: userContext.message || 'Нет активной сессии пользователя' },
+          { error: errorMessage },
           { status: 401 }
       );
     }
