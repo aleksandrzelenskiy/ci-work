@@ -52,6 +52,7 @@ type Task = {
     taskId: string;
     taskName: string;
     bsNumber?: string;
+    projectKey?: string;
     createdAt?: string;
     dueDate?: string;
     status?: string;
