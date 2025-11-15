@@ -2,14 +2,30 @@
 
 'use server';
 
-import UserModel from 'src/app/models/UserModel';
+import UserModel, { type IUser } from 'src/app/models/UserModel';
 import dbConnect from 'src/utils/mongoose';
 import { currentUser } from '@clerk/nextjs/server';
 import { MongoServerError } from 'mongodb';
 
 dbConnect();
 
-export const GetCurrentUserFromMongoDB = async () => {
+type UserSuccessResponse = {
+  success: true;
+  data: IUser;
+};
+
+type UserErrorResponse = {
+  success: false;
+  message: string;
+};
+
+export type GetCurrentUserResponse = UserSuccessResponse | UserErrorResponse;
+
+const serializeUser = (user: unknown): IUser =>
+  JSON.parse(JSON.stringify(user)) as IUser;
+
+export const GetCurrentUserFromMongoDB =
+  async (): Promise<GetCurrentUserResponse> => {
   try {
     const clerkUser = await currentUser();
     if (!clerkUser) {
@@ -82,7 +98,7 @@ export const GetCurrentUserFromMongoDB = async () => {
       }
       return {
         success: true,
-        data: JSON.parse(JSON.stringify(user)),
+        data: serializeUser(user),
       };
     }
 
@@ -112,7 +128,7 @@ export const GetCurrentUserFromMongoDB = async () => {
         if (existingUser) {
           return {
             success: true,
-            data: JSON.parse(JSON.stringify(existingUser)),
+            data: serializeUser(existingUser),
           };
         }
       }
@@ -121,7 +137,7 @@ export const GetCurrentUserFromMongoDB = async () => {
 
     return {
       success: true,
-      data: JSON.parse(JSON.stringify(newUser)),
+      data: serializeUser(newUser),
     };
   } catch (error: unknown) {
     if (error instanceof Error) {
