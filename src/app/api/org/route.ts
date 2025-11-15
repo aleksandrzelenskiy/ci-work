@@ -105,6 +105,7 @@ export async function POST(request: NextRequest): Promise<NextResponse<CreateOrg
         const created = await Organization.create({
             name: orgName,
             orgSlug,
+            slug: orgSlug,
             ownerEmail: email,
             createdByEmail: email,
         });
