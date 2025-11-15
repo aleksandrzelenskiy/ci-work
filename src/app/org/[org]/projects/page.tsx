@@ -48,6 +48,35 @@ type OrgInfoOk = { org: { _id: string; name: string; orgSlug: string }; role: Or
 type OrgInfoErr = { error: string };
 type OrgInfoResp = OrgInfoOk | OrgInfoErr;
 
+type Plan = 'free' | 'basic' | 'pro' | 'enterprise';
+type SubscriptionStatus = 'active' | 'trial' | 'suspended' | 'past_due' | 'inactive';
+
+type SubscriptionInfo = {
+    orgSlug: string;
+    plan: Plan;
+    status: SubscriptionStatus;
+    seats?: number;
+    projectsLimit?: number;
+    periodStart?: string | null;
+    periodEnd?: string | null;
+    note?: string;
+    updatedByEmail?: string;
+    updatedAt: string;
+};
+
+type GetSubscriptionResponse = { subscription: SubscriptionInfo };
+type PatchSubscriptionResponse = { ok: true; subscription: SubscriptionInfo };
+
+const DAY_MS = 24 * 60 * 60 * 1000;
+const TRIAL_DURATION_DAYS = 10;
+
+const parseISODate = (value?: string | null): Date | null => {
+    if (!value) return null;
+    const date = new Date(value);
+    if (Number.isNaN(date.getTime())) return null;
+    return date;
+};
+
 export default function OrgProjectsPage() {
     const router = useRouter();
 
@@ -58,6 +87,10 @@ export default function OrgProjectsPage() {
     const [projects, setProjects] = useState<Project[]>([]);
     const [loading, setLoading] = useState(true);
     const [err, setErr] = useState<string | null>(null);
+    const [subscription, setSubscription] = useState<SubscriptionInfo | null>(null);
+    const [subscriptionLoading, setSubscriptionLoading] = useState(true);
+    const [subscriptionError, setSubscriptionError] = useState<string | null>(null);
+    const [startTrialLoading, setStartTrialLoading] = useState(false);
 
     // ---- Доступ (только owner/org_admin/manager) ----
     const allowedRoles: OrgRole[] = ['owner', 'org_admin', 'manager'];
@@ -108,6 +141,32 @@ export default function OrgProjectsPage() {
         }
     }, [orgSlug, canManage]);
 
+    const loadSubscription = useCallback(async () => {
+        if (!orgSlug) return;
+        setSubscriptionLoading(true);
+        setSubscriptionError(null);
+        try {
+            const res = await fetch(`/api/org/${encodeURIComponent(orgSlug)}/subscription`, { cache: 'no-store' });
+            const data: GetSubscriptionResponse | ApiError = await res.json();
+
+            if (!res.ok || !('subscription' in data)) {
+                const message = 'error' in data ? data.error : 'Не удалось загрузить подписку';
+                setSubscriptionError(message);
+                setSubscription(null);
+                return;
+            }
+
+            setSubscriptionError(null);
+            setSubscription(data.subscription);
+        } catch (e: unknown) {
+            const msg = e instanceof Error ? e.message : 'Ошибка загрузки подписки';
+            setSubscriptionError(msg);
+            setSubscription(null);
+        } finally {
+            setSubscriptionLoading(false);
+        }
+    }, [orgSlug]);
+
     useEffect(() => {
         void checkAccessAndLoadOrg();
     }, [checkAccessAndLoadOrg]);
@@ -115,6 +174,29 @@ export default function OrgProjectsPage() {
     useEffect(() => {
         if (canManage) void loadProjects();
     }, [canManage, loadProjects]);
+
+    useEffect(() => {
+        if (!accessChecked || !canManage) return;
+        void loadSubscription();
+    }, [accessChecked, canManage, loadSubscription]);
+
+    const trialEndsAt = parseISODate(subscription?.periodEnd);
+    const nowTs = Date.now();
+    const isTrialActive = subscription?.status === 'trial' && !!trialEndsAt && trialEndsAt.getTime() > nowTs;
+    const isTrialExpired = subscription?.status === 'trial' && !isTrialActive;
+    const isSubscriptionActive = subscription?.status === 'active' || isTrialActive;
+    const trialDaysLeft =
+        isTrialActive && trialEndsAt ? Math.max(0, Math.ceil((trialEndsAt.getTime() - nowTs) / DAY_MS)) : null;
+    const formattedTrialEnd = trialEndsAt?.toLocaleDateString('ru-RU');
+    const isOwnerOrAdmin = myRole === 'owner' || myRole === 'org_admin';
+    const canStartTrial =
+        isOwnerOrAdmin && (!subscription || subscription.status === 'inactive' || isTrialExpired);
+    const disableCreateButton = subscriptionLoading || !isSubscriptionActive;
+    const createButtonTooltip = disableCreateButton
+        ? subscriptionLoading
+            ? 'Проверяем статус подписки…'
+            : 'Кнопка доступна после активации подписки или триала'
+        : '';
 
     // ---- Создание ----
     const [openCreate, setOpenCreate] = useState(false);
@@ -126,6 +208,13 @@ export default function OrgProjectsPage() {
 
     const handleCreate = async (): Promise<void> => {
         setErr(null);
+        if (disableCreateButton) {
+            const msg = subscriptionLoading
+                ? 'Подождите завершения проверки подписки'
+                : 'Подписка не активна. Активируйте тариф или триал';
+            showSnack(msg, 'error');
+            return;
+        }
         try {
             const res = await fetch(`/api/org/${encodeURIComponent(orgSlug)}/projects`, {
                 method: 'POST',
@@ -262,9 +351,46 @@ export default function OrgProjectsPage() {
         setSnackOpen(true);
     };
 
+    const handleStartTrial = async (): Promise<void> => {
+        if (!orgSlug || !canStartTrial) return;
+        setStartTrialLoading(true);
+        setSubscriptionError(null);
+        try {
+            const now = new Date();
+            const trialEnd = new Date(now.getTime() + TRIAL_DURATION_DAYS * DAY_MS);
+            const res = await fetch(`/api/org/${encodeURIComponent(orgSlug)}/subscription`, {
+                method: 'PATCH',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    status: 'trial',
+                    periodStart: now.toISOString(),
+                    periodEnd: trialEnd.toISOString(),
+                }),
+            });
+            const data: PatchSubscriptionResponse | ApiError = await res.json();
+
+            if (!res.ok || !('ok' in data) || !data.ok) {
+                const msg = 'error' in data ? data.error : 'Не удалось активировать триал';
+                setSubscriptionError(msg);
+                showSnack(msg, 'error');
+                return;
+            }
+
+            setSubscription(data.subscription);
+            setSubscriptionError(null);
+            showSnack('Триал активирован на 10 дней', 'success');
+        } catch (e: unknown) {
+            const msg = e instanceof Error ? e.message : 'Ошибка запуска триала';
+            setSubscriptionError(msg);
+            showSnack(msg, 'error');
+        } finally {
+            setStartTrialLoading(false);
+        }
+    };
+
     const isCreateDisabled = useMemo(
-        () => !name || !key || !regionCode || !operator,
-        [name, key, regionCode, operator]
+        () => !name || !key || !regionCode || !operator || disableCreateButton,
+        [name, key, regionCode, operator, disableCreateButton]
     );
     const isEditDisabled = useMemo(
         () => !editName || !editKey || !editRegionCode || !editOperator,
@@ -295,14 +421,79 @@ export default function OrgProjectsPage() {
 
     return (
         <Box sx={{ p: 3 }}>
-            <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', mb: 2 }}>
+            <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', mb: 2, gap: 2, flexWrap: 'wrap' }}>
                 <Typography variant="h5" fontWeight={700}>
                     Проекты / {orgName}
                 </Typography>
-                <Button variant="contained" onClick={() => setOpenCreate(true)}>
-                    Новый проект
-                </Button>
+                <Tooltip title={createButtonTooltip} disableHoverListener={!createButtonTooltip}>
+                    <span style={{ display: 'inline-block' }}>
+                        <Button variant="contained" onClick={() => setOpenCreate(true)} disabled={disableCreateButton}>
+                            Новый проект
+                        </Button>
+                    </span>
+                </Tooltip>
             </Box>
+
+            {subscriptionError && (
+                <Alert severity="error" sx={{ mb: 2 }}>
+                    Не удалось получить статус подписки: {subscriptionError}
+                </Alert>
+            )}
+
+            {!subscriptionError && subscriptionLoading && (
+                <Alert severity="info" sx={{ mb: 2 }}>
+                    Проверяем статус подписки…
+                </Alert>
+            )}
+
+            {!subscriptionError && !subscriptionLoading && !isSubscriptionActive && (
+                <Alert severity="warning" sx={{ mb: 2 }}>
+                    <Stack
+                        direction={{ xs: 'column', sm: 'row' }}
+                        spacing={2}
+                        alignItems={{ xs: 'flex-start', sm: 'center' }}
+                        justifyContent="space-between"
+                    >
+                        <Box>
+                            <Typography fontWeight={600}>Подписка не активна.</Typography>
+                            {isTrialExpired && formattedTrialEnd && (
+                                <Typography variant="body2" color="text.secondary" sx={{ mt: 0.5 }}>
+                                    Пробный период завершился {formattedTrialEnd}.
+                                </Typography>
+                            )}
+                            <Typography variant="body2" color="text.secondary" sx={{ mt: 0.5 }}>
+                                Получите бесплатный триал на {TRIAL_DURATION_DAYS} дней, чтобы создавать проекты.
+                            </Typography>
+                            {!canStartTrial && (
+                                <Typography variant="body2" color="text.secondary" sx={{ mt: 0.5 }}>
+                                    Обратитесь к владельцу организации, чтобы активировать подписку.
+                                </Typography>
+                            )}
+                        </Box>
+                        {canStartTrial && (
+                            <Button
+                                variant="contained"
+                                color="warning"
+                                onClick={handleStartTrial}
+                                disabled={startTrialLoading}
+                            >
+                                {startTrialLoading ? 'Запускаем…' : 'Активировать триал'}
+                            </Button>
+                        )}
+                    </Stack>
+                </Alert>
+            )}
+
+            {!subscriptionError && !subscriptionLoading && isTrialActive && (
+                <Alert severity="info" sx={{ mb: 2 }}>
+                    Пробный период активен до {formattedTrialEnd ?? '—'}
+                    {typeof trialDaysLeft === 'number' && (
+                        <Typography component="span" sx={{ ml: 0.5 }}>
+                            (осталось {trialDaysLeft} дн.)
+                        </Typography>
+                    )}
+                </Alert>
+            )}
 
             {err && (
                 <Alert severity="error" sx={{ mb: 2 }}>

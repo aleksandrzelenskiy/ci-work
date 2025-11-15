@@ -11,7 +11,6 @@ import { OPERATORS } from '@/app/utils/operators';
 
 export const runtime = 'nodejs';
 export const dynamic = 'force-dynamic';
-
 function toHttpError(e: unknown) {
     const msg = e instanceof Error ? e.message : String(e);
     if (/Организация не найдена|Org not found/i.test(msg)) return NextResponse.json({ error: 'Org not found' }, { status: 404 });
@@ -50,6 +49,41 @@ interface ProjectLean {
     regionCode: string;
     operator: string;
 }
+
+type SubscriptionLean = {
+    status: 'active' | 'trial' | 'suspended' | 'past_due' | 'inactive';
+    periodStart?: Date | string | null;
+    periodEnd?: Date | string | null;
+};
+
+const parseDate = (value: Date | string | null | undefined): Date | null => {
+    if (!value) return null;
+    const date = value instanceof Date ? value : new Date(value);
+    if (Number.isNaN(date.getTime())) return null;
+    return date;
+};
+
+const isTrialWindowActive = (sub: SubscriptionLean | null): boolean => {
+    if (!sub || sub.status !== 'trial') return false;
+    const end = parseDate(sub.periodEnd);
+    if (!end) return false;
+    return end.getTime() > Date.now();
+};
+
+const isSubscriptionActive = (sub: SubscriptionLean | null): boolean => {
+    if (!sub) return false;
+    if (sub.status === 'active') return true;
+    if (sub.status === 'trial') return isTrialWindowActive(sub);
+    return false;
+};
+
+const subscriptionBlockReason = (sub: SubscriptionLean | null): string => {
+    if (!sub || sub.status === 'inactive') return 'Подписка не активна';
+    if (sub.status === 'trial' && !isTrialWindowActive(sub)) return 'Пробный период истёк';
+    if (sub.status === 'suspended') return 'Подписка приостановлена';
+    if (sub.status === 'past_due') return 'Оплата подписки просрочена';
+    return 'Тариф не активен';
+};
 
 export async function GET(
     _req: NextRequest,
@@ -112,9 +146,9 @@ export async function POST(
 
         const { org: orgDoc } = await requireOrgRole(orgSlug, email, ['owner', 'org_admin', 'manager']);
 
-        const sub = await Subscription.findOne({ orgId: orgDoc._id }).lean();
-        if (sub && sub.status !== 'active' && sub.status !== 'trial') {
-            return NextResponse.json({ error: 'Тариф не активен' }, { status: 402 });
+        const sub = await Subscription.findOne({ orgId: orgDoc._id }).lean<SubscriptionLean | null>();
+        if (!isSubscriptionActive(sub)) {
+            return NextResponse.json({ error: subscriptionBlockReason(sub) }, { status: 402 });
         }
 
         const body = (await request.json()) as CreateProjectBody;

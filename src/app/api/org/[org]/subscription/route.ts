@@ -8,6 +8,9 @@ import { requireOrgRole } from '@/app/utils/permissions';
 export const runtime = 'nodejs';
 export const dynamic = 'force-dynamic';
 
+const TRIAL_DURATION_DAYS = 10;
+const TRIAL_DURATION_MS = TRIAL_DURATION_DAYS * 24 * 60 * 60 * 1000;
+
 function errorMessage(err: unknown): string {
     return err instanceof Error ? err.message : 'Server error';
 }
@@ -95,6 +98,28 @@ function fallbackDTO(orgSlug: string): SubscriptionDTO {
     };
 }
 
+const parseDateOrNull = (value: Date | string | null | undefined): Date | null => {
+    if (!value) return null;
+    const date = value instanceof Date ? value : new Date(value);
+    if (Number.isNaN(date.getTime())) return null;
+    return date;
+};
+
+const clampTrialWindow = (
+    rawStart: Date | null | undefined,
+    rawEnd: Date | null | undefined
+): { start: Date; end: Date } => {
+    const now = new Date();
+    const start = rawStart && !Number.isNaN(rawStart.getTime()) ? rawStart : now;
+    const defaultEnd = new Date(start.getTime() + TRIAL_DURATION_MS);
+    if (!rawEnd || Number.isNaN(rawEnd.getTime())) {
+        return { start, end: defaultEnd };
+    }
+    const maxEnd = new Date(start.getTime() + TRIAL_DURATION_MS);
+    const end = rawEnd.getTime() > maxEnd.getTime() ? maxEnd : rawEnd;
+    return { start, end };
+};
+
 // GET /api/org/:org/subscription — получить подписку (видно любому члену)
 export async function GET(
     _req: NextRequest,
@@ -133,6 +158,10 @@ export async function PATCH(
         const { org } = await requireOrgRole(orgSlug, email, ['owner', 'org_admin']);
 
         const body = (await request.json()) as PatchBody;
+        const parsedPeriodStart =
+            'periodStart' in body ? parseDateOrNull(body.periodStart ?? null) : undefined;
+        const parsedPeriodEnd =
+            'periodEnd' in body ? parseDateOrNull(body.periodEnd ?? null) : undefined;
 
         /** Тип обновляемых полей в БД */
         type Updatable = {
@@ -140,8 +169,8 @@ export async function PATCH(
             status?: SubStatus;
             seats?: number;
             projectsLimit?: number;
-            periodStart?: Date | string | null;
-            periodEnd?: Date | string | null;
+            periodStart?: Date | null;
+            periodEnd?: Date | null;
             note?: string;
             updatedByEmail: string;
             updatedAt: Date;
@@ -152,12 +181,18 @@ export async function PATCH(
             ...('status' in body ? { status: body.status } : {}),
             ...('seats' in body ? { seats: body.seats } : {}),
             ...('projectsLimit' in body ? { projectsLimit: body.projectsLimit } : {}),
-            ...('periodStart' in body ? { periodStart: body.periodStart ?? null } : {}),
-            ...('periodEnd' in body ? { periodEnd: body.periodEnd ?? null } : {}),
+            ...('periodStart' in body ? { periodStart: parsedPeriodStart ?? null } : {}),
+            ...('periodEnd' in body ? { periodEnd: parsedPeriodEnd ?? null } : {}),
             ...('note' in body ? { note: body.note } : {}),
             updatedByEmail: email,
             updatedAt: new Date(),
         };
+
+        if (body.status === 'trial') {
+            const { start, end } = clampTrialWindow(parsedPeriodStart ?? null, parsedPeriodEnd ?? null);
+            update.periodStart = start;
+            update.periodEnd = end;
+        }
 
         const saved = await Subscription.findOneAndUpdate(
             { orgId: org._id },
