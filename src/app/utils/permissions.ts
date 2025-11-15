@@ -2,10 +2,11 @@
 import dbConnect from '@/utils/mongoose';
 import Organization from '@/app/models/OrganizationModel';
 import Membership, { OrgRole } from '@/app/models/MembershipModel';
+import { Types } from 'mongoose';
 
 /** Минимальный lean-тип организации */
 interface OrgLean {
-    _id: unknown;
+    _id: Types.ObjectId;
     name: string;
     orgSlug: string;
     ownerEmail?: string;
@@ -14,8 +15,8 @@ interface OrgLean {
 
 /** Минимальный lean-тип членства */
 interface MembershipLean {
-    _id: unknown;
-    orgId: unknown;
+    _id: Types.ObjectId;
+    orgId: Types.ObjectId;
     userEmail: string;
     role: OrgRole;
     status?: string;
