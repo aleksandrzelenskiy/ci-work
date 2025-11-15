@@ -21,8 +21,11 @@ export async function GET() {
 
   const userContext = await GetUserContext();
   if (!userContext.success || !userContext.data) {
+    const errorMessage = userContext.success
+      ? 'No active user session found'
+      : userContext.message || 'No active user session found';
     return NextResponse.json(
-      { error: userContext.message || 'No active user session found' },
+      { error: errorMessage },
       { status: 401 }
     );
   }
