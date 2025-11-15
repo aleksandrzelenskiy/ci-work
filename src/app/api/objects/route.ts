@@ -91,7 +91,7 @@ export async function GET(req: NextRequest) {
             .lean();
 
         return NextResponse.json({
-            objects: docs.map(mapStation),
+            objects: docs.map((doc) => mapStation(doc as StationDoc)),
         });
     } catch (e: unknown) {
         console.error(e);
