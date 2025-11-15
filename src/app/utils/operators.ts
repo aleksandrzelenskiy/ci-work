@@ -33,10 +33,13 @@ const RUSSIAN_OPERATOR_SOURCE = {
 type RawOperator = (typeof RUSSIAN_OPERATOR_SOURCE.operators)[number];
 
 export const OPERATORS = RUSSIAN_OPERATOR_SOURCE.operators.map((operator) => {
-  const title = operator.name ?? operator.visibleCode;
+  const title = 'name' in operator && operator.name ? operator.name : operator.visibleCode;
   return {
     value: operator.internalCode,
-    label: operator.name ? `${operator.name} (${operator.visibleCode})` : operator.visibleCode,
+    label:
+      'name' in operator && operator.name
+        ? `${operator.name} (${operator.visibleCode})`
+        : operator.visibleCode,
     name: title,
     internalCode: operator.internalCode,
     visibleCode: operator.visibleCode,
