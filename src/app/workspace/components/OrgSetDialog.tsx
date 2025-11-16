@@ -20,12 +20,13 @@ import {
     IconButton,
     Tooltip,
 } from '@mui/material';
+import type { SelectChangeEvent } from '@mui/material/Select';
 import ExpandMoreIcon from '@mui/icons-material/ExpandMore';
-import EditOutlinedIcon from '@mui/icons-material/EditOutlined';
+import EditNoteIcon from '@mui/icons-material/EditNote';
 import DoneIcon from '@mui/icons-material/Done';
 
 export type OrgSettingsFormValues = {
-    plan: 'basic' | 'pro' | 'enterprise';
+    plan: 'basic' | 'pro' | 'business';
     legalForm: 'ООО' | 'ИП' | 'АО' | 'ЗАО';
     organizationName: string;
     legalAddress: string;
@@ -66,19 +67,19 @@ type OrgSetDialogProps = {
     open: boolean;
     loading?: boolean;
     initialValues?: OrgSettingsFormValues | null;
-    onClose: () => void;
+    onCloseAction: () => void;
     onSubmit: (values: OrgSettingsFormValues) => void;
 };
 
 const LEGAL_FORMS: OrgSettingsFormValues['legalForm'][] = ['ООО', 'ИП', 'АО', 'ЗАО'];
 
 export default function OrgSetDialog({
-    open,
-    loading = false,
-    initialValues,
-    onClose,
-    onSubmit,
-}: OrgSetDialogProps) {
+                                         open,
+                                         loading = false,
+                                         initialValues,
+                                         onCloseAction,
+                                         onSubmit,
+                                     }: OrgSetDialogProps) {
     const [form, setForm] = React.useState<OrgSettingsFormValues>(defaultOrgSettings);
     const [isEditing, setIsEditing] = React.useState(false);
 
@@ -95,10 +96,9 @@ export default function OrgSetDialog({
             setForm((prev) => ({ ...prev, [field]: value }));
         };
 
-    const handleSelectChange = (field: keyof OrgSettingsFormValues) =>
-        (event: React.ChangeEvent<{ value: unknown }>) => {
-            setForm((prev) => ({ ...prev, [field]: event.target.value as string }));
-        };
+    const handleLegalFormChange = (event: SelectChangeEvent<OrgSettingsFormValues['legalForm']>) => {
+        setForm((prev) => ({ ...prev, legalForm: event.target.value as OrgSettingsFormValues['legalForm'] }));
+    };
 
     const handleSubmit = () => {
         onSubmit(form);
@@ -113,16 +113,11 @@ export default function OrgSetDialog({
     const isIndividualEntrepreneur = form.legalForm === 'ИП';
 
     return (
-        <Dialog open={open} onClose={loading ? undefined : onClose} maxWidth="md" fullWidth>
+        <Dialog open={open} onClose={loading ? undefined : onCloseAction} maxWidth="md" fullWidth>
             <DialogTitle>Настройки организации</DialogTitle>
             <DialogContent dividers>
                 <Stack spacing={1.5} sx={{ mb: 2 }}>
-                    <Typography variant="subtitle2">
-                        Тарифный план: {form.plan.toUpperCase()}{' '}
-                        <Button size="small" disabled sx={{ textTransform: 'none', p: 0, ml: 0.5 }}>
-                            Изменить
-                        </Button>
-                    </Typography>
+
                 </Stack>
 
                 {isEditing ? (
@@ -134,7 +129,7 @@ export default function OrgSetDialog({
                                     labelId="legal-form-label"
                                     label="Форма"
                                     value={form.legalForm}
-                                    onChange={handleSelectChange('legalForm')}
+                                    onChange={handleLegalFormChange}
                                     disabled={loading}
                                 >
                                     {LEGAL_FORMS.map((option) => (
@@ -292,7 +287,7 @@ export default function OrgSetDialog({
                                                         setIsEditing(true);
                                                     }}
                                                 >
-                                                    <EditOutlinedIcon fontSize="small" />
+                                                    <EditNoteIcon fontSize="small" />
                                                 </IconButton>
                                             </span>
                                         </Tooltip>
@@ -336,7 +331,7 @@ export default function OrgSetDialog({
                 )}
             </DialogContent>
             <DialogActions>
-                <Button onClick={onClose} disabled={loading}>
+                <Button onClick={onCloseAction} disabled={loading}>
                     Закрыть
                 </Button>
                 <Button variant="contained" disabled={submitDisabled} onClick={handleSubmit}>

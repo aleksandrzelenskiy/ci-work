@@ -5,10 +5,10 @@ import dbConnect from '@/utils/mongoose';
 import Organization, { CompanyProfile } from '@/app/models/OrganizationModel';
 import { requireOrgRole } from '@/app/utils/permissions';
 
-type OrgPlan = 'basic' | 'pro' | 'enterprise';
+type OrgPlan = 'basic' | 'pro' | 'business';
 type LegalForm = 'ООО' | 'ИП' | 'АО' | 'ЗАО';
 
-const PLAN_SET = new Set<OrgPlan>(['basic', 'pro', 'enterprise']);
+const PLAN_SET = new Set<OrgPlan>(['basic', 'pro', 'business']);
 const LEGAL_FORM_SET = new Set<LegalForm>(['ООО', 'ИП', 'АО', 'ЗАО']);
 
 type OrgSettingsDTO = CompanyProfile | null;

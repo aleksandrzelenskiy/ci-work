@@ -94,7 +94,6 @@ export async function POST(request: NextRequest): Promise<NextResponse<CreateOrg
         // проверка уникальности
         let orgSlug = base;
         let i = 2;
-        // eslint-disable-next-line no-await-in-loop
         while (await Organization.findOne({ orgSlug }).lean()) {
             if (provided) {
                 return NextResponse.json({ error: `orgSlug "${provided}" уже занят` }, { status: 409 });
@@ -120,7 +119,7 @@ export async function POST(request: NextRequest): Promise<NextResponse<CreateOrg
 
         await Subscription.create({
             orgId: created._id,
-            plan: 'free',
+            plan: 'basic',
             status: 'inactive', // админ активирует вручную после оплаты
             seats: 10,
             projectsLimit: 10,

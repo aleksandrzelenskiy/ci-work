@@ -14,6 +14,7 @@ import {
 import RefreshIcon from '@mui/icons-material/Refresh';
 import DeleteOutlineOutlinedIcon from '@mui/icons-material/DeleteOutlineOutlined';
 import EditOutlinedIcon from '@mui/icons-material/EditOutlined';
+import BusinessIcon from '@mui/icons-material/Business';
 import PersonAddIcon from '@mui/icons-material/PersonAdd';
 import LinkIcon from '@mui/icons-material/Link';
 import DriveFileMoveIcon from '@mui/icons-material/DriveFileMove';
@@ -58,6 +59,28 @@ type ProjectDTO = {
     regionCode: string;
     operator: string;
 };
+
+type Plan = 'basic' | 'pro' | 'business';
+type SubscriptionStatus = 'active' | 'trial' | 'suspended' | 'past_due' | 'inactive';
+
+type SubscriptionInfo = {
+    orgSlug: string;
+    plan: Plan;
+    status: SubscriptionStatus;
+    seats?: number;
+    projectsLimit?: number;
+    periodStart?: string | null;
+    periodEnd?: string | null;
+    note?: string;
+    updatedByEmail?: string;
+    updatedAt: string;
+};
+
+type GetSubscriptionResponse = { subscription: SubscriptionInfo };
+type PatchSubscriptionResponse = { ok: true; subscription: SubscriptionInfo };
+
+const DAY_MS = 24 * 60 * 60 * 1000;
+const TRIAL_DURATION_DAYS = 10;
 
 type SnackState = { open: boolean; msg: string; sev: 'success' | 'error' | 'info' };
 
@@ -133,6 +156,10 @@ export default function OrgSettingsPage() {
     const [orgSettingsLoading, setOrgSettingsLoading] = React.useState(false);
     const [orgSettingsError, setOrgSettingsError] = React.useState<string | null>(null);
     const [orgSettingsSaving, setOrgSettingsSaving] = React.useState(false);
+    const [subscription, setSubscription] = React.useState<SubscriptionInfo | null>(null);
+    const [subscriptionLoading, setSubscriptionLoading] = React.useState(true);
+    const [subscriptionError, setSubscriptionError] = React.useState<string | null>(null);
+    const [startTrialLoading, setStartTrialLoading] = React.useState(false);
 
     // диалог приглашения
     const [inviteOpen, setInviteOpen] = React.useState(false);
@@ -164,6 +191,13 @@ export default function OrgSettingsPage() {
     }, []);
 
     const openProjectDialog = (project?: ProjectDTO) => {
+        if (!project && (subscriptionLoading || !isSubscriptionActive)) {
+            const msg = subscriptionLoading
+                ? 'Подождите завершения проверки подписки'
+                : 'Подписка не активна. Активируйте тариф или пробный период';
+            setSnack({ open: true, msg, sev: 'error' });
+            return;
+        }
         if (project) {
             setProjectDialogMode('edit');
             setProjectToEdit(project);
@@ -182,6 +216,13 @@ export default function OrgSettingsPage() {
 
     const handleProjectDialogSubmit = async (values: ProjectDialogValues) => {
         if (!org) return;
+        if (projectDialogMode === 'create' && (subscriptionLoading || !isSubscriptionActive)) {
+            const msg = subscriptionLoading
+                ? 'Подождите завершения проверки подписки'
+                : 'Подписка не активна. Активируйте тариф или пробный период';
+            setSnack({ open: true, msg, sev: 'error' });
+            return;
+        }
         setProjectDialogLoading(true);
         try {
             const payload = {
@@ -335,6 +376,29 @@ export default function OrgSettingsPage() {
         }
     }, [org, canManage]);
 
+    const loadSubscription = React.useCallback(async () => {
+        if (!org || !canManage) return;
+        setSubscriptionLoading(true);
+        setSubscriptionError(null);
+        try {
+            const res = await fetch(`/api/org/${encodeURIComponent(org)}/subscription`, { cache: 'no-store' });
+            const data = (await res.json().catch(() => ({}))) as GetSubscriptionResponse | { error?: string };
+            if (!res.ok || !('subscription' in data)) {
+                setSubscription(null);
+                setSubscriptionError('error' in data && data.error ? data.error : 'Не удалось загрузить подписку');
+                return;
+            }
+            setSubscription(data.subscription);
+            setSubscriptionError(null);
+        } catch (e: unknown) {
+            const msg = e instanceof Error ? e.message : 'Ошибка загрузки подписки';
+            setSubscription(null);
+            setSubscriptionError(msg);
+        } finally {
+            setSubscriptionLoading(false);
+        }
+    }, [org, canManage]);
+
     // слушаем событие успешного приглашения
     React.useEffect(() => {
         const handler = async () => {
@@ -351,12 +415,14 @@ export default function OrgSettingsPage() {
             void fetchMembers();
             void fetchProjects();
             void fetchOrgSettings();
+            void loadSubscription();
         }
-    }, [canManage, fetchMembers, fetchProjects, fetchOrgSettings]);
+    }, [canManage, fetchMembers, fetchProjects, fetchOrgSettings, loadSubscription]);
 
     const handleRefreshClick = () => {
         void fetchMembers();
         void fetchProjects();
+        void loadSubscription();
     };
 
     // удаление участника
@@ -417,6 +483,41 @@ export default function OrgSettingsPage() {
         }
     };
 
+    const handleStartTrial = async () => {
+        if (!org || !canStartTrial) return;
+        setStartTrialLoading(true);
+        setSubscriptionError(null);
+        try {
+            const now = new Date();
+            const trialEnd = new Date(now.getTime() + TRIAL_DURATION_DAYS * DAY_MS);
+            const res = await fetch(`/api/org/${encodeURIComponent(org)}/subscription`, {
+                method: 'PATCH',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    status: 'trial',
+                    periodStart: now.toISOString(),
+                    periodEnd: trialEnd.toISOString(),
+                }),
+            });
+            const data = (await res.json().catch(() => ({}))) as PatchSubscriptionResponse | { error?: string };
+            if (!res.ok || !('ok' in data) || !data.ok) {
+                const msg = 'error' in data && data.error ? data.error : 'Не удалось активировать пробный период';
+                setSubscriptionError(msg);
+                setSnack({ open: true, msg, sev: 'error' });
+                return;
+            }
+            setSubscription(data.subscription);
+            setSubscriptionError(null);
+            setSnack({ open: true, msg: 'Пробный период активирован на 10 дней', sev: 'success' });
+        } catch (e: unknown) {
+            const msg = e instanceof Error ? e.message : 'Ошибка запуска пробного периода';
+            setSubscriptionError(msg);
+            setSnack({ open: true, msg, sev: 'error' });
+        } finally {
+            setStartTrialLoading(false);
+        }
+    };
+
     const formatExpire = (iso?: string) => {
         if (!iso) return '';
         const d = new Date(iso);
@@ -456,9 +557,40 @@ export default function OrgSettingsPage() {
         }
     };
 
+    const formatTrialEnd = React.useCallback((iso?: string | null) => {
+        if (!iso) return null;
+        const d = new Date(iso);
+        return Number.isNaN(d.getTime()) ? null : d;
+    }, []);
+
+    const trialEndsAt = formatTrialEnd(subscription?.periodEnd);
+    const nowTs = Date.now();
+    const isTrialActive = subscription?.status === 'trial' && !!trialEndsAt && trialEndsAt.getTime() > nowTs;
+    const isTrialExpired = subscription?.status === 'trial' && !isTrialActive;
+    const isOwnerOrAdmin = myRole === 'owner' || myRole === 'org_admin';
+    const hasTrialHistory = Boolean(subscription?.periodStart);
+    const canStartTrial = isOwnerOrAdmin && (!subscription || (subscription.status === 'inactive' && !hasTrialHistory));
+    const isSubscriptionActive = subscription?.status === 'active' || isTrialActive;
+    const formattedTrialEnd = trialEndsAt?.toLocaleDateString('ru-RU');
+    const trialDaysLeft =
+        isTrialActive && trialEndsAt ? Math.max(0, Math.ceil((trialEndsAt.getTime() - nowTs) / DAY_MS)) : null;
+    const disableCreationActions = subscriptionLoading || !isSubscriptionActive;
+    const creationTooltip = disableCreationActions
+        ? subscriptionLoading
+            ? 'Проверяем статус подписки…'
+            : 'Доступно после активации подписки или пробного периода'
+        : 'Создать проект';
+    const inviteTooltip = disableCreationActions
+        ? subscriptionLoading
+            ? 'Проверяем статус подписки…'
+            : 'Добавление участников доступно после активации подписки'
+        : 'Пригласить участника';
+
     const ownerMember = React.useMemo(() => members.find((m) => m.role === 'owner'), [members]);
     const ownerLabel = ownerMember?.userName || ownerMember?.userEmail || '—';
     const currentPlanLabel = orgSettingsData?.plan?.toUpperCase() || 'BASIC';
+    const planLabelBase = subscription?.plan?.toUpperCase() || currentPlanLabel;
+    const planLabel = isTrialActive ? `${planLabelBase} (Trial) до ${formattedTrialEnd ?? '—'}` : planLabelBase;
     const canEditOrgSettings = myRole === 'owner' || myRole === 'org_admin';
     const settingsButtonDisabled = orgSettingsLoading || !canEditOrgSettings;
     const settingsTooltip = !canEditOrgSettings
@@ -511,6 +643,7 @@ export default function OrgSettingsPage() {
     return (
         <Box sx={{ p: { xs: 2, md: 3 }, maxWidth: 1200, mx: 'auto' }}>
             <Stack direction="row" spacing={1} alignItems="center" sx={{ mb: 1.5 }}>
+                <BusinessIcon />
                 <Typography variant="h5">
                     Организация - {orgName || org}
                 </Typography>
@@ -526,7 +659,7 @@ export default function OrgSettingsPage() {
                 </Tooltip>
             </Stack>
             <Typography variant="body2" color="text.secondary">
-                Тарифный план: {currentPlanLabel}{' '}
+                Тарифный план: {planLabel}{' '}
                 <Button size="small" disabled sx={{ textTransform: 'none', ml: 0.5 }}>
                     Изменить
                 </Button>
@@ -534,13 +667,66 @@ export default function OrgSettingsPage() {
             <Typography variant="body2" color="text.secondary" sx={{ mb: 2 }}>
                 Владелец организации: {ownerLabel}
             </Typography>
-            {orgSettingsLoading && (
-                <Stack direction="row" spacing={1} alignItems="center" sx={{ mb: 2 }}>
-                    <CircularProgress size={16} />
-                    <Typography variant="body2" color="text.secondary">
-                        Загружаем реквизиты…
-                    </Typography>
-                </Stack>
+
+            {subscriptionError && (
+                <Alert severity="error" sx={{ mb: 2 }}>
+                    Не удалось получить статус подписки: {subscriptionError}
+                </Alert>
+            )}
+
+            {!subscriptionError && subscriptionLoading && (
+                <Alert severity="info" sx={{ mb: 2 }}>
+                    Проверяем статус подписки…
+                </Alert>
+            )}
+
+            {!subscriptionError && !subscriptionLoading && !isSubscriptionActive && (
+                <Alert severity="warning" sx={{ mb: 2 }}>
+                    <Stack
+                        direction={{ xs: 'column', sm: 'row' }}
+                        spacing={2}
+                        alignItems={{ xs: 'flex-start', sm: 'center' }}
+                        justifyContent="space-between"
+                    >
+                        <Box>
+                            <Typography fontWeight={600}>Подписка не активна.</Typography>
+                            {isTrialExpired && formattedTrialEnd && (
+                                <Typography variant="body2" color="text.secondary" sx={{ mt: 0.5 }}>
+                                    Пробный период завершился {formattedTrialEnd}.
+                                </Typography>
+                            )}
+                            <Typography variant="body2" color="text.secondary" sx={{ mt: 0.5 }}>
+                                Получите бесплатный пробный период на 10 дней с тарифом PRO.
+                            </Typography>
+                            {!canStartTrial && (
+                                <Typography variant="body2" color="text.secondary" sx={{ mt: 0.5 }}>
+                                    Обратитесь к владельцу организации, чтобы активировать подписку.
+                                </Typography>
+                            )}
+                        </Box>
+                        {canStartTrial && (
+                            <Button
+                                variant="contained"
+                                color="warning"
+                                onClick={handleStartTrial}
+                                disabled={startTrialLoading}
+                            >
+                                {startTrialLoading ? 'Запускаем…' : 'Активировать'}
+                            </Button>
+                        )}
+                    </Stack>
+                </Alert>
+            )}
+
+            {!subscriptionError && !subscriptionLoading && isTrialActive && (
+                <Alert severity="info" sx={{ mb: 2 }}>
+                    Пробный период активен до {formattedTrialEnd ?? '—'}
+                    {typeof trialDaysLeft === 'number' && (
+                        <Typography component="span" sx={{ ml: 0.5 }}>
+                            (осталось {trialDaysLeft} дн.)
+                        </Typography>
+                    )}
+                </Alert>
             )}
             {orgSettingsError && (
                 <Alert
@@ -570,9 +756,9 @@ export default function OrgSettingsPage() {
                             title={`Проекты организации (${projects.length})`}
                             action={
                                 <Stack direction="row" spacing={1}>
-                                    <Tooltip title="Создать проект">
+                                    <Tooltip title={creationTooltip}>
                                         <span>
-                                            <IconButton onClick={() => openProjectDialog()}>
+                                            <IconButton onClick={() => openProjectDialog()} disabled={disableCreationActions}>
                                                 <CreateNewFolderIcon />
                                             </IconButton>
                                         </span>
@@ -695,7 +881,10 @@ export default function OrgSettingsPage() {
                                             <TableRow>
                                                 <TableCell colSpan={5}>
                                                     <Typography color="text.secondary">
-                                                        Проектов пока нет. Нажмите «Создать».
+                                                        Проектов пока нет. Чтобы создать нажмите
+                                                        <IconButton onClick={() => openProjectDialog()} disabled={disableCreationActions}>
+                                                        <CreateNewFolderIcon />
+                                                    </IconButton>
                                                     </Typography>
                                                 </TableCell>
                                             </TableRow>
@@ -725,14 +914,16 @@ export default function OrgSettingsPage() {
                                             </IconButton>
                                         </span>
                                     </Tooltip>
-                                    <Tooltip title="Пригласить участника">
+                                    <Tooltip title={inviteTooltip}>
                                         <span>
                                             <IconButton
                                                 onClick={() => {
+                                                    if (disableCreationActions) return;
                                                     // фиксируем e-mail'ы на момент открытия
                                                     setInviteExistingEmails(members.map((m) => m.userEmail.toLowerCase()));
                                                     setInviteOpen(true);
                                                 }}
+                                                disabled={disableCreationActions}
                                             >
                                                 <PersonAddIcon />
                                             </IconButton>
@@ -1015,7 +1206,7 @@ export default function OrgSettingsPage() {
                 open={orgSettingsOpen}
                 loading={orgSettingsSaving}
                 initialValues={orgSettingsData}
-                onClose={() => setOrgSettingsOpen(false)}
+                onCloseAction={() => setOrgSettingsOpen(false)}
                 onSubmit={handleOrgSettingsSubmit}
             />
 

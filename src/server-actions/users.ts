@@ -52,7 +52,7 @@ export const GetCurrentUserFromMongoDB =
           user.profileType = 'client';
         }
         if (!user.subscriptionTier) {
-          user.subscriptionTier = 'free';
+          user.subscriptionTier = 'basic';
         }
         if (!user.billingStatus) {
           user.billingStatus = 'trial';
@@ -78,7 +78,7 @@ export const GetCurrentUserFromMongoDB =
         needsSave = true;
       }
       if (!user.subscriptionTier) {
-        user.subscriptionTier = 'free';
+        user.subscriptionTier = 'basic';
         needsSave = true;
       }
       if (!user.billingStatus) {
@@ -110,7 +110,7 @@ export const GetCurrentUserFromMongoDB =
       profilePic: clerkUser?.imageUrl || '',
       platformRole: 'user',
       profileType: 'client',
-      subscriptionTier: 'free',
+      subscriptionTier: 'basic',
       billingStatus: 'trial',
       activeOrgId: null,
       regionCode: '',

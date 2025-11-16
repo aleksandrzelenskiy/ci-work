@@ -61,7 +61,7 @@ export default function NewOrgPage() {
                 return;
             }
 
-            router.push(`/org/${data.org.orgSlug}/projects`);
+            router.push(`/org/${data.org.orgSlug}`);
         } catch (e: unknown) {
             const msg = e instanceof Error ? e.message : 'Ошибка сети';
             setError(msg);

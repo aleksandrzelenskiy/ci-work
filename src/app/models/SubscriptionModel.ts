@@ -3,7 +3,7 @@ import mongoose, { Schema, Document, model, models } from 'mongoose';
 
 export interface Subscription extends Document {
     orgId: mongoose.Types.ObjectId;
-    plan: 'free' | 'basic' | 'pro' | 'enterprise';
+    plan: 'basic' | 'pro' | 'business';
     status: 'active' | 'trial' | 'suspended' | 'past_due' | 'inactive';
     seats?: number;            // лимит мест
     projectsLimit?: number;    // лимит проектов
@@ -17,7 +17,7 @@ export interface Subscription extends Document {
 const SubscriptionSchema = new Schema<Subscription>(
     {
         orgId: { type: Schema.Types.ObjectId, ref: 'Organization', required: true, unique: true },
-        plan: { type: String, enum: ['free', 'basic', 'pro', 'enterprise'], default: 'free' },
+        plan: { type: String, enum: ['basic', 'pro', 'business'], default: 'basic' },
         status: { type: String, enum: ['active', 'trial', 'suspended', 'past_due', 'inactive'], default: 'inactive' },
         seats: { type: Number, default: 10 },
         projectsLimit: { type: Number, default: 10 },

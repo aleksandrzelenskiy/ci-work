@@ -19,10 +19,11 @@ import {
     Tooltip,
 } from '@mui/material';
 import Grid from '@mui/material/Grid';
-import EditOutlinedIcon from '@mui/icons-material/EditOutlined';
-import DeleteOutlineOutlinedIcon from '@mui/icons-material/DeleteOutlineOutlined';
-import CreateNewFolderOutlinedIcon from '@mui/icons-material/CreateNewFolderOutlined';
-import DriveFileMoveIcon from '@mui/icons-material/DriveFileMove';
+import EditIcon from '@mui/icons-material/Edit';
+import DeleteIcon from '@mui/icons-material/Delete';
+import AddIcon from '@mui/icons-material/Add';
+import BusinessIcon from '@mui/icons-material/Business';
+import TopicIcon from '@mui/icons-material/Topic';
 import { useRouter, useParams } from 'next/navigation';
 import { REGION_MAP, REGION_ISO_MAP } from '@/app/utils/regions';
 import { OPERATORS } from '@/app/utils/operators';
@@ -64,7 +65,7 @@ type OrgInfoOk = { org: { _id: string; name: string; orgSlug: string }; role: Or
 type OrgInfoErr = { error: string };
 type OrgInfoResp = OrgInfoOk | OrgInfoErr;
 
-type Plan = 'free' | 'basic' | 'pro' | 'enterprise';
+type Plan = 'basic' | 'pro' | 'business';
 type SubscriptionStatus = 'active' | 'trial' | 'suspended' | 'past_due' | 'inactive';
 
 type SubscriptionInfo = {
@@ -205,14 +206,17 @@ export default function OrgProjectsPage() {
         isTrialActive && trialEndsAt ? Math.max(0, Math.ceil((trialEndsAt.getTime() - nowTs) / DAY_MS)) : null;
     const formattedTrialEnd = trialEndsAt?.toLocaleDateString('ru-RU');
     const isOwnerOrAdmin = myRole === 'owner' || myRole === 'org_admin';
+    const hasTrialHistory = Boolean(subscription?.periodStart);
     const canStartTrial =
-        isOwnerOrAdmin && (!subscription || subscription.status === 'inactive' || isTrialExpired);
+        isOwnerOrAdmin && (!subscription || (subscription.status === 'inactive' && !hasTrialHistory));
     const disableCreateButton = subscriptionLoading || !isSubscriptionActive;
     const createButtonTooltip = disableCreateButton
         ? subscriptionLoading
             ? 'Проверяем статус подписки…'
             : 'Кнопка доступна после активации подписки или триала'
         : '';
+    const activeProjectsCount = projects.length;
+    const projectsLimitLabel = subscription?.projectsLimit ? String(subscription.projectsLimit) : 'XX';
 
     // ---- Участники для менеджеров ----
     const [managerOptions, setManagerOptions] = useState<ProjectManagerOption[]>([]);
@@ -452,15 +456,21 @@ export default function OrgProjectsPage() {
     return (
         <Box sx={{ p: 3 }}>
             <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', mb: 2, gap: 2, flexWrap: 'wrap' }}>
-                <Typography variant="h5" fontWeight={700}>
-                    Проекты / {orgName}
-                </Typography>
+                <Box>
+                    <Typography variant="h5" fontWeight={700}>
+                        <TopicIcon />
+                        Проекты {orgName}
+                    </Typography>
+                    <Typography variant="body2" color="text.secondary">
+                        Активных проектов: {activeProjectsCount} из {projectsLimitLabel}
+                    </Typography>
+                </Box>
                 <Tooltip title={createButtonTooltip} disableHoverListener={!createButtonTooltip}>
                     <span style={{ display: 'inline-block' }}>
                         <Stack direction="row" spacing={1}>
                             <Button
                                 variant="outlined"
-                                startIcon={<DriveFileMoveIcon />}
+                                startIcon={<BusinessIcon />}
                                 onClick={() => {
                                     if (!orgSlug) return;
                                     router.push(`/org/${encodeURIComponent(orgSlug)}`);
@@ -470,7 +480,7 @@ export default function OrgProjectsPage() {
                             </Button>
                             <Button
                                 variant="contained"
-                                startIcon={<CreateNewFolderOutlinedIcon />}
+                                startIcon={<AddIcon />}
                                 onClick={openCreateDialog}
                                 disabled={disableCreateButton}
                             >
@@ -509,7 +519,7 @@ export default function OrgProjectsPage() {
                                 </Typography>
                             )}
                             <Typography variant="body2" color="text.secondary" sx={{ mt: 0.5 }}>
-                                Получите бесплатный триал на {TRIAL_DURATION_DAYS} дней, чтобы создавать проекты.
+                                Получите бесплатный пробный период на 10 дней с тарифом PRO.
                             </Typography>
                             {!canStartTrial && (
                                 <Typography variant="body2" color="text.secondary" sx={{ mt: 0.5 }}>
@@ -524,7 +534,7 @@ export default function OrgProjectsPage() {
                                 onClick={handleStartTrial}
                                 disabled={startTrialLoading}
                             >
-                                {startTrialLoading ? 'Запускаем…' : 'Активировать триал'}
+                                {startTrialLoading ? 'Запускаем…' : 'Активировать'}
                             </Button>
                         )}
                     </Stack>
@@ -593,7 +603,7 @@ export default function OrgProjectsPage() {
                                                     openEditDialog(p);
                                                 }}
                                             >
-                                                <EditOutlinedIcon fontSize="small" />
+                                                <EditIcon fontSize="small" />
                                             </IconButton>
                                         </Tooltip>
                                         <Tooltip title="Удалить">
@@ -605,7 +615,7 @@ export default function OrgProjectsPage() {
                                                     askDelete(p);
                                                 }}
                                             >
-                                                <DeleteOutlineOutlinedIcon fontSize="small" />
+                                                <DeleteIcon fontSize="small" />
                                             </IconButton>
                                         </Tooltip>
                                     </Stack>

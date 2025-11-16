@@ -3,7 +3,7 @@
 import mongoose, { Schema, Document, model, models, Types } from 'mongoose';
 import type { PlatformRole } from '@/app/types/roles';
 export type ProfileType = 'client' | 'contractor' | 'both';
-export type SubscriptionTier = 'free' | 'team' | 'enterprise';
+export type SubscriptionTier = 'basic' | 'pro' | 'business';
 export type BillingStatus = 'trial' | 'active' | 'past_due' | 'canceled';
 
 export interface IUser extends Document {
@@ -43,8 +43,8 @@ const UserSchema = new Schema<IUser>(
         },
         subscriptionTier: {
             type: String,
-            enum: ['free', 'team', 'enterprise'],
-            default: 'free',
+            enum: ['basic', 'pro', 'business'],
+            default: 'basic',
         },
         billingStatus: {
             type: String,
