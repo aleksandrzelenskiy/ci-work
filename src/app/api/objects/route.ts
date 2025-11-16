@@ -88,10 +88,10 @@ export async function GET(req: NextRequest) {
         const docs = await BaseStationModel.find(filter)
             .sort({ num: 1, name: 1 })
             .limit(limit)
-            .lean();
+            .lean<StationDoc[]>();
 
         return NextResponse.json({
-            objects: docs.map((doc) => mapStation(doc as StationDoc)),
+            objects: docs.map((doc) => mapStation(doc)),
         });
     } catch (e: unknown) {
         console.error(e);
