@@ -17,16 +17,21 @@ import EditOutlinedIcon from '@mui/icons-material/EditOutlined';
 import PersonAddIcon from '@mui/icons-material/PersonAdd';
 import LinkIcon from '@mui/icons-material/Link';
 import DriveFileMoveIcon from '@mui/icons-material/DriveFileMove';
-import CreateNewFolderOutlinedIcon from '@mui/icons-material/CreateNewFolderOutlined';
+import CreateNewFolderIcon from '@mui/icons-material/CreateNewFolder';
 import PersonSearchIcon from '@mui/icons-material/PersonSearch';
 import CancelIcon from '@mui/icons-material/Cancel';
 import ManageAccountsIcon from '@mui/icons-material/ManageAccounts';
+import SettingsIcon from '@mui/icons-material/Settings';
 
 import InviteMemberForm from '@/app/workspace/components/InviteMemberForm';
 import ProjectDialog, {
     ProjectDialogValues,
     ProjectManagerOption,
 } from '@/app/workspace/components/ProjectDialog';
+import OrgSetDialog, {
+    OrgSettingsFormValues,
+    defaultOrgSettings,
+} from '@/app/workspace/components/OrgSetDialog';
 import { REGION_MAP, REGION_ISO_MAP } from '@/app/utils/regions';
 
 type OrgRole = 'owner' | 'org_admin' | 'manager' | 'executor' | 'viewer';
@@ -121,6 +126,13 @@ export default function OrgSettingsPage() {
 
     // snackbar
     const [snack, setSnack] = React.useState<SnackState>({ open: false, msg: '', sev: 'success' });
+
+    // настройки организации
+    const [orgSettingsOpen, setOrgSettingsOpen] = React.useState(false);
+    const [orgSettingsData, setOrgSettingsData] = React.useState<OrgSettingsFormValues | null>(null);
+    const [orgSettingsLoading, setOrgSettingsLoading] = React.useState(false);
+    const [orgSettingsError, setOrgSettingsError] = React.useState<string | null>(null);
+    const [orgSettingsSaving, setOrgSettingsSaving] = React.useState(false);
 
     // диалог приглашения
     const [inviteOpen, setInviteOpen] = React.useState(false);
@@ -237,6 +249,32 @@ export default function OrgSettingsPage() {
         }
     }, []);
 
+    const fetchOrgSettings = React.useCallback(async () => {
+        if (!org) return;
+        setOrgSettingsLoading(true);
+        setOrgSettingsError(null);
+        try {
+            const res = await fetch(`/api/org/${encodeURIComponent(org)}/settings`, { cache: 'no-store' });
+            const data = (await res.json()) as { settings?: OrgSettingsFormValues | null; error?: string };
+            if (!res.ok || data.error) {
+                setOrgSettingsError(data.error || 'Не удалось загрузить реквизиты');
+                setOrgSettingsData(null);
+                return;
+            }
+            if (data.settings) {
+                setOrgSettingsData({ ...defaultOrgSettings, ...data.settings });
+            } else {
+                setOrgSettingsData(null);
+            }
+        } catch (error: unknown) {
+            const msg = error instanceof Error ? error.message : 'Ошибка загрузки реквизитов';
+            setOrgSettingsError(msg);
+            setOrgSettingsData(null);
+        } finally {
+            setOrgSettingsLoading(false);
+        }
+    }, [org]);
+
     // загрузка инфы об организации и своей роли
     React.useEffect(() => {
         let cancelled = false;
@@ -312,8 +350,9 @@ export default function OrgSettingsPage() {
         if (canManage) {
             void fetchMembers();
             void fetchProjects();
+            void fetchOrgSettings();
         }
-    }, [canManage, fetchMembers, fetchProjects]);
+    }, [canManage, fetchMembers, fetchProjects, fetchOrgSettings]);
 
     const handleRefreshClick = () => {
         void fetchMembers();
@@ -390,6 +429,44 @@ export default function OrgSettingsPage() {
         router.push(`/org/${encodeURIComponent(org)}/projects`);
     };
 
+    const handleOrgSettingsSubmit = async (values: OrgSettingsFormValues) => {
+        if (!org) return;
+        setOrgSettingsSaving(true);
+        try {
+            const res = await fetch(`/api/org/${encodeURIComponent(org)}/settings`, {
+                method: 'PATCH',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify(values),
+            });
+            const data = await res.json();
+            if (!res.ok || data?.error) {
+                setSnack({ open: true, msg: data?.error || 'Не удалось сохранить реквизиты', sev: 'error' });
+                return;
+            }
+            if (data?.settings) {
+                setOrgSettingsData({ ...defaultOrgSettings, ...data.settings });
+            }
+            setOrgSettingsOpen(false);
+            setSnack({ open: true, msg: 'Настройки организации обновлены', sev: 'success' });
+        } catch (e: unknown) {
+            const msg = e instanceof Error ? e.message : 'Ошибка сохранения реквизитов';
+            setSnack({ open: true, msg, sev: 'error' });
+        } finally {
+            setOrgSettingsSaving(false);
+        }
+    };
+
+    const ownerMember = React.useMemo(() => members.find((m) => m.role === 'owner'), [members]);
+    const ownerLabel = ownerMember?.userName || ownerMember?.userEmail || '—';
+    const currentPlanLabel = orgSettingsData?.plan?.toUpperCase() || 'BASIC';
+    const canEditOrgSettings = myRole === 'owner' || myRole === 'org_admin';
+    const settingsButtonDisabled = orgSettingsLoading || !canEditOrgSettings;
+    const settingsTooltip = !canEditOrgSettings
+        ? 'Только владелец или администратор может менять настройки'
+        : orgSettingsLoading
+            ? 'Загружаем реквизиты…'
+            : 'Настройки организации';
+
     const filteredMembers = (() => {
         const q = memberSearch.trim().toLowerCase();
         if (!q) return members;
@@ -433,9 +510,57 @@ export default function OrgSettingsPage() {
 
     return (
         <Box sx={{ p: { xs: 2, md: 3 }, maxWidth: 1200, mx: 'auto' }}>
-            <Typography variant="h5" sx={{ mb: 2 }}>
-                Организация - {orgName || org}
+            <Stack direction="row" spacing={1} alignItems="center" sx={{ mb: 1.5 }}>
+                <Typography variant="h5">
+                    Организация - {orgName || org}
+                </Typography>
+                <Tooltip title={settingsTooltip}>
+                    <span>
+                        <IconButton
+                            onClick={canEditOrgSettings ? () => setOrgSettingsOpen(true) : undefined}
+                            disabled={settingsButtonDisabled}
+                        >
+                            <SettingsIcon />
+                        </IconButton>
+                    </span>
+                </Tooltip>
+            </Stack>
+            <Typography variant="body2" color="text.secondary">
+                Тарифный план: {currentPlanLabel}{' '}
+                <Button size="small" disabled sx={{ textTransform: 'none', ml: 0.5 }}>
+                    Изменить
+                </Button>
             </Typography>
+            <Typography variant="body2" color="text.secondary" sx={{ mb: 2 }}>
+                Владелец организации: {ownerLabel}
+            </Typography>
+            {orgSettingsLoading && (
+                <Stack direction="row" spacing={1} alignItems="center" sx={{ mb: 2 }}>
+                    <CircularProgress size={16} />
+                    <Typography variant="body2" color="text.secondary">
+                        Загружаем реквизиты…
+                    </Typography>
+                </Stack>
+            )}
+            {orgSettingsError && (
+                <Alert
+                    severity="warning"
+                    variant="outlined"
+                    sx={{ mb: 2 }}
+                    action={
+                        <Button
+                            color="inherit"
+                            size="small"
+                            onClick={() => void fetchOrgSettings()}
+                            disabled={orgSettingsLoading}
+                        >
+                            Повторить
+                        </Button>
+                    }
+                >
+                    Не удалось загрузить реквизиты: {orgSettingsError}
+                </Alert>
+            )}
 
             <Grid container spacing={2}>
                 {/* ПРОЕКТЫ */}
@@ -448,7 +573,7 @@ export default function OrgSettingsPage() {
                                     <Tooltip title="Создать проект">
                                         <span>
                                             <IconButton onClick={() => openProjectDialog()}>
-                                                <CreateNewFolderOutlinedIcon />
+                                                <CreateNewFolderIcon />
                                             </IconButton>
                                         </span>
                                     </Tooltip>
@@ -885,6 +1010,14 @@ export default function OrgSettingsPage() {
                     </Button>
                 </DialogActions>
             </Dialog>
+
+            <OrgSetDialog
+                open={orgSettingsOpen}
+                loading={orgSettingsSaving}
+                initialValues={orgSettingsData}
+                onClose={() => setOrgSettingsOpen(false)}
+                onSubmit={handleOrgSettingsSubmit}
+            />
 
             <Snackbar
                 open={snack.open}
