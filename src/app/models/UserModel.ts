@@ -2,17 +2,20 @@
 
 import mongoose, { Schema, Document, model, models, Types } from 'mongoose';
 import type { PlatformRole } from '@/app/types/roles';
-export type ProfileType = 'client' | 'contractor';
+export type ProfileType = 'employer' | 'contractor';
 export type SubscriptionTier = 'free' | 'team' | 'enterprise';
 export type BillingStatus = 'trial' | 'active' | 'past_due' | 'canceled';
 
 export interface IUser extends Document {
     name: string;
+    firstName?: string;
+    lastName?: string;
+    phone?: string;
     email: string;
     profilePic: string;
     clerkUserId: string;
     platformRole: PlatformRole;
-    profileType: ProfileType;
+    profileType?: ProfileType;
     profileSetupCompleted: boolean;
     subscriptionTier: SubscriptionTier;
     billingStatus: BillingStatus;
@@ -23,6 +26,9 @@ export interface IUser extends Document {
 const UserSchema = new Schema<IUser>(
     {
         name: { type: String, required: true, trim: true },
+        firstName: { type: String, default: '', trim: true },
+        lastName: { type: String, default: '', trim: true },
+        phone: { type: String, default: '', trim: true },
         email: {
             type: String,
             required: true,
@@ -39,8 +45,7 @@ const UserSchema = new Schema<IUser>(
         },
         profileType: {
             type: String,
-            enum: ['client', 'contractor'],
-            default: 'client',
+            enum: ['employer', 'contractor'],
         },
         profileSetupCompleted: {
             type: Boolean,

@@ -2,7 +2,7 @@
 
 'use server';
 
-import UserModel, { type IUser } from 'src/app/models/UserModel';
+import UserModel, { type IUser, type ProfileType } from 'src/app/models/UserModel';
 import dbConnect from 'src/utils/mongoose';
 import { currentUser } from '@clerk/nextjs/server';
 
@@ -22,6 +22,18 @@ export type GetCurrentUserResponse = UserSuccessResponse | UserErrorResponse;
 
 const serializeUser = (user: unknown): IUser =>
   JSON.parse(JSON.stringify(user)) as IUser;
+
+const normalizeProfileType = (
+  value: unknown
+): ProfileType | undefined => {
+  if (value === 'contractor' || value === 'employer') {
+    return value;
+  }
+  if (value === 'client') {
+    return 'employer';
+  }
+  return undefined;
+};
 
 export const GetCurrentUserFromMongoDB =
   async (): Promise<GetCurrentUserResponse> => {
@@ -47,8 +59,18 @@ export const GetCurrentUserFromMongoDB =
         if (!user.platformRole) {
           user.platformRole = 'user';
         }
-        if (!user.profileType) {
-          user.profileType = 'client';
+        const normalizedProfileType = normalizeProfileType(user.profileType);
+        if (user.profileType !== normalizedProfileType) {
+          user.profileType = normalizedProfileType;
+        }
+        if (!user.firstName && clerkUser?.firstName) {
+          user.firstName = clerkUser.firstName;
+        }
+        if (!user.lastName && clerkUser?.lastName) {
+          user.lastName = clerkUser.lastName;
+        }
+        if (typeof user.phone === 'undefined') {
+          user.phone = '';
         }
         if (typeof user.profileSetupCompleted === 'undefined') {
           user.profileSetupCompleted = false;
@@ -75,8 +97,21 @@ export const GetCurrentUserFromMongoDB =
         user.platformRole = 'user';
         needsSave = true;
       }
-      if (!user.profileType) {
-        user.profileType = 'client';
+      const normalizedProfileType = normalizeProfileType(user.profileType);
+      if (user.profileType !== normalizedProfileType) {
+        user.profileType = normalizedProfileType;
+        needsSave = true;
+      }
+      if (typeof user.firstName === 'undefined') {
+        user.firstName = clerkUser?.firstName || '';
+        needsSave = true;
+      }
+      if (typeof user.lastName === 'undefined') {
+        user.lastName = clerkUser?.lastName || '';
+        needsSave = true;
+      }
+      if (typeof user.phone === 'undefined') {
+        user.phone = '';
         needsSave = true;
       }
       if (typeof user.profileSetupCompleted === 'undefined') {
@@ -111,11 +146,13 @@ export const GetCurrentUserFromMongoDB =
     const fullName = `${clerkUser?.firstName ?? ''} ${clerkUser?.lastName ?? ''}`.trim();
     const insertPayload = {
       name: fullName || clerkUser?.username || primaryEmail || 'Unknown User',
+      firstName: clerkUser?.firstName || '',
+      lastName: clerkUser?.lastName || '',
+      phone: '',
       email: primaryEmail || '',
       clerkUserId: clerkUser?.id,
       profilePic: clerkUser?.imageUrl || '',
       platformRole: 'user' as const,
-      profileType: 'client' as const,
       profileSetupCompleted: false,
       subscriptionTier: 'free' as const,
       billingStatus: 'trial' as const,

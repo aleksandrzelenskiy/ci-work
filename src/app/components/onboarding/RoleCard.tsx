@@ -1,21 +1,61 @@
 'use client';
 
-import { Card, CardContent, CardActions, Typography, Button, Box } from '@mui/material';
-import { styled } from '@mui/material/styles';
+import {
+  Card,
+  CardContent,
+  CardActions,
+  Typography,
+  Button,
+  Box,
+} from '@mui/material';
+import { styled, alpha } from '@mui/material/styles';
 
-const HoverCard = styled(Card)(({ theme }) => ({
-  borderWidth: 1,
-  transition: 'transform 0.2s ease, box-shadow 0.2s ease, border-color 0.2s ease',
-  '&:hover': {
-    transform: 'translateY(-4px) scale(1.02)',
-    boxShadow: theme.shadows[4],
-    borderColor: theme.palette.primary.main,
-    '& .role-card-button': {
-      backgroundColor: theme.palette.primary.main,
-      color: theme.palette.primary.contrastText,
+const HoverCard = styled(Card)<{ $selected?: boolean }>(
+  ({ theme, $selected }) => ({
+    borderWidth: 1,
+  borderColor: alpha(
+    theme.palette.common.white,
+    theme.palette.mode === 'dark' ? 0.2 : 0.35
+  ),
+  borderRadius: 24,
+  backgroundColor:
+    theme.palette.mode === 'dark'
+      ? 'rgba(15, 20, 30, 0.75)'
+      : 'rgba(255, 255, 255, 0.9)',
+  backdropFilter: 'blur(22px)',
+  boxShadow:
+    theme.palette.mode === 'dark'
+      ? '0 30px 50px rgba(0,0,0,0.45)'
+      : '0 35px 55px rgba(15,23,42,0.08)',
+    transition:
+      'transform 0.35s ease, box-shadow 0.35s ease, border-color 0.35s ease',
+    '&:hover': {
+      transform: 'translateY(-4px)',
+      boxShadow:
+        theme.palette.mode === 'dark'
+          ? '0 40px 60px rgba(0,0,0,0.6)'
+          : '0 45px 65px rgba(15,23,42,0.18)',
+      borderColor: theme.palette.primary.main,
     },
-  },
-}));
+    '& .role-card-button': {
+      transition: 'all 0.3s ease',
+      ...( $selected
+        ? {
+            backgroundColor: theme.palette.primary.main,
+            color: theme.palette.common.white,
+          }
+        : {
+            backgroundColor: 'transparent',
+            color: theme.palette.text.primary,
+          }),
+    },
+    '&:hover .role-card-button': {
+      backgroundColor: theme.palette.primary.main,
+      color: theme.palette.common.white,
+      borderColor: theme.palette.primary.main,
+    },
+  })
+);
 
 interface RoleCardProps {
   title: string;
@@ -38,21 +78,63 @@ export default function RoleCard({
   selected,
   icon,
 }: RoleCardProps) {
+  const handleCardClick = () => {
+    if (disabled) return;
+    onSelect();
+  };
+
+  const handleButtonClick = (event: React.MouseEvent<HTMLButtonElement>) => {
+    event.stopPropagation();
+    if (disabled) return;
+    onSelect();
+  };
+
   return (
     <HoverCard
       variant='outlined'
+      onClick={handleCardClick}
       sx={{
-        borderColor: selected ? 'primary.main' : 'divider',
-        borderWidth: selected ? 2 : 1,
+        borderColor: selected ? 'primary.main' : undefined,
         height: '100%',
+        maxWidth: 360,
+        width: '100%',
         display: 'flex',
         flexDirection: 'column',
+        cursor: disabled ? 'not-allowed' : 'pointer',
+        mx: 'auto',
       }}
     >
-      <CardContent sx={{ flexGrow: 1 }}>
-        <Box sx={{ display: 'flex', flexDirection: 'column', alignItems: 'center', textAlign: 'center', gap: 1.25, mb: 1.5 }}>
-          {icon}
-          <Typography variant='h5' fontWeight={700} sx={{ textTransform: 'uppercase' }}>
+      <CardContent sx={{ flexGrow: 1, px: 3.5, pt: 3.5 }}>
+        <Box
+          sx={{
+            display: 'flex',
+            flexDirection: 'column',
+            alignItems: 'center',
+            textAlign: 'center',
+            gap: 1.25,
+            mb: 1.5,
+          }}
+        >
+          <Box
+            sx={(theme) => ({
+              fontSize: 42,
+              color: selected
+                ? theme.palette.primary.main
+                : theme.palette.text.secondary,
+              transition: 'color 0.3s ease',
+              '& svg': {
+                fontSize: 42,
+                color: 'inherit',
+              },
+            })}
+          >
+            {icon}
+          </Box>
+          <Typography
+            variant='h5'
+            fontWeight={700}
+            sx={{ letterSpacing: 1.2 }}
+          >
             {title}
           </Typography>
         </Box>
@@ -65,14 +147,19 @@ export default function RoleCard({
           </Typography>
         )}
       </CardContent>
-      <CardActions sx={{ px: 2, pb: 3 }}>
-        <Box sx={{ flexGrow: 1 }} />
+      <CardActions sx={{ px: 3.5, pb: 3.5 }}>
         <Button
-          variant={selected ? 'contained' : 'outlined'}
-          onClick={onSelect}
+          variant='outlined'
+          onClick={handleButtonClick}
           disabled={disabled}
           fullWidth
           className='role-card-button'
+          sx={{
+            borderRadius: 999,
+            textTransform: 'uppercase',
+            fontWeight: 700,
+            py: 1,
+          }}
         >
           {actionLabel}
         </Button>

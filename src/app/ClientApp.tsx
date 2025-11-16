@@ -10,36 +10,25 @@ import React, {
 } from 'react';
 import { useUser } from '@clerk/nextjs';
 import {
-  Box,
-  CssBaseline,
-  Drawer,
-  List,
-  ListItemButton,
-  ListItemText,
-  ListItemIcon,
-  Toolbar,
-  AppBar,
-  Typography,
-  Button,
-  Switch,
-  ThemeProvider,
-  createTheme,
-  CircularProgress,
+    Box,
+    CssBaseline,
+    Drawer,
+    Toolbar,
+    AppBar,
+    Typography,
+    Button,
+    Switch,
+    ThemeProvider,
+    createTheme,
+    CircularProgress,
 } from '@mui/material';
 import { Menu } from '@mui/icons-material';
 import LightModeIcon from '@mui/icons-material/LightMode';
-import HomeIcon from '@mui/icons-material/Home';
-import TaskIcon from '@mui/icons-material/Task';
-import PlaceIcon from '@mui/icons-material/Place';
-import CloudUploadIcon from '@mui/icons-material/CloudUpload';
-import PermMediaIcon from '@mui/icons-material/PermMedia';
-import StorageIcon from '@mui/icons-material/Storage';
 import Badge from '@mui/material/Badge'
 import { useRouter, usePathname } from 'next/navigation';
 import UserMenu from './components/UserMenu';
-import { fetchUserContext, resolveRoleFromContext } from '@/app/utils/userContext';
-import type { EffectiveOrgRole } from '@/app/types/roles';
-import { isExecutorRole } from '@/app/utils/roleGuards';
+import { fetchUserContext } from '@/app/utils/userContext';
+import NavigationMenu from '@/app/components/NavigationMenu';
 
 const ThemeContext = createContext({
   toggleTheme: () => {},
@@ -50,7 +39,6 @@ export const useThemeContext = () => useContext(ThemeContext);
 
 export default function ClientApp({ children }: { children: React.ReactNode }) {
   const [mode, setMode] = useState<'light' | 'dark'>('light');
-  const [userRole, setUserRole] = useState<EffectiveOrgRole | null>(null);
   const [profileSetupCompleted, setProfileSetupCompleted] = useState<boolean | null>(null);
 
   const router = useRouter();
@@ -61,7 +49,6 @@ export default function ClientApp({ children }: { children: React.ReactNode }) {
     const fetchUserRole = async () => {
       const data = await fetchUserContext();
       if (data) {
-        setUserRole(resolveRoleFromContext(data));
         const userPayload = (data.user ?? {}) as {
           profileSetupCompleted?: boolean;
         };
@@ -70,14 +57,15 @@ export default function ClientApp({ children }: { children: React.ReactNode }) {
             ? data.profileSetupCompleted
             : userPayload.profileSetupCompleted;
 
-        setProfileSetupCompleted(
-          typeof setupCompleted === 'boolean' ? setupCompleted : null
-        );
+        const normalizedSetupCompleted =
+          typeof setupCompleted === 'boolean' ? setupCompleted : null;
 
-        if (!setupCompleted && pathname !== '/onboarding') {
+        setProfileSetupCompleted(normalizedSetupCompleted);
+
+        if (normalizedSetupCompleted === false && pathname !== '/onboarding') {
           router.replace('/onboarding');
         }
-        if (setupCompleted && pathname === '/onboarding') {
+        if (normalizedSetupCompleted === true && pathname === '/onboarding') {
           router.replace('/');
         }
       } else {
@@ -126,6 +114,11 @@ export default function ClientApp({ children }: { children: React.ReactNode }) {
   const toggleTheme = () =>
     setMode((prev) => (prev === 'light' ? 'dark' : 'light'));
 
+  const backgroundGradient =
+    mode === 'dark'
+      ? 'linear-gradient(135deg, #0b0d11 0%, #151b24 60%, #0c1017 100%)'
+      : 'linear-gradient(135deg, #f6f7fa 0%, #e8ecf4 50%, #f5f7fb 100%)';
+
   const [open, setOpen] = useState(false);
 
   const handleToggleDrawer = () => {
@@ -138,75 +131,7 @@ export default function ClientApp({ children }: { children: React.ReactNode }) {
   };
 
   const DrawerList = (
-    <Box sx={{ width: 250 }} role='presentation'>
-      <Box sx={{ display: 'flex', justifyContent: 'center', p: 2, mb: 2 }}>
-{/*<img*/}
-{/*          src='/t2logo.png'*/}
-{/*          alt='T2 Logo'*/}
-{/*          style={{ width: '70%', maxWidth: '200px' }}*/}
-{/*        />*/}
-      </Box>
-      <List>
-        <ListItemButton
-          onClick={() => handleNavigation('/')}
-          sx={{ paddingLeft: 5 }}
-        >
-          <ListItemIcon sx={{ minWidth: 30 }}>
-            <HomeIcon sx={{ fontSize: 20 }} />
-          </ListItemIcon>
-          <ListItemText primary='Home' />
-        </ListItemButton>
-        <ListItemButton
-          onClick={() => handleNavigation('/tasks')}
-          sx={{ paddingLeft: 5 }}
-        >
-          <ListItemIcon sx={{ minWidth: 30 }}>
-            <TaskIcon sx={{ fontSize: 20 }} />
-          </ListItemIcon>
-          <ListItemText primary='Task Manager' />
-        </ListItemButton>
-        <ListItemButton
-          onClick={() => handleNavigation('/reports')}
-          sx={{ paddingLeft: 5 }}
-        >
-          <ListItemIcon sx={{ minWidth: 30 }}>
-            <PermMediaIcon sx={{ fontSize: 20 }} />
-          </ListItemIcon>
-          <ListItemText primary='Reports List' />
-        </ListItemButton>
-        <ListItemButton
-          onClick={() => handleNavigation('/map')}
-          sx={{ paddingLeft: 5 }}
-        >
-          <ListItemIcon sx={{ minWidth: 30 }}>
-            <PlaceIcon sx={{ fontSize: 20 }} />
-          </ListItemIcon>
-          <ListItemText primary='Task Locations' />
-        </ListItemButton>
-
-        <ListItemButton
-          onClick={() => handleNavigation('/bs')}
-          sx={{ paddingLeft: 5 }}
-        >
-          <ListItemIcon sx={{ minWidth: 30 }}>
-            <StorageIcon sx={{ fontSize: 20 }} />
-          </ListItemIcon>
-          <ListItemText primary='T2 IR Objects' />
-        </ListItemButton>
-
-        {!isExecutorRole(userRole) && (
-          <ListItemButton
-            onClick={() => handleNavigation('/estimates')}
-            sx={{ paddingLeft: 5 }}
-          >
-            <ListItemIcon sx={{ minWidth: 30 }}>
-              <CloudUploadIcon sx={{ fontSize: 20 }} />
-            </ListItemIcon>
-            <ListItemText primary='Upload Estimate' />
-          </ListItemButton>
-        )}
-      </List>
-    </Box>
+    <NavigationMenu onNavigate={handleNavigation} />
   );
 
   const currentYear = new Date().getFullYear();
@@ -236,7 +161,7 @@ export default function ClientApp({ children }: { children: React.ReactNode }) {
       component='main'
       sx={{
         flexGrow: 1,
-        bgcolor: 'background.default',
+        bgcolor: 'transparent',
         color: 'text.primary',
         display: 'flex',
         flexDirection: 'column',
@@ -252,7 +177,7 @@ export default function ClientApp({ children }: { children: React.ReactNode }) {
       component='main'
       sx={{
         flexGrow: 1,
-        bgcolor: 'background.default',
+        bgcolor: 'transparent',
         color: 'text.primary',
         display: 'flex',
         flexDirection: 'column',
@@ -269,7 +194,16 @@ export default function ClientApp({ children }: { children: React.ReactNode }) {
   return (
     <ThemeContext.Provider value={{ toggleTheme, mode }}>
       <ThemeProvider theme={theme}>
-        <Box sx={{ display: 'flex', height: '100vh', flexDirection: 'column' }}>
+        <Box
+          sx={{
+            display: 'flex',
+            minHeight: '100vh',
+            flexDirection: 'column',
+            backgroundImage: backgroundGradient,
+            backgroundAttachment: 'fixed',
+            backgroundSize: 'cover',
+          }}
+        >
           <CssBaseline />
           {isSignedIn ? (
             isOnboardingRoute

@@ -2,8 +2,19 @@ import { NextResponse } from 'next/server';
 import { currentUser } from '@clerk/nextjs/server';
 import dbConnect from '@/utils/mongoose';
 import UserModel, { type ProfileType } from '@/app/models/UserModel';
+import { RUSSIAN_REGIONS } from '@/app/utils/regions';
 
-const VALID_PROFILE_TYPES: ProfileType[] = ['client', 'contractor'];
+const VALID_PROFILE_TYPES: ProfileType[] = ['employer', 'contractor'];
+
+type OnboardingPayload = {
+  profileType?: string;
+  firstName?: string;
+  lastName?: string;
+  phone?: string;
+  regionCode?: string;
+};
+
+const REGION_CODES = new Set(RUSSIAN_REGIONS.map((region) => region.code));
 
 export async function POST(request: Request) {
   const clerkUser = await currentUser();
@@ -11,9 +22,9 @@ export async function POST(request: Request) {
     return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
   }
 
-  let body: { profileType?: string } = {};
+  let body: OnboardingPayload = {};
   try {
-    body = (await request.json()) as { profileType?: string };
+    body = (await request.json()) as OnboardingPayload;
   } catch {
     return NextResponse.json({ error: 'Некорректное тело запроса' }, { status: 400 });
   }
@@ -26,26 +37,47 @@ export async function POST(request: Request) {
     );
   }
 
+  const firstName = (body.firstName ?? '').trim();
+  const lastName = (body.lastName ?? '').trim();
+  const phone = (body.phone ?? '').trim();
+  const regionCode = (body.regionCode ?? '').trim();
+
+  if (!firstName || !lastName || !phone || !regionCode) {
+    return NextResponse.json(
+      { error: 'Укажите имя, фамилию, телефон и регион' },
+      { status: 400 }
+    );
+  }
+
+  if (!REGION_CODES.has(regionCode)) {
+    return NextResponse.json(
+      { error: 'Выберите регион из списка' },
+      { status: 400 }
+    );
+  }
+
+  const fullName = `${firstName} ${lastName}`.replace(/\s+/g, ' ').trim();
+
   await dbConnect();
 
-  const updatePayload: Partial<{
-    profileType: ProfileType;
-    profileSetupCompleted: boolean;
-    activeOrgId: null;
-    platformRole: string;
-  }> = {
+  const setPayload: Record<string, unknown> = {
     profileType,
     profileSetupCompleted: true,
     platformRole: 'user',
+    name: fullName,
+    firstName,
+    lastName,
+    phone,
+    regionCode,
   };
 
   if (profileType === 'contractor') {
-    updatePayload.activeOrgId = null;
+    setPayload.activeOrgId = null;
   }
 
   const updatedUser = await UserModel.findOneAndUpdate(
     { clerkUserId: clerkUser.id },
-    updatePayload,
+    { $set: setPayload },
     { new: true }
   ).lean();
 
