@@ -458,7 +458,9 @@ export default function OrgProjectsPage() {
             <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', mb: 2, gap: 2, flexWrap: 'wrap' }}>
                 <Box>
                     <Typography variant="h5" fontWeight={700}>
-                        <TopicIcon />
+                        <TopicIcon
+                            sx={{ mr: 0.5, verticalAlign: 'middle' }}
+                        />
                         Проекты {orgName}
                     </Typography>
                     <Typography variant="body2" color="text.secondary">

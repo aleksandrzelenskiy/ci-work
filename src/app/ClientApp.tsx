@@ -35,7 +35,7 @@ import CloudUploadIcon from '@mui/icons-material/CloudUpload';
 import PermMediaIcon from '@mui/icons-material/PermMedia';
 import StorageIcon from '@mui/icons-material/Storage';
 import Badge from '@mui/material/Badge'
-import { useRouter } from 'next/navigation';
+import { useRouter, usePathname } from 'next/navigation';
 import UserMenu from './components/UserMenu';
 import { fetchUserContext, resolveRoleFromContext } from '@/app/utils/userContext';
 import type { EffectiveOrgRole } from '@/app/types/roles';
@@ -51,17 +51,42 @@ export const useThemeContext = () => useContext(ThemeContext);
 export default function ClientApp({ children }: { children: React.ReactNode }) {
   const [mode, setMode] = useState<'light' | 'dark'>('light');
   const [userRole, setUserRole] = useState<EffectiveOrgRole | null>(null);
+  const [profileSetupCompleted, setProfileSetupCompleted] = useState<boolean | null>(null);
+
+  const router = useRouter();
+  const pathname = usePathname();
+  const isOnboardingRoute = pathname === '/onboarding';
 
   useEffect(() => {
     const fetchUserRole = async () => {
       const data = await fetchUserContext();
       if (data) {
         setUserRole(resolveRoleFromContext(data));
+        const userPayload = (data.user ?? {}) as {
+          profileSetupCompleted?: boolean;
+        };
+        const setupCompleted =
+          typeof data.profileSetupCompleted !== 'undefined'
+            ? data.profileSetupCompleted
+            : userPayload.profileSetupCompleted;
+
+        setProfileSetupCompleted(
+          typeof setupCompleted === 'boolean' ? setupCompleted : null
+        );
+
+        if (!setupCompleted && pathname !== '/onboarding') {
+          router.replace('/onboarding');
+        }
+        if (setupCompleted && pathname === '/onboarding') {
+          router.replace('/');
+        }
+      } else {
+        setProfileSetupCompleted(null);
       }
     };
 
     fetchUserRole();
-  }, []);
+  }, [router, pathname]);
 
   // Инициализация темы из localStorage
   useEffect(() => {
@@ -102,7 +127,6 @@ export default function ClientApp({ children }: { children: React.ReactNode }) {
     setMode((prev) => (prev === 'light' ? 'dark' : 'light'));
 
   const [open, setOpen] = useState(false);
-  const router = useRouter();
 
   const handleToggleDrawer = () => {
     setOpen((prev) => !prev);
@@ -207,112 +231,153 @@ export default function ClientApp({ children }: { children: React.ReactNode }) {
     );
   }
 
+  const onboardingContent = (
+    <Box
+      component='main'
+      sx={{
+        flexGrow: 1,
+        bgcolor: 'background.default',
+        color: 'text.primary',
+        display: 'flex',
+        flexDirection: 'column',
+        minHeight: '100vh',
+      }}
+    >
+      {children}
+    </Box>
+  );
+
+  const blockingScreen = (
+    <Box
+      component='main'
+      sx={{
+        flexGrow: 1,
+        bgcolor: 'background.default',
+        color: 'text.primary',
+        display: 'flex',
+        flexDirection: 'column',
+        justifyContent: 'center',
+        alignItems: 'center',
+        height: '100vh',
+        width: '100vw',
+      }}
+    >
+      <CircularProgress />
+    </Box>
+  );
+
   return (
     <ThemeContext.Provider value={{ toggleTheme, mode }}>
       <ThemeProvider theme={theme}>
         <Box sx={{ display: 'flex', height: '100vh', flexDirection: 'column' }}>
           <CssBaseline />
           {isSignedIn ? (
-            <>
-              {/* AppBar */}
-              <AppBar
-                position='fixed'
-                sx={{
-                  backgroundColor: mode === 'dark' ? '#000' : '#1e1e1e',
-                }}
-              >
-                <Toolbar>
-                  <Button onClick={handleToggleDrawer} color='inherit'>
-                    <Menu />
-                  </Button>
-                  <Box
-                    sx={{ flexGrow: 1, display: 'flex', alignItems: 'center' }}
+            isOnboardingRoute
+              ? onboardingContent
+              : profileSetupCompleted
+              ? (
+                <>
+                  {/* AppBar */}
+                  <AppBar
+                    position='fixed'
+                    sx={{
+                      backgroundColor: mode === 'dark' ? '#000' : '#1e1e1e',
+                    }}
                   >
-                    <Badge
-                      badgeContent={`Pro`}
-                      color='primary'
-                      anchorOrigin={{
-                        vertical: 'top',
-                        horizontal: 'right',
+                    <Toolbar>
+                      <Button onClick={handleToggleDrawer} color='inherit'>
+                        <Menu />
+                      </Button>
+                      <Box
+                        sx={{ flexGrow: 1, display: 'flex', alignItems: 'center' }}
+                      >
+                        <Badge
+                          badgeContent={`Pro`}
+                          color='primary'
+                          anchorOrigin={{
+                            vertical: 'top',
+                            horizontal: 'right',
+                          }}
+                        >
+                          <Typography variant='h6'>CI Work</Typography>
+                        </Badge>
+                      </Box>
+                      <Box
+                        sx={{
+                          display: 'flex',
+                          alignItems: 'center',
+                          marginRight: '5px',
+                        }}
+                      >
+                        <LightModeIcon
+                          sx={{
+                            fontSize: 18,
+                            color: mode === 'light' ? 'yellow' : 'inherit',
+                            marginRight: '0px',
+                          }}
+                        />
+                        <Switch
+                          checked={mode === 'dark'}
+                          onChange={toggleTheme}
+                          color='default'
+                          size='medium'
+                        />
+                      </Box>
+                      <Box
+                        sx={{
+                          marginRight: '20px',
+                        }}
+                      >
+                      </Box>
+
+                      <UserMenu />
+                    </Toolbar>
+                  </AppBar>
+                  {/* Sidebar Drawer */}
+                  <Drawer
+                    open={open}
+                    onClose={handleToggleDrawer}
+                    sx={{
+                      '& .MuiDrawer-paper': {
+                        width: 240,
+                        height: '100vh',
+                        zIndex: 1200,
+                      },
+                    }}
+                  >
+                    {DrawerList}
+                  </Drawer>
+                  {/* Основное содержимое */}
+                  <Box
+                    component='main'
+                    sx={{
+                      flexGrow: 1,
+                      bgcolor: 'background.default',
+                      color: 'text.primary',
+                      p: 2,
+                      display: 'flex',
+                      flexDirection: 'column',
+                      overflow: 'auto',
+                    }}
+                  >
+                    <Toolbar />
+                    <Box sx={{ flexGrow: 1 }}>{children}</Box>
+                    {/* Футер */}
+                    <Box
+                      component='footer'
+                      sx={{
+                        p: 2,
+                        textAlign: 'center',
+                        borderTop: `1px solid ${theme.palette.divider}`,
+                        mt: 2,
                       }}
                     >
-                      <Typography variant='h6'>CI Work</Typography>
-                    </Badge>
+                      © CI Work {currentYear}
+                    </Box>
                   </Box>
-                  <Box
-                    sx={{
-                      display: 'flex',
-                      alignItems: 'center',
-                      marginRight: '5px',
-                    }}
-                  >
-                    <LightModeIcon
-                      sx={{
-                        fontSize: 18,
-                        color: mode === 'light' ? 'yellow' : 'inherit',
-                        marginRight: '0px',
-                      }}
-                    />
-                    <Switch
-                      checked={mode === 'dark'}
-                      onChange={toggleTheme}
-                      color='default'
-                      size='medium'
-                    />
-                  </Box>
-                  <Box
-                    sx={{
-                      marginRight: '20px',
-                    }}
-                  >
-                  </Box>
-
-                  <UserMenu />
-                </Toolbar>
-              </AppBar>
-              {/* Sidebar Drawer */}
-              <Drawer
-                open={open}
-                onClose={handleToggleDrawer}
-                sx={{
-                  '& .MuiDrawer-paper': {
-                    width: 240,
-                    height: '100vh',
-                    zIndex: 1200,
-                  },
-                }}
-              >
-                {DrawerList}
-              </Drawer>
-              {/* Основное содержимое */}
-              <Box
-                component='main'
-                sx={{
-                  flexGrow: 1,
-                  bgcolor: 'background.default',
-                  color: 'text.primary',
-                  p: 2,
-                  display: 'flex',
-                  flexDirection: 'column',
-                  overflow: 'auto',
-                }}
-              >
-                <Toolbar />
-                <Box sx={{ flexGrow: 1 }}>{children}</Box>
-                {/* Футер */}
-                <Box
-                  component='footer'
-                  sx={{
-                    p: 2,
-                    textAlign: 'center',
-                    borderTop: `1px solid ${theme.palette.divider}`,
-                    mt: 2,
-                  }}
-                >
-                  © CI Work {currentYear}
-                </Box>
-              </Box>
-            </>
+                </>
+                )
+              : blockingScreen
           ) : (
             <Box
               component='main'

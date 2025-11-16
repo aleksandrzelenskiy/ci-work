@@ -39,9 +39,12 @@ export async function GET() {
   return NextResponse.json({
     membershipRole,
     platformRole: user.platformRole,
+    profileSetupCompleted: user.profileSetupCompleted,
     effectiveOrgRole,
     isSuperAdmin,
     regionCode: user.regionCode || '',
+    name: user.name,
+    email: user.email,
     user,
     memberships,
     activeOrgId,

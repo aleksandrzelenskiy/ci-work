@@ -5,7 +5,6 @@
 import UserModel, { type IUser } from 'src/app/models/UserModel';
 import dbConnect from 'src/utils/mongoose';
 import { currentUser } from '@clerk/nextjs/server';
-import { MongoServerError } from 'mongodb';
 
 dbConnect();
 
@@ -51,8 +50,11 @@ export const GetCurrentUserFromMongoDB =
         if (!user.profileType) {
           user.profileType = 'client';
         }
+        if (typeof user.profileSetupCompleted === 'undefined') {
+          user.profileSetupCompleted = false;
+        }
         if (!user.subscriptionTier) {
-          user.subscriptionTier = 'basic';
+          user.subscriptionTier = 'free';
         }
         if (!user.billingStatus) {
           user.billingStatus = 'trial';
@@ -77,8 +79,12 @@ export const GetCurrentUserFromMongoDB =
         user.profileType = 'client';
         needsSave = true;
       }
+      if (typeof user.profileSetupCompleted === 'undefined') {
+        user.profileSetupCompleted = false;
+        needsSave = true;
+      }
       if (!user.subscriptionTier) {
-        user.subscriptionTier = 'basic';
+        user.subscriptionTier = 'free';
         needsSave = true;
       }
       if (!user.billingStatus) {
@@ -103,37 +109,29 @@ export const GetCurrentUserFromMongoDB =
     }
 
     const fullName = `${clerkUser?.firstName ?? ''} ${clerkUser?.lastName ?? ''}`.trim();
-    const newUser = new UserModel({
+    const insertPayload = {
       name: fullName || clerkUser?.username || primaryEmail || 'Unknown User',
       email: primaryEmail || '',
       clerkUserId: clerkUser?.id,
       profilePic: clerkUser?.imageUrl || '',
-      platformRole: 'user',
-      profileType: 'client',
-      subscriptionTier: 'basic',
-      billingStatus: 'trial',
+      platformRole: 'user' as const,
+      profileType: 'client' as const,
+      profileSetupCompleted: false,
+      subscriptionTier: 'free' as const,
+      billingStatus: 'trial' as const,
       activeOrgId: null,
       regionCode: '',
-    });
+    };
 
-    try {
-      await newUser.save();
-    } catch (error) {
-      if (
-        error instanceof MongoServerError &&
-        error.code === 11000 &&
-        primaryEmail
-      ) {
-        const existingUser = await UserModel.findOne({ email: primaryEmail });
-        if (existingUser) {
-          return {
-            success: true,
-            data: serializeUser(existingUser),
-          };
-        }
+    const newUser = await UserModel.findOneAndUpdate(
+      { clerkUserId: clerkUser.id },
+      { $setOnInsert: insertPayload },
+      {
+        upsert: true,
+        new: true,
+        setDefaultsOnInsert: true,
       }
-      throw error;
-    }
+    );
 
     return {
       success: true,

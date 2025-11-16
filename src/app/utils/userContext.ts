@@ -16,6 +16,7 @@ export interface UserContextResponse {
   effectiveOrgRole?: EffectiveOrgRole | null;
   membershipRole?: OrgRole | null;
   isSuperAdmin?: boolean;
+  profileSetupCompleted?: boolean;
   user?: Record<string, unknown>;
   memberships?: ActiveMembership[];
   activeOrgId?: string | null;
