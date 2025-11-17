@@ -221,7 +221,8 @@ export default function OnboardingPage() {
       });
       const data = await res.json();
       if (!res.ok) {
-        throw new Error(data?.error || 'Не удалось сохранить выбор');
+        setError(data?.error || 'Не удалось сохранить выбор');
+        return;
       }
 
       router.replace('/');
@@ -268,7 +269,8 @@ export default function OnboardingPage() {
           theme.palette.mode === 'dark'
             ? 'linear-gradient(135deg, #0b0d11 0%, #151b24 60%, #0c1017 100%)'
             : 'linear-gradient(135deg, #f6f7fa 0%, #e8ecf4 50%, #f5f7fb 100%)',
-        py: { xs: 6, md: 10 },
+        pt: { xs: 3, md: 5 },
+        pb: { xs: 6, md: 10 },
       }}
     >
       <Container maxWidth='lg' sx={{ position: 'relative' }}>
@@ -313,13 +315,9 @@ export default function OnboardingPage() {
             <Typography variant='h3' fontWeight={700}>
               Настройте ваш профиль
             </Typography>
-            <Typography variant='h6' color='text.secondary' maxWidth={620}>
-              Заполните форму ниже и выберите роль. Эти данные помогут правильно
-              подготовить для вас рабочее пространство.
-            </Typography>
           </Stack>
 
-          <Stack spacing={4} sx={{ mt: { xs: 5, md: 7 } }}>
+          <Stack spacing={4} sx={{ mt: { xs: 3, md: 4 } }}>
             <Paper
               elevation={0}
               sx={{
@@ -444,9 +442,6 @@ export default function OnboardingPage() {
                   }}
                 />
                 <Box>
-                  <Typography variant='h6' fontWeight={700}>
-                    Роль в платформе
-                  </Typography>
                   <Typography color='text.secondary'>
                     Выберите сценарий, чтобы мы подготовили нужные панели и
                     доступы.
