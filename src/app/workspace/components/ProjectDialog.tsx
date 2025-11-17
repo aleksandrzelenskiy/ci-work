@@ -11,6 +11,7 @@ import {
     Stack,
     Typography,
 } from '@mui/material';
+import TopicIcon from '@mui/icons-material/Topic';
 import { RUSSIAN_REGIONS, REGION_MAP, REGION_ISO_MAP } from '@/app/utils/regions';
 import { OPERATORS } from '@/app/utils/operators';
 
@@ -116,6 +117,15 @@ export default function ProjectDialog({
     const isCreate = mode === 'create';
     const busy = submitting || loading;
     const isSubmitDisabled = !name.trim() || !key.trim() || !regionCode || !operator || busy;
+    const glassInputSx = {
+        '& .MuiOutlinedInput-root': {
+            backgroundColor: 'rgba(255,255,255,0.92)',
+            borderRadius: 3,
+            '& fieldset': { borderColor: 'rgba(255,255,255,0.6)' },
+            '&:hover fieldset': { borderColor: 'rgba(147,197,253,0.9)' },
+            '&.Mui-focused fieldset': { borderColor: 'rgba(59,130,246,0.8)' },
+        },
+    };
 
     const handleSubmit = async () => {
         if (isSubmitDisabled) return;
@@ -143,13 +153,43 @@ export default function ProjectDialog({
     };
 
     return (
-        <Dialog open={open} onClose={busy ? undefined : onClose} maxWidth="sm" fullWidth>
-            <DialogTitle>{isCreate ? 'Новый проект' : 'Редактировать проект'}</DialogTitle>
-            <DialogContent dividers>
+        <Dialog
+            open={open}
+            onClose={busy ? undefined : onClose}
+            maxWidth="sm"
+            fullWidth
+            PaperProps={{
+                sx: {
+                    backdropFilter: 'blur(28px)',
+                    backgroundColor: 'rgba(255,255,255,0.85)',
+                    border: '1px solid rgba(255,255,255,0.4)',
+                    borderRadius: 4,
+                    boxShadow: '0 40px 80px rgba(15,23,42,0.25)',
+                },
+            }}
+        >
+            <DialogTitle
+                sx={{
+                    background: 'linear-gradient(120deg, rgba(255,255,255,0.95), rgba(243,244,255,0.85))',
+                    borderBottom: '1px solid rgba(255,255,255,0.4)',
+                    fontWeight: 600,
+                }}
+            >
+                <Stack direction="row" spacing={1.5} alignItems="center">
+                    {isCreate && <TopicIcon color="primary" />}
+                    <span>{isCreate ? 'Новый проект' : 'Редактировать проект'}</span>
+                </Stack>
+            </DialogTitle>
+            <DialogContent
+                dividers
+                sx={{
+                    background: 'linear-gradient(180deg, rgba(255,255,255,0.92), rgba(248,250,255,0.8))',
+                }}
+            >
                 <TextField
                     label="Название"
                     fullWidth
-                    sx={{ mt: 1 }}
+                    sx={{ mt: 1, ...glassInputSx }}
                     value={name}
                     disabled={busy}
                     onChange={(e) => setName(e.target.value)}
@@ -157,7 +197,7 @@ export default function ProjectDialog({
                 <TextField
                     label="Код (KEY)"
                     fullWidth
-                    sx={{ mt: 2 }}
+                    sx={{ mt: 2, ...glassInputSx }}
                     value={key}
                     disabled={busy}
                     onChange={(e) => setKey(e.target.value)}
@@ -167,7 +207,7 @@ export default function ProjectDialog({
                     fullWidth
                     multiline
                     minRows={3}
-                    sx={{ mt: 2 }}
+                    sx={{ mt: 2, ...glassInputSx }}
                     value={description}
                     disabled={busy}
                     onChange={(e) => setDescription(e.target.value)}
@@ -185,7 +225,11 @@ export default function ProjectDialog({
                         )}
                         disabled={busy}
                         renderInput={(params) => (
-                            <TextField {...params} label="Регион (код — название)" />
+                            <TextField
+                                {...params}
+                                label="Регион (код — название)"
+                                sx={glassInputSx}
+                            />
                         )}
                     />
                 </Box>
@@ -196,7 +240,9 @@ export default function ProjectDialog({
                         onChange={(_, value) => setOperator(value?.value ?? '')}
                         getOptionLabel={(option) => option.label}
                         disabled={busy}
-                        renderInput={(params) => <TextField {...params} label="Оператор" />}
+                        renderInput={(params) => (
+                            <TextField {...params} label="Оператор" sx={glassInputSx} />
+                        )}
                     />
                 </Box>
                 <Box sx={{ mt: 2 }}>
@@ -213,6 +259,7 @@ export default function ProjectDialog({
                                 {...params}
                                 label="Менеджеры проекта"
                                 placeholder="Выберите участников"
+                                sx={glassInputSx}
                             />
                         )}
                         renderOption={(props, option) => (
@@ -230,14 +277,25 @@ export default function ProjectDialog({
                     />
                 </Box>
             </DialogContent>
-            <DialogActions>
-                <Button onClick={onClose} disabled={busy}>
+            <DialogActions
+                sx={{
+                    backgroundColor: 'rgba(255,255,255,0.85)',
+                    borderTop: '1px solid rgba(255,255,255,0.4)',
+                }}
+            >
+                <Button onClick={onClose} disabled={busy} sx={{ borderRadius: 999, px: 2 }}>
                     Отмена
                 </Button>
                 <Button
                     variant="contained"
                     onClick={handleSubmit}
                     disabled={isSubmitDisabled}
+                    sx={{
+                        borderRadius: 999,
+                        px: 3,
+                        textTransform: 'none',
+                        boxShadow: '0 15px 35px rgba(59,130,246,0.45)',
+                    }}
                 >
                     {isCreate ? 'Создать' : 'Сохранить'}
                 </Button>

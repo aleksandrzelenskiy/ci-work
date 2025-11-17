@@ -1,0 +1,453 @@
+// src/app/components/NotificationBell.tsx
+'use client';
+
+import React from 'react';
+import {
+    Badge,
+    Box,
+    CircularProgress,
+    Divider,
+    IconButton,
+    List,
+    ListItem,
+    ListItemText,
+    Menu,
+    Typography,
+    Button,
+    type SxProps,
+    type Theme,
+} from '@mui/material';
+import NotificationsIcon from '@mui/icons-material/Notifications';
+import DeleteOutlineIcon from '@mui/icons-material/DeleteOutline';
+import dayjs from 'dayjs';
+import Link from 'next/link';
+import type { NotificationDTO } from '@/app/types/notifications';
+
+type NotificationsResponse =
+    | {
+          ok: true;
+          notifications: NotificationDTO[];
+          unreadCount: number;
+          totalCount: number;
+          page: number;
+          limit: number;
+          hasMore: boolean;
+      }
+    | { ok: false; error: string };
+
+const fetchNotifications = async (
+    page = 1,
+    limit = 10
+): Promise<NotificationsResponse> => {
+    try {
+        const params = new URLSearchParams({
+            page: String(page),
+            limit: String(limit),
+        });
+        const res = await fetch(`/api/notifications?${params.toString()}`, {
+            cache: 'no-store',
+        });
+        if (!res.ok) {
+            const payload = (await res.json().catch(() => ({}))) as {
+                error?: string;
+            };
+            return {
+                ok: false,
+                error: payload.error || res.statusText,
+            };
+        }
+        return (await res.json()) as NotificationsResponse;
+    } catch (error) {
+        return {
+            ok: false,
+            error: error instanceof Error ? error.message : 'Network error',
+        };
+    }
+};
+
+const markAllNotificationsAsRead = async () => {
+    try {
+        const res = await fetch('/api/notifications', {
+            method: 'PATCH',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ markAll: true }),
+        });
+        if (!res.ok) {
+            throw new Error(res.statusText);
+        }
+    } catch (error) {
+        console.error('Failed to mark notifications as read', error);
+    }
+};
+
+const formatTimestamp = (value: string) =>
+    dayjs(value).isValid() ? dayjs(value).format('DD.MM.YYYY HH:mm') : value;
+
+type NotificationBellProps = {
+    buttonSx?: SxProps<Theme>;
+};
+
+const PAGE_SIZE = 10;
+
+export default function NotificationBell({ buttonSx }: NotificationBellProps) {
+    const [anchorEl, setAnchorEl] = React.useState<null | HTMLElement>(null);
+    const [notifications, setNotifications] = React.useState<NotificationDTO[]>([]);
+    const [loading, setLoading] = React.useState(false);
+    const [error, setError] = React.useState<string | null>(null);
+    const [unreadCount, setUnreadCount] = React.useState(0);
+    const [actionError, setActionError] = React.useState<string | null>(null);
+    const [pendingDeletes, setPendingDeletes] = React.useState<Record<string, boolean>>({});
+    const [page, setPage] = React.useState(1);
+    const [hasMore, setHasMore] = React.useState(false);
+    const [loadingMore, setLoadingMore] = React.useState(false);
+
+    const open = Boolean(anchorEl);
+
+    type LoadOptions = {
+        page?: number;
+        append?: boolean;
+    };
+
+    const loadNotifications = React.useCallback(
+        async ({ page: pageToLoad = 1, append = false }: LoadOptions = {}) => {
+            const usePrimaryLoader = pageToLoad === 1 && !append;
+            if (usePrimaryLoader) {
+                setLoading(true);
+            } else {
+                setLoadingMore(true);
+            }
+            setActionError(null);
+
+            try {
+                const result = await fetchNotifications(pageToLoad, PAGE_SIZE);
+                if (result.ok) {
+                    setNotifications((prev) => {
+                        if (append) {
+                            const existingIds = new Set(prev.map((item) => item.id));
+                            const nextItems = result.notifications.filter(
+                                (item) => !existingIds.has(item.id)
+                            );
+                            return [...prev, ...nextItems];
+                        }
+                        return result.notifications;
+                    });
+                    setUnreadCount(result.unreadCount);
+                    setError(null);
+                    setHasMore(result.hasMore);
+                    setPage(result.page);
+                    return result;
+                }
+                setError(result.error);
+                return null;
+            } finally {
+                if (usePrimaryLoader) {
+                    setLoading(false);
+                } else {
+                    setLoadingMore(false);
+                }
+            }
+        },
+        []
+    );
+
+    React.useEffect(() => {
+        loadNotifications({ page: 1 });
+    }, [loadNotifications]);
+
+    const handleToggleMenu = async (event: React.MouseEvent<HTMLElement>) => {
+        if (open) {
+            setAnchorEl(null);
+            return;
+        }
+        setAnchorEl(event.currentTarget);
+        const payload = await loadNotifications({ page: 1 });
+        if (payload?.ok && payload.unreadCount > 0) {
+            await markAllNotificationsAsRead();
+            setUnreadCount(0);
+            setNotifications((prev) =>
+                prev.map((n) => ({ ...n, status: 'read' }))
+            );
+        }
+    };
+
+    const handleClose = () => setAnchorEl(null);
+    const handleLoadMore = React.useCallback(async () => {
+        if (loadingMore || !hasMore) return;
+        await loadNotifications({ page: page + 1, append: true });
+    }, [hasMore, loadingMore, loadNotifications, page]);
+    const handleDeleteNotification = async (notificationId: string) => {
+        const targetNotification = notifications.find((n) => n.id === notificationId);
+
+        setPendingDeletes((prev) => ({ ...prev, [notificationId]: true }));
+        setActionError(null);
+        try {
+            const res = await fetch('/api/notifications', {
+                method: 'DELETE',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ notificationIds: [notificationId] }),
+            });
+            const payload = (await res.json().catch(() => ({}))) as {
+                ok?: boolean;
+                unreadCount?: number;
+                error?: string;
+            };
+            if (!res.ok || payload.ok !== true) {
+                throw new Error(payload.error || res.statusText);
+            }
+
+            setNotifications((prev) => prev.filter((n) => n.id !== notificationId));
+            if (typeof payload.unreadCount === 'number') {
+                setUnreadCount(payload.unreadCount);
+            } else if (targetNotification?.status === 'unread') {
+                setUnreadCount((prev) => Math.max(prev - 1, 0));
+            }
+        } catch (deleteError) {
+            console.error('Failed to delete notification', deleteError);
+            setActionError('Не удалось удалить уведомление. Попробуйте ещё раз.');
+        } finally {
+            setPendingDeletes((prev) => {
+                const next = { ...prev };
+                delete next[notificationId];
+                return next;
+            });
+        }
+    };
+
+    return (
+        <>
+            <IconButton
+                color='inherit'
+                aria-label='Открыть уведомления'
+                size='large'
+                onClick={handleToggleMenu}
+                sx={buttonSx}
+            >
+                <Badge
+                    color='error'
+                    badgeContent={unreadCount > 0 ? unreadCount : null}
+                >
+                    <NotificationsIcon fontSize='small' />
+                </Badge>
+            </IconButton>
+            <Menu
+                anchorEl={anchorEl}
+                open={open}
+                onClose={handleClose}
+                PaperProps={{
+                    sx: {
+                        width: 380,
+                        maxHeight: 420,
+                        p: 0,
+                    },
+                }}
+                anchorOrigin={{
+                    vertical: 'bottom',
+                    horizontal: 'right',
+                }}
+                transformOrigin={{
+                    vertical: 'top',
+                    horizontal: 'right',
+                }}
+            >
+                <Box sx={{ p: 2 }}>
+                    <Typography variant='h6'>Уведомления</Typography>
+                </Box>
+                <Divider />
+                {actionError && (
+                    <Box sx={{ px: 2, py: 1 }}>
+                        <Typography variant='caption' color='error'>
+                            {actionError}
+                        </Typography>
+                    </Box>
+                )}
+                <Box sx={{ minHeight: 200 }}>
+                    {loading ? (
+                        <Box
+                            sx={{
+                                display: 'flex',
+                                alignItems: 'center',
+                                justifyContent: 'center',
+                                py: 4,
+                            }}
+                        >
+                            <CircularProgress size={24} />
+                        </Box>
+                    ) : error ? (
+                        <Box sx={{ p: 2 }}>
+                            <Typography color='error' variant='body2'>
+                                {error}
+                            </Typography>
+                        </Box>
+                    ) : notifications.length === 0 ? (
+                        <Box sx={{ p: 2 }}>
+                            <Typography variant='body2' color='text.secondary'>
+                                Пока нет уведомлений
+                            </Typography>
+                        </Box>
+                    ) : (
+                        <>
+                            <List dense disablePadding>
+                                {notifications.map((notification) => (
+                                    <React.Fragment key={notification.id}>
+                                        <ListItem
+                                            alignItems='flex-start'
+                                            sx={{
+                                                alignItems: 'stretch',
+                                                backgroundColor: (theme) =>
+                                                    notification.status === 'unread'
+                                                        ? theme.palette.action.selected
+                                                        : theme.palette.background.paper,
+                                                borderLeft: (theme) =>
+                                                    notification.status === 'unread'
+                                                        ? `4px solid ${theme.palette.primary.main}`
+                                                        : '4px solid transparent',
+                                                transition: 'background-color 0.2s ease',
+                                            }}
+                                        >
+                                            <Box
+                                                sx={{
+                                                    width: '100%',
+                                                    display: 'flex',
+                                                    gap: 1,
+                                                }}
+                                            >
+                                                <Box
+                                                    sx={{
+                                                        flexGrow: 1,
+                                                        display: 'flex',
+                                                        gap: 1,
+                                                    }}
+                                                >
+                                                    {notification.status === 'unread' && (
+                                                        <Box
+                                                            component='span'
+                                                            sx={{
+                                                                width: 8,
+                                                                height: 8,
+                                                                borderRadius: '50%',
+                                                                backgroundColor: 'primary.main',
+                                                                mt: 0.75,
+                                                                flexShrink: 0,
+                                                            }}
+                                                        />
+                                                    )}
+                                                    <ListItemText
+                                                        primary={
+                                                            <Box
+                                                                sx={{
+                                                                    display: 'flex',
+                                                                    flexDirection: 'column',
+                                                                    gap: 0.5,
+                                                                }}
+                                                            >
+                                                                <Typography
+                                                                    variant='subtitle2'
+                                                                    sx={{
+                                                                        fontWeight:
+                                                                            notification.status ===
+                                                                            'unread'
+                                                                                ? 700
+                                                                                : 600,
+                                                                    }}
+                                                                >
+                                                                    {notification.title}
+                                                                </Typography>
+                                                                <Typography
+                                                                    variant='body2'
+                                                                    color={
+                                                                        notification.status ===
+                                                                        'unread'
+                                                                            ? 'text.primary'
+                                                                            : 'text.secondary'
+                                                                    }
+                                                                >
+                                                                    {notification.message}
+                                                                </Typography>
+                                                                <Typography
+                                                                    variant='caption'
+                                                                    color='text.secondary'
+                                                                >
+                                                                    {formatTimestamp(
+                                                                        notification.createdAt
+                                                                    )}
+                                                                </Typography>
+                                                                {notification.link && (
+                                                                    <Button
+                                                                        component={Link}
+                                                                        href={
+                                                                            notification.link
+                                                                        }
+                                                                        onClick={handleClose}
+                                                                        size='small'
+                                                                        sx={{
+                                                                            alignSelf:
+                                                                                'flex-start',
+                                                                            mt: 0.5,
+                                                                        }}
+                                                                    >
+                                                                        Открыть
+                                                                    </Button>
+                                                                )}
+                                                            </Box>
+                                                        }
+                                                    />
+                                                </Box>
+                                                <IconButton
+                                                    aria-label='Удалить уведомление'
+                                                    edge='end'
+                                                    size='small'
+                                                    onClick={() =>
+                                                        handleDeleteNotification(notification.id)
+                                                    }
+                                                    disabled={Boolean(
+                                                        pendingDeletes[notification.id]
+                                                    )}
+                                                    sx={{ alignSelf: 'flex-start' }}
+                                                >
+                                                    {pendingDeletes[notification.id] ? (
+                                                        <CircularProgress size={16} />
+                                                    ) : (
+                                                        <DeleteOutlineIcon fontSize='small' />
+                                                    )}
+                                                </IconButton>
+                                            </Box>
+                                        </ListItem>
+                                        <Divider component='li' />
+                                    </React.Fragment>
+                                ))}
+                            </List>
+                            {hasMore && (
+                                <>
+                                    <Divider />
+                                    <Box
+                                        sx={{
+                                            display: 'flex',
+                                            justifyContent: 'center',
+                                            p: 1.5,
+                                        }}
+                                    >
+                                        <Button
+                                            variant='outlined'
+                                            size='small'
+                                            onClick={handleLoadMore}
+                                            disabled={loadingMore}
+                                        >
+                                            {loadingMore ? (
+                                                <>
+                                                    <CircularProgress size={16} sx={{ mr: 1 }} />
+                                                    Загрузка...
+                                                </>
+                                            ) : (
+                                                'Показать ещё'
+                                            )}
+                                        </Button>
+                                    </Box>
+                                </>
+                            )}
+                        </>
+                    )}
+                </Box>
+            </Menu>
+        </>
+    );
+}

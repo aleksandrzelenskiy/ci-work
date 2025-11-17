@@ -312,7 +312,14 @@ export default function OnboardingPage() {
                 letterSpacing: 1,
               }}
             />
-            <Typography variant='h3' fontWeight={700}>
+            <Typography
+              variant='h3'
+              fontWeight={700}
+              sx={{
+                fontSize: { xs: '1.75rem', md: '2.75rem' },
+                lineHeight: { xs: 1.25, md: 1.3 },
+              }}
+            >
               Настройте ваш профиль
             </Typography>
           </Stack>

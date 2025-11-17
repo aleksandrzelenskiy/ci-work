@@ -6,6 +6,8 @@ import Membership, { OrgRole } from '@/app/models/MembershipModel';
 import { requireOrgRole } from '@/app/utils/permissions';
 import crypto from 'crypto';
 import UserModel from '@/app/models/UserModel';
+import { createNotification } from '@/app/utils/notificationService';
+import type { Types } from 'mongoose';
 
 export const runtime = 'nodejs';
 export const dynamic = 'force-dynamic';
@@ -36,10 +38,14 @@ export async function POST(req: NextRequest, ctx: { params: Promise<{ org: strin
         if (!userEmail) return NextResponse.json({ error: 'userEmail обязателен' }, { status: 400 });
 
         // ищем пользователя в users
-        const userDoc = await UserModel.findOne({ email: userEmail }, { name: 1 }).lean();
+        const userDoc = await UserModel.findOne({ email: userEmail }, { name: 1 })
+            .lean<{ _id: Types.ObjectId; name?: string }>();
         if (!userDoc) {
             return NextResponse.json({ error: 'Пользователь с таким e-mail не зарегистрирован' }, { status: 400 });
         }
+
+        const inviterProfile = await UserModel.findOne({ email: inviterEmail }, { name: 1 })
+            .lean<{ name?: string }>();
 
         const role: OrgRole = (body.role ?? 'executor') as OrgRole;
 
@@ -64,6 +70,37 @@ export async function POST(req: NextRequest, ctx: { params: Promise<{ org: strin
         );
 
         const inviteUrl = `${FRONTEND_URL}/org/${encodeURIComponent(orgSlug)}/join?token=${encodeURIComponent(token)}`;
+
+        const orgName = org.name ?? org.orgSlug;
+        const inviterName =
+            inviterProfile?.name ||
+            me?.fullName ||
+            [me?.firstName, me?.lastName].filter(Boolean).join(' ') ||
+            inviterEmail;
+        const inviteeName = userDoc.name ?? userEmail;
+
+        try {
+            await createNotification({
+                recipientUserId: userDoc._id,
+                type: 'org_invite',
+                title: `Приглашение в организацию`,
+                message: `${inviterName} приглашает вас присоединиться к «${orgName}»`,
+                link: inviteUrl,
+                orgId: org._id,
+                orgSlug: org.orgSlug,
+                orgName,
+                senderName: inviterName,
+                senderEmail: inviterEmail,
+                metadata: {
+                    inviteExpiresAt: expires.toISOString(),
+                    role,
+                    inviteeName,
+                },
+            });
+        } catch (notifyErr) {
+            console.error('Failed to create org_invite notification', notifyErr);
+        }
+
         return NextResponse.json({ ok: true, inviteUrl, expiresAt: expires.toISOString(), role });
 
     } catch (e) {

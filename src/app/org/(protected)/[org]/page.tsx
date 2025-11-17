@@ -165,6 +165,7 @@ export default function OrgSettingsPage() {
     const [inviteOpen, setInviteOpen] = React.useState(false);
     // снимок e-mail'ов на момент открытия
     const [inviteExistingEmails, setInviteExistingEmails] = React.useState<string[]>([]);
+    const inviteCloseTimeoutRef = React.useRef<ReturnType<typeof setTimeout> | null>(null);
 
     const managerOptions: ProjectManagerOption[] = React.useMemo(
         () =>
@@ -402,11 +403,23 @@ export default function OrgSettingsPage() {
     // слушаем событие успешного приглашения
     React.useEffect(() => {
         const handler = async () => {
-            // диалог не закрываем — просто обновляем список
             await fetchMembers();
+            if (inviteCloseTimeoutRef.current) {
+                clearTimeout(inviteCloseTimeoutRef.current);
+            }
+            inviteCloseTimeoutRef.current = setTimeout(() => {
+                setInviteOpen(false);
+                inviteCloseTimeoutRef.current = null;
+            }, 3000);
         };
         window.addEventListener('org-members:invited', handler as EventListener);
-        return () => window.removeEventListener('org-members:invited', handler as EventListener);
+        return () => {
+            window.removeEventListener('org-members:invited', handler as EventListener);
+            if (inviteCloseTimeoutRef.current) {
+                clearTimeout(inviteCloseTimeoutRef.current);
+                inviteCloseTimeoutRef.current = null;
+            }
+        };
     }, [fetchMembers]);
 
     // первичная загрузка
@@ -751,8 +764,23 @@ export default function OrgSettingsPage() {
             <Grid container spacing={2}>
                 {/* ПРОЕКТЫ */}
                 <Grid item xs={12}>
-                    <Card variant="outlined">
+                    <Card
+                        variant="outlined"
+                        sx={{
+                            backdropFilter: 'blur(24px)',
+                            background: 'linear-gradient(145deg, rgba(255,255,255,0.9), rgba(244,246,255,0.7))',
+                            border: '1px solid rgba(255,255,255,0.5)',
+                            boxShadow: '0 30px 60px rgba(15,23,42,0.15)',
+                            borderRadius: 4,
+                        }}
+                    >
                         <CardHeader
+                            sx={{
+                                borderBottom: '1px solid rgba(255,255,255,0.4)',
+                                background: 'linear-gradient(120deg, rgba(255,255,255,0.95), rgba(245,247,255,0.8))',
+                                borderTopLeftRadius: 16,
+                                borderTopRightRadius: 16,
+                            }}
                             title={`Проекты организации (${projects.length})`}
                             action={
                                 <Stack direction="row" spacing={1}>
@@ -780,7 +808,13 @@ export default function OrgSettingsPage() {
                                 </Stack>
                             }
                         />
-                        <CardContent>
+                        <CardContent
+                            sx={{
+                                background: 'linear-gradient(180deg, rgba(255,255,255,0.85), rgba(247,249,255,0.75))',
+                                borderBottomLeftRadius: 16,
+                                borderBottomRightRadius: 16,
+                            }}
+                        >
                             {projectsLoading ? (
                                 <Stack direction="row" spacing={1} alignItems="center">
                                     <CircularProgress size={20} />
@@ -898,8 +932,23 @@ export default function OrgSettingsPage() {
 
                 {/* УЧАСТНИКИ */}
                 <Grid item xs={12}>
-                    <Card variant="outlined">
+                    <Card
+                        variant="outlined"
+                        sx={{
+                            backdropFilter: 'blur(24px)',
+                            background: 'linear-gradient(145deg, rgba(255,255,255,0.9), rgba(244,246,255,0.7))',
+                            border: '1px solid rgba(255,255,255,0.5)',
+                            boxShadow: '0 30px 60px rgba(15,23,42,0.15)',
+                            borderRadius: 4,
+                        }}
+                    >
                         <CardHeader
+                            sx={{
+                                borderBottom: '1px solid rgba(255,255,255,0.4)',
+                                background: 'linear-gradient(120deg, rgba(255,255,255,0.95), rgba(245,247,255,0.8))',
+                                borderTopLeftRadius: 16,
+                                borderTopRightRadius: 16,
+                            }}
                             title={`Участники организации (${members.length})`}
                             subheader={`Действующие и приглашённые участники ${orgName || org}`}
                             action={
@@ -939,7 +988,13 @@ export default function OrgSettingsPage() {
                                 </Stack>
                             }
                         />
-                        <CardContent>
+                        <CardContent
+                            sx={{
+                                background: 'linear-gradient(180deg, rgba(255,255,255,0.85), rgba(247,249,255,0.75))',
+                                borderBottomLeftRadius: 16,
+                                borderBottomRightRadius: 16,
+                            }}
+                        >
                             {showMemberSearch && (
                                 <Box sx={{ mb: 2, maxWidth: 360 }}>
                                     <Stack direction="row" spacing={1} alignItems="center">
@@ -1071,9 +1126,35 @@ export default function OrgSettingsPage() {
             </Grid>
 
             {/* Диалог добавления участника */}
-            <Dialog open={inviteOpen} onClose={() => setInviteOpen(false)} maxWidth="sm" fullWidth>
-                <DialogTitle>Пригласить участника</DialogTitle>
-                <DialogContent dividers>
+            <Dialog
+                open={inviteOpen}
+                onClose={() => setInviteOpen(false)}
+                maxWidth="sm"
+                fullWidth
+                PaperProps={{
+                    sx: {
+                        backdropFilter: 'blur(24px)',
+                        backgroundColor: 'rgba(255,255,255,0.85)',
+                        border: '1px solid rgba(255, 255, 255, 0.3)',
+                        boxShadow: '0 25px 60px rgba(15, 23, 42, 0.25)',
+                        borderRadius: 4,
+                    },
+                }}
+            >
+                <DialogTitle
+                    sx={{
+                        borderBottom: '1px solid rgba(255,255,255,0.4)',
+                        background: 'linear-gradient(120deg, rgba(255,255,255,0.9), rgba(248,250,255,0.7))',
+                    }}
+                >
+                    Пригласить участника
+                </DialogTitle>
+                <DialogContent
+                    dividers
+                    sx={{
+                        background: 'linear-gradient(180deg, rgba(255,255,255,0.9), rgba(247,249,255,0.7))',
+                    }}
+                >
                     {org && (
                         <InviteMemberForm
                             org={org}
@@ -1083,8 +1164,15 @@ export default function OrgSettingsPage() {
                         />
                     )}
                 </DialogContent>
-                <DialogActions>
-                    <Button onClick={() => setInviteOpen(false)}>Закрыть</Button>
+                <DialogActions
+                    sx={{
+                        backgroundColor: 'rgba(255,255,255,0.8)',
+                        borderTop: '1px solid rgba(255,255,255,0.4)',
+                    }}
+                >
+                    <Button variant="text" color="primary" onClick={() => setInviteOpen(false)}>
+                        Закрыть
+                    </Button>
                 </DialogActions>
             </Dialog>
 

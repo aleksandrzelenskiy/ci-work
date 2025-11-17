@@ -6,6 +6,8 @@ import MembershipModel, { type Membership as MembershipDoc } from '@/app/models/
 import { ensureSeatAvailable } from '@/utils/seats';
 import { Types, type FilterQuery } from 'mongoose';
 import { currentUser } from '@clerk/nextjs/server';
+import UserModel from '@/app/models/UserModel';
+import { createNotification } from '@/app/utils/notificationService';
 
 export const runtime = 'nodejs';
 export const dynamic = 'force-dynamic';
@@ -14,7 +16,7 @@ function errorMessage(err: unknown) {
     return err instanceof Error ? err.message : 'Server error';
 }
 
-type OrgLean = { _id: Types.ObjectId; orgSlug: string };
+type OrgLean = { _id: Types.ObjectId; orgSlug: string; name?: string };
 
 export async function POST(
     req: NextRequest,
@@ -37,7 +39,7 @@ export async function POST(
 
         const org = await Organization.findOne(
             { orgSlug },
-            { _id: 1, orgSlug: 1 }
+            { _id: 1, orgSlug: 1, name: 1 }
         ).lean<OrgLean>();
         if (!org) {
             return NextResponse.json({ error: 'Организация не найдена' }, { status: 404 });
@@ -71,6 +73,45 @@ export async function POST(
         m.inviteToken = undefined;
         m.inviteExpiresAt = undefined;
         await m.save();
+
+        const inviterEmail = m.invitedByEmail;
+        if (inviterEmail) {
+            const inviterUser = await UserModel.findOne(
+                { email: inviterEmail },
+                { _id: 1, name: 1 }
+            ).lean<{ _id: Types.ObjectId; name?: string }>();
+
+            if (inviterUser?._id) {
+                const orgName = org.name ?? org.orgSlug;
+                const actorName =
+                    m.userName ||
+                    me?.fullName ||
+                    [me?.firstName, me?.lastName].filter(Boolean).join(' ') ||
+                    meEmail;
+
+                try {
+                    await createNotification({
+                        recipientUserId: inviterUser._id,
+                        type: 'invite_accepted',
+                        title: 'Приглашение принято',
+                        message: `${actorName} принял приглашение в «${orgName}»`,
+                        link: `/org/${org.orgSlug}`,
+                        orgId: org._id,
+                        orgSlug: org.orgSlug,
+                        orgName,
+                        senderName: actorName,
+                        senderEmail: meEmail,
+                        metadata: {
+                            inviteeEmail: meEmail,
+                            membershipId: m._id.toString(),
+                            response: 'accepted',
+                        },
+                    });
+                } catch (notifyErr) {
+                    console.error('Failed to create invite_accepted notification', notifyErr);
+                }
+            }
+        }
 
         return NextResponse.json({ ok: true });
     } catch (e) {

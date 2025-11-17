@@ -16,12 +16,9 @@ import {
     CircularProgress,
     Snackbar,
     Alert,
-    IconButton,
-    Tooltip,
     Avatar,
 } from '@mui/material';
 import Autocomplete from '@mui/material/Autocomplete';
-import ContentCopyIcon from '@mui/icons-material/ContentCopy';
 
 type OrgRole = 'owner' | 'org_admin' | 'manager' | 'executor' | 'viewer';
 
@@ -37,43 +34,6 @@ type Props = {
     existingEmails?: string[];
 };
 
-// убираем хвостовые "/"
-function normalizeBaseUrl(url: string | undefined | null) {
-    if (!url) return '';
-    return url.replace(/\/+$/, '');
-}
-
-// аккуратно достраиваем относительный путь
-function makeAbsoluteUrl(base: string, path: string) {
-    try {
-        return new URL(path, base).toString();
-    } catch {
-        const cleanBase = normalizeBaseUrl(base);
-        const cleanPath = path.replace(/^\/+/, '');
-        return `${cleanBase}/${cleanPath}`;
-    }
-}
-
-// чистим кривые ссылки из бэка
-function normalizeInviteUrl(raw: string, frontendBase?: string) {
-    if (!raw) return raw;
-
-    // относительный путь — достраиваем
-    if (raw.startsWith('/')) {
-        const base = frontendBase || (typeof window !== 'undefined' ? window.location.origin : '');
-        return makeAbsoluteUrl(base, raw);
-    }
-
-    // абсолютный урл — чиним pathname
-    try {
-        const u = new URL(raw);
-        u.pathname = u.pathname.replace(/\/{2,}/g, '/');
-        return u.toString();
-    } catch {
-        return raw.replace(/\/\/+org\//, '/org/');
-    }
-}
-
 export default function InviteMemberForm({
                                              org,
                                              defaultRole = 'executor',
@@ -87,9 +47,6 @@ export default function InviteMemberForm({
     const [invRole, setInvRole] = React.useState<OrgRole>(defaultRole);
     const [inviting, setInviting] = React.useState(false);
 
-    const [inviteLink, setInviteLink] = React.useState<string | null>(null);
-    const [inviteExpiresAt, setInviteExpiresAt] = React.useState<string | null>(null);
-
     const [snack, setSnack] = React.useState<{
         open: boolean;
         msg: string;
@@ -99,19 +56,6 @@ export default function InviteMemberForm({
         msg: '',
         sev: 'success',
     });
-
-    const [frontendBase, setFrontendBase] = React.useState('');
-    React.useEffect(() => {
-        const envPublic = process.env.NEXT_PUBLIC_FRONTEND_URL;
-        const envPrivate = process.env.FRONTEND_URL;
-        if (envPublic) {
-            setFrontendBase(normalizeBaseUrl(envPublic));
-        } else if (envPrivate) {
-            setFrontendBase(normalizeBaseUrl(envPrivate));
-        } else if (typeof window !== 'undefined') {
-            setFrontendBase(normalizeBaseUrl(window.location.origin));
-        }
-    }, []);
 
     // сет для быстрых проверок
     const existingSet = React.useMemo(
@@ -185,19 +129,16 @@ export default function InviteMemberForm({
                 return;
             }
 
-            const normalizedLink = normalizeInviteUrl(data.inviteUrl, frontendBase);
-
-            setInviteLink(normalizedLink);
-            setInviteExpiresAt(data.expiresAt);
-            setSnack({ open: true, msg: 'Ссылка приглашения сгенерирована', sev: 'success' });
+            setSnack({ open: true, msg: 'Приглашение отправлено', sev: 'success' });
 
             if (typeof window !== 'undefined') {
                 window.dispatchEvent(
                     new CustomEvent('org-members:invited', {
                         detail: {
-                            inviteUrl: normalizedLink,
+                            inviteUrl: data.inviteUrl,
                             expiresAt: data.expiresAt,
                             role: data.role,
+                            userEmail: email,
                         },
                     })
                 );
@@ -207,14 +148,23 @@ export default function InviteMemberForm({
         }
     };
 
-    const copyLink = async () => {
-        if (!inviteLink) return;
-        await navigator.clipboard.writeText(inviteLink);
-        setSnack({ open: true, msg: 'Ссылка скопирована', sev: 'info' });
-    };
+    const inviteeDisplayName = React.useMemo(() => {
+        if (selectedUser?.name?.trim()) return selectedUser.name.trim();
+        if (selectedUser?.email?.trim()) return selectedUser.email.trim();
+        return null;
+    }, [selectedUser]);
 
     return (
-        <Box>
+        <Box
+            sx={{
+                backgroundColor: 'rgba(255,255,255,0.65)',
+                borderRadius: 3,
+                border: '1px solid rgba(255,255,255,0.6)',
+                boxShadow: 'inset 0 0 0 1px rgba(255,255,255,0.4)',
+                backdropFilter: 'blur(10px)',
+                p: 2,
+            }}
+        >
             <Stack spacing={2}>
                 <Autocomplete<UserOption, false, false, false>
                     options={userOpts}
@@ -256,6 +206,12 @@ export default function InviteMemberForm({
                             label="E-mail исполнителя"
                             placeholder="worker@example.com"
                             fullWidth
+                            sx={{
+                                '& .MuiOutlinedInput-root': {
+                                    backgroundColor: 'rgba(255,255,255,0.9)',
+                                    borderRadius: 3,
+                                },
+                            }}
                             InputProps={{
                                 ...params.InputProps,
                                 endAdornment: (
@@ -269,7 +225,15 @@ export default function InviteMemberForm({
                     )}
                 />
 
-                <FormControl fullWidth>
+                <FormControl
+                    fullWidth
+                    sx={{
+                        '& .MuiOutlinedInput-root': {
+                            backgroundColor: 'rgba(255,255,255,0.9)',
+                            borderRadius: 3,
+                        },
+                    }}
+                >
                     <InputLabel>Роль</InputLabel>
                     <Select
                         label="Роль"
@@ -283,51 +247,35 @@ export default function InviteMemberForm({
                     </Select>
                 </FormControl>
 
-                {selectedUser && (
-                    <Typography variant="body2" color={emailAlreadyInOrg ? 'error' : 'text.secondary'}>
-                        Приглашаемый: <b>{selectedUser.name || '—'}</b>{' '}
-                        {emailAlreadyInOrg && '(уже в организации)'}
-                    </Typography>
-                )}
-
-                <Typography variant="caption" color="text.secondary">
-                    Приглашение действует 7 дней. Сгенерируйте ссылку и отправьте её пользователю удобным для вас способом.
-                </Typography>
+                <Alert
+                    severity="info"
+                    sx={{
+                        borderRadius: 3,
+                        backgroundColor: 'rgba(255,255,255,0.85)',
+                        color: 'rgba(2,6,23,0.8)',
+                    }}
+                >
+                    Приглашение действует 7 дней. Приглашение будет направлено автоматически.{' '}
+                    {inviteeDisplayName
+                        ? `Пользователь ${inviteeDisplayName} получит уведомление.`
+                        : 'Пользователь получит уведомление.'}
+                </Alert>
 
                 <Stack direction="row" spacing={1}>
                     <Button
                         variant="contained"
                         onClick={handleInvite}
                         disabled={inviting || !selectedUser || emailAlreadyInOrg}
+                        sx={{
+                            borderRadius: 999,
+                            px: 3,
+                            textTransform: 'none',
+                            boxShadow: '0 10px 30px rgba(59,130,246,0.4)',
+                        }}
                     >
-                        {inviting ? 'Создаём…' : 'Сгенерировать ссылку'}
+                        {inviting ? 'Приглашаем…' : 'Пригласить'}
                     </Button>
                 </Stack>
-
-                {inviteLink && (
-                    <Alert severity="info" variant="outlined" sx={{ mt: 1 }}>
-                        <Stack spacing={1}>
-                            <Typography variant="body2">
-                                Ссылка приглашения (действует до{' '}
-                                {inviteExpiresAt ? new Date(inviteExpiresAt).toLocaleString() : '—'}
-                                ):
-                            </Typography>
-                            <Stack direction="row" spacing={1} alignItems="center">
-                                <TextField
-                                    value={inviteLink}
-                                    fullWidth
-                                    size="small"
-                                    inputProps={{ readOnly: true }}
-                                />
-                                <Tooltip title="Скопировать ссылку">
-                                    <IconButton onClick={copyLink}>
-                                        <ContentCopyIcon fontSize="small" />
-                                    </IconButton>
-                                </Tooltip>
-                            </Stack>
-                        </Stack>
-                    </Alert>
-                )}
             </Stack>
 
             <Snackbar

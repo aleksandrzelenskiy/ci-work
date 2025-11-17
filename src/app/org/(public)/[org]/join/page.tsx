@@ -114,7 +114,7 @@ export default function OrgJoinPage() {
                 message: `Вы успешно добавлены в организацию «${orgName}»`,
             });
             setTimeout(() => {
-                router.replace(`/org/${encodeURIComponent(org)}/projects`);
+                router.replace('/');
             }, 1600);
         } finally {
             setActionPending(null);
@@ -198,8 +198,15 @@ export default function OrgJoinPage() {
 
                 <Box sx={{ position: 'relative', zIndex: 1 }}>
                     <Stack spacing={2} textAlign="center" alignItems="center">
-                        <Typography variant="h3" fontWeight={700}>
-                            Присоединитесь к организации
+                        <Typography
+                            variant="h3"
+                            fontWeight={700}
+                            sx={{
+                                fontSize: { xs: '2.25rem', sm: '2.75rem', md: '3.25rem' },
+                                lineHeight: 1.1,
+                            }}
+                        >
+                            Вы приглашены!
                         </Typography>
                         <Typography variant="h6" color="text.secondary" maxWidth={560}>
                             Подтвердите участие, чтобы получить доступ к задачам и рабочему пространству.

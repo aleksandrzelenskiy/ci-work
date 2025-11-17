@@ -5,12 +5,14 @@ import Organization from '@/app/models/OrganizationModel';
 import Membership from '@/app/models/MembershipModel';
 import { Types, FilterQuery } from 'mongoose';
 import { currentUser } from '@clerk/nextjs/server';
+import UserModel from '@/app/models/UserModel';
+import { createNotification } from '@/app/utils/notificationService';
 
 export const runtime = 'nodejs';
 export const dynamic = 'force-dynamic';
 
 function errorMessage(err: unknown) { return err instanceof Error ? err.message : 'Server error'; }
-type OrgLean = { _id: Types.ObjectId; orgSlug: string };
+type OrgLean = { _id: Types.ObjectId; orgSlug: string; name?: string };
 
 export async function POST(req: NextRequest, ctx: { params: Promise<{ org: string }> }) {
     try {
@@ -24,7 +26,7 @@ export async function POST(req: NextRequest, ctx: { params: Promise<{ org: strin
         const { token } = (await req.json()) as { token?: string };
         if (!token) return NextResponse.json({ error: 'token обязателен' }, { status: 400 });
 
-        const org = await Organization.findOne({ orgSlug }, { _id: 1, orgSlug: 1 }).lean<OrgLean>();
+        const org = await Organization.findOne({ orgSlug }, { _id: 1, orgSlug: 1, name: 1 }).lean<OrgLean>();
         if (!org) return NextResponse.json({ error: 'Организация не найдена' }, { status: 404 });
 
         const filter: FilterQuery<typeof Membership> = {
@@ -43,6 +45,45 @@ export async function POST(req: NextRequest, ctx: { params: Promise<{ org: strin
 
         // Вариант 1: удаляем приглашение
         await Membership.deleteOne({ _id: m._id });
+
+        const inviterEmail = m.invitedByEmail;
+        if (inviterEmail) {
+            const inviterUser = await UserModel.findOne(
+                { email: inviterEmail },
+                { _id: 1, name: 1 }
+            ).lean<{ _id: Types.ObjectId; name?: string }>();
+
+            if (inviterUser?._id) {
+                const orgName = org.name ?? org.orgSlug;
+                const actorName =
+                    m.userName ||
+                    me?.fullName ||
+                    [me?.firstName, me?.lastName].filter(Boolean).join(' ') ||
+                    meEmail;
+
+                try {
+                    await createNotification({
+                        recipientUserId: inviterUser._id,
+                        type: 'invite_declined',
+                        title: 'Приглашение отклонено',
+                        message: `${actorName} отклонил приглашение в «${orgName}»`,
+                        link: `/org/${org.orgSlug}`,
+                        orgId: org._id,
+                        orgSlug: org.orgSlug,
+                        orgName,
+                        senderName: actorName,
+                        senderEmail: meEmail,
+                        metadata: {
+                            inviteeEmail: meEmail,
+                            membershipId: m._id.toString(),
+                            response: 'declined',
+                        },
+                    });
+                } catch (notifyErr) {
+                    console.error('Failed to create invite_declined notification', notifyErr);
+                }
+            }
+        }
 
         // Вариант 2: инвалидируем токен, оставив след о факте инвайта
         // m.inviteToken = undefined;

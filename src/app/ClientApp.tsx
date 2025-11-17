@@ -28,7 +28,7 @@ import Badge from '@mui/material/Badge'
 import { useRouter, usePathname } from 'next/navigation';
 import { fetchUserContext } from '@/app/utils/userContext';
 import NavigationMenu from '@/app/components/NavigationMenu';
-import MessageIcon from '@mui/icons-material/Message';
+import NotificationBell from '@/app/components/NotificationBell';
 
 const ThemeContext = createContext({
   toggleTheme: () => {},
@@ -141,6 +141,13 @@ export default function ClientApp({ children }: { children: React.ReactNode }) {
   );
 
   const currentYear = new Date().getFullYear();
+  const toolbarIconButtonSx = {
+    borderRadius: '16px',
+    border: `1px solid ${appBarBorder}`,
+    backdropFilter: 'blur(6px)',
+    width: 42,
+    height: 42,
+  } as const;
 
   // Получаем состояние пользователя из Clerk
   const { isLoaded, isSignedIn } = useUser();
@@ -304,11 +311,7 @@ export default function ClientApp({ children }: { children: React.ReactNode }) {
                         <IconButton
                           onClick={toggleTheme}
                           color='inherit'
-                          sx={{
-                            borderRadius: '16px',
-                            border: `1px solid ${appBarBorder}`,
-                            backdropFilter: 'blur(6px)',
-                          }}
+                          sx={toolbarIconButtonSx}
                           aria-label='Переключить тему'
                         >
                           {mode === 'dark' ? (
@@ -323,13 +326,7 @@ export default function ClientApp({ children }: { children: React.ReactNode }) {
                           marginRight: '12px',
                         }}
                       >
-                        <IconButton
-                          color='inherit'
-                          aria-label='Открыть уведомления'
-                          size='large'
-                        >
-                          <MessageIcon />
-                        </IconButton>
+                        <NotificationBell buttonSx={toolbarIconButtonSx} />
                       </Box>
                     </Toolbar>
                   </AppBar>
