@@ -1,4 +1,4 @@
-// app/tasks/[taskId]/page.tsx
+// app/tasks/[id]/page.tsx
 'use client';
 
 import { FINANCE_CONFIG } from '@/config/finance';
@@ -123,8 +123,8 @@ const Transition = React.forwardRef(function Transition(
 });
 
 export default function TaskDetailPage() {
-    const params = useParams() as { taskId: string };
-    const { taskId } = params;
+    const params = useParams<{ id: string }>();
+    const taskId = params?.id || '';
     const router = useRouter();
 
     const [userRole, setUserRole] = useState<LoadedRole>(null);

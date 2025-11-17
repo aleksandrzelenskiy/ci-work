@@ -1,4 +1,4 @@
-// app/api/tasks/[taskId]/route.ts
+// app/api/tasks/[id]/route.ts
 
 import { NextRequest, NextResponse } from 'next/server';
 export const runtime = 'nodejs';
@@ -55,11 +55,12 @@ async function connectToDatabase() {
 
 export async function GET(
     _request: NextRequest,
-    context: { params: Promise<{ taskId: string }> }
+    context: { params: Promise<{ id: string }> }
 ) {
   try {
     await connectToDatabase();
-    const { taskId } = await context.params;
+    const { id } = await context.params;
+    const taskId = id;
     if (!taskId)
       return NextResponse.json({ error: 'No taskId provided' }, { status: 400 });
 
@@ -82,11 +83,12 @@ export async function GET(
 
 export async function PATCH(
     request: NextRequest,
-    context: { params: Promise<{ taskId: string }> }
+    context: { params: Promise<{ id: string }> }
 ) {
   try {
     await connectToDatabase();
-    const { taskId } = await context.params;
+    const { id } = await context.params;
+    const taskId = id;
     if (!taskId)
       return NextResponse.json({ error: 'No taskId provided' }, { status: 400 });
 
@@ -473,11 +475,12 @@ export async function PATCH(
 
 export async function DELETE(
     request: NextRequest,
-    context: { params: Promise<{ taskId: string }> }
+    context: { params: Promise<{ id: string }> }
 ) {
   try {
     await connectToDatabase();
-    const { taskId } = await context.params;
+    const { id } = await context.params;
+    const taskId = id;
     if (!taskId)
       return NextResponse.json({ error: 'No taskId provided' }, { status: 400 });
 

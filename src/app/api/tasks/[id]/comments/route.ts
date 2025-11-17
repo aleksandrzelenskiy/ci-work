@@ -1,4 +1,4 @@
-// app/api/tasks/[taskId]/comments/route.ts
+// app/api/tasks/[id]/comments/route.ts
 import { NextRequest, NextResponse } from 'next/server';
 import dbConnect from '@/utils/mongoose';
 import TaskModel from '@/app/models/TaskModel';
@@ -13,9 +13,10 @@ export const dynamic = 'force-dynamic';
 
 export async function POST(
     request: NextRequest,
-    context: { params: Promise<{ taskId: string }> }
+    context: { params: Promise<{ id: string }> }
 ) {
-  const { taskId } = await context.params; // дождаться параметров
+  const { id } = await context.params; // дождаться параметров
+  const taskId = id;
 
   try {
     await dbConnect();

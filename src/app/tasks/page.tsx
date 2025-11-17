@@ -3,7 +3,9 @@
 
 import { useState, useEffect, useRef, useCallback, MouseEvent } from 'react';
 import {
+    Alert,
     Box,
+    CircularProgress,
     Paper,
     Typography,
     Tabs,
@@ -27,6 +29,8 @@ import CloseIcon from '@mui/icons-material/Close';
 
 import TaskListPage, { TaskListPageHandle } from '../components/TaskListPage';
 import TaskColumnPage from '../components/TaskColumnPage';
+import { fetchUserContext, resolveRoleFromContext } from '@/app/utils/userContext';
+import type { EffectiveOrgRole } from '@/app/types/roles';
 
 type ViewMode = 'table' | 'kanban';
 
@@ -39,8 +43,53 @@ export default function TasksPage() {
     const [searchAnchor, setSearchAnchor] = useState<HTMLElement | null>(null);
     const taskListRef = useRef<TaskListPageHandle>(null);
     const [listFiltersVisible, setListFiltersVisible] = useState(false);
+    const [userRole, setUserRole] = useState<EffectiveOrgRole | null>(null);
+    const [roleLoading, setRoleLoading] = useState(true);
+    const [roleError, setRoleError] = useState<string | null>(null);
 
     const searchOpen = Boolean(searchAnchor);
+    const isExecutor = userRole === 'executor';
+
+    useEffect(() => {
+        let active = true;
+        setRoleLoading(true);
+        setRoleError(null);
+
+        (async () => {
+            try {
+                const context = await fetchUserContext();
+                if (!active) return;
+
+                if (!context) {
+                    setRoleError('Не удалось загрузить данные пользователя');
+                    setUserRole(null);
+                    return;
+                }
+
+                const resolvedRole = resolveRoleFromContext(context);
+                if (!resolvedRole) {
+                    setRoleError('Не удалось определить роль пользователя');
+                    setUserRole(null);
+                    return;
+                }
+
+                setUserRole(resolvedRole);
+            } catch (err) {
+                if (!active) return;
+                console.error('Error loading user context', err);
+                setRoleError('Не удалось загрузить данные пользователя');
+                setUserRole(null);
+            } finally {
+                if (active) {
+                    setRoleLoading(false);
+                }
+            }
+        })();
+
+        return () => {
+            active = false;
+        };
+    }, []);
 
     const handleSearchIconClick = (event: MouseEvent<HTMLElement>) => {
         if (searchAnchor && event.currentTarget === searchAnchor) {
@@ -73,6 +122,10 @@ export default function TasksPage() {
     );
 
     useEffect(() => {
+        if (!isExecutor) {
+            setProjectOptions([]);
+            return;
+        }
         (async () => {
             try {
                 const res = await fetch('/api/tasks');
@@ -94,7 +147,7 @@ export default function TasksPage() {
                 console.error('Error fetching project list', err);
             }
         })();
-    }, [refreshToken]);
+    }, [isExecutor, refreshToken]);
     useEffect(() => {
         if (projectFilter && projectOptions.length && !projectOptions.includes(projectFilter)) {
             setProjectFilter('');
@@ -107,6 +160,34 @@ export default function TasksPage() {
         }
     }, [tab, listFiltersVisible]);
 
+    if (roleLoading) {
+        return (
+            <Box sx={{ display: 'flex', justifyContent: 'center', mt: 4 }}>
+                <CircularProgress />
+            </Box>
+        );
+    }
+
+    if (roleError) {
+        return (
+            <Box sx={{ p: 3 }}>
+                <Alert severity="error">{roleError}</Alert>
+            </Box>
+        );
+    }
+
+    if (!isExecutor) {
+        return (
+            <Box sx={{ p: 3 }}>
+                <Alert severity="info">
+                    Модуль «Мои задачи» доступен только исполнителям. Попросите менеджера
+                    назначить вас исполнителем в организации, чтобы получить доступ к своим
+                    назначениям.
+                </Alert>
+            </Box>
+        );
+    }
+
     return (
         <Box sx={{ p: 2 }}>
             <Stack
@@ -118,10 +199,12 @@ export default function TasksPage() {
             >
                 <Box>
                     <Typography variant="h5" fontWeight={700}>
-                        Все задачи
+                        Мои задачи
                     </Typography>
                     <Typography variant="body2" color="text.secondary">
-                        {projectFilter ? `Проект: ${projectFilter}` : 'Агрегация задач из всех проектов'}
+                        {projectFilter
+                            ? `Фильтр по проекту: ${projectFilter}`
+                            : 'Все назначения из разных организаций и проектов'}
                     </Typography>
                 </Box>
                 <Stack direction="row" spacing={1} alignItems="center">

@@ -46,7 +46,7 @@ export const NcwGenerator = ({ taskId: taskIdProp }: Props) => {
     const pathname = usePathname();
     const router = useRouter();
 
-    // Попытка вытащить taskId: приоритет пропса, затем query, затем из URL /tasks/[taskId]
+    // Попытка вытащить taskId: приоритет пропса, затем query, затем из URL /tasks/[id]
     const taskIdFromQuery = params?.get('taskId') ?? '';
     const taskIdFromPath = useMemo(() => {
         // ожидаем путь типа /tasks/E404Q или /app/org/.../tasks/E404Q
@@ -123,7 +123,7 @@ export const NcwGenerator = ({ taskId: taskIdProp }: Props) => {
             const instance = pdf(<PdfTemplate {...formData} />);
             const blob = await instance.toBlob();
 
-            // 2) собираем FormData для PATCH /api/tasks/[taskId]
+            // 2) собираем FormData для PATCH /api/tasks/[id]
             const fd = new FormData();
             fd.append('workCompletionDate', completionDate.toDate().toISOString());
             // имя файла — как при скачивании
