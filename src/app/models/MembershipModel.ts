@@ -4,6 +4,7 @@ import mongoose, { Schema, Document, model, models } from 'mongoose';
 export type OrgRole = 'owner' | 'org_admin' | 'manager' | 'executor' | 'viewer';
 
 export interface Membership extends Document {
+    _id: mongoose.Types.ObjectId;
     orgId: mongoose.Types.ObjectId;
     userEmail: string;
     userName?: string;
