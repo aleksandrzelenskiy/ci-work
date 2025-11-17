@@ -4,44 +4,8 @@
     <option name="autoReloadType" value="SELECTIVE" />
   </component>
   <component name="ChangeListManager">
-    <list default="true" id="b3c91f45-fbe1-4477-9fd9-38d0fcaf660d" name="Changes" comment="fix (current-users route &amp; server-actions users): корректный поиск пользователя в Mongo">
-      <change afterPath="$PROJECT_DIR$/src/app/org/[org]/projects/[project]/page.tsx" afterDir="false" />
-      <change afterPath="$PROJECT_DIR$/src/app/settings/page.tsx" afterDir="false" />
+    <list default="true" id="b3c91f45-fbe1-4477-9fd9-38d0fcaf660d" name="Changes" comment="app build error fix #3">
       <change beforePath="$PROJECT_DIR$/.idea/workspace.xml" beforeDir="false" afterPath="$PROJECT_DIR$/.idea/workspace.xml" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/src/app/ClientApp.tsx" beforeDir="false" afterPath="$PROJECT_DIR$/src/app/ClientApp.tsx" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/src/app/api/current-user/route.ts" beforeDir="false" afterPath="$PROJECT_DIR$/src/app/api/current-user/route.ts" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/src/app/api/org/[org]/projects/[project]/route.ts" beforeDir="false" afterPath="$PROJECT_DIR$/src/app/api/org/[org]/projects/[project]/route.ts" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/src/app/api/org/[org]/projects/route.ts" beforeDir="false" afterPath="$PROJECT_DIR$/src/app/api/org/[org]/projects/route.ts" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/src/app/api/reports/[task]/[baseid]/route.ts" beforeDir="false" afterPath="$PROJECT_DIR$/src/app/api/reports/[task]/[baseid]/route.ts" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/src/app/api/reports/route.ts" beforeDir="false" afterPath="$PROJECT_DIR$/src/app/api/reports/route.ts" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/src/app/api/tasks/route.ts" beforeDir="false" afterPath="$PROJECT_DIR$/src/app/api/tasks/route.ts" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/src/app/components/TaskCalendarPage.tsx" beforeDir="false" afterPath="$PROJECT_DIR$/src/app/components/TaskCalendarPage.tsx" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/src/app/components/TaskColumnPage.tsx" beforeDir="false" afterPath="$PROJECT_DIR$/src/app/components/TaskColumnPage.tsx" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/src/app/components/TaskForm.tsx" beforeDir="false" afterPath="$PROJECT_DIR$/src/app/components/TaskForm.tsx" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/src/app/components/TaskListPage.tsx" beforeDir="false" afterPath="$PROJECT_DIR$/src/app/components/TaskListPage.tsx" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/src/app/components/dashboards/AdminDashboard.tsx" beforeDir="false" afterPath="$PROJECT_DIR$/src/app/components/dashboards/AdminDashboard.tsx" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/src/app/components/dashboards/AuthorDashboard.tsx" beforeDir="false" afterPath="$PROJECT_DIR$/src/app/components/dashboards/AuthorDashboard.tsx" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/src/app/components/dashboards/ExecutorDashboard.tsx" beforeDir="false" afterPath="$PROJECT_DIR$/src/app/components/dashboards/ExecutorDashboard.tsx" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/src/app/components/dashboards/InitiatorDashboard.tsx" beforeDir="false" afterPath="$PROJECT_DIR$/src/app/components/dashboards/InitiatorDashboard.tsx" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/src/app/components/dashboards/ManagerDashboard.tsx" beforeDir="false" afterPath="$PROJECT_DIR$/src/app/components/dashboards/ManagerDashboard.tsx" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/src/app/components/dashboards/MiniMap.tsx" beforeDir="false" afterPath="$PROJECT_DIR$/src/app/components/dashboards/MiniMap.tsx" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/src/app/components/dashboards/MiniReportsList.tsx" beforeDir="false" afterPath="$PROJECT_DIR$/src/app/components/dashboards/MiniReportsList.tsx" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/src/app/components/dashboards/MiniTaskTable.tsx" beforeDir="false" afterPath="$PROJECT_DIR$/src/app/components/dashboards/MiniTaskTable.tsx" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/src/app/components/dashboards/ReportsStatistics.tsx" beforeDir="false" afterPath="$PROJECT_DIR$/src/app/components/dashboards/ReportsStatistics.tsx" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/src/app/components/dashboards/TaskMetricDiagram.tsx" beforeDir="false" afterPath="$PROJECT_DIR$/src/app/components/dashboards/TaskMetricDiagram.tsx" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/src/app/layout.tsx" beforeDir="false" afterPath="$PROJECT_DIR$/src/app/layout.tsx" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/src/app/models/ProjectModel.ts" beforeDir="false" afterPath="$PROJECT_DIR$/src/app/models/ProjectModel.ts" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/src/app/models/UserModel.ts" beforeDir="false" afterPath="$PROJECT_DIR$/src/app/models/UserModel.ts" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/src/app/org/[org]/projects/[project]/tasks/page.tsx" beforeDir="false" afterPath="$PROJECT_DIR$/src/app/org/[org]/projects/[project]/tasks/page.tsx" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/src/app/org/[org]/projects/page.tsx" beforeDir="false" afterPath="$PROJECT_DIR$/src/app/org/[org]/projects/page.tsx" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/src/app/page.tsx" beforeDir="false" afterPath="$PROJECT_DIR$/src/app/page.tsx" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/src/app/tasks/[taskId]/page.tsx" beforeDir="false" afterPath="$PROJECT_DIR$/src/app/tasks/[taskId]/page.tsx" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/src/app/tasks/page.tsx" beforeDir="false" afterPath="$PROJECT_DIR$/src/app/tasks/page.tsx" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/src/app/types/taskTypes.ts" beforeDir="false" afterPath="$PROJECT_DIR$/src/app/types/taskTypes.ts" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/src/app/workspace/components/ProjectTaskBoard.tsx" beforeDir="false" afterPath="$PROJECT_DIR$/src/app/workspace/components/ProjectTaskBoard.tsx" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/src/app/workspace/components/ProjectTaskList.tsx" beforeDir="false" afterPath="$PROJECT_DIR$/src/app/workspace/components/ProjectTaskList.tsx" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/src/server-actions/users.ts" beforeDir="false" afterPath="$PROJECT_DIR$/src/server-actions/users.ts" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/src/utils/priorityIcons.tsx" beforeDir="false" afterPath="$PROJECT_DIR$/src/utils/priorityIcons.tsx" afterDir="false" />
     </list>
     <option name="SHOW_DIALOG" value="false" />
     <option name="HIGHLIGHT_CONFLICTS" value="true" />
@@ -59,7 +23,7 @@
 }</component>
   <component name="GithubPullRequestsUISettings">{
   &quot;selectedUrlAndAccountId&quot;: {
-    &quot;url&quot;: &quot;https://github.com/aleksandrzelenskiy/ci-work-pr.git&quot;,
+    &quot;url&quot;: &quot;https://github.com/aleksandrzelenskiy/ci-work.git&quot;,
     &quot;accountId&quot;: &quot;e4c68a97-7c3f-4277-a7cb-c73d6616c35a&quot;
   }
 }</component>
@@ -150,183 +114,8 @@
       <workItem from="1761887562972" duration="15306000" />
       <workItem from="1762422367880" duration="27839000" />
       <workItem from="1762582926294" duration="56251000" />
-      <workItem from="1762942475051" duration="5163000" />
-    </task>
-    <task id="LOCAL-00019" summary="Fix body parsing: pass req directly to Busboy">
-      <option name="closed" value="true" />
-      <created>1752327120694</created>
-      <option name="number" value="00019" />
-      <option name="presentableId" value="LOCAL-00019" />
-      <option name="project" value="LOCAL" />
-      <updated>1752327120694</updated>
-    </task>
-    <task id="LOCAL-00020" summary="S3 utils keys name has been changed">
-      <option name="closed" value="true" />
-      <created>1752328354678</created>
-      <option name="number" value="00020" />
-      <option name="presentableId" value="LOCAL-00020" />
-      <option name="project" value="LOCAL" />
-      <updated>1752328354678</updated>
-    </task>
-    <task id="LOCAL-00021" summary="next config and upload route has been modified">
-      <option name="closed" value="true" />
-      <created>1752335904619</created>
-      <option name="number" value="00021" />
-      <option name="presentableId" value="LOCAL-00021" />
-      <option name="project" value="LOCAL" />
-      <updated>1752335904619</updated>
-    </task>
-    <task id="LOCAL-00022" summary="Task Calendar component has been added">
-      <option name="closed" value="true" />
-      <created>1753546499846</created>
-      <option name="number" value="00022" />
-      <option name="presentableId" value="LOCAL-00022" />
-      <option name="project" value="LOCAL" />
-      <updated>1753546499847</updated>
-    </task>
-    <task id="LOCAL-00023" summary="Task Calendar component has been modified (tasks view by role)">
-      <option name="closed" value="true" />
-      <created>1753551011078</created>
-      <option name="number" value="00023" />
-      <option name="presentableId" value="LOCAL-00023" />
-      <option name="project" value="LOCAL" />
-      <updated>1753551011078</updated>
-    </task>
-    <task id="LOCAL-00024" summary="Task Calendar component hidden for executor role">
-      <option name="closed" value="true" />
-      <created>1753552188665</created>
-      <option name="number" value="00024" />
-      <option name="presentableId" value="LOCAL-00024" />
-      <option name="project" value="LOCAL" />
-      <updated>1753552188665</updated>
-    </task>
-    <task id="LOCAL-00025" summary="Add padding style for loader into calendar and kanban page">
-      <option name="closed" value="true" />
-      <created>1753552975115</created>
-      <option name="number" value="00025" />
-      <option name="presentableId" value="LOCAL-00025" />
-      <option name="project" value="LOCAL" />
-      <updated>1753552975115</updated>
-    </task>
-    <task id="LOCAL-00026" summary="Order Parsing logic has been modified">
-      <option name="closed" value="true" />
-      <created>1760710476128</created>
-      <option name="number" value="00026" />
-      <option name="presentableId" value="LOCAL-00026" />
-      <option name="project" value="LOCAL" />
-      <updated>1760710476128</updated>
-    </task>
-    <task id="LOCAL-00027" summary="File upload logic has been modified. Order uploading added into task detail page.">
-      <option name="closed" value="true" />
-      <created>1760793878016</created>
-      <option name="number" value="00027" />
-      <option name="presentableId" value="LOCAL-00027" />
-      <option name="project" value="LOCAL" />
-      <updated>1760793878016</updated>
-    </task>
-    <task id="LOCAL-00028" summary="uploadBuffer error bug has been fixed">
-      <option name="closed" value="true" />
-      <created>1760794651099</created>
-      <option name="number" value="00028" />
-      <option name="presentableId" value="LOCAL-00028" />
-      <option name="project" value="LOCAL" />
-      <updated>1760794651099</updated>
-    </task>
-    <task id="LOCAL-00029" summary="apply Inter font globally and set as default in MUI theme and use finance information from file">
-      <option name="closed" value="true" />
-      <created>1760808073161</created>
-      <option name="number" value="00029" />
-      <option name="presentableId" value="LOCAL-00029" />
-      <option name="project" value="LOCAL" />
-      <updated>1760808073161</updated>
-    </task>
-    <task id="LOCAL-00030" summary="replace coast style">
-      <option name="closed" value="true" />
-      <created>1760808207221</created>
-      <option name="number" value="00030" />
-      <option name="presentableId" value="LOCAL-00030" />
-      <option name="project" value="LOCAL" />
-      <updated>1760808207221</updated>
-    </task>
-    <task id="LOCAL-00031" summary="replace RUB to ₽">
-      <option name="closed" value="true" />
-      <created>1760808556389</created>
-      <option name="number" value="00031" />
-      <option name="presentableId" value="LOCAL-00031" />
-      <option name="project" value="LOCAL" />
-      <updated>1760808556390</updated>
-    </task>
-    <task id="LOCAL-00032" summary="Status changing logics bug has been fixed">
-      <option name="closed" value="true" />
-      <created>1760848912436</created>
-      <option name="number" value="00032" />
-      <option name="presentableId" value="LOCAL-00032" />
-      <option name="project" value="LOCAL" />
-      <updated>1760848912437</updated>
-    </task>
-    <task id="LOCAL-00033" summary="Documents on the task page are hidden for the executor">
-      <option name="closed" value="true" />
-      <created>1760873099004</created>
-      <option name="number" value="00033" />
-      <option name="presentableId" value="LOCAL-00033" />
-      <option name="project" value="LOCAL" />
-      <updated>1760873099004</updated>
-    </task>
-    <task id="LOCAL-00034" summary="changed the display of maps on the task page">
-      <option name="closed" value="true" />
-      <created>1760875203273</created>
-      <option name="number" value="00034" />
-      <option name="presentableId" value="LOCAL-00034" />
-      <option name="project" value="LOCAL" />
-      <updated>1760875203273</updated>
-    </task>
-    <task id="LOCAL-00035" summary="Change events: log only TASK_ASSIGNED on executor set; remove EXECUTOR_ASSIGNED and redundant STATUS_CHANGED; hide legacy EXECUTOR_ASSIGNED on timeline">
-      <option name="closed" value="true" />
-      <created>1760879535764</created>
-      <option name="number" value="00035" />
-      <option name="presentableId" value="LOCAL-00035" />
-      <option name="project" value="LOCAL" />
-      <updated>1760879535764</updated>
-    </task>
-    <task id="LOCAL-00036" summary="Creation Workspace conception was started.">
-      <option name="closed" value="true" />
-      <created>1761571979278</created>
-      <option name="number" value="00036" />
-      <option name="presentableId" value="LOCAL-00036" />
-      <option name="project" value="LOCAL" />
-      <updated>1761571979278</updated>
-    </task>
-    <task id="LOCAL-00037" summary="Creation Org/Project logic for project-managment workspace.&#10;Creation Workspace conNCW/Order: add confirm delete; unset DB fields on delete;.">
-      <option name="closed" value="true" />
-      <created>1761900922847</created>
-      <option name="number" value="00037" />
-      <option name="presentableId" value="LOCAL-00037" />
-      <option name="project" value="LOCAL" />
-      <updated>1761900922847</updated>
-    </task>
-    <task id="LOCAL-00038" summary="NCW Button hiden for all status before Done">
-      <option name="closed" value="true" />
-      <created>1761903290282</created>
-      <option name="number" value="00038" />
-      <option name="presentableId" value="LOCAL-00038" />
-      <option name="project" value="LOCAL" />
-      <updated>1761903290282</updated>
-    </task>
-    <task id="LOCAL-00039" summary="Add Complete column after Due Date and render workCompletionDate as dd.mm.yyyy">
-      <option name="closed" value="true" />
-      <created>1761906293989</created>
-      <option name="number" value="00039" />
-      <option name="presentableId" value="LOCAL-00039" />
-      <option name="project" value="LOCAL" />
-      <updated>1761906293989</updated>
-    </task>
-    <task id="LOCAL-00040" summary="Add Complete date to TaskColumnPage ExecutorFinancialMetrics UI to English">
-      <option name="closed" value="true" />
-      <created>1761909429818</created>
-      <option name="number" value="00040" />
-      <option name="presentableId" value="LOCAL-00040" />
-      <option name="project" value="LOCAL" />
-      <updated>1761909429818</updated>
+      <workItem from="1762942475051" duration="22951000" />
+      <workItem from="1763175884059" duration="10906000" />
     </task>
     <task id="LOCAL-00041" summary="OrgSettingsPage - добавлены проекты организации с возможностью добавления и ссылкой на  /projects/&#10;InviteMemberForm - добавлена проверка уже действующих пользователей&#10;+ UI доработки">
       <option name="closed" value="true" />
@@ -544,38 +333,214 @@
       <option name="project" value="LOCAL" />
       <updated>1762764594513</updated>
     </task>
-    <option name="localTasksCounter" value="68" />
+    <task id="LOCAL-00068" summary="Большой коммит! Переход с изолированного монолита на project redy workspace logic. Подготовлена база для saas логики">
+      <option name="closed" value="true" />
+      <created>1762957878865</created>
+      <option name="number" value="00068" />
+      <option name="presentableId" value="LOCAL-00068" />
+      <option name="project" value="LOCAL" />
+      <updated>1762957878866</updated>
+    </task>
+    <task id="LOCAL-00069" summary="Большой коммит! Переход с изолированного монолита на project redy workspace logic. Подготовлена база для saas логики">
+      <option name="closed" value="true" />
+      <created>1762958156861</created>
+      <option name="number" value="00069" />
+      <option name="presentableId" value="LOCAL-00069" />
+      <option name="project" value="LOCAL" />
+      <updated>1762958156861</updated>
+    </task>
+    <task id="LOCAL-00070" summary="Добавлена общая региональная карта по всем операторам">
+      <option name="closed" value="true" />
+      <created>1763145098211</created>
+      <option name="number" value="00070" />
+      <option name="presentableId" value="LOCAL-00070" />
+      <option name="project" value="LOCAL" />
+      <updated>1763145098211</updated>
+    </task>
+    <task id="LOCAL-00071" summary="добавлена BsCoordinateModel. Выдача BSMap реализована через region. Добавлена логика удаления и редактировать объектов на карте.">
+      <option name="closed" value="true" />
+      <created>1763150463110</created>
+      <option name="number" value="00071" />
+      <option name="presentableId" value="LOCAL-00071" />
+      <option name="project" value="LOCAL" />
+      <updated>1763150463110</updated>
+    </task>
+    <task id="LOCAL-00072" summary="docker build error fix">
+      <option name="closed" value="true" />
+      <created>1763151122253</created>
+      <option name="number" value="00072" />
+      <option name="presentableId" value="LOCAL-00072" />
+      <option name="project" value="LOCAL" />
+      <updated>1763151122253</updated>
+    </task>
+    <task id="LOCAL-00073" summary="docker build error fix ([project]/page has been deleted)">
+      <option name="closed" value="true" />
+      <created>1763151855598</created>
+      <option name="number" value="00073" />
+      <option name="presentableId" value="LOCAL-00073" />
+      <option name="project" value="LOCAL" />
+      <updated>1763151855598</updated>
+    </task>
+    <task id="LOCAL-00074" summary="docker build error fix">
+      <option name="closed" value="true" />
+      <created>1763152670246</created>
+      <option name="number" value="00074" />
+      <option name="presentableId" value="LOCAL-00074" />
+      <option name="project" value="LOCAL" />
+      <updated>1763152670246</updated>
+    </task>
+    <task id="LOCAL-00075" summary="docker build error fix #3">
+      <option name="closed" value="true" />
+      <created>1763175953801</created>
+      <option name="number" value="00075" />
+      <option name="presentableId" value="LOCAL-00075" />
+      <option name="project" value="LOCAL" />
+      <updated>1763175953802</updated>
+    </task>
+    <task id="LOCAL-00076" summary="docker build error fix #3">
+      <option name="closed" value="true" />
+      <created>1763177145514</created>
+      <option name="number" value="00076" />
+      <option name="presentableId" value="LOCAL-00076" />
+      <option name="project" value="LOCAL" />
+      <updated>1763177145514</updated>
+    </task>
+    <task id="LOCAL-00077" summary="docker build error fix #4">
+      <option name="closed" value="true" />
+      <created>1763177479536</created>
+      <option name="number" value="00077" />
+      <option name="presentableId" value="LOCAL-00077" />
+      <option name="project" value="LOCAL" />
+      <updated>1763177479536</updated>
+    </task>
+    <task id="LOCAL-00078" summary="docker build error fix #5">
+      <option name="closed" value="true" />
+      <created>1763177656445</created>
+      <option name="number" value="00078" />
+      <option name="presentableId" value="LOCAL-00078" />
+      <option name="project" value="LOCAL" />
+      <updated>1763177656445</updated>
+    </task>
+    <task id="LOCAL-00079" summary="docker build error fix #6">
+      <option name="closed" value="true" />
+      <created>1763177925917</created>
+      <option name="number" value="00079" />
+      <option name="presentableId" value="LOCAL-00079" />
+      <option name="project" value="LOCAL" />
+      <updated>1763177925917</updated>
+    </task>
+    <task id="LOCAL-00080" summary="docker build error fix #7">
+      <option name="closed" value="true" />
+      <created>1763178316006</created>
+      <option name="number" value="00080" />
+      <option name="presentableId" value="LOCAL-00080" />
+      <option name="project" value="LOCAL" />
+      <updated>1763178316006</updated>
+    </task>
+    <task id="LOCAL-00081" summary="docker build error fix #8">
+      <option name="closed" value="true" />
+      <created>1763178509787</created>
+      <option name="number" value="00081" />
+      <option name="presentableId" value="LOCAL-00081" />
+      <option name="project" value="LOCAL" />
+      <updated>1763178509787</updated>
+    </task>
+    <task id="LOCAL-00082" summary="docker build error fix #9">
+      <option name="closed" value="true" />
+      <created>1763178860418</created>
+      <option name="number" value="00082" />
+      <option name="presentableId" value="LOCAL-00082" />
+      <option name="project" value="LOCAL" />
+      <updated>1763178860418</updated>
+    </task>
+    <task id="LOCAL-00083" summary="Добавлен триал-период 10 дней для подписки.">
+      <option name="closed" value="true" />
+      <created>1763194721794</created>
+      <option name="number" value="00083" />
+      <option name="presentableId" value="LOCAL-00083" />
+      <option name="project" value="LOCAL" />
+      <updated>1763194721794</updated>
+    </task>
+    <task id="LOCAL-00084" summary="(fix) Добавлен триал-период 10 дней для подписки.">
+      <option name="closed" value="true" />
+      <created>1763199701195</created>
+      <option name="number" value="00084" />
+      <option name="presentableId" value="LOCAL-00084" />
+      <option name="project" value="LOCAL" />
+      <updated>1763199701195</updated>
+    </task>
+    <task id="LOCAL-00085" summary="Константы regions и borders вынесены в отдельные справочники и имплементированы в компоненты">
+      <option name="closed" value="true" />
+      <created>1763211679030</created>
+      <option name="number" value="00085" />
+      <option name="presentableId" value="LOCAL-00085" />
+      <option name="project" value="LOCAL" />
+      <updated>1763211679030</updated>
+    </task>
+    <task id="LOCAL-00086" summary="коллекции БС соотнесены с признаками регион/оператор в проекте">
+      <option name="closed" value="true" />
+      <created>1763211742622</created>
+      <option name="number" value="00086" />
+      <option name="presentableId" value="LOCAL-00086" />
+      <option name="project" value="LOCAL" />
+      <updated>1763211742623</updated>
+    </task>
+    <task id="LOCAL-00087" summary="app build error fix">
+      <option name="closed" value="true" />
+      <created>1763212379524</created>
+      <option name="number" value="00087" />
+      <option name="presentableId" value="LOCAL-00087" />
+      <option name="project" value="LOCAL" />
+      <updated>1763212379524</updated>
+    </task>
+    <task id="LOCAL-00088" summary="app build error fix #2">
+      <option name="closed" value="true" />
+      <created>1763212726953</created>
+      <option name="number" value="00088" />
+      <option name="presentableId" value="LOCAL-00088" />
+      <option name="project" value="LOCAL" />
+      <updated>1763212726953</updated>
+    </task>
+    <task id="LOCAL-00089" summary="app build error fix #3">
+      <option name="closed" value="true" />
+      <created>1763214888795</created>
+      <option name="number" value="00089" />
+      <option name="presentableId" value="LOCAL-00089" />
+      <option name="project" value="LOCAL" />
+      <updated>1763214888795</updated>
+    </task>
+    <option name="localTasksCounter" value="90" />
     <servers />
   </component>
   <component name="TypeScriptGeneratedFilesManager">
     <option name="version" value="3" />
   </component>
   <component name="VcsManagerConfiguration">
-    <MESSAGE value="OrgSettingsPage - доработка UI" />
-    <MESSAGE value="OrgSettingsPage - добавлена логика изменения роли пользвоателя (участника организации)" />
-    <MESSAGE value="OrgSettingsPage InviteMemberForm - добавлена нормализация ссылки приглашения (исключено дублирование &quot;/&quot;)" />
-    <MESSAGE value="WorkspaceTaskDialog: показываем вложения сверху, парсим files[] и attachments[], подтягиваем coords из bsLocation, ru-RU date.&#10;ProjectTaskList/Board: при редактировании передаём attachments и bsLocation, диалог всегда открывается." />
-    <MESSAGE value="fix: расширил типы календаря под org/project и onReload" />
-    <MESSAGE value="WorkspaceTaskDialog - реализована логика загрузки и удаления attachments из формы при создании и редактировании задачи" />
-    <MESSAGE value="(fix) ProjectTaskList ProjectTaskBoard - удален глобальный слушатель для контекстного меню. Меню привязано к ПКМ по строке и карточке задачи + заблокировано браузерное меню." />
-    <MESSAGE value="Добавлена карточка задачи TaskDetailsPage. Настроен переход из ProjectTaskList ProjectTaskBoard ProjectTaskCalendar при клике на задачу а также из контекстного меню" />
-    <MESSAGE value="Добавлен блок геолокации задачи и вынес его в отдельный компонент с Яндекс-картой. Исправлена нормализация bsLocation, чтобы типы в диалоге редактирования не падали." />
-    <MESSAGE value="TaskDetailsPage - изменения UI (добавления ссылок проект и организация)" />
-    <MESSAGE value="feat: сохраняем clerkUserId для исполнителя и добавляем поле стоимости в задачу" />
-    <MESSAGE value="fix: исправление импортов MUI чтобы починить сборку Docker/Next.js" />
-    <MESSAGE value="fix: инициализировать массив событий у связанной задачи при синхронизации статуса отчёта (isolated app)" />
-    <MESSAGE value="fix: инициализированы массивы событий и вложений в PATCH задачи, приведение статуса к типу поля и убраны ошибки TS/ESLint при загрузке файлов и удалении order/ncw (isolated app)" />
-    <MESSAGE value="fix: инициализировать relatedTask.events в API загрузки фотоотчётов и снять ошибку TS при пуше события" />
-    <MESSAGE value="feat(task-api): добавлена поддержка удаления и обновления по taskId" />
-    <MESSAGE value="feat(task-api, TaskDetailPage): добавлена логика записи events при создании и редактировании задачи. Добавлено отображение блока история в UI" />
-    <MESSAGE value="feat(task-api, TaskDetailPage): Не логируем координаты и bsLocation, если они фактически не менялись при обновлении задачи." />
-    <MESSAGE value="feat(TaskDetailPage): MUI Grid заменен на адаптивный Masonry для карточек. История помещена в Accordion MUI" />
     <MESSAGE value="TaskDetailPage изменен стиль Masonry для карточек." />
     <MESSAGE value="(task id api) - добавлена смена статуса при выборе исполнителя на этапе редактирования (To do &gt; Assigned)" />
     <MESSAGE value="(task id api) - добавлена смена статуса при удалении исполнителя на этапе редактирования (Assigned &gt; To do) изменен UI отображения истории событий назначения и удаления исполнителя" />
     <MESSAGE value="TaskDetailsPage - измене UI отображения информации о задаче" />
     <MESSAGE value="fix (server-actions users): корректный поиск пользователя в Mongo" />
     <MESSAGE value="fix (current-users route &amp; server-actions users): корректный поиск пользователя в Mongo" />
-    <option name="LAST_COMMIT_MESSAGE" value="fix (current-users route &amp; server-actions users): корректный поиск пользователя в Mongo" />
+    <MESSAGE value="Большой коммит! Переход с изолированного монолита на project redy workspace logic. Подготовлена база для saas логики" />
+    <MESSAGE value="Добавлена общая региональная карта по всем операторам" />
+    <MESSAGE value="добавлена BsCoordinateModel. Выдача BSMap реализована через region. Добавлена логика удаления и редактировать объектов на карте." />
+    <MESSAGE value="docker build error fix ([project]/page has been deleted)" />
+    <MESSAGE value="docker build error fix" />
+    <MESSAGE value="docker build error fix #3" />
+    <MESSAGE value="docker build error fix #4" />
+    <MESSAGE value="docker build error fix #5" />
+    <MESSAGE value="docker build error fix #6" />
+    <MESSAGE value="docker build error fix #7" />
+    <MESSAGE value="docker build error fix #8" />
+    <MESSAGE value="docker build error fix #9" />
+    <MESSAGE value="Добавлен триал-период 10 дней для подписки." />
+    <MESSAGE value="(fix) Добавлен триал-период 10 дней для подписки." />
+    <MESSAGE value="Константы regions и borders вынесены в отдельные справочники и имплементированы в компоненты" />
+    <MESSAGE value="коллекции БС соотнесены с признаками регион/оператор в проекте" />
+    <MESSAGE value="app build error fix" />
+    <MESSAGE value="app build error fix #2" />
+    <MESSAGE value="app build error fix #3" />
+    <option name="LAST_COMMIT_MESSAGE" value="app build error fix #3" />
   </component>
 </project>
