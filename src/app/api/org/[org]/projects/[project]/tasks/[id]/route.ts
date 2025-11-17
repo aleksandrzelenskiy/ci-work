@@ -173,7 +173,9 @@ function buildBsLocationFromStation(
 // типы из helper'а
 type OrgDocLean = { _id: unknown };
 type ProjectDocLean = {
-    _id: unknown;
+    _id: Types.ObjectId | string;
+    key: string;
+    name?: string;
     operator?: string;
     regionCode?: string;
 };

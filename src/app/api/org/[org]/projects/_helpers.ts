@@ -14,6 +14,7 @@ type OrgLean = {
 type ProjectLean = {
     _id: Types.ObjectId;
     orgId: Types.ObjectId;
+    name: string;
     key: string;
     regionCode?: string;
     operator?: string;
@@ -48,14 +49,14 @@ export async function getOrgAndProjectByRef(
                 _id: new Types.ObjectId(projectRef),
                 orgId: orgDoc._id,
             },
-            { _id: 1, orgId: 1, key: 1, regionCode: 1, operator: 1, managers: 1 }
+            { _id: 1, orgId: 1, name: 1, key: 1, regionCode: 1, operator: 1, managers: 1 }
         ).lean<ProjectLean>()
         : await ProjectModel.findOne(
             {
                 orgId: orgDoc._id,
                 key: projectRef.trim().toUpperCase(),
             },
-            { _id: 1, orgId: 1, key: 1, regionCode: 1, operator: 1, managers: 1 }
+            { _id: 1, orgId: 1, name: 1, key: 1, regionCode: 1, operator: 1, managers: 1 }
         ).lean<ProjectLean>();
 
     if (!projectDoc) return { error: 'Project not found' };
