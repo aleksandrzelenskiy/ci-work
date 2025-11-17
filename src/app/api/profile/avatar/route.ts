@@ -19,7 +19,8 @@ export async function POST(request: Request) {
       );
     }
 
-    const updated = await clerkClient.users.updateUserProfileImage(
+    const client = await clerkClient();
+    const updated = await client.users.updateUserProfileImage(
       clerkUser.id,
       { file: avatarFile }
     );
