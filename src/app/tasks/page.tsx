@@ -12,15 +12,12 @@ import {
     Tab,
     Stack,
     TextField,
-    FormControl,
-    InputLabel,
-    Select,
-    MenuItem,
     IconButton,
     Tooltip,
     Popover,
     InputAdornment,
 } from '@mui/material';
+import { useTheme } from '@mui/material/styles';
 import RefreshIcon from '@mui/icons-material/Refresh';
 import SearchIcon from '@mui/icons-material/Search';
 import FilterListIcon from '@mui/icons-material/FilterList';
@@ -37,8 +34,6 @@ type ViewMode = 'table' | 'kanban';
 export default function TasksPage() {
     const [tab, setTab] = useState<ViewMode>('table');
     const [searchQuery, setSearchQuery] = useState('');
-    const [projectFilter, setProjectFilter] = useState('');
-    const [projectOptions, setProjectOptions] = useState<string[]>([]);
     const [refreshToken, setRefreshToken] = useState(0);
     const [searchAnchor, setSearchAnchor] = useState<HTMLElement | null>(null);
     const taskListRef = useRef<TaskListPageHandle>(null);
@@ -49,6 +44,27 @@ export default function TasksPage() {
 
     const searchOpen = Boolean(searchAnchor);
     const isExecutor = userRole === 'executor';
+    const theme = useTheme();
+    const isDarkMode = theme.palette.mode === 'dark';
+    const headerBg = isDarkMode ? 'rgba(17,22,33,0.85)' : 'rgba(255,255,255,0.55)';
+    const headerBorder = isDarkMode ? 'rgba(255,255,255,0.08)' : 'rgba(255,255,255,0.65)';
+    const headerShadow = isDarkMode ? '0 25px 70px rgba(0,0,0,0.55)' : '0 25px 80px rgba(15,23,42,0.1)';
+    const sectionBg = isDarkMode ? 'rgba(18,24,36,0.85)' : 'rgba(255,255,255,0.65)';
+    const sectionBorder = isDarkMode ? 'rgba(255,255,255,0.08)' : 'rgba(255,255,255,0.55)';
+    const sectionShadow = isDarkMode ? '0 35px 90px rgba(0,0,0,0.5)' : '0 35px 90px rgba(15,23,42,0.15)';
+    const textPrimary = isDarkMode ? '#f8fafc' : '#0f172a';
+    const textSecondary = isDarkMode ? 'rgba(226,232,240,0.8)' : 'rgba(15,23,42,0.7)';
+    const iconBorderColor = isDarkMode ? 'rgba(255,255,255,0.18)' : 'rgba(15,23,42,0.12)';
+    const iconBg = isDarkMode ? 'rgba(255,255,255,0.08)' : 'rgba(255,255,255,0.65)';
+    const iconHoverBg = isDarkMode ? 'rgba(255,255,255,0.16)' : 'rgba(255,255,255,0.9)';
+    const iconShadow = isDarkMode ? '0 6px 18px rgba(0,0,0,0.4)' : '0 6px 18px rgba(15,23,42,0.08)';
+    const iconText = textPrimary;
+    const iconActiveBg = isDarkMode ? 'rgba(59,130,246,0.4)' : 'rgba(15,23,42,0.9)';
+    const iconActiveText = '#ffffff';
+    const disabledIconColor = isDarkMode ? 'rgba(148,163,184,0.7)' : 'rgba(15,23,42,0.35)';
+    const tabActiveBg = isDarkMode ? 'rgba(255,255,255,0.08)' : 'rgba(255,255,255,0.9)';
+    const tabInactiveColor = isDarkMode ? 'rgba(226,232,240,0.65)' : 'rgba(15,23,42,0.55)';
+    const tabBorderColor = isDarkMode ? 'rgba(255,255,255,0.1)' : 'rgba(15,23,42,0.08)';
 
     useEffect(() => {
         let active = true;
@@ -122,39 +138,6 @@ export default function TasksPage() {
     );
 
     useEffect(() => {
-        if (!isExecutor) {
-            setProjectOptions([]);
-            return;
-        }
-        (async () => {
-            try {
-                const res = await fetch('/api/tasks');
-                const data = await res.json();
-                const tasks = Array.isArray(data.tasks) ? (data.tasks as Array<{ projectKey?: string | null }>) : [];
-                if (tasks.length > 0) {
-                    const unique = Array.from(
-                        new Set(
-                            tasks
-                                .map((task) => task.projectKey?.trim())
-                                .filter((key): key is string => Boolean(key))
-                        )
-                    );
-                    setProjectOptions(unique);
-                } else {
-                    setProjectOptions([]);
-                }
-            } catch (err) {
-                console.error('Error fetching project list', err);
-            }
-        })();
-    }, [isExecutor, refreshToken]);
-    useEffect(() => {
-        if (projectFilter && projectOptions.length && !projectOptions.includes(projectFilter)) {
-            setProjectFilter('');
-        }
-    }, [projectOptions, projectFilter]);
-
-    useEffect(() => {
         if (tab !== 'table' && listFiltersVisible) {
             setListFiltersVisible(false);
         }
@@ -189,71 +172,163 @@ export default function TasksPage() {
     }
 
     return (
-        <Box sx={{ p: 2 }}>
-            <Stack
-                direction={{ xs: 'column', md: 'row' }}
-                spacing={2}
-                alignItems={{ xs: 'flex-start', md: 'center' }}
-                justifyContent="space-between"
-                sx={{ mb: 2 }}
-            >
-                <Box>
-                    <Typography variant="h5" fontWeight={700}>
-                        Мои задачи
-                    </Typography>
-                    <Typography variant="body2" color="text.secondary">
-                        {projectFilter
-                            ? `Фильтр по проекту: ${projectFilter}`
-                            : 'Все назначения из разных организаций и проектов'}
-                    </Typography>
-                </Box>
-                <Stack direction="row" spacing={1} alignItems="center">
-                    <Tooltip title="Поиск">
-                        <IconButton
-                            color={searchOpen || searchQuery ? 'primary' : 'default'}
-                            onClick={handleSearchIconClick}
-                        >
-                            <SearchIcon />
-                        </IconButton>
-                    </Tooltip>
-                    <Tooltip
-                        title={
-                            tab === 'table'
-                                ? listFiltersVisible
-                                    ? 'Скрыть фильтры'
-                                    : 'Показать фильтры'
-                                : 'Фильтры доступны только в списке'
-                        }
+        <Box
+            sx={{
+                minHeight: '100%',
+                py: { xs: 4, md: 6 },
+                px: { xs: 2, md: 6 },
+            }}
+        >
+            <Box sx={{ maxWidth: 1200, mx: 'auto', width: '100%' }}>
+                <Box
+                    sx={{
+                        mb: 3,
+                        borderRadius: 4,
+                        p: { xs: 2, md: 3 },
+                        backgroundColor: headerBg,
+                        border: `1px solid ${headerBorder}`,
+                        boxShadow: headerShadow,
+                        backdropFilter: 'blur(22px)',
+                    }}
+                >
+                    <Stack
+                        direction={{ xs: 'column', md: 'row' }}
+                        spacing={2}
+                        alignItems={{ xs: 'flex-start', md: 'center' }}
+                        justifyContent="space-between"
                     >
-                        <span>
-                            <IconButton
-                                color={listFiltersVisible ? 'primary' : 'default'}
-                                disabled={tab !== 'table'}
-                                onClick={handleFilterToggle}
+                        <Box>
+                            <Typography
+                                variant="h5"
+                                fontWeight={700}
+                                color={textPrimary}
+                                sx={{ fontSize: { xs: '1.6rem', md: '1.95rem' } }}
                             >
-                                <FilterListIcon />
-                            </IconButton>
-                        </span>
-                    </Tooltip>
-                    {tab === 'table' && (
-                        <Tooltip title="Настроить колонки">
-                            <IconButton onClick={handleColumnsClick}>
-                                <ViewColumnOutlinedIcon />
-                            </IconButton>
-                        </Tooltip>
-                    )}
-                    <Tooltip title="Обновить">
-                        <span>
-                            <IconButton
-                                onClick={() => setRefreshToken((prev) => prev + 1)}
-                                disabled={false}
+                                Мои задачи
+                            </Typography>
+                            <Typography
+                                variant="body2"
+                                color={textSecondary}
+                                sx={{ fontSize: { xs: '0.95rem', md: '1.05rem' }, mt: 0.5 }}
                             >
-                                <RefreshIcon />
-                            </IconButton>
-                        </span>
-                    </Tooltip>
-                </Stack>
-            </Stack>
+                                Все задачи. Воспользуйтесь поиском или фильтрами
+                            </Typography>
+                        </Box>
+                        <Stack direction="row" spacing={1.5} alignItems="center">
+                            <Tooltip title="Поиск">
+                                <IconButton
+                                    onClick={handleSearchIconClick}
+                                    sx={{
+                                        borderRadius: '16px',
+                                        border: `1px solid ${iconBorderColor}`,
+                                        backgroundColor: searchOpen || searchQuery ? iconActiveBg : iconBg,
+                                        color: searchOpen || searchQuery ? iconActiveText : iconText,
+                                        boxShadow: iconShadow,
+                                        backdropFilter: 'blur(14px)',
+                                        transition: 'all 0.2s ease',
+                                        '&:hover': {
+                                            transform: 'translateY(-2px)',
+                                            backgroundColor: searchOpen || searchQuery ? iconActiveBg : iconHoverBg,
+                                        },
+                                    }}
+                                >
+                                    <SearchIcon />
+                                </IconButton>
+                            </Tooltip>
+                            <Tooltip
+                                title={
+                                    tab === 'table'
+                                        ? listFiltersVisible
+                                            ? 'Скрыть фильтры'
+                                            : 'Показать фильтры'
+                                        : 'Фильтры доступны только в списке'
+                                }
+                            >
+                                <span>
+                                    <IconButton
+                                        disabled={tab !== 'table'}
+                                        onClick={handleFilterToggle}
+                                        sx={{
+                                            borderRadius: '16px',
+                                            border: `1px solid ${tab !== 'table' ? 'transparent' : iconBorderColor}`,
+                                            color:
+                                                tab !== 'table'
+                                                    ? disabledIconColor
+                                                    : listFiltersVisible
+                                                    ? iconActiveText
+                                                    : iconText,
+                                            backgroundColor:
+                                                tab !== 'table'
+                                                    ? 'transparent'
+                                                    : listFiltersVisible
+                                                    ? iconActiveBg
+                                                    : iconBg,
+                                            boxShadow: tab !== 'table' ? 'none' : iconShadow,
+                                            backdropFilter: 'blur(14px)',
+                                            transition: 'all 0.2s ease',
+                                            '&:hover': {
+                                                transform: tab !== 'table' ? 'none' : 'translateY(-2px)',
+                                                backgroundColor:
+                                                    tab !== 'table'
+                                                        ? 'transparent'
+                                                        : listFiltersVisible
+                                                        ? iconActiveBg
+                                                        : iconHoverBg,
+                                            },
+                                        }}
+                                    >
+                                        <FilterListIcon />
+                                    </IconButton>
+                                </span>
+                            </Tooltip>
+                            {tab === 'table' && (
+                                <Tooltip title="Настроить колонки">
+                                    <IconButton
+                                        onClick={handleColumnsClick}
+                                        sx={{
+                                            borderRadius: '16px',
+                                            border: `1px solid ${iconBorderColor}`,
+                                            backgroundColor: iconBg,
+                                            color: iconText,
+                                            boxShadow: iconShadow,
+                                            backdropFilter: 'blur(14px)',
+                                            transition: 'all 0.2s ease',
+                                            '&:hover': {
+                                                transform: 'translateY(-2px)',
+                                                backgroundColor: iconHoverBg,
+                                            },
+                                        }}
+                                    >
+                                        <ViewColumnOutlinedIcon />
+                                    </IconButton>
+                                </Tooltip>
+                            )}
+                            <Tooltip title="Обновить">
+                                <span>
+                                    <IconButton
+                                        onClick={() => setRefreshToken((prev) => prev + 1)}
+                                        disabled={false}
+                                        sx={{
+                                            borderRadius: '16px',
+                                            border: `1px solid ${iconBorderColor}`,
+                                            backgroundColor: iconBg,
+                                            color: iconText,
+                                            boxShadow: iconShadow,
+                                            backdropFilter: 'blur(14px)',
+                                            transition: 'all 0.2s ease',
+                                            '&:hover': {
+                                                transform: 'translateY(-2px)',
+                                                backgroundColor: iconHoverBg,
+                                            },
+                                        }}
+                                    >
+                                        <RefreshIcon />
+                                    </IconButton>
+                                </span>
+                            </Tooltip>
+                        </Stack>
+                    </Stack>
+                </Box>
 
             <Popover
                 open={searchOpen}
@@ -261,6 +336,15 @@ export default function TasksPage() {
                 onClose={handleSearchClose}
                 anchorOrigin={{ vertical: 'bottom', horizontal: 'left' }}
                 transformOrigin={{ vertical: 'top', horizontal: 'left' }}
+                PaperProps={{
+                    sx: {
+                        borderRadius: 3,
+                        border: `1px solid ${isDarkMode ? 'rgba(255,255,255,0.08)' : 'rgba(255,255,255,0.65)'}`,
+                        backgroundColor: isDarkMode ? 'rgba(15,18,28,0.95)' : 'rgba(255,255,255,0.9)',
+                        boxShadow: isDarkMode ? '0 25px 70px rgba(0,0,0,0.6)' : '0 25px 70px rgba(15,23,42,0.15)',
+                        backdropFilter: 'blur(18px)',
+                    },
+                }}
             >
                 <Box sx={{ p: 2, width: 320 }}>
                     <TextField
@@ -288,59 +372,89 @@ export default function TasksPage() {
                 </Box>
             </Popover>
 
-            <Paper variant="outlined" sx={{ p: 2 }}>
-                <Stack
-                    direction={{ xs: 'column', md: 'row' }}
-                    spacing={2}
-                    alignItems={{ xs: 'stretch', md: 'center' }}
-                    sx={{ mb: 2 }}
-                >
-                    <FormControl sx={{ minWidth: 200 }}>
-                        <InputLabel>Проект</InputLabel>
-                        <Select
-                            label="Проект"
-                            value={projectFilter}
-                            onChange={(e) => setProjectFilter(e.target.value)}
-                        >
-                            <MenuItem value="">
-                                <em>Все проекты</em>
-                            </MenuItem>
-                            {projectOptions.map((option) => (
-                                <MenuItem key={option} value={option}>
-                                    {option}
-                                </MenuItem>
-                            ))}
-                        </Select>
-                    </FormControl>
-                </Stack>
-                <Tabs
-                    value={tab}
-                    onChange={(_, newValue) => setTab(newValue as ViewMode)}
-                    variant="scrollable"
-                    scrollButtons="auto"
-                >
-                    <Tab value="table" label="Список" />
-                    <Tab value="kanban" label="Доска" />
-                </Tabs>
+            <Paper
+                variant="outlined"
+                sx={{
+                    p: { xs: 2, md: 3 },
+                    borderRadius: 4,
+                    border: `1px solid ${sectionBorder}`,
+                    backgroundColor: sectionBg,
+                    boxShadow: sectionShadow,
+                    backdropFilter: 'blur(18px)',
+                }}
+            >
+                    <Tabs
+                        value={tab}
+                        onChange={(_, newValue) => setTab(newValue as ViewMode)}
+                        variant="scrollable"
+                        scrollButtons="auto"
+                        sx={{
+                            minHeight: 0,
+                            mb: 2,
+                            '& .MuiTabs-indicator': {
+                                display: 'none',
+                            },
+                        }}
+                    >
+                        <Tab
+                            value="table"
+                            label="СПИСОК"
+                            sx={{
+                                textTransform: 'uppercase',
+                                fontWeight: 600,
+                                borderRadius: '10px',
+                                minHeight: 0,
+                                px: 2.5,
+                                py: 1.2,
+                                mx: 0.5,
+                                color: tab === 'table' ? textPrimary : tabInactiveColor,
+                                backgroundColor: tab === 'table' ? tabActiveBg : 'transparent',
+                                border: `1px solid ${tabBorderColor}`,
+                                boxShadow:
+                                    tab === 'table'
+                                        ? iconShadow
+                                        : 'none',
+                            }}
+                        />
+                        <Tab
+                            value="kanban"
+                            label="ДОСКА"
+                            sx={{
+                                textTransform: 'uppercase',
+                                fontWeight: 600,
+                                borderRadius: '10px',
+                                minHeight: 0,
+                                px: 2.5,
+                                py: 1.2,
+                                mx: 0.5,
+                                color: tab === 'kanban' ? textPrimary : tabInactiveColor,
+                                backgroundColor: tab === 'kanban' ? tabActiveBg : 'transparent',
+                                border: `1px solid ${tabBorderColor}`,
+                                boxShadow:
+                                    tab === 'kanban'
+                                        ? iconShadow
+                                        : 'none',
+                            }}
+                        />
+                    </Tabs>
 
-                {tab === 'table' && (
-                    <TaskListPage
-                        ref={taskListRef}
-                        searchQuery={searchQuery}
-                        projectFilter={projectFilter}
-                        refreshToken={refreshToken}
-                        hideToolbarControls
-                        onFilterToggleChange={setListFiltersVisible}
-                    />
-                )}
-                {tab === 'kanban' && (
-                    <TaskColumnPage
-                        searchQuery={searchQuery}
-                        projectFilter={projectFilter}
-                        refreshToken={refreshToken}
-                    />
-                )}
-            </Paper>
+                    {tab === 'table' && (
+                        <TaskListPage
+                            ref={taskListRef}
+                            searchQuery={searchQuery}
+                            refreshToken={refreshToken}
+                            hideToolbarControls
+                            onFilterToggleChange={setListFiltersVisible}
+                        />
+                    )}
+                    {tab === 'kanban' && (
+                        <TaskColumnPage
+                            searchQuery={searchQuery}
+                            refreshToken={refreshToken}
+                        />
+                    )}
+                </Paper>
+            </Box>
         </Box>
     );
 }

@@ -12,6 +12,7 @@ import {
   Chip,
   Link,
 } from '@mui/material';
+import { useTheme } from '@mui/material/styles';
 import {
   draggable,
   dropTargetForElements,
@@ -50,6 +51,17 @@ const statusOrder: CurrentStatus[] = [
   'Fixed',
   'Agreed',
 ];
+
+const STATUS_LABELS_RU: Record<CurrentStatus, string> = {
+  'To do': 'К выполнению',
+  Assigned: 'Назначена',
+  'At work': 'В работе',
+  Done: 'Выполнено',
+  Pending: 'На проверке',
+  Issues: 'Есть замечания',
+  Fixed: 'Исправлено',
+  Agreed: 'Согласовано',
+};
 
 type CurrentStatus =
   | 'To do'
@@ -172,6 +184,15 @@ function DroppableColumn({
 }) {
   const ref = useRef<HTMLDivElement>(null);
   const [isDraggingOver, setIsDraggingOver] = useState(false);
+  const theme = useTheme();
+  const isDarkMode = theme.palette.mode === 'dark';
+  const columnBackground = 'transparent';
+  const columnBorder = isDarkMode ? 'rgba(255,255,255,0.12)' : 'rgba(15,23,42,0.08)';
+  const columnShadow = 'none';
+  const headerBg = isDarkMode ? 'rgba(255,255,255,0.08)' : 'rgba(255,255,255,0.95)';
+  const headerBorder = isDarkMode ? 'rgba(255,255,255,0.12)' : 'rgba(15,23,42,0.08)';
+  const headerText = isDarkMode ? '#f8fafc' : '#0f172a';
+  const statusLabel = STATUS_LABELS_RU[status] ?? status;
 
   useEffect(() => {
     const element = ref.current;
@@ -192,19 +213,42 @@ function DroppableColumn({
     <Box
       ref={ref}
       sx={{
-        minWidth: 200,
+        minWidth: 260,
         minHeight: '60vh',
-        backgroundColor: isDraggingOver ? 'action.hover' : 'background.paper',
+        backgroundColor: columnBackground,
         p: 2,
-        borderRadius: 2,
+        borderRadius: 3,
         border: '1px solid',
-        borderColor: 'divider',
+        borderColor: isDraggingOver ? theme.palette.primary.main : columnBorder,
         position: 'relative',
+        boxShadow: columnShadow,
+        backdropFilter: 'blur(18px)',
+        transition: 'border-color 0.2s ease, box-shadow 0.2s ease',
       }}
     >
-      <Typography variant='h6' sx={{ mb: 2, textTransform: 'lowercase' }}>
-        {status} ({tasks.length})
-      </Typography>
+      <Box
+        sx={{
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'space-between',
+          mb: 2,
+          px: 1.5,
+          py: 1,
+          borderRadius: 2,
+          backgroundColor: headerBg,
+          border: '1px solid',
+          borderColor: headerBorder,
+          color: headerText,
+          backdropFilter: 'blur(12px)',
+        }}
+      >
+        <Typography variant='subtitle1' fontWeight={600} sx={{ color: headerText }}>
+          {statusLabel}
+        </Typography>
+        <Typography variant='body2' fontWeight={600} sx={{ color: headerText }}>
+          {tasks.length}
+        </Typography>
+      </Box>
       {tasks.map((task) => (
         <DraggableTask key={task.taskId} task={task} role={role} />
       ))}

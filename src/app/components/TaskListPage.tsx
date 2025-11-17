@@ -169,7 +169,7 @@ function Row({
     }
     return (
       <Stack direction='row' spacing={1} alignItems='center'>
-        <Avatar sx={{ width: 32, height: 32, fontSize: 14 }}>
+        <Avatar sx={{ width: 24, height: 24, fontSize: 12 }}>
           {info.initials}
         </Avatar>
         <Box>
@@ -207,9 +207,6 @@ function Row({
         <TableCell align='center'>
           <Typography variant='subtitle2'>
             {task.projectKey || '—'}
-          </Typography>
-          <Typography variant='caption' color='text.secondary'>
-            {task.projectName || ''}
           </Typography>
         </TableCell>
       )}
