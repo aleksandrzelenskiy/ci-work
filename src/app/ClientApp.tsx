@@ -23,7 +23,7 @@ import {
 } from '@mui/material';
 import { Menu } from '@mui/icons-material';
 import DarkModeIcon from '@mui/icons-material/DarkMode';
-import SunnyIcon from '@mui/icons-material/Sunny';
+import WbSunnyIcon from '@mui/icons-material/WbSunny';
 import Badge from '@mui/material/Badge'
 import { useRouter, usePathname } from 'next/navigation';
 import { fetchUserContext } from '@/app/utils/userContext';
@@ -312,7 +312,7 @@ export default function ClientApp({ children }: { children: React.ReactNode }) {
                           aria-label='Переключить тему'
                         >
                           {mode === 'dark' ? (
-                            <SunnyIcon fontSize='small' />
+                            <WbSunnyIcon fontSize='small' />
                           ) : (
                             <DarkModeIcon fontSize='small' />
                           )}
