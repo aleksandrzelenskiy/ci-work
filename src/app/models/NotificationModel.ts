@@ -4,6 +4,7 @@ import mongoose, { Schema, Document, model, models, Types } from 'mongoose';
 import type { NotificationKind, NotificationStatus } from '@/app/types/notifications';
 
 export interface NotificationDoc extends Document {
+    _id: Types.ObjectId;
     recipientUserId: Types.ObjectId;
     type: NotificationKind;
     title: string;

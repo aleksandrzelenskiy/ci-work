@@ -32,9 +32,24 @@ export interface CreateNotificationParams {
     metadata?: Record<string, unknown>;
 }
 
-export const mapNotificationToDTO = (
-    doc: Pick<NotificationDoc, keyof NotificationDoc> & { _id: Types.ObjectId }
-): NotificationDTO => ({
+type NotificationLeanDoc = Pick<
+    NotificationDoc,
+    | '_id'
+    | 'type'
+    | 'title'
+    | 'message'
+    | 'link'
+    | 'createdAt'
+    | 'status'
+    | 'orgId'
+    | 'orgSlug'
+    | 'orgName'
+    | 'senderName'
+    | 'senderEmail'
+    | 'metadata'
+>;
+
+export const mapNotificationToDTO = (doc: NotificationLeanDoc): NotificationDTO => ({
     id: doc._id.toString(),
     type: doc.type,
     title: doc.title,
@@ -91,14 +106,9 @@ export async function fetchNotificationsForUser(
         .sort({ createdAt: -1 })
         .skip(skip)
         .limit(limit)
-        .lean();
+        .lean<NotificationLeanDoc>();
 
-    return docs.map((doc) =>
-        mapNotificationToDTO({
-            ...doc,
-            _id: (doc as { _id: Types.ObjectId })._id,
-        })
-    );
+    return docs.map((doc) => mapNotificationToDTO(doc));
 }
 
 export async function countUnreadNotifications(recipientUserId: ObjectIdLike) {
