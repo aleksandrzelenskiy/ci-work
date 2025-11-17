@@ -6,6 +6,7 @@ import TaskModel from '@/app/models/TaskModel';
 import BaseStation, { IBaseStation, ensureIrkutskT2Station, normalizeBsNumber } from '@/app/models/BaseStation';
 import { Types } from 'mongoose';
 import { getOrgAndProjectByRef } from '../../_helpers';
+import { notifyTaskAssignment } from '@/app/utils/taskNotifications';
 
 export const runtime = 'nodejs';
 export const dynamic = 'force-dynamic';
@@ -454,13 +455,22 @@ export async function PUT(
             date: Date;
             details?: Record<string, unknown>;
         }> = [];
+        let shouldNotifyExecutorAssignment = false;
+        let assignedExecutorClerkId: string | null = null;
 
         if (typeof body.executorId === 'string' && body.executorId.trim()) {
             const trimmedId = body.executorId.trim();
             const hadExecutorBefore = !!currentTask.executorId;
+            const previousExecutorId =
+                typeof currentTask.executorId === 'string' ? currentTask.executorId : '';
+            const isSameExecutor = previousExecutorId === trimmedId;
 
             markChange('executorId', currentTask.executorId, trimmedId);
             allowedPatch.executorId = trimmedId;
+            if (!isSameExecutor) {
+                shouldNotifyExecutorAssignment = true;
+                assignedExecutorClerkId = trimmedId;
+            }
 
             let newExecutorName: string | undefined;
             if (typeof body.executorName === 'string') {
@@ -601,6 +611,27 @@ export async function PUT(
                 });
             } catch (syncErr) {
                 console.error('Failed to sync base station document:', syncErr);
+            }
+        }
+
+        if (shouldNotifyExecutorAssignment && assignedExecutorClerkId) {
+            try {
+                await notifyTaskAssignment({
+                    executorClerkId: assignedExecutorClerkId,
+                    taskId: typeof updated.taskId === 'string' ? updated.taskId : undefined,
+                    taskMongoId: updated._id,
+                    taskName: updated.taskName,
+                    bsNumber: updated.bsNumber,
+                    orgId,
+                    orgSlug: orgSlug,
+                    projectRef: projectRef,
+                    projectKey: projectDoc.key,
+                    projectName: projectDoc.name,
+                    triggeredByName: me.fullName || me.username || email,
+                    triggeredByEmail: email,
+                });
+            } catch (notifyErr) {
+                console.error('Failed to send task assignment notification', notifyErr);
             }
         }
 

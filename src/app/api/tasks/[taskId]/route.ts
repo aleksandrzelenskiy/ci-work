@@ -12,6 +12,7 @@ import { currentUser } from '@clerk/nextjs/server';
 import type { PriorityLevel } from '@/app/types/taskTypes';
 import { generateClosingDocumentsExcel } from '@/utils/generateExcel';
 import { uploadTaskFile, deleteTaskFile } from '@/utils/s3';
+import { notifyTaskAssignment } from '@/app/utils/taskNotifications';
 
 interface UpdateData {
   status?: string;
@@ -100,7 +101,7 @@ export async function PATCH(
 
     // ✅ гарантируем массивы, чтобы ниже не ругался TS
     if (!Array.isArray(task.events)) {
-      task.events = [];
+        task.events = [];
     }
     if (!Array.isArray(task.attachments)) {
       task.attachments = [];
@@ -247,8 +248,13 @@ export async function PATCH(
     }
 
     // === исполнитель: обновляем ТОЛЬКО если поле присутствует в запросе ===
+    const previousExecutorId =
+        typeof task.executorId === 'string' && task.executorId.length > 0 ? task.executorId : '';
+
     let executorRemoved = false;
     let executorAssigned = false;
+    let shouldNotifyExecutorAssignment = false;
+    let assignedExecutorClerkId: string | null = null;
 
     if (Object.prototype.hasOwnProperty.call(updateData, 'executorId')) {
       if (updateData.executorId === '' || updateData.executorId === null) {
@@ -280,6 +286,10 @@ export async function PATCH(
           task.executorId = executor.clerkUserId;
           task.executorName = executor.name;
           task.executorEmail = executor.email;
+          if (executor.clerkUserId !== previousExecutorId) {
+            shouldNotifyExecutorAssignment = true;
+            assignedExecutorClerkId = executor.clerkUserId;
+          }
 
           if (task.status === 'To do') {
             task.status = 'Assigned';
@@ -436,6 +446,24 @@ export async function PATCH(
     }
 
     const updatedTask = await task.save();
+
+    if (shouldNotifyExecutorAssignment && assignedExecutorClerkId) {
+      try {
+        await notifyTaskAssignment({
+          executorClerkId: assignedExecutorClerkId,
+          taskId: updatedTask.taskId,
+          taskMongoId: updatedTask._id,
+          taskName: updatedTask.taskName,
+          bsNumber: updatedTask.bsNumber,
+          orgId: updatedTask.orgId ? updatedTask.orgId.toString() : undefined,
+          triggeredByName: user.fullName || user.username || user.emailAddresses?.[0]?.emailAddress,
+          triggeredByEmail: user.emailAddresses?.[0]?.emailAddress,
+        });
+      } catch (notifyErr) {
+        console.error('Failed to send task assignment notification', notifyErr);
+      }
+    }
+
     return NextResponse.json({ task: updatedTask });
   } catch (err) {
     console.error('Error updating task:', err);

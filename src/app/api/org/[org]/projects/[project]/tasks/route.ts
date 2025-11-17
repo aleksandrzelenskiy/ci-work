@@ -6,6 +6,7 @@ import TaskModel from '@/app/models/TaskModel';
 import { Types } from 'mongoose';
 import { getOrgAndProjectByRef } from '../_helpers';
 import { ensureIrkutskT2Station } from '@/app/models/BaseStation';
+import { notifyTaskAssignment } from '@/app/utils/taskNotifications';
 
 export const runtime = 'nodejs';
 export const dynamic = 'force-dynamic';
@@ -295,6 +296,28 @@ export async function POST(
 
             ...rest,
         });
+
+        if (hasExecutor) {
+            try {
+                await notifyTaskAssignment({
+                    executorClerkId: executorId,
+                    taskId: created.taskId,
+                    taskMongoId: created._id,
+                    taskName,
+                    bsNumber,
+                    orgId: orgObjId,
+                    orgSlug: rel.orgDoc?.orgSlug,
+                    orgName: rel.orgDoc?.name,
+                    projectRef: project,
+                    projectKey: rel.projectDoc?.key,
+                    projectName: rel.projectDoc?.name,
+                    triggeredByName: creatorName,
+                    triggeredByEmail: user.emailAddresses?.[0]?.emailAddress,
+                });
+            } catch (notifyErr) {
+                console.error('Failed to send task assignment notification', notifyErr);
+            }
+        }
 
         const coordsSource =
             Array.isArray(bsLocation) && bsLocation.length > 0 ? bsLocation[0]?.coordinates : undefined;
