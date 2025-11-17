@@ -94,7 +94,6 @@ export default function NavigationMenu({ onNavigate }: NavigationMenuProps) {
     const contextEmail =
         normalizeValue(userContext?.email) ??
         normalizeValue(contextUser?.email);
-
     const fallbackName =
         contextName ||
         user?.name ||
@@ -108,6 +107,10 @@ export default function NavigationMenu({ onNavigate }: NavigationMenuProps) {
 
     const handleLogout = async () => {
         await signOut({ redirectUrl: '/sign-in' });
+    };
+
+    const handleProfileClick = () => {
+        onNavigate('/profile');
     };
 
     return (
@@ -129,10 +132,22 @@ export default function NavigationMenu({ onNavigate }: NavigationMenuProps) {
                 <Avatar
                     alt={fallbackName}
                     src={avatarSrc}
-                    sx={{ width: 64, height: 64 }}
+                    sx={{ width: 64, height: 64, cursor: 'pointer' }}
+                    onClick={handleProfileClick}
                 />
-                <Typography fontWeight='600'>{fallbackName}</Typography>
-                <Typography fontSize='0.875rem' color='text.secondary'>
+                <Typography
+                    fontWeight='600'
+                    sx={{ cursor: 'pointer' }}
+                    onClick={handleProfileClick}
+                >
+                    {fallbackName}
+                </Typography>
+                <Typography
+                    fontSize='0.875rem'
+                    color='text.secondary'
+                    sx={{ cursor: 'pointer' }}
+                    onClick={handleProfileClick}
+                >
                     {userEmail}
                 </Typography>
                 <Button
