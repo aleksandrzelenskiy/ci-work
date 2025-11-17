@@ -17,6 +17,7 @@ import PermMediaIcon from '@mui/icons-material/PermMedia';
 import PlaceIcon from '@mui/icons-material/Place';
 import LogoutIcon from '@mui/icons-material/Logout';
 import { useClerk, useUser } from '@clerk/nextjs';
+import type { UserResource } from '@clerk/types';
 import {
     fetchUserContext,
     type UserContextResponse,
@@ -94,12 +95,11 @@ export default function NavigationMenu({ onNavigate }: NavigationMenuProps) {
     const contextEmail =
         normalizeValue(userContext?.email) ??
         normalizeValue(contextUser?.email);
+    const namedUser = user as (UserResource & { name?: string | null }) | null;
     const fallbackName =
         contextName ||
-        user?.name ||
-        user?.fullName ||
-        [user?.firstName, user?.lastName].filter(Boolean).join(' ').trim() ||
-        user?.username ||
+        namedUser?.name ||
+        namedUser?.username ||
         'Пользователь';
     const userEmail =
         contextEmail || normalizeValue(user?.emailAddresses[0]?.emailAddress);
