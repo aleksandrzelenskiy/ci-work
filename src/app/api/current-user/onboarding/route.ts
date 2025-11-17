@@ -65,8 +65,6 @@ export async function POST(request: Request) {
     profileSetupCompleted: true,
     platformRole: 'user',
     name: fullName,
-    firstName,
-    lastName,
     phone,
     regionCode,
   };

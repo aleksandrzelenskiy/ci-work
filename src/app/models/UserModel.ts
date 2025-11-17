@@ -8,8 +8,6 @@ export type BillingStatus = 'trial' | 'active' | 'past_due' | 'canceled';
 
 export interface IUser extends Document {
     name: string;
-    firstName?: string;
-    lastName?: string;
     phone?: string;
     email: string;
     profilePic: string;
@@ -26,8 +24,6 @@ export interface IUser extends Document {
 const UserSchema = new Schema<IUser>(
     {
         name: { type: String, required: true, trim: true },
-        firstName: { type: String, default: '', trim: true },
-        lastName: { type: String, default: '', trim: true },
         phone: { type: String, default: '', trim: true },
         email: {
             type: String,

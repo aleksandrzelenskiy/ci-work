@@ -17,6 +17,10 @@ export interface UserContextResponse {
   membershipRole?: OrgRole | null;
   isSuperAdmin?: boolean;
   profileSetupCompleted?: boolean;
+  name?: string;
+  email?: string;
+  phone?: string;
+  regionCode?: string;
   user?: Record<string, unknown>;
   memberships?: ActiveMembership[];
   activeOrgId?: string | null;

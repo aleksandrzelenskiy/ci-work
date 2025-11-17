@@ -45,8 +45,6 @@ export async function GET() {
     isSuperAdmin,
     regionCode: user.regionCode || '',
     name: user.name,
-    firstName: user.firstName || '',
-    lastName: user.lastName || '',
     phone: user.phone || '',
     email: user.email,
     user,

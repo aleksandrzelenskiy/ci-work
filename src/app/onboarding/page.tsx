@@ -29,14 +29,10 @@ type ProfileResponse = {
   profileType?: ProfileType;
   profileSetupCompleted?: boolean;
   name?: string;
-  firstName?: string;
-  lastName?: string;
   phone?: string;
   regionCode?: string;
   user?: {
     name?: string;
-    firstName?: string;
-    lastName?: string;
     phone?: string;
     regionCode?: string;
   };
@@ -87,6 +83,20 @@ const ROLE_OPTIONS: Array<{
   },
 ];
 
+const parseNameParts = (rawName?: string) => {
+  if (!rawName) {
+    return { firstName: '', lastName: '' };
+  }
+  const trimmed = rawName.trim();
+  if (!trimmed || trimmed.includes('@')) {
+    return { firstName: '', lastName: '' };
+  }
+  const parts = trimmed.split(/\s+/);
+  const firstName = parts[0] || '';
+  const lastName = parts.slice(1).join(' ');
+  return { firstName, lastName };
+};
+
 export default function OnboardingPage() {
   const router = useRouter();
   const [loading, setLoading] = useState(true);
@@ -119,14 +129,9 @@ export default function OnboardingPage() {
           setError(data.error || 'Не удалось загрузить профиль');
         } else {
           const userPayload = data.user || {};
-          const resolvedFirstName =
-            data.firstName ||
-            (userPayload as { firstName?: string } | undefined)?.firstName ||
-            '';
-          const resolvedLastName =
-            data.lastName ||
-            (userPayload as { lastName?: string } | undefined)?.lastName ||
-            '';
+          const resolvedName = data.name || userPayload?.name || '';
+          const { firstName: derivedFirst, lastName: derivedLast } =
+            parseNameParts(resolvedName);
           const resolvedPhone =
             data.phone ||
             (userPayload as { phone?: string } | undefined)?.phone ||
@@ -136,8 +141,8 @@ export default function OnboardingPage() {
             (userPayload as { regionCode?: string } | undefined)?.regionCode ||
             '';
           setFormValues({
-            firstName: resolvedFirstName.trim(),
-            lastName: resolvedLastName.trim(),
+            firstName: derivedFirst,
+            lastName: derivedLast,
             phone: resolvedPhone,
             regionCode: resolvedRegionCode,
           });

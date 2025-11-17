@@ -27,7 +27,12 @@ export default function UserMenu() {
   const { signOut } = useClerk();
   const router = useRouter();
 
-  const userName = user?.firstName + ' ' + user?.lastName;
+  const fallbackName =
+    user?.fullName ||
+    [user?.firstName, user?.lastName].filter(Boolean).join(' ').trim() ||
+    user?.username ||
+    user?.emailAddresses[0]?.emailAddress ||
+    'Пользователь';
   const userEmail = user?.emailAddresses[0]?.emailAddress;
 
   const handleOpenUserMenu = (event: React.MouseEvent<HTMLElement>) => {
@@ -51,7 +56,7 @@ export default function UserMenu() {
     <Box sx={{ flexGrow: 0 }}>
       <Tooltip title='Open menu'>
         <IconButton onClick={handleOpenUserMenu} sx={{ p: 0 }}>
-          <Avatar alt={userName || 'User'} src={user?.imageUrl || ''} />
+          <Avatar alt={fallbackName || 'User'} src={user?.imageUrl || ''} />
         </IconButton>
       </Tooltip>
       <Menu
@@ -71,7 +76,7 @@ export default function UserMenu() {
       >
         <Box sx={{ minWidth: 200, textAlign: 'center' }}>
           <Typography variant='button' margin='5px' fontWeight='bold'>
-            {userName}
+            {fallbackName}
           </Typography>
           <Typography fontSize='0.85rem' color='text.secondary'>
             {userEmail}

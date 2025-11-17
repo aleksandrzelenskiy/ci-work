@@ -54,7 +54,13 @@ export const GetCurrentUserFromMongoDB =
       user = await UserModel.findOne({ email: primaryEmail });
       if (user && !user.clerkUserId) {
         user.clerkUserId = clerkUser.id;
-        user.name = user.name || `${clerkUser?.firstName ?? ''} ${clerkUser?.lastName ?? ''}`.trim();
+        const fallbackFullName = `${clerkUser?.firstName ?? ''} ${clerkUser?.lastName ?? ''}`.trim();
+        user.name =
+          user.name ||
+          fallbackFullName ||
+          clerkUser?.username ||
+          primaryEmail ||
+          'Unknown User';
         user.profilePic = user.profilePic || clerkUser?.imageUrl || '';
         if (!user.platformRole) {
           user.platformRole = 'user';
@@ -62,12 +68,6 @@ export const GetCurrentUserFromMongoDB =
         const normalizedProfileType = normalizeProfileType(user.profileType);
         if (user.profileType !== normalizedProfileType) {
           user.profileType = normalizedProfileType;
-        }
-        if (!user.firstName && clerkUser?.firstName) {
-          user.firstName = clerkUser.firstName;
-        }
-        if (!user.lastName && clerkUser?.lastName) {
-          user.lastName = clerkUser.lastName;
         }
         if (typeof user.phone === 'undefined') {
           user.phone = '';
@@ -102,12 +102,13 @@ export const GetCurrentUserFromMongoDB =
         user.profileType = normalizedProfileType;
         needsSave = true;
       }
-      if (typeof user.firstName === 'undefined') {
-        user.firstName = clerkUser?.firstName || '';
-        needsSave = true;
-      }
-      if (typeof user.lastName === 'undefined') {
-        user.lastName = clerkUser?.lastName || '';
+      if (!user.name) {
+        const fallbackName =
+          `${clerkUser?.firstName ?? ''} ${clerkUser?.lastName ?? ''}`.trim() ||
+          clerkUser?.username ||
+          primaryEmail ||
+          'Unknown User';
+        user.name = fallbackName;
         needsSave = true;
       }
       if (typeof user.phone === 'undefined') {
@@ -146,8 +147,6 @@ export const GetCurrentUserFromMongoDB =
     const fullName = `${clerkUser?.firstName ?? ''} ${clerkUser?.lastName ?? ''}`.trim();
     const insertPayload = {
       name: fullName || clerkUser?.username || primaryEmail || 'Unknown User',
-      firstName: clerkUser?.firstName || '',
-      lastName: clerkUser?.lastName || '',
       phone: '',
       email: primaryEmail || '',
       clerkUserId: clerkUser?.id,

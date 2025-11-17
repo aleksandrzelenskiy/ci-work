@@ -21,14 +21,15 @@ import {
     ThemeProvider,
     createTheme,
     CircularProgress,
+    IconButton,
 } from '@mui/material';
 import { Menu } from '@mui/icons-material';
 import LightModeIcon from '@mui/icons-material/LightMode';
 import Badge from '@mui/material/Badge'
 import { useRouter, usePathname } from 'next/navigation';
-import UserMenu from './components/UserMenu';
 import { fetchUserContext } from '@/app/utils/userContext';
 import NavigationMenu from '@/app/components/NavigationMenu';
+import MessageIcon from '@mui/icons-material/Message';
 
 const ThemeContext = createContext({
   toggleTheme: () => {},
@@ -259,12 +260,17 @@ export default function ClientApp({ children }: { children: React.ReactNode }) {
                       </Box>
                       <Box
                         sx={{
-                          marginRight: '20px',
+                          marginRight: '12px',
                         }}
                       >
+                        <IconButton
+                          color='inherit'
+                          aria-label='Открыть уведомления'
+                          size='large'
+                        >
+                          <MessageIcon />
+                        </IconButton>
                       </Box>
-
-                      <UserMenu />
                     </Toolbar>
                   </AppBar>
                   {/* Sidebar Drawer */}
