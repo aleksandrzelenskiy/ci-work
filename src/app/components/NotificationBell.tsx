@@ -21,7 +21,7 @@ import NotificationsIcon from '@mui/icons-material/Notifications';
 import DeleteOutlineIcon from '@mui/icons-material/DeleteOutline';
 import dayjs from 'dayjs';
 import Link from 'next/link';
-import type { Socket } from 'socket.io-client';
+import type { Socket as SocketClient } from 'socket.io-client';
 import type {
     NotificationDTO,
     NotificationDeletedEventPayload,
@@ -125,7 +125,7 @@ export default function NotificationBell({ buttonSx }: NotificationBellProps) {
     const [hasMore, setHasMore] = React.useState(false);
     const [loadingMore, setLoadingMore] = React.useState(false);
     const [realtimeError, setRealtimeError] = React.useState<string | null>(null);
-    const socketRef = React.useRef<Socket | null>(null);
+    const socketRef = React.useRef<SocketClient | null>(null);
 
     const open = Boolean(anchorEl);
 
