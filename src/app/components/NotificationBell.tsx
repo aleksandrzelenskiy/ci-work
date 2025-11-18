@@ -29,6 +29,7 @@ import type {
     NotificationUnreadEventPayload,
 } from '@/app/types/notifications';
 import { NOTIFICATIONS_SOCKET_PATH } from '@/config/socket';
+import type { Socket } from 'socket.io-client';
 
 type NotificationSocketEventMap = {
     'notification:new': (payload: NotificationNewEventPayload) => void;
@@ -39,17 +40,7 @@ type NotificationSocketEventMap = {
     connect_error: (error: unknown) => void;
 };
 
-type SocketClient = {
-    on<Event extends keyof NotificationSocketEventMap>(
-        event: Event,
-        listener: NotificationSocketEventMap[Event]
-    ): SocketClient;
-    off<Event extends keyof NotificationSocketEventMap>(
-        event: Event,
-        listener?: NotificationSocketEventMap[Event]
-    ): SocketClient;
-    disconnect: () => void;
-};
+type SocketClient = Socket<NotificationSocketEventMap, NotificationSocketEventMap>;
 
 type NotificationsResponse =
     | {
@@ -363,14 +354,17 @@ export default function NotificationBell({ buttonSx }: NotificationBellProps) {
                 if (cancelled) return;
                 const token = await fetchSocketToken();
                 if (cancelled) return;
-                const socketModule = await import('socket.io-client');
-                const io = socketModule.default ?? socketModule;
+                const { io, default: defaultIo } = await import('socket.io-client');
+                const socketConnector = io ?? defaultIo;
+                if (!socketConnector) {
+                    throw new Error('Socket.io client is unavailable');
+                }
                 if (cancelled) return;
-                const socketInstance = io({
+                const socketInstance = socketConnector({
                     path: NOTIFICATIONS_SOCKET_PATH,
                     transports: ['websocket'],
                     auth: { token },
-                });
+                }) as SocketClient;
                 socketRef.current = socketInstance;
 
                 socketInstance.on('notification:new', handleRealtimeNewNotification);
