@@ -25,12 +25,17 @@ import {
     Tooltip,
     Snackbar,
     Alert,
+    Drawer,
+    Divider,
 } from '@mui/material';
 import Autocomplete, { createFilterOptions } from '@mui/material/Autocomplete';
 import { DatePicker, LocalizationProvider } from '@mui/x-date-pickers';
 import { AdapterDateFns } from '@mui/x-date-pickers/AdapterDateFns';
 import DeleteOutlineIcon from '@mui/icons-material/DeleteOutline';
 import CloudUploadIcon from '@mui/icons-material/CloudUpload';
+import TaskAltIcon from '@mui/icons-material/TaskAlt';
+import CloseIcon from '@mui/icons-material/Close';
+import { YMaps, Map, Placemark } from '@pbe/react-yandex-maps';
 
 type Priority = 'urgent' | 'high' | 'medium' | 'low';
 
@@ -132,6 +137,18 @@ function getFileNameFromUrl(url?: string): string {
         return url;
     }
 }
+
+const glassInputSx = {
+    '& .MuiOutlinedInput-root': {
+        backgroundColor: 'rgba(255,255,255,0.92)',
+        borderRadius: 3,
+        '& fieldset': { borderColor: 'rgba(255,255,255,0.6)' },
+        '&:hover fieldset': { borderColor: 'rgba(147,197,253,0.9)' },
+        '&.Mui-focused fieldset': { borderColor: 'rgba(59,130,246,0.8)' },
+    },
+};
+
+const YMAPS_API_KEY = process.env.NEXT_PUBLIC_YMAPS_API_KEY || '1c3860d8-3994-4e6e-841b-31ad57f69c78';
 
 export default function WorkspaceTaskDialog({
                                                 open,
@@ -409,6 +426,17 @@ export default function WorkspaceTaskDialog({
             Number.isFinite(Number(bsLongitude)) &&
             Number(bsLongitude) >= -180 &&
             Number(bsLongitude) <= 180);
+
+    const mapCoords = React.useMemo<[number, number] | null>(() => {
+        const latRaw = bsLatitude.trim();
+        const lonRaw = bsLongitude.trim();
+        if (!latRaw || !lonRaw) return null;
+        if (!isLatValid || !isLngValid) return null;
+        const lat = Number(latRaw);
+        const lon = Number(lonRaw);
+        if (!Number.isFinite(lat) || !Number.isFinite(lon)) return null;
+        return [lat, lon];
+    }, [bsLatitude, bsLongitude, isLatValid, isLngValid]);
 
     const reset = () => {
         setTaskName('');
@@ -720,104 +748,168 @@ export default function WorkspaceTaskDialog({
 
     return (
         <LocalizationProvider dateAdapter={AdapterDateFns}>
-            <Dialog open={open} onClose={handleClose} fullWidth maxWidth="sm">
-                <DialogTitle>{isEdit ? 'Редактировать задачу' : 'Создать задачу'}</DialogTitle>
-                <DialogContent>
-                    <Box sx={{ mt: 2, display: 'flex', flexDirection: 'column', gap: 2 }}>
-                        <TextField
-                            label="Task Name"
-                            value={taskName}
-                            onChange={(e) => setTaskName(e.target.value)}
-                            required
-                            fullWidth
-                        />
-
-                        <Autocomplete<BsOption, false, false, true>
-                            freeSolo
-                            options={bsOptions}
-                            loading={bsOptionsLoading}
-                            value={bsNumber}
-                            inputValue={bsInput}
-                            onChange={(_e, val) => {
-                                if (typeof val === 'string') {
-                                    setBsNumber(val);
-                                    setBsInput(val);
-                                    setSelectedBsOption(null);
-                                    return;
-                                }
-                                if (val) {
-                                    handleSelectBsOption(val);
-                                } else {
-                                    setBsNumber('');
-                                    setBsInput('');
-                                    setSelectedBsOption(null);
-                                }
-                            }}
-                            onInputChange={handleBsInputChange}
-                            getOptionLabel={(opt) =>
-                                typeof opt === 'string' ? opt : getDisplayBsName(opt.name)
-                            }
-                            filterOptions={(opts, params) => {
-                                if (!params.inputValue.trim()) {
-                                    return [];
-                                }
-                                return defaultFilter(opts, params);
-                            }}
-                            isOptionEqualToValue={(option, value) => option.id === (value as BsOption).id}
-                            noOptionsText={bsOptionsError ? `Ошибка: ${bsOptionsError}` : 'Не найдено'}
-                            renderInput={(params) => (
-                                <TextField
-                                    {...params}
-                                    label="BS Number"
-                                    required
-                                    fullWidth
-                                    InputProps={{
-                                        ...params.InputProps,
-                                        endAdornment: (
-                                            <>
-                                                {bsOptionsLoading ? <CircularProgress size={18} sx={{ mr: 1 }} /> : null}
-                                                {params.InputProps.endAdornment}
-                                            </>
-                                        ),
-                                    }}
-                                />
-                            )}
-                            renderOption={(props, option) => (
-                                <li {...props} key={option.id}>
-                                    <Box>
-                                        <Typography variant="body2">{getDisplayBsName(option.name)}</Typography>
-                                        {option.address ? (
-                                            <Typography variant="caption" color="text.secondary">
-                                                {option.address}
-                                            </Typography>
-                                        ) : null}
-                                    </Box>
-                                </li>
-                            )}
-                        />
-
-                        <TextField
-                            label="BS Address"
-                            value={bsAddress}
-                            onChange={(e) => setBsAddress(e.target.value)}
-                            fullWidth
-                        />
-
-                        <Stack direction={{ xs: 'column', sm: 'row' }} spacing={2}>
-                            <TextField
-                                label="Latitude (Широта)"
-                                type="text"
-                                value={bsLatitude}
-                                onChange={(e) => {
-                                    const v = e.target.value.replace(',', '.');
-                                    setBsLatitude(v);
+            <Drawer
+                anchor="right"
+                open={open}
+                onClose={handleClose}
+                ModalProps={{ keepMounted: true }}
+                PaperProps={{
+                    sx: {
+                        width: { xs: '100%', sm: 520 },
+                        maxWidth: '100%',
+                        background: 'linear-gradient(180deg, rgba(250,252,255,0.9), rgba(240,244,252,0.92))',
+                        borderLeft: '1px solid rgba(148,163,184,0.3)',
+                        boxShadow: '-35px 0 80px rgba(15,23,42,0.35)',
+                        backdropFilter: 'blur(24px)',
+                        color: 'text.primary',
+                    },
+                }}
+            >
+                <Box sx={{ display: 'flex', flexDirection: 'column', height: '100%' }}>
+                    <Box
+                        sx={{
+                            px: 3,
+                            py: 2.5,
+                            display: 'flex',
+                            alignItems: 'center',
+                            justifyContent: 'space-between',
+                            borderBottom: '1px solid rgba(148,163,184,0.25)',
+                            background: 'linear-gradient(120deg, rgba(255,255,255,0.95), rgba(240,248,255,0.9))',
+                        }}
+                    >
+                        <Stack direction="row" spacing={2} alignItems="center">
+                            <Box
+                                sx={{
+                                    width: 50,
+                                    height: 50,
+                                    borderRadius: 16,
+                                    background: 'linear-gradient(135deg, rgba(59,130,246,0.95), rgba(14,165,233,0.85))',
+                                    display: 'flex',
+                                    alignItems: 'center',
+                                    justifyContent: 'center',
+                                    color: '#fff',
+                                    boxShadow: '0 18px 35px rgba(59,130,246,0.35)',
                                 }}
-                                error={!isLatValid}
-                                placeholder="52.219319"
-                                helperText={!isLatValid ? 'Широта должна быть в диапазоне −90…90' : 'WGS-84, десятичные градусы'}
+                            >
+                                <TaskAltIcon />
+                            </Box>
+                            <Box>
+                                <Typography variant="h6" fontWeight={700}>
+                                    {isEdit ? 'Редактировать задачу' : 'Создать задачу'}
+                                </Typography>
+                                <Typography variant="body2" color="text.secondary">
+                                    Всё, как в меню создания проекта, только для задач
+                                </Typography>
+                            </Box>
+                        </Stack>
+                        <IconButton onClick={handleClose} sx={{ color: 'text.secondary' }}>
+                            <CloseIcon />
+                        </IconButton>
+                    </Box>
+
+                    <Box sx={{ flex: 1, overflowY: 'auto', p: 3 }}>
+                        <Stack spacing={2.5}>
+                            <TextField
+                                label="Task Name"
+                                value={taskName}
+                                onChange={(e) => setTaskName(e.target.value)}
+                                required
                                 fullWidth
-                                inputProps={{ inputMode: 'decimal' }}
+                                sx={glassInputSx}
                             />
+
+                            <Autocomplete<BsOption, false, false, true>
+                                freeSolo
+                                options={bsOptions}
+                                loading={bsOptionsLoading}
+                                value={bsNumber}
+                                inputValue={bsInput}
+                                onChange={(_e, val) => {
+                                    if (typeof val === 'string') {
+                                        setBsNumber(val);
+                                        setBsInput(val);
+                                        setSelectedBsOption(null);
+                                        return;
+                                    }
+                                    if (val) {
+                                        handleSelectBsOption(val);
+                                    } else {
+                                        setBsNumber('');
+                                        setBsInput('');
+                                        setSelectedBsOption(null);
+                                    }
+                                }}
+                                onInputChange={handleBsInputChange}
+                                getOptionLabel={(opt) =>
+                                    typeof opt === 'string' ? opt : getDisplayBsName(opt.name)
+                                }
+                                filterOptions={(opts, params) => {
+                                    if (!params.inputValue.trim()) {
+                                        return [];
+                                    }
+                                    return defaultFilter(opts, params);
+                                }}
+                                isOptionEqualToValue={(option, value) => option.id === (value as BsOption).id}
+                                noOptionsText={bsOptionsError ? `Ошибка: ${bsOptionsError}` : 'Не найдено'}
+                                renderInput={(params) => (
+                                    <TextField
+                                        {...params}
+                                        label="BS Number"
+                                        required
+                                        fullWidth
+                                        sx={glassInputSx}
+                                        InputProps={{
+                                            ...params.InputProps,
+                                            endAdornment: (
+                                                <>
+                                                    {bsOptionsLoading ? (
+                                                        <CircularProgress size={18} sx={{ mr: 1 }} />
+                                                    ) : null}
+                                                    {params.InputProps.endAdornment}
+                                                </>
+                                            ),
+                                        }}
+                                    />
+                                )}
+                                renderOption={(props, option) => (
+                                    <li {...props} key={option.id}>
+                                        <Box>
+                                            <Typography variant="body2">{getDisplayBsName(option.name)}</Typography>
+                                            {option.address ? (
+                                                <Typography variant="caption" color="text.secondary">
+                                                    {option.address}
+                                                </Typography>
+                                            ) : null}
+                                        </Box>
+                                    </li>
+                                )}
+                            />
+
+                            <TextField
+                                label="BS Address"
+                                value={bsAddress}
+                                onChange={(e) => setBsAddress(e.target.value)}
+                                fullWidth
+                                sx={glassInputSx}
+                            />
+                            <Stack direction={{ xs: 'column', sm: 'row' }} spacing={2}>
+                                <TextField
+                                    label="Latitude (Широта)"
+                                    type="text"
+                                    value={bsLatitude}
+                                    onChange={(e) => {
+                                        const v = e.target.value.replace(',', '.');
+                                        setBsLatitude(v);
+                                    }}
+                                    error={!isLatValid}
+                                    placeholder="52.219319"
+                                    helperText={
+                                        !isLatValid ? 'Широта должна быть в диапазоне −90…90' : 'WGS-84, десятичные градусы'
+                                    }
+                                    fullWidth
+                                    inputProps={{ inputMode: 'decimal' }}
+                                    sx={glassInputSx}
+                                />
                             <TextField
                                 label="Longitude (Долгота)"
                                 type="text"
@@ -828,11 +920,46 @@ export default function WorkspaceTaskDialog({
                                 }}
                                 error={!isLngValid}
                                 placeholder="104.26913"
-                                helperText={!isLngValid ? 'Долгота должна быть в диапазоне −180…180' : 'WGS-84, десятичные градусы'}
+                                helperText={
+                                    !isLngValid
+                                        ? 'Долгота должна быть в диапазоне −180…180'
+                                        : 'WGS-84, десятичные градусы'
+                                }
                                 fullWidth
                                 inputProps={{ inputMode: 'decimal' }}
+                                sx={glassInputSx}
                             />
                         </Stack>
+
+                        {mapCoords && (
+                            <Box>
+                                <Alert severity="warning" sx={{ mb: 1 }}>
+                                    Проверьте корректность координат объекта пред созданием задачи!
+                                </Alert>
+                                <Box
+                                    sx={{
+                                        borderRadius: 3,
+                                        overflow: 'hidden',
+                                        height: 260,
+                                        boxShadow: '0 30px 65px rgba(15,23,42,0.18)',
+                                        border: '1px solid rgba(148,163,184,0.35)',
+                                    }}
+                                >
+                                    <YMaps query={{ apikey: YMAPS_API_KEY, lang: 'ru_RU' }}>
+                                        <Map
+                                            state={{ center: mapCoords, zoom: 14, type: 'yandex#hybrid' }}
+                                            width="100%"
+                                            height="100%"
+                                        >
+                                            <Placemark
+                                                geometry={mapCoords}
+                                                options={{ preset: 'islands#redIcon', iconColor: '#ef4444' }}
+                                            />
+                                        </Map>
+                                    </YMaps>
+                                </Box>
+                            </Box>
+                        )}
 
                         <TextField
                             label="Описание задачи"
@@ -843,9 +970,9 @@ export default function WorkspaceTaskDialog({
                             maxRows={10}
                             placeholder="Что сделать, детали, ссылки и пр."
                             fullWidth
+                            sx={glassInputSx}
                         />
 
-                        {/* новое поле стоимость */}
                         <TextField
                             label="Стоимость, ₽"
                             type="number"
@@ -853,6 +980,7 @@ export default function WorkspaceTaskDialog({
                             onChange={(e) => setTotalCost(e.target.value)}
                             fullWidth
                             inputProps={{ min: 0, step: '0.01' }}
+                            sx={glassInputSx}
                         />
 
                         <Autocomplete<MemberOption>
@@ -868,11 +996,14 @@ export default function WorkspaceTaskDialog({
                                     label="Исполнитель (участники организации)"
                                     placeholder={membersLoading ? 'Загрузка...' : 'Начните вводить имя или email'}
                                     fullWidth
+                                    sx={glassInputSx}
                                     InputProps={{
                                         ...params.InputProps,
                                         endAdornment: (
                                             <>
-                                                {membersLoading ? <CircularProgress size={18} style={{ marginRight: 8 }} /> : null}
+                                                {membersLoading ? (
+                                                    <CircularProgress size={18} sx={{ mr: 1 }} />
+                                                ) : null}
                                                 {params.InputProps.endAdornment}
                                             </>
                                         ),
@@ -894,9 +1025,13 @@ export default function WorkspaceTaskDialog({
                         />
 
                         <Stack direction={{ xs: 'column', sm: 'row' }} spacing={2}>
-                            <FormControl fullWidth>
+                            <FormControl fullWidth sx={glassInputSx}>
                                 <InputLabel>Priority</InputLabel>
-                                <Select label="Priority" value={priority} onChange={(e) => setPriority(e.target.value as Priority)}>
+                                <Select
+                                    label="Priority"
+                                    value={priority}
+                                    onChange={(e) => setPriority(e.target.value as Priority)}
+                                >
                                     <MenuItem value="urgent">Urgent</MenuItem>
                                     <MenuItem value="high">High</MenuItem>
                                     <MenuItem value="medium">Medium</MenuItem>
@@ -909,11 +1044,10 @@ export default function WorkspaceTaskDialog({
                                 value={dueDate}
                                 onChange={(d) => setDueDate(d)}
                                 format="dd.MM.yyyy"
-                                slotProps={{ textField: { fullWidth: true } }}
+                                slotProps={{ textField: { fullWidth: true, sx: glassInputSx } }}
                             />
                         </Stack>
 
-                        {/* Уже прикреплённые файлы */}
                         {!!existingAttachments.length && (
                             <Box>
                                 <Typography variant="subtitle2" sx={{ mb: 1 }}>
@@ -949,7 +1083,6 @@ export default function WorkspaceTaskDialog({
                             </Box>
                         )}
 
-                        {/* Файлы, готовые к загрузке */}
                         {!!attachments.length && (
                             <Box>
                                 <Stack direction="row" alignItems="center" spacing={1} sx={{ mb: 1 }}>
@@ -984,35 +1117,41 @@ export default function WorkspaceTaskDialog({
                             </Box>
                         )}
 
-                        {/* Зона drag & drop */}
                         <Box
                             onDragOver={onDragOver}
                             onDragLeave={onDragLeave}
                             onDrop={onDrop}
                             sx={{
-                                border: '2px dashed',
-                                borderColor: dragActive ? 'primary.main' : 'divider',
-                                borderRadius: 2,
-                                p: 2,
+                                border: '1.5px dashed',
+                                borderColor: dragActive ? 'rgba(59,130,246,0.8)' : 'rgba(148,163,184,0.5)',
+                                borderRadius: 3,
+                                p: 3,
                                 textAlign: 'center',
                                 cursor: 'pointer',
-                                bgcolor: dragActive ? 'action.hover' : 'transparent',
-                                transition: 'all 120ms ease',
+                                backgroundColor: dragActive ? 'rgba(59,130,246,0.08)' : 'rgba(255,255,255,0.7)',
+                                transition: 'all 180ms ease',
+                                boxShadow: dragActive ? '0 20px 45px rgba(15,23,42,0.15)' : 'none',
                             }}
                             onClick={openFileDialog}
                         >
-                            <CloudUploadIcon sx={{ fontSize: 36, mb: 1 }} />
-                            <Typography variant="body1">Перетащите файлы сюда или нажмите для выбора</Typography>
+                            <CloudUploadIcon sx={{ fontSize: 36, mb: 1, color: 'primary.main' }} />
+                            <Typography variant="body1">Перетащите файлы или нажмите, чтобы выбрать</Typography>
                             <Typography variant="caption" color="text.secondary">
                                 Вложения будут сохранены как <b>attachments</b> этой задачи
                             </Typography>
                             <input ref={inputRef} type="file" multiple hidden onChange={onFileInputChange} />
                         </Box>
-                    </Box>
-                </DialogContent>
+                    </Stack>
+                </Box>
 
-                <DialogActions>
-                    <Button onClick={handleClose} disabled={saving || uploading}>
+                <Divider sx={{ borderColor: 'rgba(148,163,184,0.25)' }} />
+
+                <Box sx={{ px: 3, py: 2.5, display: 'flex', justifyContent: 'flex-end', gap: 1.5 }}>
+                    <Button
+                        onClick={handleClose}
+                        disabled={saving || uploading}
+                        sx={{ borderRadius: 999, px: 3 }}
+                    >
                         Отмена
                     </Button>
                     {isEdit ? (
@@ -1020,6 +1159,12 @@ export default function WorkspaceTaskDialog({
                             onClick={handleUpdate}
                             variant="contained"
                             disabled={saving || !taskName || !bsNumber || !isLatValid || !isLngValid}
+                            sx={{
+                                borderRadius: 999,
+                                px: 3,
+                                textTransform: 'none',
+                                boxShadow: '0 20px 45px rgba(59,130,246,0.45)',
+                            }}
                         >
                             Сохранить
                         </Button>
@@ -1028,12 +1173,19 @@ export default function WorkspaceTaskDialog({
                             onClick={handleCreate}
                             variant="contained"
                             disabled={saving || uploading || !taskName || !bsNumber || !isLatValid || !isLngValid}
+                            sx={{
+                                borderRadius: 999,
+                                px: 3,
+                                textTransform: 'none',
+                                boxShadow: '0 20px 45px rgba(59,130,246,0.45)',
+                            }}
                         >
                             Создать
                         </Button>
                     )}
-                </DialogActions>
-            </Dialog>
+                </Box>
+            </Box>
+        </Drawer>
 
             {/* диалог подтверждения удаления существующего файла */}
             <Dialog open={deleteDialogOpen} onClose={cancelDeleteExisting}>

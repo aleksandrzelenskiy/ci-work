@@ -14,9 +14,10 @@ import Autocomplete from '@mui/material/Autocomplete';
 import FilterListIcon from '@mui/icons-material/FilterList';
 import PersonSearchIcon from '@mui/icons-material/PersonSearch';
 import OpenInNewIcon from '@mui/icons-material/OpenInNew';
-import EditIcon from '@mui/icons-material/Edit';
+import EditNoteOutlinedIcon from '@mui/icons-material/EditNoteOutlined';
 import DeleteOutlineIcon from '@mui/icons-material/DeleteOutline';
 
+import { useTheme } from '@mui/material/styles';
 import { getStatusColor } from '@/utils/statusColors';
 import { getPriorityIcon, getPriorityLabelRu, normalizePriority, type Priority as Pri } from '@/utils/priorityIcons';
 
@@ -146,6 +147,17 @@ const ProjectTaskList = forwardRef<ProjectTaskListHandle, ProjectTaskListProps>(
     ({ items, loading, error, org, project, onReloadAction, onFilterToggleChange }, ref) => {
 
     const router = useRouter();
+    const theme = useTheme();
+    const isDarkMode = theme.palette.mode === 'dark';
+    const menuBg = isDarkMode ? 'rgba(16,21,32,0.92)' : 'rgba(255,255,255,0.92)';
+    const menuBorder = isDarkMode ? 'rgba(255,255,255,0.08)' : 'rgba(15,23,42,0.08)';
+    const menuShadow = isDarkMode ? '0 30px 60px rgba(0,0,0,0.65)' : '0 30px 60px rgba(15,23,42,0.18)';
+    const menuText = isDarkMode ? '#f8fafc' : '#0f172a';
+    const menuIconBg = isDarkMode ? 'rgba(255,255,255,0.08)' : 'rgba(15,23,42,0.08)';
+    const menuIconDangerBg = 'rgba(239,68,68,0.12)';
+    const menuIconColor = menuText;
+    const menuIconDangerColor = '#ef4444';
+    const menuItemHover = isDarkMode ? 'rgba(255,255,255,0.08)' : 'rgba(15,23,42,0.05)';
 
     const [columnVisibility, setColumnVisibility] = useState<Record<string, boolean>>({
         taskId: true,
@@ -255,12 +267,16 @@ const ProjectTaskList = forwardRef<ProjectTaskListHandle, ProjectTaskListProps>(
     };
     const handleCloseMenu = () => setMenuPos(null);
 
-    const openTaskPage = (task: TaskWithStatus) => {
-        // если по какой-то причине taskId нет — переходим на _id
+    const openTaskPage = (task: TaskWithStatus, target: '_self' | '_blank' = '_blank') => {
         const slug = task.taskId ? task.taskId : task._id;
-        router.push(
-            `/org/${encodeURIComponent(org)}/projects/${encodeURIComponent(project)}/tasks/${encodeURIComponent(slug)}`
-        );
+        const href = `/org/${encodeURIComponent(org)}/projects/${encodeURIComponent(
+            project
+        )}/tasks/${encodeURIComponent(slug)}`;
+        if (target === '_blank' && typeof window !== 'undefined') {
+            window.open(href, '_blank', 'noopener,noreferrer');
+            return;
+        }
+        router.push(href);
     };
 
 
@@ -494,7 +510,7 @@ const ProjectTaskList = forwardRef<ProjectTaskListHandle, ProjectTaskListProps>(
                                             if (e.button !== 0) return;
                                             openTaskPage(t);
                                         }}
-                                        onContextMenu={(e) => handleContextMenu(e, t)}
+                                        onContextMenuCapture={(e) => handleContextMenu(e, t)}
                                         sx={{
                                             transition: 'background-color .15s ease',
                                             cursor: 'pointer', // теперь логичнее pointer
@@ -739,9 +755,32 @@ const ProjectTaskList = forwardRef<ProjectTaskListHandle, ProjectTaskListProps>(
                     onClose={handleCloseMenu}
                     anchorReference="anchorPosition"
                     anchorPosition={menuPos ?? undefined}
-                    slotProps={{ paper: { sx: { minWidth: 190, borderRadius: 2 } } }}
+                    slotProps={{
+                        paper: {
+                            sx: {
+                                minWidth: 220,
+                                borderRadius: 3,
+                                backgroundColor: menuBg,
+                                border: `1px solid ${menuBorder}`,
+                                boxShadow: menuShadow,
+                                backdropFilter: 'blur(18px)',
+                                px: 1,
+                                py: 0.5,
+                            },
+                        },
+                    }}
+                    MenuListProps={{ sx: { py: 0 } }}
                 >
                     <MMenuItem
+                        sx={{
+                            borderRadius: 2,
+                            color: menuText,
+                            px: 1.5,
+                            py: 1,
+                            gap: 1.5,
+                            transition: 'background-color 0.2s ease',
+                            '&:hover': { backgroundColor: menuItemHover },
+                        }}
                         onClick={() => {
                             if (selectedTask) {
                                 openTaskPage(selectedTask);
@@ -750,35 +789,91 @@ const ProjectTaskList = forwardRef<ProjectTaskListHandle, ProjectTaskListProps>(
                         }}
                     >
 
-                    <MListItemIcon>
-                            <OpenInNewIcon fontSize="small" />
+                    <MListItemIcon sx={{ minWidth: 0 }}>
+                            <Box
+                                sx={{
+                                    width: 34,
+                                    height: 34,
+                                    borderRadius: 2,
+                                    backgroundColor: menuIconBg,
+                                    display: 'inline-flex',
+                                    alignItems: 'center',
+                                    justifyContent: 'center',
+                                    color: menuIconColor,
+                                }}
+                            >
+                                <OpenInNewIcon fontSize="small" />
+                            </Box>
                         </MListItemIcon>
                         <MListItemText primary="Открыть" />
                     </MMenuItem>
 
                     <MMenuItem
+                        sx={{
+                            borderRadius: 2,
+                            color: menuText,
+                            px: 1.5,
+                            py: 1,
+                            gap: 1.5,
+                            transition: 'background-color 0.2s ease',
+                            '&:hover': { backgroundColor: menuItemHover },
+                        }}
                         onClick={() => {
                             handleEditTask();
                             handleCloseMenu();
                         }}
                     >
-                        <MListItemIcon>
-                            <EditIcon fontSize="small" />
+                        <MListItemIcon sx={{ minWidth: 0 }}>
+                            <Box
+                                sx={{
+                                    width: 34,
+                                    height: 34,
+                                    borderRadius: 2,
+                                    backgroundColor: menuIconBg,
+                                    display: 'inline-flex',
+                                    alignItems: 'center',
+                                    justifyContent: 'center',
+                                    color: menuIconColor,
+                                }}
+                            >
+                                <EditNoteOutlinedIcon fontSize="small" />
+                            </Box>
                         </MListItemIcon>
                         <MListItemText primary="Редактировать" />
                     </MMenuItem>
 
-                    <Divider />
+                    <Divider sx={{ borderColor: isDarkMode ? 'rgba(255,255,255,0.08)' : 'rgba(15,23,42,0.1)' }} />
 
                     <MMenuItem
+                        sx={{
+                            borderRadius: 2,
+                            color: menuIconDangerColor,
+                            px: 1.5,
+                            py: 1,
+                            gap: 1.5,
+                            transition: 'background-color 0.2s ease',
+                            '&:hover': { backgroundColor: menuIconDangerBg },
+                        }}
                         onClick={() => {
                             askDelete();
                             handleCloseMenu();
                         }}
-                        sx={{ color: 'error.main' }}
                     >
-                        <MListItemIcon>
-                            <DeleteOutlineIcon fontSize="small" color="error" />
+                        <MListItemIcon sx={{ minWidth: 0 }}>
+                            <Box
+                                sx={{
+                                    width: 34,
+                                    height: 34,
+                                    borderRadius: 2,
+                                    backgroundColor: menuIconDangerBg,
+                                    display: 'inline-flex',
+                                    alignItems: 'center',
+                                    justifyContent: 'center',
+                                    color: menuIconDangerColor,
+                                }}
+                            >
+                                <DeleteOutlineIcon fontSize="small" />
+                            </Box>
                         </MListItemIcon>
                         <MListItemText primary="Удалить" />
                     </MMenuItem>
