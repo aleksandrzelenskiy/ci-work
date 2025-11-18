@@ -30,9 +30,24 @@ import type {
 } from '@/app/types/notifications';
 import { NOTIFICATIONS_SOCKET_PATH } from '@/config/socket';
 
+type NotificationSocketEventMap = {
+    'notification:new': (payload: NotificationNewEventPayload) => void;
+    'notification:read': (payload: NotificationReadEventPayload) => void;
+    'notification:deleted': (payload: NotificationDeletedEventPayload) => void;
+    'notification:unread': (payload: NotificationUnreadEventPayload) => void;
+    connect: () => void;
+    connect_error: (error: unknown) => void;
+};
+
 type SocketClient = {
-    on: (event: string, listener: (...args: unknown[]) => void) => SocketClient;
-    off: (event: string, listener?: (...args: unknown[]) => void) => SocketClient;
+    on<Event extends keyof NotificationSocketEventMap>(
+        event: Event,
+        listener: NotificationSocketEventMap[Event]
+    ): SocketClient;
+    off<Event extends keyof NotificationSocketEventMap>(
+        event: Event,
+        listener?: NotificationSocketEventMap[Event]
+    ): SocketClient;
     disconnect: () => void;
 };
 
