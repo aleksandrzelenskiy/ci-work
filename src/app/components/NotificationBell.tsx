@@ -369,7 +369,6 @@ export default function NotificationBell({ buttonSx }: NotificationBellProps) {
                 const socketInstance = io({
                     path: NOTIFICATIONS_SOCKET_PATH,
                     transports: ['websocket'],
-                    withCredentials: true,
                     auth: { token },
                 });
                 socketRef.current = socketInstance;
