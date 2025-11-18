@@ -363,7 +363,8 @@ export default function NotificationBell({ buttonSx }: NotificationBellProps) {
                 if (cancelled) return;
                 const token = await fetchSocketToken();
                 if (cancelled) return;
-                const { io } = await import('socket.io-client');
+                const socketModule = await import('socket.io-client');
+                const io = socketModule.default ?? socketModule;
                 if (cancelled) return;
                 const socketInstance = io({
                     path: NOTIFICATIONS_SOCKET_PATH,
