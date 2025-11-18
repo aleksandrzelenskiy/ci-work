@@ -21,7 +21,6 @@ import NotificationsIcon from '@mui/icons-material/Notifications';
 import DeleteOutlineIcon from '@mui/icons-material/DeleteOutline';
 import dayjs from 'dayjs';
 import Link from 'next/link';
-import type { Socket as SocketClient } from 'socket.io-client';
 import type {
     NotificationDTO,
     NotificationDeletedEventPayload,
@@ -30,6 +29,12 @@ import type {
     NotificationUnreadEventPayload,
 } from '@/app/types/notifications';
 import { NOTIFICATIONS_SOCKET_PATH } from '@/config/socket';
+
+type SocketClient = {
+    on: (event: string, listener: (...args: unknown[]) => void) => SocketClient;
+    off: (event: string, listener?: (...args: unknown[]) => void) => SocketClient;
+    disconnect: () => void;
+};
 
 type NotificationsResponse =
     | {
