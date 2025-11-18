@@ -29,7 +29,6 @@ import type {
     NotificationUnreadEventPayload,
 } from '@/app/types/notifications';
 import { NOTIFICATIONS_SOCKET_PATH } from '@/config/socket';
-import type { Socket } from 'socket.io-client';
 
 type NotificationSocketEventMap = {
     'notification:new': (payload: NotificationNewEventPayload) => void;
@@ -40,7 +39,19 @@ type NotificationSocketEventMap = {
     connect_error: (error: unknown) => void;
 };
 
-type SocketClient = Socket<NotificationSocketEventMap, NotificationSocketEventMap>;
+type SocketClient = {
+    on<Event extends keyof NotificationSocketEventMap>(
+        event: Event,
+        listener: NotificationSocketEventMap[Event]
+    ): void;
+    off<Event extends keyof NotificationSocketEventMap>(
+        event: Event,
+        listener?: NotificationSocketEventMap[Event]
+    ): void;
+    disconnect: () => void;
+};
+
+type SocketConnector = (options?: Record<string, unknown>) => unknown;
 
 type NotificationsResponse =
     | {
@@ -354,8 +365,13 @@ export default function NotificationBell({ buttonSx }: NotificationBellProps) {
                 if (cancelled) return;
                 const token = await fetchSocketToken();
                 if (cancelled) return;
-                const { io, default: defaultIo } = await import('socket.io-client');
-                const socketConnector = io ?? defaultIo;
+                const socketModule = (await import('socket.io-client')) as {
+                    default?: SocketConnector;
+                    connect?: SocketConnector;
+                    io?: SocketConnector;
+                };
+                const socketConnector =
+                    socketModule.default ?? socketModule.connect ?? socketModule.io ?? null;
                 if (!socketConnector) {
                     throw new Error('Socket.io client is unavailable');
                 }
