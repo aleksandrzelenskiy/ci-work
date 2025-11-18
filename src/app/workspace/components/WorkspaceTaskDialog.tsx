@@ -798,7 +798,7 @@ export default function WorkspaceTaskDialog({
                                     {isEdit ? 'Редактировать задачу' : 'Создать задачу'}
                                 </Typography>
                                 <Typography variant="body2" color="text.secondary">
-                                    Всё, как в меню создания проекта, только для задач
+                                    Заполните данные и сохраните задачу в проекте
                                 </Typography>
                             </Box>
                         </Stack>
