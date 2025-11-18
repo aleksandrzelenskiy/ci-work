@@ -58,6 +58,15 @@ type MemberDTO = {
     status: 'active' | 'invited';
 };
 type MembersResponse = { members: MemberDTO[] } | { error: string };
+type ProjectMetaResponse =
+    | {
+          ok: true;
+          project: {
+              description?: string | null;
+              managers?: string[] | null;
+          };
+      }
+    | { error: string };
 
 export default function ProjectTasksPage() {
     const params = useParams<{ org: string; project: string }>() as {
@@ -194,14 +203,13 @@ export default function ProjectTasksPage() {
                     { cache: 'no-store' }
                 );
                 if (!res.ok) return;
-                const data = (await res.json().catch(() => null)) as
-                    | { ok: true; project: { description?: string } }
-                    | { error: string }
-                    | null;
+                const data = (await res.json().catch(() => null)) as ProjectMetaResponse | null;
                 if (!data || 'error' in data) return;
                 if (!cancelled) {
                     setProjectDescription(data.project.description ?? null);
-                    setProjectManagers(Array.isArray(data.project.managers) ? data.project.managers : []);
+                    setProjectManagers(
+                        Array.isArray(data.project.managers) ? data.project.managers : []
+                    );
                 }
             } catch {
                 // описание опционально, ошибки игнорируем
