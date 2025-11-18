@@ -7,6 +7,7 @@ export type SubscriptionTier = 'free' | 'team' | 'enterprise';
 export type BillingStatus = 'trial' | 'active' | 'past_due' | 'canceled';
 
 export interface IUser extends Document {
+    _id: Types.ObjectId;
     name: string;
     phone?: string;
     email: string;
