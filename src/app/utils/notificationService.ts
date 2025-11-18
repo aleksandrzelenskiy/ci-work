@@ -100,13 +100,13 @@ export async function fetchNotificationsForUser(
     limit = 20,
     skip = 0
 ): Promise<NotificationDTO[]> {
-    const docs = await NotificationModel.find({
+    const docs = (await NotificationModel.find({
         recipientUserId: toObjectId(recipientUserId),
     })
         .sort({ createdAt: -1 })
         .skip(skip)
         .limit(limit)
-        .lean<NotificationLeanDoc>();
+        .lean()) as NotificationLeanDoc[];
 
     return docs.map((doc) => mapNotificationToDTO(doc));
 }
