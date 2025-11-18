@@ -29,8 +29,7 @@ import type {
     NotificationUnreadEventPayload,
 } from '@/app/types/notifications';
 import { NOTIFICATIONS_SOCKET_PATH } from '@/config/socket';
-import type { Socket } from 'socket.io-client/build/esm/socket';
-import type { default as SocketConnector } from 'socket.io-client/build/esm/index';
+import type { Socket } from 'socket.io-client';
 
 type NotificationSocketEventMap = {
     'notification:new': (payload: NotificationNewEventPayload) => void;
@@ -42,6 +41,11 @@ type NotificationSocketEventMap = {
 };
 
 type SocketClient = Socket<NotificationSocketEventMap, NotificationSocketEventMap>;
+type SocketModule = typeof import('socket.io-client');
+type SocketConnector =
+    | SocketModule['io']
+    | SocketModule['connect']
+    | SocketModule['default'];
 
 type NotificationsResponse =
     | {
@@ -355,18 +359,14 @@ export default function NotificationBell({ buttonSx }: NotificationBellProps) {
                 if (cancelled) return;
                 const token = await fetchSocketToken();
                 if (cancelled) return;
-                const socketModule = (await import('socket.io-client')) as {
-                    default?: SocketConnector;
-                    io?: SocketConnector;
-                    connect?: SocketConnector;
-                };
+                const socketModule = (await import('socket.io-client')) as SocketModule;
                 const socketConnector =
                     socketModule.io ?? socketModule.connect ?? socketModule.default ?? null;
                 if (!socketConnector) {
                     throw new Error('Socket.io client is unavailable');
                 }
                 if (cancelled) return;
-                const socketInstance = socketConnector({
+                const socketInstance = (socketConnector as SocketConnector)({
                     path: NOTIFICATIONS_SOCKET_PATH,
                     transports: ['websocket'],
                     auth: { token },
