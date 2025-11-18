@@ -360,8 +360,8 @@ export default function NotificationBell({ buttonSx }: NotificationBellProps) {
                 const token = await fetchSocketToken();
                 if (cancelled) return;
                 const socketModule = (await import('socket.io-client')) as SocketModule;
-                const socketConnector =
-                    socketModule.io ?? socketModule.connect ?? socketModule.default ?? null;
+                const { io, connect, default: defaultConnector } = socketModule;
+                const socketConnector = io ?? connect ?? defaultConnector ?? null;
                 if (!socketConnector) {
                     throw new Error('Socket.io client is unavailable');
                 }
@@ -369,6 +369,7 @@ export default function NotificationBell({ buttonSx }: NotificationBellProps) {
                 const socketInstance = (socketConnector as SocketConnector)({
                     path: NOTIFICATIONS_SOCKET_PATH,
                     transports: ['websocket'],
+                    withCredentials: true,
                     auth: { token },
                 }) as SocketClient;
                 socketRef.current = socketInstance;
