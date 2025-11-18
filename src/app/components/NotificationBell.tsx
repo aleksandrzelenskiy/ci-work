@@ -368,7 +368,7 @@ export default function NotificationBell({ buttonSx }: NotificationBellProps) {
                 if (cancelled) return;
                 const socketInstance = (socketConnector as SocketConnector)({
                     path: NOTIFICATIONS_SOCKET_PATH,
-                    transports: ['websocket'],
+                    transports: ['websocket', 'polling'],
                     withCredentials: true,
                     auth: { token },
                 }) as SocketClient;
