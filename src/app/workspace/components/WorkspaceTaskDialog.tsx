@@ -879,14 +879,17 @@ export default function WorkspaceTaskDialog({
                                     }}
                                 />
                             )}
-                            renderOption={(props, option) => (
-                                <li {...props} key={option.id}>
-                                    <Avatar src={option.profilePic} alt={option.name} sx={{ width: 24, height: 24, mr: 1 }}>
-                                        {(option.name || option.email)?.[0]?.toUpperCase() ?? 'U'}
-                                    </Avatar>
-                                    <ListItemText primary={option.name} secondary={option.email} />
-                                </li>
-                            )}
+                            renderOption={(props, option) => {
+                                const { key, ...optionProps } = props;
+                                return (
+                                    <li {...optionProps} key={key}>
+                                        <Avatar src={option.profilePic} alt={option.name} sx={{ width: 24, height: 24, mr: 1 }}>
+                                            {(option.name || option.email)?.[0]?.toUpperCase() ?? 'U'}
+                                        </Avatar>
+                                        <ListItemText primary={option.name} secondary={option.email} />
+                                    </li>
+                                );
+                            }}
                             isOptionEqualToValue={(opt, val) => opt.id === val.id}
                         />
 

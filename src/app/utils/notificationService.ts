@@ -7,6 +7,7 @@ import type {
     NotificationKind,
     NotificationStatus,
 } from '@/app/types/notifications';
+import { notificationSocketGateway } from '@/server/socket/notificationSocket';
 
 type ObjectIdLike = Types.ObjectId | string;
 
@@ -79,7 +80,7 @@ export async function createNotification({
     senderEmail,
     metadata,
 }: CreateNotificationParams) {
-    return NotificationModel.create({
+    const created = await NotificationModel.create({
         recipientUserId: toObjectId(recipientUserId),
         type,
         title,
@@ -93,6 +94,20 @@ export async function createNotification({
         senderEmail,
         metadata,
     });
+
+    const recipientId = created.recipientUserId.toString();
+    try {
+        const dto = mapNotificationToDTO(created.toObject() as NotificationLeanDoc);
+        const unreadCount = await countUnreadNotifications(created.recipientUserId);
+        notificationSocketGateway.emitNewNotification(recipientId, {
+            notification: dto,
+            unreadCount,
+        });
+    } catch (error) {
+        console.error('notifications realtime:createNotification', error);
+    }
+
+    return created;
 }
 
 export async function fetchNotificationsForUser(
@@ -128,8 +143,9 @@ export async function markNotificationsAsRead(
     recipientUserId: ObjectIdLike,
     notificationIds?: string[]
 ) {
+    const targetUserId = toObjectId(recipientUserId);
     const filter: Record<string, unknown> = {
-        recipientUserId: toObjectId(recipientUserId),
+        recipientUserId: targetUserId,
         status: 'unread',
     };
 
@@ -143,6 +159,18 @@ export async function markNotificationsAsRead(
         $set: { status: 'read', readAt: new Date() },
     });
 
+    if (res.modifiedCount > 0) {
+        try {
+            const unreadCount = await countUnreadNotifications(targetUserId);
+            notificationSocketGateway.emitNotificationsMarkedAsRead(targetUserId.toString(), {
+                notificationIds,
+                unreadCount,
+            });
+        } catch (error) {
+            console.error('notifications realtime:markAsRead', error);
+        }
+    }
+
     return res.modifiedCount;
 }
 
@@ -150,8 +178,9 @@ export async function deleteNotifications(
     recipientUserId: ObjectIdLike,
     notificationIds?: string[]
 ) {
+    const targetUserId = toObjectId(recipientUserId);
     const filter: Record<string, unknown> = {
-        recipientUserId: toObjectId(recipientUserId),
+        recipientUserId: targetUserId,
     };
 
     if (notificationIds && notificationIds.length > 0) {
@@ -161,5 +190,18 @@ export async function deleteNotifications(
     }
 
     const res = await NotificationModel.deleteMany(filter);
+
+    if (res.deletedCount > 0) {
+        try {
+            const unreadCount = await countUnreadNotifications(targetUserId);
+            notificationSocketGateway.emitNotificationsDeleted(targetUserId.toString(), {
+                notificationIds,
+                unreadCount,
+            });
+        } catch (error) {
+            console.error('notifications realtime:delete', error);
+        }
+    }
+
     return res.deletedCount;
 }

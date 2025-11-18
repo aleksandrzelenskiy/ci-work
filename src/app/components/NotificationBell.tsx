@@ -21,7 +21,15 @@ import NotificationsIcon from '@mui/icons-material/Notifications';
 import DeleteOutlineIcon from '@mui/icons-material/DeleteOutline';
 import dayjs from 'dayjs';
 import Link from 'next/link';
-import type { NotificationDTO } from '@/app/types/notifications';
+import type { Socket } from 'socket.io-client';
+import type {
+    NotificationDTO,
+    NotificationDeletedEventPayload,
+    NotificationNewEventPayload,
+    NotificationReadEventPayload,
+    NotificationUnreadEventPayload,
+} from '@/app/types/notifications';
+import { NOTIFICATIONS_SOCKET_PATH } from '@/config/socket';
 
 type NotificationsResponse =
     | {
@@ -89,6 +97,22 @@ type NotificationBellProps = {
 
 const PAGE_SIZE = 10;
 
+const fetchSocketToken = async (): Promise<string> => {
+    const res = await fetch('/api/notifications/socket-auth', {
+        method: 'GET',
+        cache: 'no-store',
+    });
+    const payload = (await res.json().catch(() => ({}))) as {
+        ok?: boolean;
+        token?: string;
+        error?: string;
+    };
+    if (!res.ok || payload.ok !== true || !payload.token) {
+        throw new Error(payload.error || 'Не удалось получить токен сокета');
+    }
+    return payload.token;
+};
+
 export default function NotificationBell({ buttonSx }: NotificationBellProps) {
     const [anchorEl, setAnchorEl] = React.useState<null | HTMLElement>(null);
     const [notifications, setNotifications] = React.useState<NotificationDTO[]>([]);
@@ -100,6 +124,8 @@ export default function NotificationBell({ buttonSx }: NotificationBellProps) {
     const [page, setPage] = React.useState(1);
     const [hasMore, setHasMore] = React.useState(false);
     const [loadingMore, setLoadingMore] = React.useState(false);
+    const [realtimeError, setRealtimeError] = React.useState<string | null>(null);
+    const socketRef = React.useRef<Socket | null>(null);
 
     const open = Boolean(anchorEl);
 
@@ -213,6 +239,150 @@ export default function NotificationBell({ buttonSx }: NotificationBellProps) {
         }
     };
 
+    const handleRealtimeNewNotification = React.useCallback(
+        (payload: NotificationNewEventPayload) => {
+            setNotifications((prev) => {
+                const existingIndex = prev.findIndex(
+                    (notification) => notification.id === payload.notification.id
+                );
+                if (existingIndex >= 0) {
+                    const next = [...prev];
+                    next[existingIndex] = payload.notification;
+                    if (existingIndex > 0) {
+                        next.splice(existingIndex, 1);
+                        next.unshift(payload.notification);
+                    }
+                    return next;
+                }
+                return [payload.notification, ...prev];
+            });
+            setUnreadCount(payload.unreadCount);
+            setRealtimeError(null);
+        },
+        []
+    );
+
+    const handleRealtimeMarkedAsRead = React.useCallback(
+        (payload: NotificationReadEventPayload) => {
+            setNotifications((prev) => {
+                if (!payload.notificationIds || payload.notificationIds.length === 0) {
+                    return prev.map((notification) => ({
+                        ...notification,
+                        status: 'read',
+                    }));
+                }
+                const ids = new Set(payload.notificationIds);
+                return prev.map((notification) =>
+                    ids.has(notification.id)
+                        ? {
+                              ...notification,
+                              status: 'read',
+                          }
+                        : notification
+                );
+            });
+            setUnreadCount(payload.unreadCount);
+        },
+        []
+    );
+
+    const handleRealtimeDeleted = React.useCallback(
+        (payload: NotificationDeletedEventPayload) => {
+            setNotifications((prev) => {
+                if (!payload.notificationIds || payload.notificationIds.length === 0) {
+                    return [];
+                }
+                const ids = new Set(payload.notificationIds);
+                return prev.filter((notification) => !ids.has(notification.id));
+            });
+
+            setPendingDeletes((prev) => {
+                if (!payload.notificationIds || payload.notificationIds.length === 0) {
+                    return {};
+                }
+                const next = { ...prev };
+                payload.notificationIds.forEach((id) => {
+                    delete next[id];
+                });
+                return next;
+            });
+
+            setUnreadCount(payload.unreadCount);
+        },
+        []
+    );
+
+    const handleRealtimeUnreadSummary = React.useCallback(
+        (payload: NotificationUnreadEventPayload) => {
+            setUnreadCount(payload.unreadCount);
+        },
+        []
+    );
+
+    React.useEffect(() => {
+        let cancelled = false;
+
+        const detachSocket = () => {
+            if (!socketRef.current) {
+                return;
+            }
+            socketRef.current.off('notification:new', handleRealtimeNewNotification);
+            socketRef.current.off('notification:read', handleRealtimeMarkedAsRead);
+            socketRef.current.off('notification:deleted', handleRealtimeDeleted);
+            socketRef.current.off('notification:unread', handleRealtimeUnreadSummary);
+            socketRef.current.off('connect_error');
+            socketRef.current.off('connect');
+            socketRef.current.disconnect();
+            socketRef.current = null;
+        };
+
+        const connectSocket = async () => {
+            try {
+                setRealtimeError(null);
+                await fetch('/api/socket', { cache: 'no-store' });
+                if (cancelled) return;
+                const token = await fetchSocketToken();
+                if (cancelled) return;
+                const { io } = await import('socket.io-client');
+                if (cancelled) return;
+                const socketInstance = io({
+                    path: NOTIFICATIONS_SOCKET_PATH,
+                    transports: ['websocket'],
+                    withCredentials: true,
+                    auth: { token },
+                });
+                socketRef.current = socketInstance;
+
+                socketInstance.on('notification:new', handleRealtimeNewNotification);
+                socketInstance.on('notification:read', handleRealtimeMarkedAsRead);
+                socketInstance.on('notification:deleted', handleRealtimeDeleted);
+                socketInstance.on('notification:unread', handleRealtimeUnreadSummary);
+                socketInstance.on('connect', () => setRealtimeError(null));
+                socketInstance.on('connect_error', (error) => {
+                    console.error('notifications socket connect_error', error);
+                    setRealtimeError('Не удалось подключиться к уведомлениям.');
+                });
+            } catch (error) {
+                if (!cancelled) {
+                    console.error('notifications socket init failed', error);
+                    setRealtimeError('Не удалось подключиться к уведомлениям.');
+                }
+            }
+        };
+
+        connectSocket();
+
+        return () => {
+            cancelled = true;
+            detachSocket();
+        };
+    }, [
+        handleRealtimeDeleted,
+        handleRealtimeMarkedAsRead,
+        handleRealtimeNewNotification,
+        handleRealtimeUnreadSummary,
+    ]);
+
     return (
         <>
             <IconButton
@@ -253,11 +423,18 @@ export default function NotificationBell({ buttonSx }: NotificationBellProps) {
                     <Typography variant='h6'>Уведомления</Typography>
                 </Box>
                 <Divider />
-                {actionError && (
+                {(actionError || realtimeError) && (
                     <Box sx={{ px: 2, py: 1 }}>
-                        <Typography variant='caption' color='error'>
-                            {actionError}
-                        </Typography>
+                        {actionError && (
+                            <Typography variant='caption' color='error'>
+                                {actionError}
+                            </Typography>
+                        )}
+                        {realtimeError && (
+                            <Typography variant='caption' color='error'>
+                                {realtimeError}
+                            </Typography>
+                        )}
                     </Box>
                 )}
                 <Box sx={{ minHeight: 200 }}>

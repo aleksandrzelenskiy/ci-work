@@ -23,3 +23,29 @@ export interface NotificationDTO {
     senderEmail?: string;
     metadata?: Record<string, unknown>;
 }
+
+export interface NotificationNewEventPayload {
+    notification: NotificationDTO;
+    unreadCount: number;
+}
+
+interface NotificationRealtimeEventBase {
+    unreadCount: number;
+}
+
+export interface NotificationReadEventPayload extends NotificationRealtimeEventBase {
+    notificationIds?: string[];
+}
+
+export interface NotificationDeletedEventPayload extends NotificationRealtimeEventBase {
+    notificationIds?: string[];
+}
+
+export type NotificationUnreadEventPayload = NotificationRealtimeEventBase;
+
+export type NotificationServerToClientEvents = {
+    'notification:new': (payload: NotificationNewEventPayload) => void;
+    'notification:read': (payload: NotificationReadEventPayload) => void;
+    'notification:deleted': (payload: NotificationDeletedEventPayload) => void;
+    'notification:unread': (payload: NotificationUnreadEventPayload) => void;
+};
