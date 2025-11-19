@@ -480,6 +480,16 @@ export default function ProjectTasksPage() {
         return primaryManagerRaw;
     }, [primaryManagerRaw, membersByEmail]);
 
+    const userProfilesForList = React.useMemo(() => {
+        const record: Record<string, { name?: string; profilePic?: string }> = {};
+        for (const [email, member] of Object.entries(membersByEmail)) {
+            record[email] = {
+                name: member.userName ?? member.userEmail,
+            };
+        }
+        return record;
+    }, [membersByEmail]);
+
     return (
         <Box
             sx={{
@@ -864,18 +874,18 @@ export default function ProjectTasksPage() {
                     </Tabs>
 
                     {tab === 'list' && (
-                    <ProjectTaskList
-                        ref={taskListRef}
-                        items={filteredItems}
-                        loading={loading}
-                        error={error}
-                        org={orgSlug || ''}
-                        project={projectRef || ''}
-                        onReloadAction={() => {
-                            void load();
-                        }}
-                        userProfiles={membersByEmail}
-                    />
+                        <ProjectTaskList
+                            ref={taskListRef}
+                            items={filteredItems}
+                            loading={loading}
+                            error={error}
+                            org={orgSlug || ''}
+                            project={projectRef || ''}
+                            onReloadAction={() => {
+                                void load();
+                            }}
+                            userProfiles={userProfilesForList}
+                        />
                     )}
 
                     {tab === 'board' && (
