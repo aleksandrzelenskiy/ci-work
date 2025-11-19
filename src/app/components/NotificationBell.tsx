@@ -107,6 +107,25 @@ const markAllNotificationsAsRead = async () => {
 const formatTimestamp = (value: string) =>
     dayjs(value).isValid() ? dayjs(value).format('DD.MM.YYYY HH:mm') : value;
 
+const getNotificationLink = (notification: NotificationDTO) => {
+    if (notification.type === 'task_assigned') {
+        const metadataTaskId = notification.metadata?.taskId;
+        const rawTaskId =
+            typeof metadataTaskId === 'string'
+                ? metadataTaskId
+                : Array.isArray(metadataTaskId) && typeof metadataTaskId[0] === 'string'
+                  ? metadataTaskId[0]
+                  : metadataTaskId
+                    ? String(metadataTaskId)
+                    : null;
+        if (rawTaskId) {
+            return `/tasks/${encodeURIComponent(rawTaskId.toLowerCase())}`;
+        }
+    }
+
+    return notification.link;
+};
+
 type NotificationBellProps = {
     buttonSx?: SxProps<Theme>;
 };
@@ -485,8 +504,10 @@ export default function NotificationBell({ buttonSx }: NotificationBellProps) {
                     ) : (
                         <>
                             <List dense disablePadding>
-                                {notifications.map((notification) => (
-                                    <React.Fragment key={notification.id}>
+                                {notifications.map((notification) => {
+                                    const resolvedLink = getNotificationLink(notification);
+                                    return (
+                                        <React.Fragment key={notification.id}>
                                         <ListItem
                                             alignItems='flex-start'
                                             sx={{
@@ -569,12 +590,10 @@ export default function NotificationBell({ buttonSx }: NotificationBellProps) {
                                                                         notification.createdAt
                                                                     )}
                                                                 </Typography>
-                                                                {notification.link && (
+                                                                {resolvedLink && (
                                                                     <Button
                                                                         component={Link}
-                                                                        href={
-                                                                            notification.link
-                                                                        }
+                                                                        href={resolvedLink}
                                                                         onClick={handleClose}
                                                                         size='small'
                                                                         sx={{
@@ -611,8 +630,9 @@ export default function NotificationBell({ buttonSx }: NotificationBellProps) {
                                             </Box>
                                         </ListItem>
                                         <Divider component='li' />
-                                    </React.Fragment>
-                                ))}
+                                        </React.Fragment>
+                                    );
+                                })}
                             </List>
                             {hasMore && (
                                 <>
