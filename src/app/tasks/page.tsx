@@ -16,8 +16,16 @@ import {
     Tooltip,
     Popover,
     InputAdornment,
+    Button,
+    FormControl,
+    InputLabel,
+    Select,
+    MenuItem,
 } from '@mui/material';
+import Autocomplete from '@mui/material/Autocomplete';
+import type { SelectChangeEvent } from '@mui/material/Select';
 import { useTheme } from '@mui/material/styles';
+import { useSearchParams } from 'next/navigation';
 import RefreshIcon from '@mui/icons-material/Refresh';
 import SearchIcon from '@mui/icons-material/Search';
 import FilterListIcon from '@mui/icons-material/FilterList';
@@ -28,21 +36,50 @@ import TaskListPage, { TaskListPageHandle } from '../components/TaskListPage';
 import TaskColumnPage from '../components/TaskColumnPage';
 import { fetchUserContext, resolveRoleFromContext } from '@/app/utils/userContext';
 import type { EffectiveOrgRole } from '@/app/types/roles';
+import { defaultTaskFilters, type TaskFilterOptions, type TaskFilters } from '@/app/types/taskFilters';
+import { getPriorityLabelRu } from '@/utils/priorityIcons';
 
 type ViewMode = 'table' | 'kanban';
+
+const STATUS_LABELS_RU: Record<string, string> = {
+    'To do': 'К выполнению',
+    Assigned: 'Назначена',
+    'At work': 'В работе',
+    Pending: 'На проверке',
+    Issues: 'Есть замечания',
+    Done: 'Выполнено',
+    Agreed: 'Согласовано',
+    Cancelled: 'Отменено',
+    Fixed: 'Исправлено',
+};
+
+const getStatusLabelRu = (status: string) => STATUS_LABELS_RU[status] ?? status;
 
 export default function TasksPage() {
     const [tab, setTab] = useState<ViewMode>('table');
     const [searchQuery, setSearchQuery] = useState('');
     const [refreshToken, setRefreshToken] = useState(0);
     const [searchAnchor, setSearchAnchor] = useState<HTMLElement | null>(null);
+    const [filterAnchor, setFilterAnchor] = useState<HTMLElement | null>(null);
     const taskListRef = useRef<TaskListPageHandle>(null);
-    const [listFiltersVisible, setListFiltersVisible] = useState(false);
+    const [filters, setFilters] = useState<TaskFilters>(defaultTaskFilters);
+    const [filterOptions, setFilterOptions] = useState<TaskFilterOptions>({
+        managers: [],
+        statuses: [],
+        priorities: [],
+    });
     const [userRole, setUserRole] = useState<EffectiveOrgRole | null>(null);
     const [roleLoading, setRoleLoading] = useState(true);
     const [roleError, setRoleError] = useState<string | null>(null);
+    const searchParams = useSearchParams();
 
     const searchOpen = Boolean(searchAnchor);
+    const filterOpen = Boolean(filterAnchor);
+    const hasActiveFilters = Boolean(filters.manager || filters.status || filters.priority);
+    const activeFilterCount =
+        Number(Boolean(filters.manager)) +
+        Number(Boolean(filters.status)) +
+        Number(Boolean(filters.priority));
     const isExecutor = userRole === 'executor';
     const theme = useTheme();
     const isDarkMode = theme.palette.mode === 'dark';
@@ -61,10 +98,19 @@ export default function TasksPage() {
     const iconText = textPrimary;
     const iconActiveBg = isDarkMode ? 'rgba(59,130,246,0.4)' : 'rgba(15,23,42,0.9)';
     const iconActiveText = '#ffffff';
-    const disabledIconColor = isDarkMode ? 'rgba(148,163,184,0.7)' : 'rgba(15,23,42,0.35)';
     const tabActiveBg = isDarkMode ? 'rgba(255,255,255,0.08)' : 'rgba(255,255,255,0.9)';
     const tabInactiveColor = isDarkMode ? 'rgba(226,232,240,0.65)' : 'rgba(15,23,42,0.55)';
     const tabBorderColor = isDarkMode ? 'rgba(255,255,255,0.1)' : 'rgba(15,23,42,0.08)';
+
+    useEffect(() => {
+        const statusParam = searchParams?.get('status');
+        if (statusParam) {
+            setFilters((prev) => {
+                if (prev.status === statusParam) return prev;
+                return { ...prev, status: statusParam };
+            });
+        }
+    }, [searchParams]);
 
     useEffect(() => {
         let active = true;
@@ -124,10 +170,38 @@ export default function TasksPage() {
         handleSearchClose();
     };
 
-    const handleFilterToggle = useCallback(() => {
-        if (tab !== 'table') return;
-        taskListRef.current?.toggleFilters();
-    }, [tab]);
+    const handleFilterButtonClick = (event: MouseEvent<HTMLElement>) => {
+        if (filterAnchor && event.currentTarget === filterAnchor) {
+            setFilterAnchor(null);
+            return;
+        }
+        setFilterAnchor(event.currentTarget);
+    };
+
+    const handleFilterClose = () => {
+        setFilterAnchor(null);
+    };
+
+    const handleFilterReset = () => {
+        setFilters({ ...defaultTaskFilters });
+    };
+
+    const handleManagerFilterChange = (_event: unknown, value: string | null) => {
+        setFilters((prev) => ({ ...prev, manager: value }));
+    };
+
+    const handleSelectFilterChange =
+        (key: 'status' | 'priority') =>
+        (event: SelectChangeEvent) => {
+            const value = event.target.value;
+            setFilters((prev) => ({
+                ...prev,
+                [key]: typeof value === 'string' ? value : '',
+            }));
+        };
+
+    const handleStatusFilterChange = handleSelectFilterChange('status');
+    const handlePriorityFilterChange = handleSelectFilterChange('priority');
 
     const handleColumnsClick = useCallback(
         (event: MouseEvent<HTMLElement>) => {
@@ -136,12 +210,6 @@ export default function TasksPage() {
         },
         [tab]
     );
-
-    useEffect(() => {
-        if (tab !== 'table' && listFiltersVisible) {
-            setListFiltersVisible(false);
-        }
-    }, [tab, listFiltersVisible]);
 
     if (roleLoading) {
         return (
@@ -176,7 +244,7 @@ export default function TasksPage() {
             sx={{
                 minHeight: '100%',
                 py: { xs: 4, md: 6 },
-                px: { xs: 2, md: 6 },
+                px: { xs: 0.25, md: 6 },
             }}
         >
             <Box sx={{ maxWidth: 1200, mx: 'auto', width: '100%' }}>
@@ -235,51 +303,26 @@ export default function TasksPage() {
                                     <SearchIcon />
                                 </IconButton>
                             </Tooltip>
-                            <Tooltip
-                                title={
-                                    tab === 'table'
-                                        ? listFiltersVisible
-                                            ? 'Скрыть фильтры'
-                                            : 'Показать фильтры'
-                                        : 'Фильтры доступны только в списке'
-                                }
-                            >
-                                <span>
-                                    <IconButton
-                                        disabled={tab !== 'table'}
-                                        onClick={handleFilterToggle}
-                                        sx={{
-                                            borderRadius: '16px',
-                                            border: `1px solid ${tab !== 'table' ? 'transparent' : iconBorderColor}`,
-                                            color:
-                                                tab !== 'table'
-                                                    ? disabledIconColor
-                                                    : listFiltersVisible
-                                                    ? iconActiveText
-                                                    : iconText,
+                            <Tooltip title="Фильтры задач">
+                                <IconButton
+                                    onClick={handleFilterButtonClick}
+                                    sx={{
+                                        borderRadius: '16px',
+                                        border: `1px solid ${iconBorderColor}`,
+                                        color: filterOpen || hasActiveFilters ? iconActiveText : iconText,
+                                        backgroundColor: filterOpen || hasActiveFilters ? iconActiveBg : iconBg,
+                                        boxShadow: iconShadow,
+                                        backdropFilter: 'blur(14px)',
+                                        transition: 'all 0.2s ease',
+                                        '&:hover': {
+                                            transform: 'translateY(-2px)',
                                             backgroundColor:
-                                                tab !== 'table'
-                                                    ? 'transparent'
-                                                    : listFiltersVisible
-                                                    ? iconActiveBg
-                                                    : iconBg,
-                                            boxShadow: tab !== 'table' ? 'none' : iconShadow,
-                                            backdropFilter: 'blur(14px)',
-                                            transition: 'all 0.2s ease',
-                                            '&:hover': {
-                                                transform: tab !== 'table' ? 'none' : 'translateY(-2px)',
-                                                backgroundColor:
-                                                    tab !== 'table'
-                                                        ? 'transparent'
-                                                        : listFiltersVisible
-                                                        ? iconActiveBg
-                                                        : iconHoverBg,
-                                            },
-                                        }}
-                                    >
-                                        <FilterListIcon />
-                                    </IconButton>
-                                </span>
+                                                filterOpen || hasActiveFilters ? iconActiveBg : iconHoverBg,
+                                        },
+                                    }}
+                                >
+                                    <FilterListIcon />
+                                </IconButton>
                             </Tooltip>
                             {tab === 'table' && (
                                 <Tooltip title="Настроить колонки">
@@ -372,6 +415,88 @@ export default function TasksPage() {
                 </Box>
             </Popover>
 
+            <Popover
+                open={filterOpen}
+                anchorEl={filterAnchor}
+                onClose={handleFilterClose}
+                anchorOrigin={{ vertical: 'bottom', horizontal: 'left' }}
+                transformOrigin={{ vertical: 'top', horizontal: 'left' }}
+                PaperProps={{
+                    sx: {
+                        borderRadius: 3,
+                        border: `1px solid ${isDarkMode ? 'rgba(255,255,255,0.08)' : 'rgba(255,255,255,0.65)'}`,
+                        backgroundColor: isDarkMode ? 'rgba(15,18,28,0.95)' : 'rgba(255,255,255,0.9)',
+                        boxShadow: isDarkMode ? '0 25px 70px rgba(0,0,0,0.6)' : '0 25px 70px rgba(15,23,42,0.15)',
+                        backdropFilter: 'blur(18px)',
+                    },
+                }}
+            >
+                <Box sx={{ p: 2, width: 320, display: 'flex', flexDirection: 'column', gap: 2 }}>
+                    <Autocomplete
+                        options={filterOptions.managers}
+                        value={filters.manager}
+                        onChange={handleManagerFilterChange}
+                        clearOnEscape
+                        handleHomeEndKeys
+                        renderInput={(params) => (
+                            <TextField {...params} label="Менеджер" size="small" />
+                        )}
+                        fullWidth
+                    />
+                    <FormControl fullWidth size="small">
+                        <InputLabel>Статус</InputLabel>
+                        <Select
+                            label="Статус"
+                            value={filters.status}
+                            onChange={handleStatusFilterChange}
+                        >
+                            <MenuItem value="">
+                                <em>Все</em>
+                            </MenuItem>
+                            {filterOptions.statuses
+                                .filter((status): status is string => Boolean(status))
+                                .map((status) => (
+                                    <MenuItem key={status} value={status}>
+                                        {getStatusLabelRu(status)}
+                                    </MenuItem>
+                                ))}
+                        </Select>
+                    </FormControl>
+                    <FormControl fullWidth size="small">
+                        <InputLabel>Приоритет</InputLabel>
+                        <Select
+                            label="Приоритет"
+                            value={filters.priority}
+                            onChange={handlePriorityFilterChange}
+                        >
+                            <MenuItem value="">
+                                <em>Все</em>
+                            </MenuItem>
+                            {filterOptions.priorities
+                                .filter((priority): priority is string => Boolean(priority))
+                                .map((priority) => (
+                                    <MenuItem key={priority} value={priority}>
+                                        {getPriorityLabelRu(priority)}
+                                    </MenuItem>
+                                ))}
+                        </Select>
+                    </FormControl>
+                    {hasActiveFilters && (
+                        <Typography variant="caption" color="text.secondary">
+                            Активные фильтры: {activeFilterCount}
+                        </Typography>
+                    )}
+                    <Stack direction="row" justifyContent="space-between" spacing={1}>
+                        <Button size="small" onClick={handleFilterReset} color="secondary">
+                            Сбросить
+                        </Button>
+                        <Button size="small" variant="contained" onClick={handleFilterClose}>
+                            Готово
+                        </Button>
+                    </Stack>
+                </Box>
+            </Popover>
+
             <Paper
                 variant="outlined"
                 sx={{
@@ -444,13 +569,15 @@ export default function TasksPage() {
                             searchQuery={searchQuery}
                             refreshToken={refreshToken}
                             hideToolbarControls
-                            onFilterToggleChange={setListFiltersVisible}
+                            filters={filters}
+                            onFilterOptionsChange={setFilterOptions}
                         />
                     )}
                     {tab === 'kanban' && (
                         <TaskColumnPage
                             searchQuery={searchQuery}
                             refreshToken={refreshToken}
+                            filters={filters}
                         />
                     )}
                 </Paper>

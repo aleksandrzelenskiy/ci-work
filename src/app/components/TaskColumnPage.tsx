@@ -31,6 +31,7 @@ import { getStatusColor } from '@/utils/statusColors';
 import { fetchUserContext, resolveRoleFromContext } from '@/app/utils/userContext';
 import type { EffectiveOrgRole } from '@/app/types/roles';
 import { isAdminRole } from '@/app/utils/roleGuards';
+import { defaultTaskFilters, type TaskFilters } from '@/app/types/taskFilters';
 
 // Формат dd.mm.yyyy (ru-RU)
 const formatDateRU = (value?: Date | string) => {
@@ -73,10 +74,13 @@ type CurrentStatus =
   | 'Fixed'
   | 'Agreed';
 
+const getAuthorIdentifier = (task: Task) => ((task.authorName || task.authorEmail)?.trim() || '');
+
 interface TaskColumnPageProps {
   searchQuery?: string;
   projectFilter?: string;
   refreshToken?: number;
+  filters?: TaskFilters;
 }
 
 function DraggableTask({ task, role }: { task: Task; role: EffectiveOrgRole | null }) {
@@ -260,6 +264,7 @@ export default function TaskColumnPage({
   searchQuery = '',
   projectFilter = '',
   refreshToken = 0,
+  filters = defaultTaskFilters,
 }: TaskColumnPageProps) {
   const [tasks, setTasks] = useState<Task[]>([]);
   const [loading, setLoading] = useState(true);
@@ -331,10 +336,22 @@ export default function TaskColumnPage({
 
   const normalizedSearch = searchQuery.trim().toLowerCase();
   const normalizedProject = projectFilter.trim().toLowerCase();
+  const managerFilter = filters.manager;
+  const statusFilter = filters.status;
+  const priorityFilter = filters.priority;
 
   const filteredTasks = useMemo(() => {
     let result = tasks;
 
+    if (managerFilter) {
+      result = result.filter((task) => getAuthorIdentifier(task) === managerFilter);
+    }
+    if (statusFilter) {
+      result = result.filter((task) => task.status === statusFilter);
+    }
+    if (priorityFilter) {
+      result = result.filter((task) => task.priority === priorityFilter);
+    }
     if (normalizedProject) {
       result = result.filter(
         (task) => (task.projectKey || '').toLowerCase() === normalizedProject
@@ -358,7 +375,7 @@ export default function TaskColumnPage({
     }
 
     return result;
-  }, [tasks, normalizedSearch, normalizedProject]);
+  }, [tasks, normalizedProject, normalizedSearch, managerFilter, statusFilter, priorityFilter]);
 
   if (loading)
     return (

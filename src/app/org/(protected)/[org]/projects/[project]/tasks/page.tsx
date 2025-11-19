@@ -17,6 +17,11 @@ import {
     InputAdornment,
     Tooltip,
     Popover,
+    Autocomplete,
+    FormControl,
+    InputLabel,
+    Select,
+    MenuItem,
 } from '@mui/material';
 import { useTheme } from '@mui/material/styles';
 import AddTaskIcon from '@mui/icons-material/AddTask';
@@ -26,11 +31,20 @@ import CloseIcon from '@mui/icons-material/Close';
 import FilterListIcon from '@mui/icons-material/FilterList';
 import ViewColumnOutlinedIcon from '@mui/icons-material/ViewColumnOutlined';
 import DriveFileMoveOutlinedIcon from '@mui/icons-material/DriveFileMoveOutlined';
+import type { SelectChangeEvent } from '@mui/material/Select';
+import { LocalizationProvider } from '@mui/x-date-pickers/LocalizationProvider';
+import { AdapterDateFns } from '@mui/x-date-pickers/AdapterDateFns';
+import { DatePicker } from '@mui/x-date-pickers/DatePicker';
 
 import WorkspaceTaskDialog from '@/app/workspace/components/WorkspaceTaskDialog';
 import ProjectTaskList, { ProjectTaskListHandle } from '@/app/workspace/components/ProjectTaskList';
 import ProjectTaskBoard from '@/app/workspace/components/ProjectTaskBoard';
 import ProjectTaskCalendar from '@/app/workspace/components/ProjectTaskCalendar';
+import { defaultTaskFilters, type TaskFilters } from '@/app/types/taskFilters';
+import { getPriorityLabelRu } from '@/utils/priorityIcons';
+import { startOfDay, endOfDay } from 'date-fns';
+
+type Priority = 'urgent' | 'high' | 'medium' | 'low';
 
 type Task = {
     _id: string;
@@ -42,7 +56,9 @@ type Task = {
     createdAt?: string;
     bsNumber?: string;
     totalCost?: number;
-    priority?: 'urgent' | 'high' | 'medium' | 'low';
+    priority?: Priority;
+    executorName?: string;
+    executorEmail?: string;
 };
 
 type OrgInfo = { _id: string; name: string; orgSlug: string; description?: string };
@@ -60,13 +76,48 @@ type MemberDTO = {
 type MembersResponse = { members: MemberDTO[] } | { error: string };
 type ProjectMetaResponse =
     | {
-          ok: true;
-          project: {
-              description?: string | null;
-              managers?: string[] | null;
-          };
-      }
+    ok: true;
+    project: {
+        description?: string | null;
+        managers?: string[] | null;
+    };
+}
     | { error: string };
+
+const STATUS_ORDER = [
+    'To do',
+    'Assigned',
+    'At work',
+    'Done',
+    'Pending',
+    'Issues',
+    'Fixed',
+    'Agreed',
+];
+
+const STATUS_LABELS_RU: Record<string, string> = {
+    'To do': 'К выполнению',
+    Assigned: 'Назначена',
+    'At work': 'В работе',
+    Pending: 'На проверке',
+    Issues: 'Есть замечания',
+    Done: 'Выполнено',
+    Agreed: 'Согласовано',
+    Fixed: 'Исправлено',
+};
+
+const getStatusLabelRu = (status: string) => STATUS_LABELS_RU[status] ?? status;
+
+const getExecutorLabel = (task: Task) => {
+    const candidate =
+        task.assignees?.find((assignee) => assignee?.name || assignee?.email) ||
+        null;
+    if (candidate) {
+        return (candidate.name?.trim() || candidate.email?.trim() || '').trim();
+    }
+    const fallback = task.executorName?.trim() || task.executorEmail?.trim() || '';
+    return fallback.trim();
+};
 
 export default function ProjectTasksPage() {
     const params = useParams<{ org: string; project: string }>() as {
@@ -86,9 +137,10 @@ export default function ProjectTasksPage() {
     const [loading, setLoading] = React.useState(true);
     const [items, setItems] = React.useState<Task[]>([]);
     const [error, setError] = React.useState<string | null>(null);
-    const [listFiltersVisible, setListFiltersVisible] = React.useState(false);
     const taskListRef = React.useRef<ProjectTaskListHandle>(null);
     const [searchAnchor, setSearchAnchor] = React.useState<HTMLElement | null>(null);
+    const [filterAnchor, setFilterAnchor] = React.useState<HTMLElement | null>(null);
+    const [filters, setFilters] = React.useState<TaskFilters>(defaultTaskFilters);
 
     const [orgInfo, setOrgInfo] = React.useState<OrgInfo | null>(null);
     const [orgInfoError, setOrgInfoError] = React.useState<string | null>(null);
@@ -154,6 +206,68 @@ export default function ProjectTasksPage() {
         void fetchOrg();
         return () => ctrl.abort();
     }, [orgSlug]);
+
+    const filterOptions = React.useMemo(() => {
+        const executorSet = new Set<string>();
+        for (const task of items) {
+            const label = getExecutorLabel(task);
+            if (label) {
+                executorSet.add(label);
+            }
+        }
+        const statuses = Array.from(
+            new Set(
+                items
+                    .map((task) => task.status)
+                    .filter((status): status is string => Boolean(status))
+            )
+        );
+        const priorities = Array.from(
+            new Set(
+                items
+                    .map((task) => task.priority)
+                    .filter((priority): priority is Priority => Boolean(priority))
+            )
+        );
+        const orderedStatuses = STATUS_ORDER.filter((status) => statuses.includes(status));
+        const remainingStatuses = statuses.filter((status) => !STATUS_ORDER.includes(status));
+        return {
+            executors: Array.from(executorSet),
+            statuses: [...orderedStatuses, ...remainingStatuses],
+            priorities,
+        };
+    }, [items]);
+
+    const filteredItems = React.useMemo(() => {
+        return items.filter((task) => {
+            if (filters.status && task.status !== filters.status) return false;
+            if (filters.priority && task.priority !== filters.priority) return false;
+            if (filters.executor) {
+                const label = getExecutorLabel(task);
+                if (!label || label !== filters.executor) {
+                    return false;
+                }
+            }
+
+            if (filters.dueFrom || filters.dueTo) {
+                if (!task.dueDate) {
+                    return false;
+                }
+                const dueDate = new Date(task.dueDate);
+                if (Number.isNaN(dueDate.getTime())) {
+                    return false;
+                }
+                if (filters.dueFrom && dueDate < startOfDay(filters.dueFrom)) {
+                    return false;
+                }
+                if (filters.dueTo && dueDate > endOfDay(filters.dueTo)) {
+                    return false;
+                }
+            }
+
+            return true;
+        });
+    }, [items, filters]);
 
     const load = React.useCallback(async () => {
         if (!orgSlug || !projectRef) return;
@@ -285,6 +399,16 @@ export default function ProjectTasksPage() {
     };
 
     const searchOpen = Boolean(searchAnchor);
+    const filterOpen = Boolean(filterAnchor);
+    const hasActiveFilters = Boolean(
+        filters.executor || filters.status || filters.priority || filters.dueFrom || filters.dueTo
+    );
+    const activeFilterCount =
+        Number(Boolean(filters.executor)) +
+        Number(Boolean(filters.status)) +
+        Number(Boolean(filters.priority)) +
+        Number(Boolean(filters.dueFrom)) +
+        Number(Boolean(filters.dueTo));
     const getIconButtonSx = (options?: { active?: boolean; disabled?: boolean }) => {
         const active = options?.active ?? false;
         const disabled = options?.disabled ?? false;
@@ -294,8 +418,8 @@ export default function ProjectTasksPage() {
             backgroundColor: disabled
                 ? 'transparent'
                 : active
-                ? iconActiveBg
-                : iconBg,
+                    ? iconActiveBg
+                    : iconBg,
             color: disabled ? disabledIconColor : active ? iconActiveText : iconText,
             boxShadow: disabled ? 'none' : iconShadow,
             backdropFilter: 'blur(14px)',
@@ -305,17 +429,42 @@ export default function ProjectTasksPage() {
                 backgroundColor: disabled
                     ? 'transparent'
                     : active
-                    ? iconActiveBg
-                    : iconHoverBg,
+                        ? iconActiveBg
+                        : iconHoverBg,
             },
         };
     };
 
-    React.useEffect(() => {
-        if (tab !== 'list' && listFiltersVisible) {
-            setListFiltersVisible(false);
+    const handleFilterButtonClick = (event: React.MouseEvent<HTMLElement>) => {
+        if (filterAnchor && event.currentTarget === filterAnchor) {
+            setFilterAnchor(null);
+            return;
         }
-    }, [tab, listFiltersVisible]);
+        setFilterAnchor(event.currentTarget);
+    };
+
+    const handleFilterClose = () => {
+        setFilterAnchor(null);
+    };
+
+    const handleFilterReset = () => {
+        setFilters(defaultTaskFilters);
+    };
+
+    const handleExecutorFilterChange = (_event: React.SyntheticEvent, value: string | null) => {
+        setFilters((prev) => ({ ...prev, executor: value }));
+    };
+
+    const handleSelectFilterChange =
+        (key: 'status' | 'priority') => (event: SelectChangeEvent) => {
+            const value = event.target.value;
+            setFilters((prev) => ({ ...prev, [key]: value }));
+        };
+
+    const handleDueDateChange =
+        (key: 'dueFrom' | 'dueTo') => (value: Date | null) => {
+            setFilters((prev) => ({ ...prev, [key]: value }));
+        };
 
     const primaryManagerRaw = React.useMemo(() => {
         const first = projectManagers.find((manager) => manager.trim().length > 0);
@@ -336,7 +485,7 @@ export default function ProjectTasksPage() {
             sx={{
                 minHeight: '100%',
                 py: { xs: 4, md: 6 },
-                px: { xs: 2, md: 6 },
+                px: { xs: 0.25, md: 6 },
             }}
         >
             <Box sx={{ maxWidth: 1200, mx: 'auto', width: '100%' }}>
@@ -429,27 +578,15 @@ export default function ProjectTasksPage() {
                                     <SearchIcon />
                                 </IconButton>
                             </Tooltip>
-                            <Tooltip
-                                title={
-                                    tab === 'list'
-                                        ? listFiltersVisible
-                                            ? 'Скрыть фильтры'
-                                            : 'Показать фильтры'
-                                        : 'Фильтры доступны только в списке'
-                                }
-                            >
-                                <span>
-                                    <IconButton
-                                        disabled={tab !== 'list'}
-                                        onClick={() => taskListRef.current?.toggleFilters()}
-                                        sx={getIconButtonSx({
-                                            disabled: tab !== 'list',
-                                            active: listFiltersVisible,
-                                        })}
-                                    >
-                                        <FilterListIcon />
-                                    </IconButton>
-                                </span>
+                            <Tooltip title="Фильтры задач">
+                                <IconButton
+                                    onClick={handleFilterButtonClick}
+                                    sx={getIconButtonSx({
+                                        active: filterOpen || hasActiveFilters,
+                                    })}
+                                >
+                                    <FilterListIcon />
+                                </IconButton>
                             </Tooltip>
                             {tab === 'list' && (
                                 <Tooltip title="Настроить колонки">
@@ -541,6 +678,100 @@ export default function ProjectTasksPage() {
                             }}
                         />
                     </Box>
+                </Popover>
+
+                <Popover
+                    open={filterOpen}
+                    anchorEl={filterAnchor}
+                    onClose={handleFilterClose}
+                    anchorOrigin={{ vertical: 'bottom', horizontal: 'left' }}
+                    transformOrigin={{ vertical: 'top', horizontal: 'left' }}
+                    PaperProps={{
+                        sx: {
+                            borderRadius: 3,
+                            border: `1px solid ${isDarkMode ? 'rgba(255,255,255,0.08)' : 'rgba(255,255,255,0.65)'}`,
+                            backgroundColor: isDarkMode ? 'rgba(15,18,28,0.95)' : 'rgba(255,255,255,0.9)',
+                            boxShadow: isDarkMode ? '0 25px 70px rgba(0,0,0,0.6)' : '0 25px 70px rgba(15,23,42,0.15)',
+                            backdropFilter: 'blur(18px)',
+                        },
+                    }}
+                >
+                    <LocalizationProvider dateAdapter={AdapterDateFns}>
+                        <Box sx={{ p: 2, width: 320, display: 'flex', flexDirection: 'column', gap: 2 }}>
+                            <Autocomplete
+                                options={filterOptions.executors}
+                                value={filters.executor ?? null}
+                                onChange={handleExecutorFilterChange}
+                                disablePortal
+                                clearOnEscape
+                                handleHomeEndKeys
+                                renderInput={(params) => (
+                                    <TextField {...params} label="Исполнитель" size="small" />
+                                )}
+                            />
+                            <FormControl fullWidth size="small">
+                                <InputLabel>Статус</InputLabel>
+                                <Select
+                                    label="Статус"
+                                    value={filters.status}
+                                    onChange={handleSelectFilterChange('status')}
+                                >
+                                    <MenuItem value="">
+                                        <em>Все</em>
+                                    </MenuItem>
+                                    {filterOptions.statuses.map((status) => (
+                                        <MenuItem key={status} value={status}>
+                                            {getStatusLabelRu(status)}
+                                        </MenuItem>
+                                    ))}
+                                </Select>
+                            </FormControl>
+                            <FormControl fullWidth size="small">
+                                <InputLabel>Приоритет</InputLabel>
+                                <Select
+                                    label="Приоритет"
+                                    value={filters.priority}
+                                    onChange={handleSelectFilterChange('priority')}
+                                >
+                                    <MenuItem value="">
+                                        <em>Все</em>
+                                    </MenuItem>
+                                    {filterOptions.priorities.map((priority) => (
+                                        <MenuItem key={priority} value={priority}>
+                                            {getPriorityLabelRu(priority)}
+                                        </MenuItem>
+                                    ))}
+                                </Select>
+                            </FormControl>
+                            <Stack direction="row" spacing={1}>
+                                <DatePicker
+                                    label="Срок от"
+                                    value={filters.dueFrom}
+                                    onChange={handleDueDateChange('dueFrom')}
+                                    slotProps={{ textField: { size: 'small' } }}
+                                />
+                                <DatePicker
+                                    label="Срок до"
+                                    value={filters.dueTo}
+                                    onChange={handleDueDateChange('dueTo')}
+                                    slotProps={{ textField: { size: 'small' } }}
+                                />
+                            </Stack>
+                            {hasActiveFilters && (
+                                <Typography variant="caption" color="text.secondary">
+                                    Активные фильтры: {activeFilterCount}
+                                </Typography>
+                            )}
+                            <Stack direction="row" justifyContent="space-between" spacing={1}>
+                                <Button size="small" onClick={handleFilterReset} color="secondary">
+                                    Сбросить
+                                </Button>
+                                <Button size="small" variant="contained" onClick={handleFilterClose}>
+                                    Готово
+                                </Button>
+                            </Stack>
+                        </Box>
+                    </LocalizationProvider>
                 </Popover>
 
                 <Paper
@@ -635,7 +866,7 @@ export default function ProjectTasksPage() {
                     {tab === 'list' && (
                         <ProjectTaskList
                             ref={taskListRef}
-                            items={items}
+                            items={filteredItems}
                             loading={loading}
                             error={error}
                             org={orgSlug || ''}
@@ -643,13 +874,12 @@ export default function ProjectTasksPage() {
                             onReloadAction={() => {
                                 void load();
                             }}
-                            onFilterToggleChange={setListFiltersVisible}
                         />
                     )}
 
                     {tab === 'board' && (
                         <ProjectTaskBoard
-                            items={items}
+                            items={filteredItems}
                             loading={loading}
                             error={error}
                             org={orgSlug || ''}
@@ -662,7 +892,7 @@ export default function ProjectTasksPage() {
 
                     {tab === 'calendar' && (
                         <ProjectTaskCalendar
-                            items={items}
+                            items={filteredItems}
                             loading={loading}
                             error={error}
                             org={orgSlug || ''}

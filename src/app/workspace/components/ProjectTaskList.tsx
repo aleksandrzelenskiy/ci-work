@@ -5,14 +5,11 @@ import React, { useMemo, useState, useEffect, forwardRef, useImperativeHandle } 
 import { useRouter } from 'next/navigation';
 import {
     Box, Table, TableBody, TableCell, TableContainer, TableHead, TableRow, Typography,
-    IconButton, Tooltip, Chip, Popover, FormControl, InputLabel, Select, MenuItem,
-    Checkbox, List, ListItem, ListItemIcon, ListItemText, Pagination, Alert, Avatar, Stack, Button, TextField,
+    Tooltip, Chip, Popover, FormControl, InputLabel, Select, MenuItem,
+    Checkbox, List, ListItem, ListItemIcon, ListItemText, Pagination, Alert, Avatar, Stack, Button,
     Dialog, DialogTitle, DialogContent, DialogContentText, DialogActions, Menu, MenuItem as MMenuItem, Divider,
     ListItemIcon as MListItemIcon, ListItemText as MListItemText,
 } from '@mui/material';
-import Autocomplete from '@mui/material/Autocomplete';
-import FilterListIcon from '@mui/icons-material/FilterList';
-import PersonSearchIcon from '@mui/icons-material/PersonSearch';
 import OpenInNewIcon from '@mui/icons-material/OpenInNew';
 import EditNoteOutlinedIcon from '@mui/icons-material/EditNoteOutlined';
 import DeleteOutlineIcon from '@mui/icons-material/DeleteOutline';
@@ -21,9 +18,6 @@ import { useTheme } from '@mui/material/styles';
 import { getStatusColor } from '@/utils/statusColors';
 import { getPriorityIcon, getPriorityLabelRu, normalizePriority, type Priority as Pri } from '@/utils/priorityIcons';
 
-import { LocalizationProvider } from '@mui/x-date-pickers/LocalizationProvider';
-import { AdapterDateFns } from '@mui/x-date-pickers/AdapterDateFns';
-import { DatePicker } from '@mui/x-date-pickers/DatePicker';
 
 import WorkspaceTaskDialog, { TaskForEdit } from '@/app/workspace/components/WorkspaceTaskDialog';
 
@@ -115,8 +109,6 @@ function normalizeStatusTitle(s?: string): StatusTitle {
     return TITLE_CASE_MAP[key] ?? (s as StatusTitle);
 }
 
-const normPriority = (p?: string): Priority | '' => (p ? (p.toString().toLowerCase() as Priority) : '');
-
 const getInitials = (s?: string) =>
     (s ?? '')
         .split('@')[0]
@@ -126,10 +118,8 @@ const getInitials = (s?: string) =>
         .join('') || '•';
 
 export interface ProjectTaskListHandle {
-    toggleFilters: () => void;
     openColumns: (anchor: HTMLElement) => void;
     closeColumns: () => void;
-    showFilters: boolean;
 }
 
 type ProjectTaskListProps = {
@@ -139,12 +129,13 @@ type ProjectTaskListProps = {
     org: string;
     project: string;
     onReloadAction?: () => void;
-    onFilterToggleChange?: (visible: boolean) => void;
 };
 
 /* ───────────── компонент ───────────── */
-const ProjectTaskList = forwardRef<ProjectTaskListHandle, ProjectTaskListProps>(
-    ({ items, loading, error, org, project, onReloadAction, onFilterToggleChange }, ref) => {
+const ProjectTaskListInner = (
+    { items, loading, error, org, project, onReloadAction }: ProjectTaskListProps,
+    ref: React.ForwardedRef<ProjectTaskListHandle>
+) => {
 
     const router = useRouter();
     const theme = useTheme();
@@ -169,92 +160,31 @@ const ProjectTaskList = forwardRef<ProjectTaskListHandle, ProjectTaskListProps>(
     });
     const toggleColumn = (key: string) => setColumnVisibility((v) => ({ ...v, [key]: !v[key] }));
 
-    const [showFilters, setShowFilters] = useState(false);
-
-    const [anchorEl, setAnchorEl] = useState<HTMLElement | null>(null);
     const [columnsAnchor, setColumnsAnchor] = useState<HTMLElement | null>(null);
-    const [currentFilter, setCurrentFilter] =
-        useState<'' | 'status' | 'priority' | 'executor' | 'due'>('');
-    const openFilterPopover = Boolean(anchorEl);
     const openColumnsPopover = Boolean(columnsAnchor);
-
-    const handleFilterIconClick = (
-        e: React.MouseEvent<HTMLElement>,
-        type: 'status' | 'priority' | 'executor' | 'due'
-    ) => {
-        if (!showFilters) return;
-        setAnchorEl(e.currentTarget);
-        setCurrentFilter(type);
-    };
-    const closeFilterPopover = () => {
-        setAnchorEl(null);
-        setCurrentFilter('');
-    };
     const closeColumnsPopover = () => setColumnsAnchor(null);
 
     const [page, setPage] = useState(1);
     const [rowsPerPage, setRowsPerPage] = useState<number>(10);
 
-    const [statusFilter, setStatusFilter] = useState<'' | StatusTitle>('');
-    const [priorityFilter, setPriorityFilter] = useState<'' | Priority>('');
-    const [executorFilter, setExecutorFilter] = useState<string | null>(null);
-    const [dueFrom, setDueFrom] = useState<Date | null>(null);
-    const [dueTo, setDueTo] = useState<Date | null>(null);
-
-    const uniqueExecutors = useMemo(() => {
-        const arr = items
-            .map((t) => (t.executorName?.trim() || t.executorEmail?.trim() || ''))
-            .filter(Boolean);
-        return Array.from(new Set(arr));
-    }, [items]);
-
-    const filtered: TaskWithStatus[] = useMemo(() => {
-        let res: TaskWithStatus[] = items.map((t) => ({
+    const sortedTasks = useMemo(() => {
+        const res: TaskWithStatus[] = items.map((t) => ({
             ...t,
             _statusTitle: normalizeStatusTitle(t.status),
         }));
-
-        if (statusFilter) res = res.filter((t) => t._statusTitle === statusFilter);
-        if (priorityFilter) res = res.filter((t) => normPriority(t.priority as string) === priorityFilter);
-        if (executorFilter) {
-            res = res.filter((t) => {
-                const label = t.executorName?.trim() || t.executorEmail?.trim() || '';
-                return label === executorFilter;
-            });
-        }
-        if (dueFrom || dueTo) {
-            res = res.filter((t) => {
-                if (!t.dueDate) return false;
-                const d = new Date(t.dueDate);
-                if (Number.isNaN(d.getTime())) return false;
-                const afterFrom = dueFrom ? d >= startOfDay(dueFrom) : true;
-                const beforeTo = dueTo ? d <= endOfDay(dueTo) : true;
-                return afterFrom && beforeTo;
-            });
-        }
-
         res.sort((a, b) => STATUS_ORDER.indexOf(a._statusTitle) - STATUS_ORDER.indexOf(b._statusTitle));
         return res;
-    }, [items, statusFilter, priorityFilter, executorFilter, dueFrom, dueTo]);
+    }, [items]);
 
     useEffect(() => {
         setPage(1);
-    }, [statusFilter, priorityFilter, executorFilter, dueFrom, dueTo]);
+    }, [sortedTasks.length]);
 
-    const totalPages = rowsPerPage === -1 ? 1 : Math.max(1, Math.ceil(filtered.length / rowsPerPage));
+    const totalPages = rowsPerPage === -1 ? 1 : Math.max(1, Math.ceil(sortedTasks.length / rowsPerPage));
     const pageSlice: TaskWithStatus[] =
         rowsPerPage === -1
-            ? filtered
-            : filtered.slice((page - 1) * rowsPerPage, (page - 1) * rowsPerPage + rowsPerPage);
-
-    const activeFiltersCount = useMemo(() => {
-        return [
-            statusFilter,
-            priorityFilter,
-            executorFilter ? 'executor' : '',
-            dueFrom || dueTo ? 'due' : '',
-        ].filter(Boolean).length;
-    }, [statusFilter, priorityFilter, executorFilter, dueFrom, dueTo]);
+            ? sortedTasks
+            : sortedTasks.slice((page - 1) * rowsPerPage, (page - 1) * rowsPerPage + rowsPerPage);
 
     const [menuPos, setMenuPos] = useState<{ top: number; left: number } | null>(null);
     const [selectedTask, setSelectedTask] = useState<TaskWithStatus | null>(null);
@@ -326,17 +256,11 @@ const ProjectTaskList = forwardRef<ProjectTaskListHandle, ProjectTaskListProps>(
     useImperativeHandle(
         ref,
         () => ({
-            toggleFilters: () => setShowFilters((v) => !v),
             openColumns: (anchor) => setColumnsAnchor(anchor),
             closeColumns: () => setColumnsAnchor(null),
-            showFilters,
         }),
-        [showFilters]
+        []
     );
-
-    useEffect(() => {
-        onFilterToggleChange?.(showFilters);
-    }, [showFilters, onFilterToggleChange]);
 
     if (loading) {
         return (
@@ -347,54 +271,10 @@ const ProjectTaskList = forwardRef<ProjectTaskListHandle, ProjectTaskListProps>(
     }
     if (error) return <Alert severity="error" sx={{ m: 2 }}>{error}</Alert>;
 
-    const popoverMinWidth = currentFilter === 'executor' ? 380 : 260;
-
     return (
-        <LocalizationProvider dateAdapter={AdapterDateFns}>
-            <Box>
-
-                {showFilters && activeFiltersCount > 0 && (
-                    <Box sx={{ display: 'flex', gap: 1, flexWrap: 'wrap', px: 1, pb: 1 }}>
-                        {statusFilter && (
-                            <Chip
-                                size="small"
-                                color="primary"
-                                label={`Статус: ${STATUS_LABELS_RU[statusFilter] ?? statusFilter}`}
-                                onDelete={() => setStatusFilter('')}
-                            />
-                        )}
-                        {priorityFilter && (
-                            <Chip
-                                size="small"
-                                color="primary"
-                                label={`Priority: ${priorityFilter}`}
-                                onDelete={() => setPriorityFilter('')}
-                            />
-                        )}
-                        {executorFilter && (
-                            <Chip
-                                size="small"
-                                color="primary"
-                                label={`Executor: ${executorFilter}`}
-                                onDelete={() => setExecutorFilter(null)}
-                            />
-                        )}
-                        {(dueFrom || dueTo) && (
-                            <Chip
-                                size="small"
-                                color="primary"
-                                label={`Due: ${dueFrom ? dueFrom.toLocaleDateString() : '…'} – ${dueTo ? dueTo.toLocaleDateString() : '…'}`}
-                                onDelete={() => {
-                                    setDueFrom(null);
-                                    setDueTo(null);
-                                }}
-                            />
-                        )}
-                    </Box>
-                )}
-
-                <TableContainer component={Box}>
-                    <Table size="small">
+        <Box>
+            <TableContainer component={Box}>
+                <Table size="small">
                         <TableHead>
                             <TableRow>
                                 {columnVisibility.taskId && (
@@ -407,82 +287,26 @@ const ProjectTaskList = forwardRef<ProjectTaskListHandle, ProjectTaskListProps>(
                                         <strong>Задача</strong>
                                     </TableCell>
                                 )}
-                                {columnVisibility.status && (
-                                    <TableCell width={200} align="center">
-                                        <Box sx={{ display: 'inline-flex', alignItems: 'center', gap: 0.5 }}>
-                                            <strong>Статус</strong>
-                                            {showFilters && (
-                                                <Tooltip title="Фильтр по статусу">
-                                                    <IconButton
-                                                        size="small"
-                                                        onClick={(e) => handleFilterIconClick(e, 'status')}
-                                                        sx={{ color: statusFilter ? 'success.main' : undefined }}
-                                                        aria-label="filter by status"
-                                                    >
-                                                        <FilterListIcon fontSize="small" />
-                                                    </IconButton>
-                                                </Tooltip>
-                                            )}
-                                        </Box>
-                                    </TableCell>
-                                )}
-                                {columnVisibility.priority && (
-                                    <TableCell width={180} align="center">
-                                        <Box sx={{ display: 'inline-flex', alignItems: 'center', gap: 0.5 }}>
-                                            <strong>Приоритет</strong>
-                                            {showFilters && (
-                                                <Tooltip title="Фильтр по приоритету">
-                                                    <IconButton
-                                                        size="small"
-                                                        onClick={(e) => handleFilterIconClick(e, 'priority')}
-                                                        sx={{ color: priorityFilter ? 'success.main' : undefined }}
-                                                        aria-label="filter by priority"
-                                                    >
-                                                        <FilterListIcon fontSize="small" />
-                                                    </IconButton>
-                                                </Tooltip>
-                                            )}
-                                        </Box>
-                                    </TableCell>
-                                )}
-                                {columnVisibility.executor && (
-                                    <TableCell width={320}>
-                                        <Box sx={{ display: 'inline-flex', alignItems: 'center', gap: 0.5 }}>
-                                            <strong>Исполнитель</strong>
-                                            {showFilters && (
-                                                <Tooltip title="Фильтр по исполнителю">
-                                                    <IconButton
-                                                        size="small"
-                                                        onClick={(e) => handleFilterIconClick(e, 'executor')}
-                                                        sx={{ color: executorFilter ? 'success.main' : undefined }}
-                                                        aria-label="filter by executor"
-                                                    >
-                                                        <PersonSearchIcon fontSize="small" />
-                                                    </IconButton>
-                                                </Tooltip>
-                                            )}
-                                        </Box>
-                                    </TableCell>
-                                )}
-                                {columnVisibility.due && (
-                                    <TableCell width={220} align="center">
-                                        <Box sx={{ display: 'inline-flex', alignItems: 'center', gap: 0.5 }}>
-                                            <strong>Срок</strong>
-                                            {showFilters && (
-                                                <Tooltip title="Фильтр по сроку (От/До)">
-                                                    <IconButton
-                                                        size="small"
-                                                        onClick={(e) => handleFilterIconClick(e, 'due')}
-                                                        sx={{ color: (dueFrom || dueTo) ? 'success.main' : undefined }}
-                                                        aria-label="filter by due date"
-                                                    >
-                                                        <FilterListIcon fontSize="small" />
-                                                    </IconButton>
-                                                </Tooltip>
-                                            )}
-                                        </Box>
-                                    </TableCell>
-                                )}
+                {columnVisibility.status && (
+                    <TableCell width={200} align="center">
+                        <strong>Статус</strong>
+                    </TableCell>
+                )}
+                {columnVisibility.priority && (
+                    <TableCell width={180} align="center">
+                        <strong>Приоритет</strong>
+                    </TableCell>
+                )}
+                {columnVisibility.executor && (
+                    <TableCell width={320}>
+                        <strong>Исполнитель</strong>
+                    </TableCell>
+                )}
+                {columnVisibility.due && (
+                    <TableCell width={220} align="center">
+                        <strong>Срок</strong>
+                    </TableCell>
+                )}
                             </TableRow>
                         </TableHead>
 
@@ -587,8 +411,8 @@ const ProjectTaskList = forwardRef<ProjectTaskListHandle, ProjectTaskListProps>(
                                 );
                             })}
                         </TableBody>
-                    </Table>
-                </TableContainer>
+                </Table>
+            </TableContainer>
 
                 {/* пагинация */}
                 <Box sx={{ display: 'flex', gap: 2, justifyContent: 'center', p: 2 }}>
@@ -621,114 +445,8 @@ const ProjectTaskList = forwardRef<ProjectTaskListHandle, ProjectTaskListProps>(
                     />
                 </Box>
 
-                {/* popover фильтров */}
-                <Popover
-                    open={openFilterPopover}
-                    anchorEl={anchorEl}
-                    onClose={closeFilterPopover}
-                    anchorOrigin={{ vertical: 'bottom', horizontal: 'left' }}
-                    slotProps={{ paper: { sx: { overflow: 'visible' } } }}
-                >
-                    <Box sx={{ p: 1.5, minWidth: popoverMinWidth }}>
-                        {/* ... оставляем твои фильтры без изменений ... */}
-                        {currentFilter === 'status' && (
-                            <FormControl fullWidth variant="outlined" size="small">
-                                <InputLabel id="status-filter-label">Статус</InputLabel>
-                                <Select
-                                    labelId="status-filter-label"
-                                    value={statusFilter}
-                                    label="Статус"
-                                    onChange={(e) => setStatusFilter(e.target.value as StatusTitle | '')}
-                                    autoFocus
-                                >
-                                    <MenuItem value="">
-                                        <em>Все</em>
-                                    </MenuItem>
-                                    {STATUS_ORDER.map((s) => (
-                                        <MenuItem key={s} value={s}>
-                                            {STATUS_LABELS_RU[s] ?? s}
-                                        </MenuItem>
-                                    ))}
-                                </Select>
-                            </FormControl>
-                        )}
 
-                        {currentFilter === 'priority' && (
-                            <FormControl fullWidth variant="outlined" size="small">
-                                <InputLabel id="priority-filter-label">Приоритет</InputLabel>
-                                <Select
-                                    labelId="priority-filter-label"
-                                    label="Приоритет"
-                                    value={priorityFilter}
-                                    onChange={(e) => {
-                                        const v = e.target.value as '' | Priority;
-                                        setPriorityFilter(v);
-                                    }}
-                                    autoFocus
-                                >
-                                    <MenuItem value="">
-                                        <em>All</em>
-                                    </MenuItem>
-                                    <MenuItem value="low">low</MenuItem>
-                                    <MenuItem value="medium">medium</MenuItem>
-                                    <MenuItem value="high">high</MenuItem>
-                                    <MenuItem value="urgent">urgent</MenuItem>
-                                </Select>
-                            </FormControl>
-                        )}
-
-                        {currentFilter === 'executor' && (
-                            <Box sx={{ width: 360 }}>
-                                <Autocomplete<string, false, false, false>
-                                    options={uniqueExecutors}
-                                    value={executorFilter}
-                                    onChange={(_e, val) => setExecutorFilter(val)}
-                                    clearOnEscape
-                                    handleHomeEndKeys
-                                    fullWidth
-                                    renderInput={(params) => (
-                                        <TextField {...params} label="Исполнитель" size="small" autoFocus />
-                                    )}
-                                    slotProps={{ popper: { disablePortal: true } }}
-                                />
-                            </Box>
-                        )}
-
-                        {currentFilter === 'due' && (
-                            <Stack spacing={1} sx={{ width: 300 }}>
-                                <DatePicker
-                                    label="От"
-                                    value={dueFrom}
-                                    onChange={(v: Date | null) => setDueFrom(v)}
-                                    slotProps={{ textField: { size: 'small' }, popper: { disablePortal: true } }}
-                                />
-                                <DatePicker
-                                    label="До"
-                                    value={dueTo}
-                                    onChange={(v: Date | null) => setDueTo(v)}
-                                    slotProps={{ textField: { size: 'small' }, popper: { disablePortal: true } }}
-                                />
-                                <Box sx={{ display: 'flex', justifyContent: 'space-between', pt: 0.5 }}>
-                                    <Button
-                                        size="small"
-                                        variant="text"
-                                        onClick={() => {
-                                            setDueFrom(null);
-                                            setDueTo(null);
-                                        }}
-                                    >
-                                        Сбросить
-                                    </Button>
-                                    <Button size="small" variant="contained" onClick={closeFilterPopover}>
-                                        Применить
-                                    </Button>
-                                </Box>
-                            </Stack>
-                        )}
-                    </Box>
-                </Popover>
-
-                {/* popover колонок */}
+                {/* попover колонок */}
                 <Popover
                     open={openColumnsPopover}
                     anchorEl={columnsAnchor}
@@ -930,23 +648,12 @@ const ProjectTaskList = forwardRef<ProjectTaskListHandle, ProjectTaskListProps>(
                         onCreatedAction={handleEdited}
                     />
                 )}
-            </Box>
-        </LocalizationProvider>
+        </Box>
     );
-});
+};
+
+const ProjectTaskList = forwardRef<ProjectTaskListHandle, ProjectTaskListProps>(ProjectTaskListInner);
 
 ProjectTaskList.displayName = 'ProjectTaskList';
 
 export default ProjectTaskList;
-
-/* helpers */
-function startOfDay(d: Date) {
-    const x = new Date(d);
-    x.setHours(0, 0, 0, 0);
-    return x;
-}
-function endOfDay(d: Date) {
-    const x = new Date(d);
-    x.setHours(23, 59, 59, 999);
-    return x;
-}

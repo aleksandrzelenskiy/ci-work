@@ -3,67 +3,54 @@
 'use client';
 
 import React, { useState, useEffect, useMemo, forwardRef, useImperativeHandle, useCallback } from 'react';
-import { useSearchParams } from 'next/navigation';
 import {
-  Avatar,
-  Box,
-  IconButton,
-  Table,
-  TableBody,
-  TableCell,
-  TableContainer,
-  TableHead,
-  TableRow,
-  Typography,
-  CircularProgress,
-  Select,
-  MenuItem,
-  InputLabel,
-  FormControl,
-  Button,
-  Popover,
-  Tooltip,
-  Chip,
-  Checkbox,
-  List,
-  ListItem,
-  ListItemIcon,
-  ListItemText,
-  Alert,
-  Stack,
-  TextField,
+    Avatar,
+    Box,
+    IconButton,
+    Table,
+    TableBody,
+    TableCell,
+    TableContainer,
+    TableHead,
+    TableRow,
+    Typography,
+    CircularProgress,
+    Select,
+    MenuItem,
+    InputLabel,
+    FormControl,
+    Button,
+    Popover,
+    Tooltip,
+    Chip,
+    Checkbox,
+    List,
+    ListItem,
+    ListItemIcon,
+    ListItemText,
+    Alert,
+    Stack,
 } from '@mui/material';
-import Autocomplete from '@mui/material/Autocomplete';
-import { DateRangePicker } from '@mui/x-date-pickers-pro/DateRangePicker';
-import { SingleInputDateRangeField } from '@mui/x-date-pickers-pro/SingleInputDateRangeField';
-import { DateRange } from '@mui/x-date-pickers-pro/models';
 import Pagination from '@mui/material/Pagination';
-import {
-  ViewColumn as ViewColumnIcon,
-  FilterList as FilterListIcon,
-  FilterAlt as FilterAltIcon,
-} from '@mui/icons-material';
-import PersonSearchIcon from '@mui/icons-material/PersonSearch';
-import { LocalizationProvider } from '@mui/x-date-pickers/LocalizationProvider';
-import { AdapterDateFns } from '@mui/x-date-pickers/AdapterDateFns';
+import { ViewColumn as ViewColumnIcon } from '@mui/icons-material';
 import { Task } from '../types/taskTypes';
 import { getStatusColor } from '@/utils/statusColors';
 import { useRouter } from 'next/navigation';
 import { getPriorityIcon, getPriorityLabelRu } from '@/utils/priorityIcons';
+import { defaultTaskFilters, type TaskFilterOptions, type TaskFilters } from '@/app/types/taskFilters';
 
 interface TaskListPageProps {
   searchQuery?: string;
   projectFilter?: string;
   refreshToken?: number;
   hideToolbarControls?: boolean;
-  onFilterToggleChange?: (visible: boolean) => void;
+  filters?: TaskFilters;
+  onFilterOptionsChange?: (options: TaskFilterOptions) => void;
 }
 
 export interface TaskListPageHandle {
-  toggleFilters: () => void;
   openColumns: (anchor: HTMLElement) => void;
   closeColumns: () => void;
-  showFilters: boolean;
 }
 
 /* ───────────── формат даты dd.mm.yyyy ───────────── */
@@ -124,6 +111,8 @@ const getInitials = (value?: string) => {
     .map((word) => word[0]?.toUpperCase() ?? '')
     .join('') || '—';
 };
+
+const getAuthorIdentifier = (task: Task) => ((task.authorName || task.authorEmail)?.trim() || '');
 
 
 /* ───────────── строка задачи ───────────── */
@@ -272,7 +261,8 @@ const TaskListPage = forwardRef<TaskListPageHandle, TaskListPageProps>(function 
     projectFilter = '',
     refreshToken = 0,
     hideToolbarControls = false,
-    onFilterToggleChange,
+    filters = defaultTaskFilters,
+    onFilterOptionsChange,
   },
   ref
 ) {
@@ -281,13 +271,6 @@ const TaskListPage = forwardRef<TaskListPageHandle, TaskListPageProps>(function 
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
-  /* ----- фильтры ----- */
-  const [authorFilter, setAuthorFilter] = useState<string | null>(null);
-  const [statusFilter, setStatusFilter] = useState('');
-  const [priorityFilter, setPriorityFilter] = useState('');
-  const [createdDateRange, setCreatedDateRange] = useState<DateRange<Date>>([null, null]);
-  const [dueDateRange, setDueDateRange] = useState<DateRange<Date>>([null, null]);
-
   /* ----- видимость колонок ----- */
   const [columnVisibility, setColumnVisibility] = useState<Record<
     ColumnKey,
@@ -295,11 +278,9 @@ const TaskListPage = forwardRef<TaskListPageHandle, TaskListPageProps>(function 
   >>({ ...DEFAULT_COLUMN_VISIBILITY });
 
   /* ----- popover / пагинация ----- */
-  const [anchorEl, setAnchorEl] = useState<HTMLElement | null>(null);
-  const [currentFilter, setCurrentFilter] = useState<string>('');
   const [currentPage, setCurrentPage] = useState(1);
   const [rowsPerPage, setRowsPerPage] = useState<number>(10); // -1 = All
-  const [showFilters, setShowFilters] = useState(false);
+  const [columnsAnchorEl, setColumnsAnchorEl] = useState<HTMLElement | null>(null);
 
   /* ----- пагинация ----- */
   const paginatedTasks = useMemo(() => {
@@ -312,24 +293,6 @@ const TaskListPage = forwardRef<TaskListPageHandle, TaskListPageProps>(function 
     if (rowsPerPage === -1) return 1;
     return Math.ceil(filteredTasks.length / rowsPerPage);
   }, [filteredTasks, rowsPerPage]);
-
-  const activeFiltersCount = useMemo(
-      () =>
-          [
-            authorFilter,
-            statusFilter,
-            priorityFilter,
-            createdDateRange[0] || createdDateRange[1] ? createdDateRange : null,
-            dueDateRange[0] || dueDateRange[1] ? dueDateRange : null,
-          ].filter(Boolean).length,
-      [
-        authorFilter,
-        statusFilter,
-        priorityFilter,
-        createdDateRange,
-        dueDateRange,
-      ]
-  );
 
   const uniqueValues = useMemo(
       () => ({
@@ -345,6 +308,14 @@ const TaskListPage = forwardRef<TaskListPageHandle, TaskListPageProps>(function 
       }),
       [tasks]
   );
+
+  useEffect(() => {
+    onFilterOptionsChange?.({
+      managers: uniqueValues.authors,
+      statuses: uniqueValues.statuses,
+      priorities: uniqueValues.priorities,
+    });
+  }, [uniqueValues, onFilterOptionsChange]);
 
   /* ----- загрузка задач и роли пользователя ----- */
   useEffect(() => {
@@ -370,46 +341,31 @@ const TaskListPage = forwardRef<TaskListPageHandle, TaskListPageProps>(function 
 
   }, [refreshToken]);
 
-  /* ----- читаем статус из query-строки безопасно ----- */
-  const searchParams = useSearchParams();
-
-  useEffect(() => {
-    const statusParam = searchParams?.get('status'); // ← ❗ безопасно
-    if (statusParam) setStatusFilter(statusParam);
-  }, [searchParams]);
-
   /* ----- применение фильтров ----- */
+  const managerFilter = filters.manager;
+  const statusFilter = filters.status;
+  const priorityFilter = filters.priority;
   const normalizedSearch = searchQuery.trim().toLowerCase();
   const normalizedProject = projectFilter.trim().toLowerCase();
 
   useEffect(() => {
     let filtered = [...tasks];
 
-    if (authorFilter) {
-      filtered = filtered.filter(
-        (t) => ((t.authorName || t.authorEmail)?.trim() || '') === authorFilter
-      );
+    if (managerFilter) {
+      filtered = filtered.filter((t) => getAuthorIdentifier(t) === managerFilter);
     }
-    if (statusFilter)    filtered = filtered.filter((t) => t.status        === statusFilter);
-    if (priorityFilter)  filtered = filtered.filter((t) => t.priority      === priorityFilter);
+    if (statusFilter) {
+      filtered = filtered.filter((t) => t.status === statusFilter);
+    }
+    if (priorityFilter) {
+      filtered = filtered.filter((t) => t.priority === priorityFilter);
+    }
     if (normalizedProject) {
       filtered = filtered.filter(
         (t) => (t.projectKey || '').toLowerCase() === normalizedProject
       );
     }
 
-    if (createdDateRange[0] && createdDateRange[1]) {
-      filtered = filtered.filter((t) => {
-        const d = new Date(t.createdAt);
-        return d >= createdDateRange[0]! && d <= createdDateRange[1]!;
-      });
-    }
-    if (dueDateRange[0] && dueDateRange[1]) {
-      filtered = filtered.filter((t) => {
-        const d = new Date(t.dueDate);
-        return d >= dueDateRange[0]! && d <= dueDateRange[1]!;
-      });
-    }
     if (normalizedSearch) {
       filtered = filtered.filter((t) => {
         const haystack = [
@@ -430,9 +386,7 @@ const TaskListPage = forwardRef<TaskListPageHandle, TaskListPageProps>(function 
     setCurrentPage(1);
   }, [
     tasks,
-    createdDateRange,
-    dueDateRange,
-    authorFilter,
+    managerFilter,
     statusFilter,
     priorityFilter,
     normalizedSearch,
@@ -440,52 +394,27 @@ const TaskListPage = forwardRef<TaskListPageHandle, TaskListPageProps>(function 
   ]);
 
   /* ----- popover helpers ----- */
-  const handleFilterClick = (e: React.MouseEvent<HTMLElement>, type: string) => {
-    if (!showFilters && type !== 'columns') return;
-    setAnchorEl(e.currentTarget);
-    setCurrentFilter(type);
-  };
-  const handleClose = () => {
-    setAnchorEl(null);
-    setCurrentFilter('');
-  };
   const handleColumnVisibilityChange =
     (col: ColumnKey) => (e: React.ChangeEvent<HTMLInputElement>) =>
       setColumnVisibility((prev) => ({ ...prev, [col]: e.target.checked }));
 
-  const toggleFilters = useCallback(() => {
-    setShowFilters((prev) => {
-      const next = !prev;
-      if (!next) {
-        setAnchorEl(null);
-        setCurrentFilter('');
-      }
-      onFilterToggleChange?.(next);
-      return next;
-    });
-  }, [onFilterToggleChange]);
-
   const openColumns = useCallback((anchor: HTMLElement) => {
     if (anchor) {
-      setAnchorEl(anchor);
-      setCurrentFilter('columns');
+      setColumnsAnchorEl(anchor);
     }
   }, []);
 
   const closeColumns = useCallback(() => {
-    setAnchorEl(null);
-    setCurrentFilter((prev) => (prev === 'columns' ? '' : prev));
+    setColumnsAnchorEl(null);
   }, []);
 
   useImperativeHandle(
     ref,
     () => ({
-      toggleFilters,
       openColumns,
       closeColumns,
-      showFilters,
     }),
-    [toggleFilters, openColumns, closeColumns, showFilters]
+    [openColumns, closeColumns]
   );
 
   /* ----- loading / error UI ----- */
@@ -497,104 +426,18 @@ const TaskListPage = forwardRef<TaskListPageHandle, TaskListPageProps>(function 
     );
   if (error) return <Alert severity='error'>{error}</Alert>;
   return (
-    <LocalizationProvider dateAdapter={AdapterDateFns}>
-      <Box sx={{ width: '100%', margin: '0 auto' }}>
-        {showFilters && activeFiltersCount > 0 && (
-          <Box sx={{ p: 2, mb: 2 }}>
-            <Typography variant='subtitle1'>
-              Активные фильтры: {activeFiltersCount}
-            </Typography>
-            <Box sx={{ display: 'flex', gap: 1, flexWrap: 'wrap', my: 1 }}>
-              {[
-                {
-                  label: 'Менеджер',
-                  value: authorFilter,
-                  reset: () => setAuthorFilter(null),
-                },
-                {
-                  label: 'Статус',
-                  value: statusFilter,
-                  reset: () => setStatusFilter(''),
-                  format: getStatusLabel,
-                },
-                {
-                  label: 'Приоритет',
-                  value: priorityFilter,
-                  reset: () => setPriorityFilter(''),
-                  format: getPriorityLabelRu,
-                },
-              ].map(
-                ({ label, value, reset, format }) =>
-                  value && (
-                    <Chip
-                      key={label}
-                      label={`${label}: ${
-                        typeof value === 'string'
-                          ? format
-                            ? format(value)
-                            : value
-                          : value
-                      }`}
+    <Box sx={{ width: '100%', margin: '0 auto' }}>
+      {!hideToolbarControls && (
+        <Box sx={{ display: 'flex', justifyContent: 'flex-end', gap: 1, mb: 1 }}>
+          <Tooltip title='Настроить колонки'>
+            <IconButton onClick={(e) => openColumns(e.currentTarget)}>
+              <ViewColumnIcon />
+            </IconButton>
+          </Tooltip>
+        </Box>
+      )}
 
-                      onDelete={reset}
-                      color='primary'
-                      size='small'
-                    />
-                  )
-              )}
-
-              {createdDateRange[0] && createdDateRange[1] && (
-                <Chip
-                  key='created-range'
-                  label={`Создано: ${createdDateRange[0].toLocaleDateString()} - ${createdDateRange[1].toLocaleDateString()}`}
-                  onDelete={() => setCreatedDateRange([null, null])}
-                  color='primary'
-                  size='small'
-                />
-              )}
-              {dueDateRange[0] && dueDateRange[1] && (
-                <Chip
-                  key='due-range'
-                  label={`Срок: ${dueDateRange[0].toLocaleDateString()} - ${dueDateRange[1].toLocaleDateString()}`}
-                  onDelete={() => setDueDateRange([null, null])}
-                  color='primary'
-                  size='small'
-                />
-              )}
-            </Box>
-            <Button
-              onClick={() => {
-                setAuthorFilter(null);
-                setStatusFilter('');
-                setPriorityFilter('');
-                setCreatedDateRange([null, null]);
-                setDueDateRange([null, null]);
-              }}
-            >
-              Сбросить фильтры
-            </Button>
-          </Box>
-        )}
-
-        {!hideToolbarControls && (
-          <Box sx={{ display: 'flex', justifyContent: 'flex-end', gap: 1, mb: 1 }}>
-            <Tooltip title={showFilters ? 'Скрыть фильтры' : 'Показать фильтры'}>
-              <IconButton
-                onClick={toggleFilters}
-                color={showFilters ? 'primary' : 'default'}
-              >
-                <FilterAltIcon />
-              </IconButton>
-            </Tooltip>
-            <Tooltip title='Настроить колонки'>
-              <IconButton onClick={(e) => handleFilterClick(e, 'columns')}>
-                <ViewColumnIcon />
-              </IconButton>
-            </Tooltip>
-          </Box>
-        )}
-
-        <TableContainer component={Box}>
+      <TableContainer component={Box}>
           <Table>
             <TableHead>
               <TableRow>
@@ -644,16 +487,6 @@ const TaskListPage = forwardRef<TaskListPageHandle, TaskListPageProps>(function 
                     }}
                   >
                     <strong>{COLUMN_LABELS.author}</strong>
-                    {showFilters && (
-                      <Tooltip title='Фильтр по менеджеру'>
-                        <IconButton
-                          onClick={(e) => handleFilterClick(e, 'author')}
-                          color={authorFilter ? 'primary' : 'default'}
-                        >
-                          <PersonSearchIcon fontSize='small' />
-                        </IconButton>
-                      </Tooltip>
-                    )}
                   </TableCell>
                 )}
 
@@ -666,20 +499,6 @@ const TaskListPage = forwardRef<TaskListPageHandle, TaskListPageProps>(function 
                     }}
                   >
                     <strong>{COLUMN_LABELS.created}</strong>
-                    {showFilters && (
-                      <Tooltip title='Фильтр по дате создания'>
-                        <IconButton
-                          onClick={(e) => handleFilterClick(e, 'created')}
-                          color={
-                            createdDateRange[0] || createdDateRange[1]
-                              ? 'primary'
-                              : 'default'
-                          }
-                        >
-                          <FilterListIcon fontSize='small' />
-                        </IconButton>
-                      </Tooltip>
-                    )}
                   </TableCell>
                 )}
 
@@ -692,20 +511,6 @@ const TaskListPage = forwardRef<TaskListPageHandle, TaskListPageProps>(function 
                     }}
                   >
                     <strong>{COLUMN_LABELS.due}</strong>
-                    {showFilters && (
-                      <Tooltip title='Фильтр по сроку'>
-                        <IconButton
-                          onClick={(e) => handleFilterClick(e, 'due')}
-                          color={
-                            dueDateRange[0] || dueDateRange[1]
-                              ? 'primary'
-                              : 'default'
-                          }
-                        >
-                          <FilterListIcon fontSize='small' />
-                        </IconButton>
-                      </Tooltip>
-                    )}
                   </TableCell>
                 )}
 
@@ -726,16 +531,6 @@ const TaskListPage = forwardRef<TaskListPageHandle, TaskListPageProps>(function 
                     }}
                   >
                     <strong>{COLUMN_LABELS.status}</strong>
-                    {showFilters && (
-                      <Tooltip title='Фильтр по статусу'>
-                        <IconButton
-                          onClick={(e) => handleFilterClick(e, 'status')}
-                          color={statusFilter ? 'primary' : 'default'}
-                        >
-                          <FilterListIcon fontSize='small' />
-                        </IconButton>
-                      </Tooltip>
-                    )}
                   </TableCell>
                 )}
 
@@ -748,16 +543,6 @@ const TaskListPage = forwardRef<TaskListPageHandle, TaskListPageProps>(function 
                     }}
                   >
                     <strong>{COLUMN_LABELS.priority}</strong>
-                    {showFilters && (
-                      <Tooltip title='Фильтр по приоритету'>
-                        <IconButton
-                          onClick={(e) => handleFilterClick(e, 'priority')}
-                          color={priorityFilter ? 'primary' : 'default'}
-                        >
-                          <FilterListIcon fontSize='small' />
-                        </IconButton>
-                      </Tooltip>
-                    )}
                   </TableCell>
                 )}
               </TableRow>
@@ -812,156 +597,70 @@ const TaskListPage = forwardRef<TaskListPageHandle, TaskListPageProps>(function 
           />
         </Box>
 
-        <Popover
-          open={Boolean(anchorEl)}
-          anchorEl={anchorEl}
-          onClose={handleClose}
-          anchorOrigin={{ vertical: 'bottom', horizontal: 'left' }}
-          slotProps={{ paper: { sx: { overflow: 'visible' } } }}
+      <Popover
+        open={Boolean(columnsAnchorEl)}
+        anchorEl={columnsAnchorEl}
+        onClose={closeColumns}
+        anchorOrigin={{ vertical: 'bottom', horizontal: 'left' }}
+        slotProps={{ paper: { sx: { overflow: 'visible' } } }}
+      >
+        <Box
+          sx={{
+            p: 2,
+            minWidth: 220,
+          }}
         >
+          <List>
+            {COLUMN_KEYS.map((column) => (
+              <ListItem key={column} dense component='button'>
+                <ListItemIcon>
+                  <Checkbox
+                    edge='start'
+                    checked={columnVisibility[column]}
+                    onChange={handleColumnVisibilityChange(column)}
+                    tabIndex={-1}
+                    disableRipple
+                  />
+                </ListItemIcon>
+                <ListItemText primary={COLUMN_LABELS[column]} />
+              </ListItem>
+            ))}
+          </List>
           <Box
             sx={{
-              p: 2,
-              minWidth: currentFilter === 'author' ? 360 : 200,
+              mt: 2,
+              display: 'flex',
+              justifyContent: 'space-between',
             }}
           >
-            {currentFilter === 'author' && (
-              <Box sx={{ width: 360 }}>
-                <Autocomplete<string, false, false, false>
-                  options={uniqueValues.authors}
-                  value={authorFilter}
-                  onChange={(_e, value) => setAuthorFilter(value)}
-                  clearOnEscape
-                  handleHomeEndKeys
-                  fullWidth
-                  renderInput={(params) => (
-                    <TextField {...params} label='Менеджер' size='small' autoFocus />
-                  )}
-                  slotProps={{
-                    popper: { disablePortal: true },
-                    paper: { sx: { overflow: 'visible', maxHeight: 'none' } },
-                  }}
-                  ListboxProps={{ style: { maxHeight: 'none' } }}
-                />
-              </Box>
-            )}
-
-
-            {currentFilter === 'created' && (
-              <DateRangePicker
-                value={createdDateRange}
-                onChange={(newValue) => setCreatedDateRange(newValue)}
-                slots={{ field: SingleInputDateRangeField }}
-              />
-            )}
-
-            {currentFilter === 'due' && (
-              <DateRangePicker
-                value={dueDateRange}
-                onChange={(newValue) => setDueDateRange(newValue)}
-                slots={{ field: SingleInputDateRangeField }}
-              />
-            )}
-
-            {currentFilter === 'status' && (
-              <FormControl fullWidth>
-                <InputLabel>Статус</InputLabel>
-                <Select
-                  value={statusFilter}
-                  onChange={(e) => setStatusFilter(e.target.value)}
-                >
-                  <MenuItem value=''>
-                    <em>Все</em>
-                  </MenuItem>
-                  {uniqueValues.statuses.map((status) => (
-                    <MenuItem key={status} value={status}>
-                      {getStatusLabel(status)}
-                    </MenuItem>
-                  ))}
-                </Select>
-              </FormControl>
-            )}
-
-            {currentFilter === 'priority' && (
-              <FormControl fullWidth>
-                <InputLabel>Приоритет</InputLabel>
-                <Select
-                  value={priorityFilter}
-                  onChange={(e) => setPriorityFilter(e.target.value)}
-                >
-                  <MenuItem value=''>
-                    <em>Все</em>
-                  </MenuItem>
-                  {uniqueValues.priorities.map((priority) => (
-                    <MenuItem key={priority} value={priority}>
-                      {getPriorityLabelRu(priority)}
-                    </MenuItem>
-                  ))}
-                </Select>
-              </FormControl>
-            )}
-
-            {currentFilter === 'columns' && (
-              <>
-                <List>
-                  {COLUMN_KEYS.map((column) => (
-                      <ListItem key={column} dense component='button'>
-                        <ListItemIcon>
-                          <Checkbox
-                            edge='start'
-                            checked={columnVisibility[column]}
-                            onChange={handleColumnVisibilityChange(column)}
-                            tabIndex={-1}
-                            disableRipple
-                          />
-                        </ListItemIcon>
-                        <ListItemText primary={COLUMN_LABELS[column]} />
-                      </ListItem>
-                    ))}
-
-                </List>
-                <Box
-                  sx={{
-                    mt: 2,
-                    display: 'flex',
-                    justifyContent: 'space-between',
-                  }}
-                >
-                  <Button
-                    onClick={() =>
-                      setColumnVisibility(
-                        COLUMN_KEYS.reduce(
-                          (acc, key) => ({ ...acc, [key]: true }),
-                          {} as Record<ColumnKey, boolean>
-                        )
-                      )
-                    }
-                  >
-                    Все
-                  </Button>
-                  <Button
-                    onClick={() =>
-                      setColumnVisibility(
-                        COLUMN_KEYS.reduce(
-                          (acc, key) => ({ ...acc, [key]: false }),
-                          {} as Record<ColumnKey, boolean>
-                        )
-                      )
-                    }
-                  >
-                    Очистить
-                  </Button>
-                </Box>
-              </>
-            )}
-
-            <Box
-              sx={{ mt: 2, display: 'flex', justifyContent: 'space-between' }}
-            ></Box>
+            <Button
+              onClick={() =>
+                setColumnVisibility(
+                  COLUMN_KEYS.reduce(
+                    (acc, key) => ({ ...acc, [key]: true }),
+                    {} as Record<ColumnKey, boolean>
+                  )
+                )
+              }
+            >
+              Все
+            </Button>
+            <Button
+              onClick={() =>
+                setColumnVisibility(
+                  COLUMN_KEYS.reduce(
+                    (acc, key) => ({ ...acc, [key]: false }),
+                    {} as Record<ColumnKey, boolean>
+                  )
+                )
+              }
+            >
+              Очистить
+            </Button>
           </Box>
-        </Popover>
-      </Box>
-    </LocalizationProvider>
+        </Box>
+      </Popover>
+    </Box>
   );
 });
 
