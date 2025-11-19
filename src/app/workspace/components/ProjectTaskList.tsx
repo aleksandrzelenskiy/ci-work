@@ -396,7 +396,7 @@ const ProjectTaskListInner = (
                                             <TableCell>
                                                 {execLabel ? (
                                                     <Stack direction="row" spacing={1} alignItems="center">
-                                                        <Avatar src={execProfile?.profilePic} sx={{ width: 24, height: 24 }}>
+                                                        <Avatar src={execProfile?.profilePic} sx={{ width: 32, height: 32 }}>
                                                             {getInitials(t.executorName || t.executorEmail)}
                                                         </Avatar>
                                                         <Box>
