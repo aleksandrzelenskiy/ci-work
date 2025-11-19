@@ -197,7 +197,7 @@ const ProjectTaskListInner = (
     };
     const handleCloseMenu = () => setMenuPos(null);
 
-    const openTaskPage = (task: TaskWithStatus, target: '_self' | '_blank' = '_blank') => {
+    const openTaskPage = (task: TaskWithStatus, target: '_self' | '_blank' = '_self') => {
         const slug = task.taskId ? task.taskId : task._id;
         const href = `/org/${encodeURIComponent(org)}/projects/${encodeURIComponent(
             project
