@@ -72,6 +72,7 @@ type MemberDTO = {
     userName?: string;
     role: OrgRole;
     status: 'active' | 'invited';
+    profilePic?: string;
 };
 type MembersResponse = { members: MemberDTO[] } | { error: string };
 type ProjectMetaResponse =
