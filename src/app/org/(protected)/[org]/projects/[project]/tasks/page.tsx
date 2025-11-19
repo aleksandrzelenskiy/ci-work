@@ -485,6 +485,7 @@ export default function ProjectTasksPage() {
         for (const [email, member] of Object.entries(membersByEmail)) {
             record[email] = {
                 name: member.userName ?? member.userEmail,
+                profilePic: member.profilePic,
             };
         }
         return record;
