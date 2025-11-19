@@ -293,6 +293,13 @@ const TaskListPage = forwardRef<TaskListPageHandle, TaskListPageProps>(function 
               .filter((name): name is string => Boolean(name))
           )
         ),
+        executors: Array.from(
+          new Set(
+            tasks
+              .map((t) => (t.executorName || t.executorEmail)?.trim())
+              .filter((name): name is string => Boolean(name))
+          )
+        ),
         statuses: Array.from(new Set(tasks.map((t) => t.status))),
         priorities: Array.from(new Set(tasks.map((t) => t.priority))),
       }),
@@ -302,6 +309,7 @@ const TaskListPage = forwardRef<TaskListPageHandle, TaskListPageProps>(function 
   useEffect(() => {
     onFilterOptionsChange?.({
       managers: uniqueValues.authors,
+      executors: uniqueValues.executors,
       statuses: uniqueValues.statuses,
       priorities: uniqueValues.priorities,
     });

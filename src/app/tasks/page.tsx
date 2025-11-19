@@ -65,6 +65,7 @@ export default function TasksPage() {
     const [filters, setFilters] = useState<TaskFilters>(defaultTaskFilters);
     const [filterOptions, setFilterOptions] = useState<TaskFilterOptions>({
         managers: [],
+        executors: [],
         statuses: [],
         priorities: [],
     });
