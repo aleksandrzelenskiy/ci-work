@@ -112,30 +112,27 @@ const getInitials = (value?: string) => {
     .join('') || '—';
 };
 
-const getAuthorIdentifier = (task: Task) => ((task.authorName || task.authorEmail)?.trim() || '');
+const getAuthorIdentifier = (task: Task) =>
+  ((task.authorName || task.authorEmail)?.trim() || '').toLowerCase();
+
+type UserProfile = {
+  email: string;
+  name?: string;
+  profilePic?: string;
+};
 
 
 /* ───────────── строка задачи ───────────── */
 function Row({
   task,
   columnVisibility,
+  authorProfile,
 }: {
   task: Task;
   columnVisibility: Record<ColumnKey, boolean>;
+  authorProfile?: UserProfile | null;
 }) {
   const router = useRouter();
-
-  const buildUserInfo = (name?: string, email?: string) => {
-    const trimmedName = name?.trim() ?? '';
-    const trimmedEmail = email?.trim() ?? '';
-    const primary = trimmedName || trimmedEmail || '—';
-    const secondary =
-      trimmedEmail && trimmedEmail.toLowerCase() !== primary.toLowerCase()
-        ? trimmedEmail
-        : '';
-    const initials = getInitials(trimmedName || trimmedEmail);
-    return { primary, secondary, initials };
-  };
 
   const handleRowClick = () => {
     const slug = task.taskId ? task.taskId.toLowerCase() : task._id;
@@ -146,32 +143,10 @@ function Row({
 
   const statusLabel = getStatusLabel(task.status);
   const priorityLabel = getPriorityLabelRu(task.priority) || 'Не задан';
-  const authorInfo = buildUserInfo(task.authorName, task.authorEmail);
-
-  const renderUserCell = (info: { primary: string; secondary: string; initials: string }) => {
-    if (!info.primary || info.primary === '—') {
-      return (
-        <Typography variant='body2' color='text.secondary' align='center'>
-          —
-        </Typography>
-      );
-    }
-    return (
-      <Stack direction='row' spacing={1} alignItems='center'>
-        <Avatar sx={{ width: 24, height: 24, fontSize: 12 }}>
-          {info.initials}
-        </Avatar>
-        <Box>
-          <Typography variant='body2'>{info.primary}</Typography>
-          {info.secondary && (
-            <Typography variant='caption' color='text.secondary'>
-              {info.secondary}
-            </Typography>
-          )}
-        </Box>
-      </Stack>
-    );
-  };
+  const authorName =
+    authorProfile?.name?.trim() || task.authorName?.trim() || '';
+  const authorEmail = task.authorEmail?.trim() || authorProfile?.email || '';
+  const authorInitials = getInitials(authorName || authorEmail);
 
   return (
     <TableRow hover sx={{ cursor: 'pointer' }} onClick={handleRowClick}>
@@ -201,7 +176,21 @@ function Row({
       )}
 
       {columnVisibility.author && (
-        <TableCell>{renderUserCell(authorInfo)}</TableCell>
+        <TableCell>
+          <Stack direction="row" spacing={1.5} alignItems="center">
+            <Avatar src={authorProfile?.profilePic} sx={{ width: 32, height: 32 }}>
+              {authorInitials}
+            </Avatar>
+            <Box>
+              <Typography variant="body2">{authorName || authorEmail || '—'}</Typography>
+              {authorName && authorEmail && (
+                <Typography variant="caption" color="text.secondary">
+                  {authorEmail}
+                </Typography>
+              )}
+            </Box>
+          </Stack>
+        </TableCell>
       )}
 
       {columnVisibility.created && (
@@ -276,6 +265,7 @@ const TaskListPage = forwardRef<TaskListPageHandle, TaskListPageProps>(function 
     ColumnKey,
     boolean
   >>({ ...DEFAULT_COLUMN_VISIBILITY });
+  const [userProfiles, setUserProfiles] = useState<Record<string, UserProfile>>({});
 
   /* ----- popover / пагинация ----- */
   const [currentPage, setCurrentPage] = useState(1);
@@ -316,6 +306,34 @@ const TaskListPage = forwardRef<TaskListPageHandle, TaskListPageProps>(function 
       priorities: uniqueValues.priorities,
     });
   }, [uniqueValues, onFilterOptionsChange]);
+
+  useEffect(() => {
+    let active = true;
+    (async () => {
+      try {
+        const response = await fetch('/api/users');
+        if (!response.ok) return;
+        const data = await response.json();
+        if (!active) return;
+        const map: Record<string, UserProfile> = {};
+        for (const user of Array.isArray(data) ? data : []) {
+          if (user.email) {
+            map[user.email.toLowerCase()] = {
+              email: user.email.toLowerCase(),
+              name: user.name,
+              profilePic: user.profilePic,
+            };
+          }
+        }
+        setUserProfiles(map);
+      } catch (error) {
+        console.error('Failed loading user profiles', error);
+      }
+    })();
+    return () => {
+      active = false;
+    };
+  }, []);
 
   /* ----- загрузка задач и роли пользователя ----- */
   useEffect(() => {
@@ -549,13 +567,17 @@ const TaskListPage = forwardRef<TaskListPageHandle, TaskListPageProps>(function 
             </TableHead>
 
             <TableBody>
-              {paginatedTasks.map((task) => (
-                <Row
-                  key={task.taskId}
-                  task={task}
-                  columnVisibility={columnVisibility}
-                />
-              ))}
+              {paginatedTasks.map((task) => {
+                const emailKey = (task.authorEmail || '').trim().toLowerCase();
+                return (
+                  <Row
+                    key={task.taskId}
+                    task={task}
+                    columnVisibility={columnVisibility}
+                    authorProfile={emailKey ? userProfiles[emailKey] : undefined}
+                  />
+                );
+              })}
             </TableBody>
           </Table>
         </TableContainer>

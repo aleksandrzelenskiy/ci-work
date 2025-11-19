@@ -864,17 +864,18 @@ export default function ProjectTasksPage() {
                     </Tabs>
 
                     {tab === 'list' && (
-                        <ProjectTaskList
-                            ref={taskListRef}
-                            items={filteredItems}
-                            loading={loading}
-                            error={error}
-                            org={orgSlug || ''}
-                            project={projectRef || ''}
-                            onReloadAction={() => {
-                                void load();
-                            }}
-                        />
+                    <ProjectTaskList
+                        ref={taskListRef}
+                        items={filteredItems}
+                        loading={loading}
+                        error={error}
+                        org={orgSlug || ''}
+                        project={projectRef || ''}
+                        onReloadAction={() => {
+                            void load();
+                        }}
+                        userProfiles={membersByEmail}
+                    />
                     )}
 
                     {tab === 'board' && (

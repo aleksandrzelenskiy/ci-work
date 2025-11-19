@@ -122,6 +122,11 @@ export interface ProjectTaskListHandle {
     closeColumns: () => void;
 }
 
+type UserProfile = {
+    name?: string;
+    profilePic?: string;
+};
+
 type ProjectTaskListProps = {
     items: Task[];
     loading: boolean;
@@ -129,11 +134,12 @@ type ProjectTaskListProps = {
     org: string;
     project: string;
     onReloadAction?: () => void;
+    userProfiles: Record<string, UserProfile>;
 };
 
 /* ───────────── компонент ───────────── */
 const ProjectTaskListInner = (
-    { items, loading, error, org, project, onReloadAction }: ProjectTaskListProps,
+    { items, loading, error, org, project, onReloadAction, userProfiles }: ProjectTaskListProps,
     ref: React.ForwardedRef<ProjectTaskListHandle>
 ) => {
 
@@ -320,10 +326,12 @@ const ProjectTaskListInner = (
                             )}
 
                             {pageSlice.map((t) => {
-                                const statusTitle = t._statusTitle;
-                                const safePriority = (normalizePriority(t.priority as string) ?? 'medium') as Pri;
-                                const execLabel = t.executorName || t.executorEmail || '';
-                                const execSub = t.executorName && t.executorEmail ? t.executorEmail : '';
+        const statusTitle = t._statusTitle;
+        const safePriority = (normalizePriority(t.priority as string) ?? 'medium') as Pri;
+        const execLabel = t.executorName || t.executorEmail || '';
+        const execSub = t.executorName && t.executorEmail ? t.executorEmail : '';
+        const execEmailKey = (t.executorEmail || '').trim().toLowerCase();
+        const execProfile = execEmailKey ? userProfiles[execEmailKey] : undefined;
 
                                 return (
 
@@ -388,7 +396,7 @@ const ProjectTaskListInner = (
                                             <TableCell>
                                                 {execLabel ? (
                                                     <Stack direction="row" spacing={1} alignItems="center">
-                                                        <Avatar sx={{ width: 24, height: 24 }}>
+                                                        <Avatar src={execProfile?.profilePic} sx={{ width: 24, height: 24 }}>
                                                             {getInitials(t.executorName || t.executorEmail)}
                                                         </Avatar>
                                                         <Box>
