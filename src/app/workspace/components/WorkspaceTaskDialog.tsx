@@ -37,6 +37,15 @@ import TaskAltIcon from '@mui/icons-material/TaskAlt';
 import CloseIcon from '@mui/icons-material/Close';
 import AddIcon from '@mui/icons-material/Add';
 import { YMaps, Map, Placemark } from '@pbe/react-yandex-maps';
+import T2EstimateParser, {
+    ParsedEstimateResult,
+} from '@/app/workspace/components/T2/T2EstimateParser';
+import {
+    extractBsNumbersFromString,
+    DEFAULT_BS_PREFIXES,
+} from '@/app/workspace/components/T2/t2EstimateHelpers';
+
+
 
 type Priority = 'urgent' | 'high' | 'medium' | 'low';
 
@@ -191,6 +200,21 @@ function parseNumberOrUndefined(v: string): number | undefined {
     return Number.isFinite(n) ? n : undefined;
 }
 
+function getTaskBsNumber(entries: BsFormEntry[]): string {
+    return entries
+        .map((e: BsFormEntry) => e.bsNumber.trim())
+        .filter(Boolean)
+        .join('-');
+}
+
+function getPrimaryAddress(entries: BsFormEntry[]): string {
+    const firstWithAddr = entries.find(
+        (e: BsFormEntry) => e.bsAddress.trim()
+    );
+    return firstWithAddr?.bsAddress.trim() ?? '';
+}
+
+
 export default function WorkspaceTaskDialog({
                                                 open,
                                                 org,
@@ -211,6 +235,8 @@ export default function WorkspaceTaskDialog({
         },
         [orgSlug]
     );
+
+    const [estimateDialogOpen, setEstimateDialogOpen] = React.useState(false);
 
     const [saving, setSaving] = React.useState(false);
 
@@ -536,6 +562,103 @@ export default function WorkspaceTaskDialog({
 
     const bsSearchTimeout = React.useRef<ReturnType<typeof setTimeout> | null>(null);
 
+    const handleEstimateApply = React.useCallback(
+        (data: ParsedEstimateResult) => {
+            const { bsNumber, bsAddress, totalCost, sourceFile } = data;
+
+            // 0) парсим номера БС из строки сметы
+            const parsedNumbers = extractBsNumbersFromString(bsNumber, {
+                prefixes: [...DEFAULT_BS_PREFIXES],
+                dedupe: true,
+            });
+
+            const numbersToUse =
+                parsedNumbers.length > 0
+                    ? parsedNumbers
+                    : bsNumber
+                        ? [bsNumber.trim()]
+                        : [];
+
+            // 1) обновляем БС в форме
+            if (numbersToUse.length > 1) {
+                // несколько БС → создаём несколько записей
+                setBsEntries(
+                    numbersToUse.map((num, idx) => ({
+                        id: `bs-estimate-${idx}`,
+                        bsNumber: num,
+                        bsInput: num,
+                        bsAddress: idx === 0 ? bsAddress || '' : '',
+                        bsLatitude: '',
+                        bsLongitude: '',
+                        selectedBsOption: null,
+                    }))
+                );
+
+                // подгружаем объекты по первой БС
+                void loadBsOptions(numbersToUse[0]);
+            } else {
+                // одна БС → старая логика, но с нормализованным номером
+                const single = numbersToUse[0] ?? '';
+
+                setBsEntries((prev) => {
+                    if (!prev.length) {
+                        return [
+                            {
+                                id: 'bs-main',
+                                bsNumber: single,
+                                bsInput: single,
+                                bsAddress: bsAddress || '',
+                                bsLatitude: '',
+                                bsLongitude: '',
+                                selectedBsOption: null,
+                            },
+                        ];
+                    }
+
+                    const next = [...prev];
+                    const first = next[0];
+
+                    next[0] = {
+                        ...first,
+                        bsNumber: single || first.bsNumber,
+                        bsInput: single || first.bsInput,
+                        bsAddress: bsAddress || first.bsAddress,
+                    };
+
+                    return next;
+                });
+
+                if (single) {
+                    void loadBsOptions(single);
+                }
+            }
+
+            // 2) стоимость
+            if (typeof totalCost === 'number') {
+                setTotalCost(String(totalCost));
+            }
+
+            // 3) подставить имя задачи, если пустое
+            if (!taskName && numbersToUse.length) {
+                const titleBs = numbersToUse.join('-');
+                setTaskName(`Работы по заказу T2 для БС ${titleBs}`);
+            }
+
+            // 4) добавить Excel как вложение
+            if (sourceFile) {
+                setAttachments((prev) => {
+                    const key = `${sourceFile.name}:${sourceFile.size}`;
+                    const existing = new Set(prev.map((f) => `${f.name}:${f.size}`));
+                    if (existing.has(key)) return prev;
+                    return [...prev, sourceFile];
+                });
+            }
+        },
+        [taskName, loadBsOptions]
+    );
+
+
+
     const handleSelectBsOption = (index: number, opt: BsOption | null) => {
         if (!opt) {
             updateBsEntry(index, {
@@ -704,18 +827,6 @@ export default function WorkspaceTaskDialog({
         return result;
     }
 
-    function getTaskBsNumber(): string {
-        return bsEntries
-            .map((e) => e.bsNumber.trim())
-            .filter(Boolean)
-            .join('-');
-    }
-
-    function getPrimaryAddress(): string {
-        const firstWithAddr = bsEntries.find((e) => e.bsAddress.trim());
-        return firstWithAddr?.bsAddress.trim() ?? '';
-    }
-
     function getPrimaryCoords(): { lat?: number; lon?: number } {
         if (!bsEntries.length) return {};
         const e = bsEntries[0];
@@ -724,8 +835,16 @@ export default function WorkspaceTaskDialog({
         return { lat, lon };
     }
 
-    const taskBsNumber = React.useMemo(() => getTaskBsNumber(), [bsEntries]);
-    const taskBsAddress = React.useMemo(() => getPrimaryAddress(), [bsEntries]);
+    const taskBsNumber = React.useMemo(
+        () => getTaskBsNumber(bsEntries),
+        [bsEntries]
+    );
+
+    const taskBsAddress = React.useMemo(
+        () => getPrimaryAddress(bsEntries),
+        [bsEntries]
+    );
+
     const hasAtLeastOneBsNumber = !!taskBsNumber;
 
     async function handleCreate() {
@@ -973,14 +1092,29 @@ export default function WorkspaceTaskDialog({
 
                     <Box sx={{ flex: 1, overflowY: 'auto', p: 3 }}>
                         <Stack spacing={2.5}>
-                            <TextField
-                                label="Task Name"
-                                value={taskName}
-                                onChange={(e) => setTaskName(e.target.value)}
-                                required
-                                fullWidth
-                                sx={glassInputSx}
-                            />
+                            <Stack spacing={1.5}>
+                                <Stack direction="row" alignItems="center" justifyContent="space-between">
+                                    <Typography variant="subtitle2">Основная информация</Typography>
+                                    <Button
+                                        size="small"
+                                        variant="outlined"
+                                        onClick={() => setEstimateDialogOpen(true)}
+                                        disabled={saving || uploading}
+                                    >
+                                        Заполнить по смете
+                                    </Button>
+                                </Stack>
+
+                                <TextField
+                                    label="Task Name"
+                                    value={taskName}
+                                    onChange={(e) => setTaskName(e.target.value)}
+                                    required
+                                    fullWidth
+                                    sx={glassInputSx}
+                                />
+                            </Stack>
+
 
                             {/* Блок базовых станций */}
                             <Box>
@@ -1560,6 +1694,14 @@ export default function WorkspaceTaskDialog({
                         {snackbarMsg}
                     </Alert>
                 </Snackbar>
+
+                <T2EstimateParser
+                    open={estimateDialogOpen}
+                    onClose={() => setEstimateDialogOpen(false)}
+                    onApply={handleEstimateApply}
+                />
+
+
             </Drawer>
         </LocalizationProvider>
     );
