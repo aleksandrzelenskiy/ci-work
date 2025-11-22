@@ -35,6 +35,7 @@ import DeleteOutlineIcon from '@mui/icons-material/DeleteOutline';
 import CloudUploadIcon from '@mui/icons-material/CloudUpload';
 import TaskAltIcon from '@mui/icons-material/TaskAlt';
 import CloseIcon from '@mui/icons-material/Close';
+import AddIcon from '@mui/icons-material/Add';
 import { YMaps, Map, Placemark } from '@pbe/react-yandex-maps';
 
 type Priority = 'urgent' | 'high' | 'medium' | 'low';
@@ -70,7 +71,7 @@ export type TaskForEdit = {
     executorEmail?: string;
     files?: Array<{ name?: string; url?: string; size?: number }>;
     attachments?: string[];
-    bsLocation?: Array<{ name: string; coordinates: string }>;
+    bsLocation?: Array<{ name: string; coordinates: string; address?: string }>;
 };
 
 type Props = {
@@ -103,6 +104,16 @@ type BsOption = {
     lon?: number | null;
 };
 
+type BsFormEntry = {
+    id: string;
+    bsNumber: string;
+    bsInput: string;
+    bsAddress: string;
+    bsLatitude: string;
+    bsLongitude: string;
+    selectedBsOption: BsOption | null;
+};
+
 function getDisplayBsName(raw: string): string {
     const trimmed = raw.trim();
     if (/^IR\d+/i.test(trimmed)) {
@@ -119,7 +130,7 @@ function normalizeAddressFromDb(bsNumber: string, raw?: string): string {
     }
     const hasIrPrefix = /^IR\d+/i.test(bsNumber.trim());
     if (hasIrPrefix) {
-        if (!addr.startsWith('Иркутская область')) {
+        if (!addr.toLowerCase().startsWith('иркутская область')) {
             addr = `Иркутская область, ${addr}`;
         }
     }
@@ -150,6 +161,36 @@ const glassInputSx = {
 
 const YMAPS_API_KEY = process.env.NEXT_PUBLIC_YMAPS_API_KEY || '1c3860d8-3994-4e6e-841b-31ad57f69c78';
 
+function isLatValueValid(v: string): boolean {
+    const trimmed = v.trim();
+    if (!trimmed) return true;
+    const n = Number(trimmed.replace(',', '.'));
+    return Number.isFinite(n) && n >= -90 && n <= 90;
+}
+
+function isLngValueValid(v: string): boolean {
+    const trimmed = v.trim();
+    if (!trimmed) return true;
+    const n = Number(trimmed.replace(',', '.'));
+    return Number.isFinite(n) && n >= -180 && n <= 180;
+}
+
+function parseLatLonFromCoordinates(coord?: string | null): { lat: string; lon: string } {
+    if (!coord) return { lat: '', lon: '' };
+    const parts = coord.split(/\s+/).filter(Boolean);
+    if (parts.length >= 2) {
+        return { lat: parts[0], lon: parts[1] };
+    }
+    return { lat: '', lon: '' };
+}
+
+function parseNumberOrUndefined(v: string): number | undefined {
+    const trimmed = v.trim();
+    if (!trimmed) return undefined;
+    const n = Number(trimmed.replace(',', '.'));
+    return Number.isFinite(n) ? n : undefined;
+}
+
 export default function WorkspaceTaskDialog({
                                                 open,
                                                 org,
@@ -174,15 +215,20 @@ export default function WorkspaceTaskDialog({
     const [saving, setSaving] = React.useState(false);
 
     const [taskName, setTaskName] = React.useState('');
-    const [bsNumber, setBsNumber] = React.useState('');
-    const [bsInput, setBsInput] = React.useState('');
-    const [bsAddress, setBsAddress] = React.useState('');
+    const [bsEntries, setBsEntries] = React.useState<BsFormEntry[]>([
+        {
+            id: 'bs-main',
+            bsNumber: '',
+            bsInput: '',
+            bsAddress: '',
+            bsLatitude: '',
+            bsLongitude: '',
+            selectedBsOption: null,
+        },
+    ]);
     const [taskDescription, setTaskDescription] = React.useState('');
     const [priority, setPriority] = React.useState<Priority>('medium');
     const [dueDate, setDueDate] = React.useState<Date | null>(new Date());
-
-    const [bsLatitude, setBsLatitude] = React.useState<string>('');
-    const [bsLongitude, setBsLongitude] = React.useState<string>('');
 
     // новое поле: стоимость
     const [totalCost, setTotalCost] = React.useState<string>('');
@@ -205,7 +251,6 @@ export default function WorkspaceTaskDialog({
     const [bsOptions, setBsOptions] = React.useState<BsOption[]>([]);
     const [bsOptionsLoading, setBsOptionsLoading] = React.useState(false);
     const [bsOptionsError, setBsOptionsError] = React.useState<string | null>(null);
-    const [selectedBsOption, setSelectedBsOption] = React.useState<BsOption | null>(null);
 
     // диалог удаления существующего файла
     const [deleteDialogOpen, setDeleteDialogOpen] = React.useState(false);
@@ -223,10 +268,10 @@ export default function WorkspaceTaskDialog({
     const loadProjectMeta = React.useCallback(async () => {
         if (!projectRef) return;
         try {
-            const res = await fetch(
-                apiPath(`/projects/${encodeURIComponent(projectRef)}`),
-                { method: 'GET', cache: 'no-store' }
-            );
+            const res = await fetch(apiPath(`/projects/${encodeURIComponent(projectRef)}`), {
+                method: 'GET',
+                cache: 'no-store',
+            });
             const body = await res.json();
             if (!res.ok || !body?.ok) {
                 setProjectMeta(null);
@@ -248,76 +293,151 @@ export default function WorkspaceTaskDialog({
         void loadProjectMeta();
     }, [projectRef, loadProjectMeta]);
 
-    const loadBsOptions = React.useCallback(async (term: string) => {
-        setBsOptionsLoading(true);
-        setBsOptionsError(null);
-        try {
-            const qs = new URLSearchParams();
-            if (term) qs.set('q', term);
-            if (projectMeta?.regionCode) qs.set('region', projectMeta.regionCode);
-            if (projectMeta?.operator) qs.set('operator', projectMeta.operator);
-            const query = qs.toString();
-            const url = `/api/objects${query ? `?${query}` : ''}`;
-            const res = await fetch(url, { method: 'GET', cache: 'no-store' });
-            const body = await res.json();
-            if (!res.ok) {
-                setBsOptionsError(extractErrorMessage(body, res.statusText));
+    const loadBsOptions = React.useCallback(
+        async (term: string) => {
+            setBsOptionsLoading(true);
+            setBsOptionsError(null);
+            try {
+                const qs = new URLSearchParams();
+                if (term) qs.set('q', term);
+                if (projectMeta?.regionCode) qs.set('region', projectMeta.regionCode);
+                if (projectMeta?.operator) qs.set('operator', projectMeta.operator);
+                const query = qs.toString();
+                const url = `/api/objects${query ? `?${query}` : ''}`;
+                const res = await fetch(url, { method: 'GET', cache: 'no-store' });
+                const body = await res.json();
+                if (!res.ok) {
+                    setBsOptionsError(extractErrorMessage(body, res.statusText));
+                    setBsOptions([]);
+                    return;
+                }
+                const arr = (body?.objects ?? []) as BsOption[];
+                setBsOptions(arr);
+            } catch (e: unknown) {
+                setBsOptionsError(e instanceof Error ? e.message : 'Failed to load objects');
                 setBsOptions([]);
-                return;
+            } finally {
+                setBsOptionsLoading(false);
             }
-            const arr = (body?.objects ?? []) as BsOption[];
-            setBsOptions(arr);
-        } catch (e: unknown) {
-            setBsOptionsError(e instanceof Error ? e.message : 'Failed to load objects');
-            setBsOptions([]);
-        } finally {
-            setBsOptionsLoading(false);
-        }
-    }, [projectMeta?.regionCode, projectMeta?.operator]);
+        },
+        [projectMeta?.regionCode, projectMeta?.operator]
+    );
+
+    // helper to update one BS entry
+    const updateBsEntry = (index: number, patch: Partial<BsFormEntry>) => {
+        setBsEntries((prev) => prev.map((e, i) => (i === index ? { ...e, ...patch } : e)));
+    };
+
+    const addBsEntry = () => {
+        setBsEntries((prev) => [
+            ...prev,
+            {
+                id: `bs-${prev.length}-${genId(3)}`,
+                bsNumber: '',
+                bsInput: '',
+                bsAddress: '',
+                bsLatitude: '',
+                bsLongitude: '',
+                selectedBsOption: null,
+            },
+        ]);
+    };
+
+    const removeBsEntry = (index: number) => {
+        // первую БС не даём удалять
+        setBsEntries((prev) => {
+            if (prev.length <= 1) return prev;
+            if (index === 0) return prev;
+            const next = prev.filter((_, i) => i !== index);
+            return next.length ? next : prev;
+        });
+    };
 
     React.useEffect(() => {
         if (!open) return;
         if (!isEdit || !initialTask) return;
 
         setTaskName(initialTask.taskName ?? '');
-        const initialBs = initialTask.bsNumber ? getDisplayBsName(initialTask.bsNumber) : '';
-        setBsNumber(initialBs);
-        setBsInput(initialBs);
-        setBsAddress(initialTask.bsAddress ?? '');
-        setTaskDescription(initialTask.taskDescription ?? '');
-
         const pr = (initialTask.priority || 'medium').toString().toLowerCase() as Priority;
         setPriority(['urgent', 'high', 'medium', 'low'].includes(pr) ? pr : 'medium');
-
         setDueDate(initialTask.dueDate ? new Date(initialTask.dueDate) : null);
+        setTaskDescription(initialTask.taskDescription ?? '');
 
-        let latStr =
-            typeof initialTask.bsLatitude === 'number'
-                ? String(initialTask.bsLatitude).replace(',', '.')
-                : '';
-        let lonStr =
-            typeof initialTask.bsLongitude === 'number'
-                ? String(initialTask.bsLongitude).replace(',', '.')
-                : '';
-
-        if ((!latStr || !lonStr) && Array.isArray(initialTask.bsLocation) && initialTask.bsLocation.length > 0) {
-            const coord = initialTask.bsLocation[0]?.coordinates || '';
-            const parts = coord.split(/\s+/).filter(Boolean);
-            if (parts.length >= 2) {
-                latStr = latStr || parts[0];
-                lonStr = lonStr || parts[1];
-            }
-        }
-
-        setBsLatitude(latStr);
-        setBsLongitude(lonStr);
-
-        // подставляем стоимость из задачи
+        // стоимость
         setTotalCost(
             typeof initialTask.totalCost === 'number' && !Number.isNaN(initialTask.totalCost)
                 ? String(initialTask.totalCost)
                 : ''
         );
+
+        const entries: BsFormEntry[] = [];
+
+        if (Array.isArray(initialTask.bsLocation) && initialTask.bsLocation.length > 0) {
+            initialTask.bsLocation.forEach((loc, idx) => {
+                const { lat, lon } = parseLatLonFromCoordinates(loc.coordinates);
+                const addr = (loc.address ?? initialTask.bsAddress ?? '').trim();
+                const name = loc.name || '';
+                entries.push({
+                    id: `edit-bs-${idx}`,
+                    bsNumber: name,
+                    bsInput: name,
+                    bsAddress: addr,
+                    bsLatitude: lat,
+                    bsLongitude: lon,
+                    selectedBsOption: null,
+                });
+            });
+        } else {
+            let latStr =
+                typeof initialTask.bsLatitude === 'number'
+                    ? String(initialTask.bsLatitude).replace(',', '.')
+                    : '';
+            let lonStr =
+                typeof initialTask.bsLongitude === 'number'
+                    ? String(initialTask.bsLongitude).replace(',', '.')
+                    : '';
+
+            if (
+                (!latStr || !lonStr) &&
+                Array.isArray(initialTask.bsLocation) &&
+                initialTask.bsLocation.length > 0
+            ) {
+                const coord = initialTask.bsLocation[0]?.coordinates || '';
+                const parts = coord.split(/\s+/).filter(Boolean);
+                if (parts.length >= 2) {
+                    latStr = latStr || parts[0];
+                    lonStr = lonStr || parts[1];
+                }
+            }
+
+            const initialBs = initialTask.bsNumber ? getDisplayBsName(initialTask.bsNumber) : '';
+
+            entries.push({
+                id: 'edit-bs-main',
+                bsNumber: initialBs,
+                bsInput: initialBs,
+                bsAddress: initialTask.bsAddress ?? '',
+                bsLatitude: latStr,
+                bsLongitude: lonStr,
+                selectedBsOption: null,
+            });
+        }
+
+        setBsEntries(entries.length ? entries : [
+            {
+                id: 'bs-main',
+                bsNumber: '',
+                bsInput: '',
+                bsAddress: '',
+                bsLatitude: '',
+                bsLongitude: '',
+                selectedBsOption: null,
+            },
+        ]);
+
+        if (entries[0]?.bsNumber) {
+            void loadBsOptions(entries[0].bsNumber);
+        }
 
         if (initialTask.executorEmail || initialTask.executorName || initialTask.executorId) {
             setSelectedExecutor({
@@ -353,12 +473,6 @@ export default function WorkspaceTaskDialog({
         setAttachments([]);
         setUploadProgress(0);
         setUploading(false);
-
-        if (initialTask.bsNumber) {
-            void loadBsOptions(initialTask.bsNumber);
-        }
-
-        setSelectedBsOption(null);
     }, [open, isEdit, initialTask, loadBsOptions]);
 
     React.useEffect(() => {
@@ -397,7 +511,6 @@ export default function WorkspaceTaskDialog({
                     profilePic: m.profilePic,
                 }));
 
-
                 if (!aborted) setMembers(opts);
             } catch (e: unknown) {
                 const msg = e instanceof Error ? e.message : 'Failed to load members';
@@ -413,48 +526,88 @@ export default function WorkspaceTaskDialog({
         };
     }, [open, orgSlug, apiPath]);
 
-    const isLatValid =
-        bsLatitude === '' ||
-        (!Number.isNaN(Number(bsLatitude)) &&
-            Number.isFinite(Number(bsLatitude)) &&
-            Number(bsLatitude) >= -90 &&
-            Number(bsLatitude) <= 90);
+    const hasInvalidCoords = React.useMemo(
+        () =>
+            bsEntries.some(
+                (e) => !isLatValueValid(e.bsLatitude) || !isLngValueValid(e.bsLongitude)
+            ),
+        [bsEntries]
+    );
 
-    const isLngValid =
-        bsLongitude === '' ||
-        (!Number.isNaN(Number(bsLongitude)) &&
-            Number.isFinite(Number(bsLongitude)) &&
-            Number(bsLongitude) >= -180 &&
-            Number(bsLongitude) <= 180);
+    const bsSearchTimeout = React.useRef<ReturnType<typeof setTimeout> | null>(null);
 
-    const mapCoords = React.useMemo<[number, number] | null>(() => {
-        const latRaw = bsLatitude.trim();
-        const lonRaw = bsLongitude.trim();
+    const handleSelectBsOption = (index: number, opt: BsOption | null) => {
+        if (!opt) {
+            updateBsEntry(index, {
+                selectedBsOption: null,
+            });
+            return;
+        }
+        const displayName = getDisplayBsName(opt.name);
+        const lat =
+            typeof opt.lat === 'number' ? String(opt.lat).replace(',', '.') : '';
+        const lon =
+            typeof opt.lon === 'number' ? String(opt.lon).replace(',', '.') : '';
+        const normalized = normalizeAddressFromDb(displayName, opt.address);
+        updateBsEntry(index, {
+            bsNumber: displayName,
+            bsInput: displayName,
+            selectedBsOption: opt,
+            bsAddress: normalized,
+            bsLatitude: lat,
+            bsLongitude: lon,
+        });
+    };
+
+    const handleBsInputChange = (_e: React.SyntheticEvent, value: string, index: number) => {
+        updateBsEntry(index, {
+            bsInput: value,
+            bsNumber: value,
+            selectedBsOption: null,
+        });
+        if (bsSearchTimeout.current) clearTimeout(bsSearchTimeout.current);
+        if (!value.trim()) {
+            setBsOptions([]);
+            return;
+        }
+        bsSearchTimeout.current = setTimeout(() => {
+            void loadBsOptions(value);
+        }, 300);
+    };
+
+    const getMapCoords = (entry: BsFormEntry): [number, number] | null => {
+        const latRaw = entry.bsLatitude.trim();
+        const lonRaw = entry.bsLongitude.trim();
         if (!latRaw || !lonRaw) return null;
-        if (!isLatValid || !isLngValid) return null;
-        const lat = Number(latRaw);
-        const lon = Number(lonRaw);
+        if (!isLatValueValid(entry.bsLatitude) || !isLngValueValid(entry.bsLongitude)) return null;
+        const lat = Number(latRaw.replace(',', '.'));
+        const lon = Number(lonRaw.replace(',', '.'));
         if (!Number.isFinite(lat) || !Number.isFinite(lon)) return null;
         return [lat, lon];
-    }, [bsLatitude, bsLongitude, isLatValid, isLngValid]);
+    };
 
     const reset = () => {
         setTaskName('');
-        setBsNumber('');
-        setBsInput('');
-        setBsAddress('');
         setTaskDescription('');
         setPriority('medium');
         setDueDate(new Date());
-        setBsLatitude('');
-        setBsLongitude('');
         setSelectedExecutor(null);
-        setSelectedBsOption(null);
         setExistingAttachments([]);
         setAttachments([]);
         setUploadProgress(0);
         setUploading(false);
         setTotalCost('');
+        setBsEntries([
+            {
+                id: 'bs-main',
+                bsNumber: '',
+                bsInput: '',
+                bsAddress: '',
+                bsLatitude: '',
+                bsLongitude: '',
+                selectedBsOption: null,
+            },
+        ]);
     };
 
     const handleSnackbarClose = () => setSnackbarOpen(false);
@@ -535,57 +688,81 @@ export default function WorkspaceTaskDialog({
         setUploading(false);
     }
 
-    function buildBsLocation(): Array<{ name: string; coordinates: string }> {
-        if (selectedBsOption) {
-            const displayName = getDisplayBsName(selectedBsOption.name);
-            const lat = typeof selectedBsOption.lat === 'number' ? String(selectedBsOption.lat).replace(',', '.') : '';
-            const lon = typeof selectedBsOption.lon === 'number' ? String(selectedBsOption.lon).replace(',', '.') : '';
-            if (lat && lon) {
-                return [{ name: displayName, coordinates: `${lat} ${lon}` }];
-            }
+    function buildBsLocation(): Array<{ name: string; coordinates: string; address?: string }> {
+        const result: Array<{ name: string; coordinates: string; address?: string }> = [];
+        for (const entry of bsEntries) {
+            const name = entry.bsNumber.trim();
+            const lat = entry.bsLatitude.trim();
+            const lon = entry.bsLongitude.trim();
+            if (!name || !lat || !lon) continue;
+            result.push({
+                name,
+                coordinates: `${lat.replace(',', '.')} ${lon.replace(',', '.')}`,
+                address: entry.bsAddress.trim() || undefined,
+            });
         }
-
-        const lat = bsLatitude.trim();
-        const lon = bsLongitude.trim();
-        if (bsNumber.trim() && lat && lon) {
-            return [{ name: bsNumber.trim(), coordinates: `${lat} ${lon}` }];
-        }
-
-        return [];
+        return result;
     }
 
+    function getTaskBsNumber(): string {
+        return bsEntries
+            .map((e) => e.bsNumber.trim())
+            .filter(Boolean)
+            .join('-');
+    }
+
+    function getPrimaryAddress(): string {
+        const firstWithAddr = bsEntries.find((e) => e.bsAddress.trim());
+        return firstWithAddr?.bsAddress.trim() ?? '';
+    }
+
+    function getPrimaryCoords(): { lat?: number; lon?: number } {
+        if (!bsEntries.length) return {};
+        const e = bsEntries[0];
+        const lat = parseNumberOrUndefined(e.bsLatitude);
+        const lon = parseNumberOrUndefined(e.bsLongitude);
+        return { lat, lon };
+    }
+
+    const taskBsNumber = React.useMemo(() => getTaskBsNumber(), [bsEntries]);
+    const taskBsAddress = React.useMemo(() => getPrimaryAddress(), [bsEntries]);
+    const hasAtLeastOneBsNumber = !!taskBsNumber;
+
     async function handleCreate() {
-        if (!taskName || !bsNumber) return;
-        if (!isLatValid || !isLngValid) return;
+        if (!taskName || !hasAtLeastOneBsNumber) return;
         if (!orgSlug || !projectRef) return;
+        if (hasInvalidCoords) return;
+        if (!taskBsAddress) return;
 
         setSaving(true);
         const newTaskId = genId();
+        const bsLocation = buildBsLocation();
+        const primaryCoords = getPrimaryCoords();
 
         try {
             const payload = {
                 taskId: newTaskId,
                 taskName,
-                bsNumber,
-                bsAddress,
+                bsNumber: taskBsNumber,
+                bsAddress: taskBsAddress,
                 taskDescription: taskDescription?.trim() || undefined,
                 status: 'To do',
                 priority,
                 dueDate: dueDate ? dueDate.toISOString() : undefined,
-                bsLatitude: bsLatitude === '' ? undefined : Number(bsLatitude),
-                bsLongitude: bsLongitude === '' ? undefined : Number(bsLongitude),
-                bsLocation: buildBsLocation(),
-                executorId: selectedExecutor ? selectedExecutor.id : null, // null, если не выбрали
+                bsLatitude: typeof primaryCoords.lat === 'number' ? primaryCoords.lat : undefined,
+                bsLongitude: typeof primaryCoords.lon === 'number' ? primaryCoords.lon : undefined,
+                bsLocation,
+                executorId: selectedExecutor ? selectedExecutor.id : null,
                 executorName: selectedExecutor ? selectedExecutor.name : null,
                 executorEmail: selectedExecutor ? selectedExecutor.email : null,
-
                 totalCost: totalCost.trim() ? Number(totalCost.trim()) : undefined,
             };
 
-            const res = await fetch(
-                apiPath(`/projects/${encodeURIComponent(projectRef)}/tasks`),
-                { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(payload) }
-            );
+            const res = await fetch(apiPath(`/projects/${encodeURIComponent(projectRef)}/tasks`), {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify(payload),
+            });
 
             if (!res.ok) {
                 let body: unknown = null;
@@ -610,22 +787,26 @@ export default function WorkspaceTaskDialog({
 
     async function handleUpdate() {
         if (!initialTask) return;
-        if (!taskName || !bsNumber) return;
-        if (!isLatValid || !isLngValid) return;
+        if (!taskName || !hasAtLeastOneBsNumber) return;
         if (!orgSlug || !projectRef) return;
+        if (hasInvalidCoords) return;
+        if (!taskBsAddress) return;
 
         setSaving(true);
+        const bsLocation = buildBsLocation();
+        const primaryCoords = getPrimaryCoords();
+
         try {
             const payload = {
                 taskName,
-                bsNumber,
-                bsAddress,
+                bsNumber: taskBsNumber,
+                bsAddress: taskBsAddress,
                 taskDescription: taskDescription?.trim() || undefined,
                 priority,
                 dueDate: dueDate ? dueDate.toISOString() : undefined,
-                bsLatitude: bsLatitude === '' ? undefined : Number(bsLatitude),
-                bsLongitude: bsLongitude === '' ? undefined : Number(bsLongitude),
-                bsLocation: buildBsLocation(),
+                bsLatitude: typeof primaryCoords.lat === 'number' ? primaryCoords.lat : undefined,
+                bsLongitude: typeof primaryCoords.lon === 'number' ? primaryCoords.lon : undefined,
+                bsLocation,
                 executorId: selectedExecutor ? selectedExecutor.id : null,
                 executorName: selectedExecutor ? selectedExecutor.name : null,
                 executorEmail: selectedExecutor ? selectedExecutor.email : null,
@@ -633,7 +814,11 @@ export default function WorkspaceTaskDialog({
             };
 
             const res = await fetch(
-                apiPath(`/projects/${encodeURIComponent(projectRef)}/tasks/${encodeURIComponent(initialTask._id)}`),
+                apiPath(
+                    `/projects/${encodeURIComponent(projectRef)}/tasks/${encodeURIComponent(
+                        initialTask._id
+                    )}`
+                ),
                 { method: 'PUT', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(payload) }
             );
 
@@ -659,36 +844,6 @@ export default function WorkspaceTaskDialog({
             setSaving(false);
         }
     }
-
-    const handleSelectBsOption = (opt: BsOption | null) => {
-        if (!opt) {
-            setSelectedBsOption(null);
-            return;
-        }
-        const displayName = getDisplayBsName(opt.name);
-        setBsNumber(displayName);
-        setBsInput(displayName);
-        setSelectedBsOption(opt);
-        const normalized = normalizeAddressFromDb(displayName, opt.address);
-        setBsAddress(normalized);
-        setBsLatitude(typeof opt.lat === 'number' ? String(opt.lat).replace(',', '.') : '');
-        setBsLongitude(typeof opt.lon === 'number' ? String(opt.lon).replace(',', '.') : '');
-    };
-
-    const bsSearchTimeout = React.useRef<ReturnType<typeof setTimeout> | null>(null);
-    const handleBsInputChange = (_e: React.SyntheticEvent, value: string) => {
-        setBsInput(value);
-        setBsNumber(value);
-        setSelectedBsOption(null);
-        if (bsSearchTimeout.current) clearTimeout(bsSearchTimeout.current);
-        if (!value.trim()) {
-            setBsOptions([]);
-            return;
-        }
-        bsSearchTimeout.current = setTimeout(() => {
-            void loadBsOptions(value);
-        }, 300);
-    };
 
     // запрашиваем удаление существующего файла
     const requestDeleteExisting = (file: { key: string; name: string; url?: string }) => {
@@ -746,6 +901,14 @@ export default function WorkspaceTaskDialog({
         setAttachmentToDelete(null);
     };
 
+    const saveDisabled =
+        saving ||
+        uploading ||
+        !taskName ||
+        !hasAtLeastOneBsNumber ||
+        !taskBsAddress ||
+        hasInvalidCoords;
+
     return (
         <LocalizationProvider dateAdapter={AdapterDateFns}>
             <Drawer
@@ -783,7 +946,8 @@ export default function WorkspaceTaskDialog({
                                     width: 50,
                                     height: 50,
                                     borderRadius: 16,
-                                    background: 'linear-gradient(135deg, rgba(59,130,246,0.95), rgba(14,165,233,0.85))',
+                                    background:
+                                        'linear-gradient(135deg, rgba(59,130,246,0.95), rgba(14,165,233,0.85))',
                                     display: 'flex',
                                     alignItems: 'center',
                                     justifyContent: 'center',
@@ -818,51 +982,308 @@ export default function WorkspaceTaskDialog({
                                 sx={glassInputSx}
                             />
 
-                            <Autocomplete<BsOption, false, false, true>
-                                freeSolo
-                                options={bsOptions}
-                                loading={bsOptionsLoading}
-                                value={bsNumber}
-                                inputValue={bsInput}
-                                onChange={(_e, val) => {
-                                    if (typeof val === 'string') {
-                                        setBsNumber(val);
-                                        setBsInput(val);
-                                        setSelectedBsOption(null);
-                                        return;
-                                    }
-                                    if (val) {
-                                        handleSelectBsOption(val);
-                                    } else {
-                                        setBsNumber('');
-                                        setBsInput('');
-                                        setSelectedBsOption(null);
-                                    }
-                                }}
-                                onInputChange={handleBsInputChange}
-                                getOptionLabel={(opt) =>
-                                    typeof opt === 'string' ? opt : getDisplayBsName(opt.name)
+                            {/* Блок базовых станций */}
+                            <Box>
+                                <Stack
+                                    direction="row"
+                                    alignItems="center"
+                                    justifyContent="space-between"
+                                    sx={{ mb: 1 }}
+                                >
+                                    <Typography variant="subtitle2">Базовая станция</Typography>
+                                    <Tooltip title="Добавить БС">
+                                        <span>
+                                            <IconButton
+                                                size="small"
+                                                onClick={addBsEntry}
+                                                disabled={saving || uploading}
+                                            >
+                                                <AddIcon fontSize="small" />
+                                            </IconButton>
+                                        </span>
+                                    </Tooltip>
+                                </Stack>
+
+                                <Stack spacing={2}>
+                                    {bsEntries.map((entry, index) => {
+                                        const mapCoords = getMapCoords(entry);
+                                        const latValid = isLatValueValid(entry.bsLatitude);
+                                        const lngValid = isLngValueValid(entry.bsLongitude);
+
+                                        return (
+                                            <Box
+                                                key={entry.id}
+                                                sx={{
+                                                    borderRadius: 3,
+                                                    border: '1px solid rgba(148,163,184,0.3)',
+                                                    p: 1.5,
+                                                    backgroundColor: 'rgba(255,255,255,0.8)',
+                                                }}
+                                            >
+                                                {bsEntries.length > 1 && (
+                                                    <Stack
+                                                        direction="row"
+                                                        alignItems="center"
+                                                        justifyContent="space-between"
+                                                        sx={{ mb: 1 }}
+                                                    >
+                                                        <Typography variant="subtitle2">
+                                                            {`БС #${index + 1}`}
+                                                        </Typography>
+
+                                                        {index > 0 && (
+                                                            <Tooltip title="Удалить БС из задачи">
+                <span>
+                    <IconButton
+                        size="small"
+                        onClick={() => removeBsEntry(index)}
+                        disabled={saving || uploading}
+                    >
+                        <DeleteOutlineIcon fontSize="small" />
+                    </IconButton>
+                </span>
+                                                            </Tooltip>
+                                                        )}
+                                                    </Stack>
+                                                )}
+
+
+                                                <Autocomplete<BsOption, false, false, true>
+                                                    freeSolo
+                                                    options={bsOptions}
+                                                    loading={bsOptionsLoading}
+                                                    value={entry.bsNumber}
+                                                    inputValue={entry.bsInput}
+                                                    onChange={(_e, val) => {
+                                                        if (typeof val === 'string') {
+                                                            updateBsEntry(index, {
+                                                                bsNumber: val,
+                                                                bsInput: val,
+                                                                selectedBsOption: null,
+                                                            });
+                                                            return;
+                                                        }
+                                                        if (val) {
+                                                            handleSelectBsOption(index, val);
+                                                        } else {
+                                                            updateBsEntry(index, {
+                                                                bsNumber: '',
+                                                                bsInput: '',
+                                                                selectedBsOption: null,
+                                                            });
+                                                        }
+                                                    }}
+                                                    onInputChange={(e, value) =>
+                                                        handleBsInputChange(e, value, index)
+                                                    }
+                                                    getOptionLabel={(opt) =>
+                                                        typeof opt === 'string'
+                                                            ? opt
+                                                            : getDisplayBsName(opt.name)
+                                                    }
+                                                    filterOptions={(opts, params) => {
+                                                        if (!params.inputValue.trim()) {
+                                                            return [];
+                                                        }
+                                                        return defaultFilter(opts, params);
+                                                    }}
+                                                    isOptionEqualToValue={(option, value) =>
+                                                        option.id === (value as BsOption).id
+                                                    }
+                                                    noOptionsText={
+                                                        bsOptionsError ? `Ошибка: ${bsOptionsError}` : 'Не найдено'
+                                                    }
+                                                    renderInput={(params) => (
+                                                        <TextField
+                                                            {...params}
+                                                            label="BS Number"
+                                                            required={index === 0}
+                                                            fullWidth
+                                                            sx={glassInputSx}
+                                                            InputProps={{
+                                                                ...params.InputProps,
+                                                                endAdornment: (
+                                                                    <>
+                                                                        {bsOptionsLoading ? (
+                                                                            <CircularProgress
+                                                                                size={18}
+                                                                                sx={{ mr: 1 }}
+                                                                            />
+                                                                        ) : null}
+                                                                        {params.InputProps.endAdornment}
+                                                                    </>
+                                                                ),
+                                                            }}
+                                                        />
+                                                    )}
+                                                    renderOption={(props, option) => (
+                                                        <li {...props} key={option.id}>
+                                                            <Box>
+                                                                <Typography variant="body2">
+                                                                    {getDisplayBsName(option.name)}
+                                                                </Typography>
+                                                                {option.address ? (
+                                                                    <Typography
+                                                                        variant="caption"
+                                                                        color="text.secondary"
+                                                                    >
+                                                                        {option.address}
+                                                                    </Typography>
+                                                                ) : null}
+                                                            </Box>
+                                                        </li>
+                                                    )}
+                                                />
+
+                                                <TextField
+                                                    label="BS Address"
+                                                    value={entry.bsAddress}
+                                                    onChange={(e) =>
+                                                        updateBsEntry(index, { bsAddress: e.target.value })
+                                                    }
+                                                    fullWidth
+                                                    required={index === 0}
+                                                    sx={{ ...glassInputSx, mt: 1.5 }}
+                                                />
+
+                                                <Stack
+                                                    direction={{ xs: 'column', sm: 'row' }}
+                                                    spacing={2}
+                                                    sx={{ mt: 1.5 }}
+                                                >
+                                                    <TextField
+                                                        label="Latitude (Широта)"
+                                                        type="text"
+                                                        value={entry.bsLatitude}
+                                                        onChange={(e) => {
+                                                            const v = e.target.value.replace(',', '.');
+                                                            updateBsEntry(index, { bsLatitude: v });
+                                                        }}
+                                                        error={!latValid}
+                                                        placeholder="52.219319"
+                                                        helperText={
+                                                            !latValid
+                                                                ? 'Широта должна быть в диапазоне −90…90'
+                                                                : 'WGS-84, десятичные градусы'
+                                                        }
+                                                        fullWidth
+                                                        inputProps={{ inputMode: 'decimal' }}
+                                                        sx={glassInputSx}
+                                                    />
+                                                    <TextField
+                                                        label="Longitude (Долгота)"
+                                                        type="text"
+                                                        value={entry.bsLongitude}
+                                                        onChange={(e) => {
+                                                            const v = e.target.value.replace(',', '.');
+                                                            updateBsEntry(index, { bsLongitude: v });
+                                                        }}
+                                                        error={!lngValid}
+                                                        placeholder="104.26913"
+                                                        helperText={
+                                                            !lngValid
+                                                                ? 'Долгота должна быть в диапазоне −180…180'
+                                                                : 'WGS-84, десятичные градусы'
+                                                        }
+                                                        fullWidth
+                                                        inputProps={{ inputMode: 'decimal' }}
+                                                        sx={glassInputSx}
+                                                    />
+                                                </Stack>
+
+                                                {mapCoords && (
+                                                    <Box sx={{ mt: 1.5 }}>
+                                                        <Alert severity="warning" sx={{ mb: 1 }}>
+                                                            Проверьте корректность координат этой БС перед сохранением
+                                                            задачи!
+                                                        </Alert>
+                                                        <Box
+                                                            sx={{
+                                                                borderRadius: 3,
+                                                                overflow: 'hidden',
+                                                                height: 220,
+                                                                boxShadow: '0 30px 65px rgba(15,23,42,0.18)',
+                                                                border: '1px solid rgba(148,163,184,0.35)',
+                                                            }}
+                                                        >
+                                                            <YMaps
+                                                                query={{
+                                                                    apikey: YMAPS_API_KEY,
+                                                                    lang: 'ru_RU',
+                                                                }}
+                                                            >
+                                                                <Map
+                                                                    state={{
+                                                                        center: mapCoords,
+                                                                        zoom: 14,
+                                                                        type: 'yandex#hybrid',
+                                                                    }}
+                                                                    width="100%"
+                                                                    height="100%"
+                                                                >
+                                                                    <Placemark
+                                                                        geometry={mapCoords}
+                                                                        options={{
+                                                                            preset: 'islands#redIcon',
+                                                                            iconColor: '#ef4444',
+                                                                        }}
+                                                                    />
+                                                                </Map>
+                                                            </YMaps>
+                                                        </Box>
+                                                    </Box>
+                                                )}
+                                            </Box>
+                                        );
+                                    })}
+                                </Stack>
+                            </Box>
+
+                            <TextField
+                                label="Описание задачи"
+                                value={taskDescription}
+                                onChange={(e) => setTaskDescription(e.target.value)}
+                                multiline
+                                minRows={3}
+                                maxRows={10}
+                                placeholder="Что сделать, детали, ссылки и пр."
+                                fullWidth
+                                sx={glassInputSx}
+                            />
+
+                            <TextField
+                                label="Стоимость, ₽"
+                                type="number"
+                                value={totalCost}
+                                onChange={(e) => setTotalCost(e.target.value)}
+                                fullWidth
+                                inputProps={{ min: 0, step: '0.01' }}
+                                sx={glassInputSx}
+                            />
+
+                            <Autocomplete<MemberOption>
+                                options={members}
+                                value={selectedExecutor}
+                                onChange={(_e, val) => setSelectedExecutor(val)}
+                                getOptionLabel={(opt) => opt?.name || opt?.email || ''}
+                                loading={membersLoading}
+                                noOptionsText={
+                                    membersError ? `Ошибка: ${membersError}` : 'Нет активных участников'
                                 }
-                                filterOptions={(opts, params) => {
-                                    if (!params.inputValue.trim()) {
-                                        return [];
-                                    }
-                                    return defaultFilter(opts, params);
-                                }}
-                                isOptionEqualToValue={(option, value) => option.id === (value as BsOption).id}
-                                noOptionsText={bsOptionsError ? `Ошибка: ${bsOptionsError}` : 'Не найдено'}
                                 renderInput={(params) => (
                                     <TextField
                                         {...params}
-                                        label="BS Number"
-                                        required
+                                        label="Исполнитель (участники организации)"
+                                        placeholder={
+                                            membersLoading ? 'Загрузка...' : 'Начните вводить имя или email'
+                                        }
                                         fullWidth
                                         sx={glassInputSx}
                                         InputProps={{
                                             ...params.InputProps,
                                             endAdornment: (
                                                 <>
-                                                    {bsOptionsLoading ? (
+                                                    {membersLoading ? (
                                                         <CircularProgress size={18} sx={{ mr: 1 }} />
                                                     ) : null}
                                                     {params.InputProps.endAdornment}
@@ -871,356 +1292,275 @@ export default function WorkspaceTaskDialog({
                                         }}
                                     />
                                 )}
-                                renderOption={(props, option) => (
-                                    <li {...props} key={option.id}>
-                                        <Box>
-                                            <Typography variant="body2">{getDisplayBsName(option.name)}</Typography>
-                                            {option.address ? (
-                                                <Typography variant="caption" color="text.secondary">
-                                                    {option.address}
-                                                </Typography>
-                                            ) : null}
-                                        </Box>
-                                    </li>
-                                )}
-                            />
-
-                            <TextField
-                                label="BS Address"
-                                value={bsAddress}
-                                onChange={(e) => setBsAddress(e.target.value)}
-                                fullWidth
-                                sx={glassInputSx}
-                            />
-                            <Stack direction={{ xs: 'column', sm: 'row' }} spacing={2}>
-                                <TextField
-                                    label="Latitude (Широта)"
-                                    type="text"
-                                    value={bsLatitude}
-                                    onChange={(e) => {
-                                        const v = e.target.value.replace(',', '.');
-                                        setBsLatitude(v);
-                                    }}
-                                    error={!isLatValid}
-                                    placeholder="52.219319"
-                                    helperText={
-                                        !isLatValid ? 'Широта должна быть в диапазоне −90…90' : 'WGS-84, десятичные градусы'
-                                    }
-                                    fullWidth
-                                    inputProps={{ inputMode: 'decimal' }}
-                                    sx={glassInputSx}
-                                />
-                            <TextField
-                                label="Longitude (Долгота)"
-                                type="text"
-                                value={bsLongitude}
-                                onChange={(e) => {
-                                    const v = e.target.value.replace(',', '.');
-                                    setBsLongitude(v);
+                                renderOption={(props, option) => {
+                                    const { key, ...optionProps } = props;
+                                    return (
+                                        <li {...optionProps} key={key}>
+                                            <Avatar
+                                                src={option.profilePic}
+                                                alt={option.name}
+                                                sx={{ width: 24, height: 24, mr: 1 }}
+                                            >
+                                                {(option.name || option.email)?.[0]?.toUpperCase() ?? 'U'}
+                                            </Avatar>
+                                            <ListItemText primary={option.name} secondary={option.email} />
+                                        </li>
+                                    );
                                 }}
-                                error={!isLngValid}
-                                placeholder="104.26913"
-                                helperText={
-                                    !isLngValid
-                                        ? 'Долгота должна быть в диапазоне −180…180'
-                                        : 'WGS-84, десятичные градусы'
-                                }
-                                fullWidth
-                                inputProps={{ inputMode: 'decimal' }}
-                                sx={glassInputSx}
+                                isOptionEqualToValue={(opt, val) => opt.id === val.id}
                             />
-                        </Stack>
 
-                        {mapCoords && (
-                            <Box>
-                                <Alert severity="warning" sx={{ mb: 1 }}>
-                                    Проверьте корректность координат объекта пред созданием задачи!
-                                </Alert>
-                                <Box
-                                    sx={{
-                                        borderRadius: 3,
-                                        overflow: 'hidden',
-                                        height: 260,
-                                        boxShadow: '0 30px 65px rgba(15,23,42,0.18)',
-                                        border: '1px solid rgba(148,163,184,0.35)',
-                                    }}
-                                >
-                                    <YMaps query={{ apikey: YMAPS_API_KEY, lang: 'ru_RU' }}>
-                                        <Map
-                                            state={{ center: mapCoords, zoom: 14, type: 'yandex#hybrid' }}
-                                            width="100%"
-                                            height="100%"
-                                        >
-                                            <Placemark
-                                                geometry={mapCoords}
-                                                options={{ preset: 'islands#redIcon', iconColor: '#ef4444' }}
-                                            />
-                                        </Map>
-                                    </YMaps>
-                                </Box>
-                            </Box>
-                        )}
+                            <Stack direction={{ xs: 'column', sm: 'row' }} spacing={2}>
+                                <FormControl fullWidth sx={glassInputSx}>
+                                    <InputLabel>Priority</InputLabel>
+                                    <Select
+                                        label="Priority"
+                                        value={priority}
+                                        onChange={(e) => setPriority(e.target.value as Priority)}
+                                    >
+                                        <MenuItem value="urgent">Urgent</MenuItem>
+                                        <MenuItem value="high">High</MenuItem>
+                                        <MenuItem value="medium">Medium</MenuItem>
+                                        <MenuItem value="low">Low</MenuItem>
+                                    </Select>
+                                </FormControl>
 
-                        <TextField
-                            label="Описание задачи"
-                            value={taskDescription}
-                            onChange={(e) => setTaskDescription(e.target.value)}
-                            multiline
-                            minRows={3}
-                            maxRows={10}
-                            placeholder="Что сделать, детали, ссылки и пр."
-                            fullWidth
-                            sx={glassInputSx}
-                        />
-
-                        <TextField
-                            label="Стоимость, ₽"
-                            type="number"
-                            value={totalCost}
-                            onChange={(e) => setTotalCost(e.target.value)}
-                            fullWidth
-                            inputProps={{ min: 0, step: '0.01' }}
-                            sx={glassInputSx}
-                        />
-
-                        <Autocomplete<MemberOption>
-                            options={members}
-                            value={selectedExecutor}
-                            onChange={(_e, val) => setSelectedExecutor(val)}
-                            getOptionLabel={(opt) => opt?.name || opt?.email || ''}
-                            loading={membersLoading}
-                            noOptionsText={membersError ? `Ошибка: ${membersError}` : 'Нет активных участников'}
-                            renderInput={(params) => (
-                                <TextField
-                                    {...params}
-                                    label="Исполнитель (участники организации)"
-                                    placeholder={membersLoading ? 'Загрузка...' : 'Начните вводить имя или email'}
-                                    fullWidth
-                                    sx={glassInputSx}
-                                    InputProps={{
-                                        ...params.InputProps,
-                                        endAdornment: (
-                                            <>
-                                                {membersLoading ? (
-                                                    <CircularProgress size={18} sx={{ mr: 1 }} />
-                                                ) : null}
-                                                {params.InputProps.endAdornment}
-                                            </>
-                                        ),
-                                    }}
+                                <DatePicker
+                                    label="Due Date"
+                                    value={dueDate}
+                                    onChange={(d) => setDueDate(d)}
+                                    format="dd.MM.yyyy"
+                                    slotProps={{ textField: { fullWidth: true, sx: glassInputSx } }}
                                 />
-                            )}
-                            renderOption={(props, option) => {
-                                const { key, ...optionProps } = props;
-                                return (
-                                    <li {...optionProps} key={key}>
-                                        <Avatar src={option.profilePic} alt={option.name} sx={{ width: 24, height: 24, mr: 1 }}>
-                                            {(option.name || option.email)?.[0]?.toUpperCase() ?? 'U'}
-                                        </Avatar>
-                                        <ListItemText primary={option.name} secondary={option.email} />
-                                    </li>
-                                );
-                            }}
-                            isOptionEqualToValue={(opt, val) => opt.id === val.id}
-                        />
+                            </Stack>
 
-                        <Stack direction={{ xs: 'column', sm: 'row' }} spacing={2}>
-                            <FormControl fullWidth sx={glassInputSx}>
-                                <InputLabel>Priority</InputLabel>
-                                <Select
-                                    label="Priority"
-                                    value={priority}
-                                    onChange={(e) => setPriority(e.target.value as Priority)}
-                                >
-                                    <MenuItem value="urgent">Urgent</MenuItem>
-                                    <MenuItem value="high">High</MenuItem>
-                                    <MenuItem value="medium">Medium</MenuItem>
-                                    <MenuItem value="low">Low</MenuItem>
-                                </Select>
-                            </FormControl>
-
-                            <DatePicker
-                                label="Due Date"
-                                value={dueDate}
-                                onChange={(d) => setDueDate(d)}
-                                format="dd.MM.yyyy"
-                                slotProps={{ textField: { fullWidth: true, sx: glassInputSx } }}
-                            />
-                        </Stack>
-
-                        {!!existingAttachments.length && (
-                            <Box>
-                                <Typography variant="subtitle2" sx={{ mb: 1 }}>
-                                    Уже прикреплено: {existingAttachments.length}
-                                </Typography>
-                                <Stack direction="row" flexWrap="wrap" gap={1}>
-                                    {existingAttachments.map((f) => (
-                                        <Box key={f.key} sx={{ display: 'flex', alignItems: 'center', gap: 0.5 }}>
-                                            <Chip
-                                                label={f.name}
-                                                component={f.url ? 'a' : 'div'}
-                                                href={f.url}
-                                                clickable={Boolean(f.url)}
-                                                target={f.url ? '_blank' : undefined}
-                                                rel={f.url ? 'noopener noreferrer' : undefined}
-                                                sx={{ maxWidth: '100%' }}
-                                            />
-                                            <Tooltip title="Удалить">
-                                                <IconButton
-                                                    size="small"
-                                                    onClick={(e) => {
-                                                        e.preventDefault();
-                                                        e.stopPropagation();
-                                                        requestDeleteExisting(f);
-                                                    }}
-                                                >
-                                                    <DeleteOutlineIcon fontSize="small" />
-                                                </IconButton>
-                                            </Tooltip>
-                                        </Box>
-                                    ))}
-                                </Stack>
-                            </Box>
-                        )}
-
-                        {!!attachments.length && (
-                            <Box>
-                                <Stack direction="row" alignItems="center" spacing={1} sx={{ mb: 1 }}>
-                                    <Typography variant="subtitle2">Вложения к загрузке: {attachments.length}</Typography>
-                                    {uploading && (
-                                        <>
-                                            <LinearProgress variant="determinate" value={uploadProgress} sx={{ flex: 1 }} />
-                                            <Typography variant="caption" sx={{ minWidth: 36, textAlign: 'right' }}>
-                                                {uploadProgress}%
-                                            </Typography>
-                                        </>
-                                    )}
-                                </Stack>
-
-                                <Stack direction="row" flexWrap="wrap" gap={1}>
-                                    {attachments.map((f) => (
-                                        <Chip
-                                            key={`${f.name}:${f.size}`}
-                                            label={`${f.name} (${Math.round(f.size / 1024)} KB)`}
-                                            onDelete={!saving && !uploading ? () => removeFile(f.name, f.size) : undefined}
-                                            deleteIcon={
+                            {!!existingAttachments.length && (
+                                <Box>
+                                    <Typography variant="subtitle2" sx={{ mb: 1 }}>
+                                        Уже прикреплено: {existingAttachments.length}
+                                    </Typography>
+                                    <Stack direction="row" flexWrap="wrap" gap={1}>
+                                        {existingAttachments.map((f) => (
+                                            <Box
+                                                key={f.key}
+                                                sx={{ display: 'flex', alignItems: 'center', gap: 0.5 }}
+                                            >
+                                                <Chip
+                                                    label={f.name}
+                                                    component={f.url ? 'a' : 'div'}
+                                                    href={f.url}
+                                                    clickable={Boolean(f.url)}
+                                                    target={f.url ? '_blank' : undefined}
+                                                    rel={f.url ? 'noopener noreferrer' : undefined}
+                                                    sx={{ maxWidth: '100%' }}
+                                                />
                                                 <Tooltip title="Удалить">
-                                                    <IconButton size="small" edge="end">
+                                                    <IconButton
+                                                        size="small"
+                                                        onClick={(e) => {
+                                                            e.preventDefault();
+                                                            e.stopPropagation();
+                                                            requestDeleteExisting(f);
+                                                        }}
+                                                    >
                                                         <DeleteOutlineIcon fontSize="small" />
                                                     </IconButton>
                                                 </Tooltip>
-                                            }
-                                            sx={{ maxWidth: '100%' }}
-                                        />
-                                    ))}
-                                </Stack>
+                                            </Box>
+                                        ))}
+                                    </Stack>
+                                </Box>
+                            )}
+
+                            {!!attachments.length && (
+                                <Box>
+                                    <Stack
+                                        direction="row"
+                                        alignItems="center"
+                                        spacing={1}
+                                        sx={{ mb: 1 }}
+                                    >
+                                        <Typography variant="subtitle2">
+                                            Вложения к загрузке: {attachments.length}
+                                        </Typography>
+                                        {uploading && (
+                                            <>
+                                                <LinearProgress
+                                                    variant="determinate"
+                                                    value={uploadProgress}
+                                                    sx={{ flex: 1 }}
+                                                />
+                                                <Typography
+                                                    variant="caption"
+                                                    sx={{ minWidth: 36, textAlign: 'right' }}
+                                                >
+                                                    {uploadProgress}%
+                                                </Typography>
+                                            </>
+                                        )}
+                                    </Stack>
+
+                                    <Stack direction="row" flexWrap="wrap" gap={1}>
+                                        {attachments.map((f) => (
+                                            <Chip
+                                                key={`${f.name}:${f.size}`}
+                                                label={`${f.name} (${Math.round(f.size / 1024)} KB)`}
+                                                onDelete={
+                                                    !saving && !uploading
+                                                        ? () => removeFile(f.name, f.size)
+                                                        : undefined
+                                                }
+                                                deleteIcon={
+                                                    <Tooltip title="Удалить">
+                                                        <IconButton size="small" edge="end">
+                                                            <DeleteOutlineIcon fontSize="small" />
+                                                        </IconButton>
+                                                    </Tooltip>
+                                                }
+                                                sx={{ maxWidth: '100%' }}
+                                            />
+                                        ))}
+                                    </Stack>
+                                </Box>
+                            )}
+
+                            <Box
+                                onDragOver={onDragOver}
+                                onDragLeave={onDragLeave}
+                                onDrop={onDrop}
+                                sx={{
+                                    border: '1.5px dashed',
+                                    borderColor: dragActive
+                                        ? 'rgba(59,130,246,0.8)'
+                                        : 'rgba(148,163,184,0.5)',
+                                    borderRadius: 3,
+                                    p: 3,
+                                    textAlign: 'center',
+                                    cursor: 'pointer',
+                                    backgroundColor: dragActive
+                                        ? 'rgba(59,130,246,0.08)'
+                                        : 'rgba(255,255,255,0.7)',
+                                    transition: 'all 180ms ease',
+                                    boxShadow: dragActive
+                                        ? '0 20px 45px rgba(15,23,42,0.15)'
+                                        : 'none',
+                                }}
+                                onClick={openFileDialog}
+                            >
+                                <CloudUploadIcon
+                                    sx={{ fontSize: 36, mb: 1, color: 'primary.main' }}
+                                />
+                                <Typography variant="body1">
+                                    Перетащите файлы или нажмите, чтобы выбрать
+                                </Typography>
+                                <Typography variant="caption" color="text.secondary">
+                                    Вложения будут сохранены как <b>attachments</b> этой задачи
+                                </Typography>
+                                <input
+                                    ref={inputRef}
+                                    type="file"
+                                    multiple
+                                    hidden
+                                    onChange={onFileInputChange}
+                                />
                             </Box>
+                        </Stack>
+                    </Box>
+
+                    <Divider sx={{ borderColor: 'rgba(148,163,184,0.25)' }} />
+
+                    <Box
+                        sx={{
+                            px: 3,
+                            py: 2.5,
+                            display: 'flex',
+                            justifyContent: 'flex-end',
+                            gap: 1.5,
+                        }}
+                    >
+                        <Button
+                            onClick={handleClose}
+                            disabled={saving || uploading}
+                            sx={{ borderRadius: 999, px: 3 }}
+                        >
+                            Отмена
+                        </Button>
+                        {isEdit ? (
+                            <Button
+                                onClick={handleUpdate}
+                                variant="contained"
+                                disabled={saveDisabled}
+                                sx={{
+                                    borderRadius: 999,
+                                    px: 3,
+                                    textTransform: 'none',
+                                    boxShadow:
+                                        '0 20px 45px rgba(59,130,246,0.45)',
+                                }}
+                            >
+                                Сохранить
+                            </Button>
+                        ) : (
+                            <Button
+                                onClick={handleCreate}
+                                variant="contained"
+                                disabled={saveDisabled}
+                                sx={{
+                                    borderRadius: 999,
+                                    px: 3,
+                                    textTransform: 'none',
+                                    boxShadow:
+                                        '0 20px 45px rgba(59,130,246,0.45)',
+                                }}
+                            >
+                                Создать
+                            </Button>
                         )}
-
-                        <Box
-                            onDragOver={onDragOver}
-                            onDragLeave={onDragLeave}
-                            onDrop={onDrop}
-                            sx={{
-                                border: '1.5px dashed',
-                                borderColor: dragActive ? 'rgba(59,130,246,0.8)' : 'rgba(148,163,184,0.5)',
-                                borderRadius: 3,
-                                p: 3,
-                                textAlign: 'center',
-                                cursor: 'pointer',
-                                backgroundColor: dragActive ? 'rgba(59,130,246,0.08)' : 'rgba(255,255,255,0.7)',
-                                transition: 'all 180ms ease',
-                                boxShadow: dragActive ? '0 20px 45px rgba(15,23,42,0.15)' : 'none',
-                            }}
-                            onClick={openFileDialog}
-                        >
-                            <CloudUploadIcon sx={{ fontSize: 36, mb: 1, color: 'primary.main' }} />
-                            <Typography variant="body1">Перетащите файлы или нажмите, чтобы выбрать</Typography>
-                            <Typography variant="caption" color="text.secondary">
-                                Вложения будут сохранены как <b>attachments</b> этой задачи
-                            </Typography>
-                            <input ref={inputRef} type="file" multiple hidden onChange={onFileInputChange} />
-                        </Box>
-                    </Stack>
+                    </Box>
                 </Box>
 
-                <Divider sx={{ borderColor: 'rgba(148,163,184,0.25)' }} />
-
-                <Box sx={{ px: 3, py: 2.5, display: 'flex', justifyContent: 'flex-end', gap: 1.5 }}>
-                    <Button
-                        onClick={handleClose}
-                        disabled={saving || uploading}
-                        sx={{ borderRadius: 999, px: 3 }}
-                    >
-                        Отмена
-                    </Button>
-                    {isEdit ? (
-                        <Button
-                            onClick={handleUpdate}
-                            variant="contained"
-                            disabled={saving || !taskName || !bsNumber || !isLatValid || !isLngValid}
-                            sx={{
-                                borderRadius: 999,
-                                px: 3,
-                                textTransform: 'none',
-                                boxShadow: '0 20px 45px rgba(59,130,246,0.45)',
-                            }}
-                        >
-                            Сохранить
+                {/* диалог подтверждения удаления существующего файла */}
+                <Dialog open={deleteDialogOpen} onClose={cancelDeleteExisting}>
+                    <DialogTitle>Удалить вложение?</DialogTitle>
+                    <DialogContent>
+                        <Typography variant="body2">
+                            {attachmentToDelete?.name
+                                ? `Удалить "${attachmentToDelete.name}"?`
+                                : 'Удалить вложение?'}{' '}
+                            Файл будет удалён и с сервера.
+                        </Typography>
+                    </DialogContent>
+                    <DialogActions>
+                        <Button onClick={cancelDeleteExisting} disabled={deletingExisting}>
+                            Отмена
                         </Button>
-                    ) : (
                         <Button
-                            onClick={handleCreate}
+                            onClick={confirmDeleteExisting}
+                            color="error"
                             variant="contained"
-                            disabled={saving || uploading || !taskName || !bsNumber || !isLatValid || !isLngValid}
-                            sx={{
-                                borderRadius: 999,
-                                px: 3,
-                                textTransform: 'none',
-                                boxShadow: '0 20px 45px rgba(59,130,246,0.45)',
-                            }}
+                            disabled={deletingExisting}
                         >
-                            Создать
+                            Удалить
                         </Button>
-                    )}
-                </Box>
-            </Box>
-        </Drawer>
+                    </DialogActions>
+                </Dialog>
 
-            {/* диалог подтверждения удаления существующего файла */}
-            <Dialog open={deleteDialogOpen} onClose={cancelDeleteExisting}>
-                <DialogTitle>Удалить вложение?</DialogTitle>
-                <DialogContent>
-                    <Typography variant="body2">
-                        {attachmentToDelete?.name ? `Удалить "${attachmentToDelete.name}"?` : 'Удалить вложение?'} Файл будет
-                        удалён и с сервера.
-                    </Typography>
-                </DialogContent>
-                <DialogActions>
-                    <Button onClick={cancelDeleteExisting} disabled={deletingExisting}>
-                        Отмена
-                    </Button>
-                    <Button
-                        onClick={confirmDeleteExisting}
-                        color="error"
-                        variant="contained"
-                        disabled={deletingExisting}
+                <Snackbar
+                    open={snackbarOpen}
+                    autoHideDuration={3000}
+                    onClose={handleSnackbarClose}
+                    anchorOrigin={{ vertical: 'bottom', horizontal: 'center' }}
+                >
+                    <Alert
+                        onClose={handleSnackbarClose}
+                        severity={snackbarSeverity}
+                        variant="filled"
+                        sx={{ width: '100%' }}
                     >
-                        Удалить
-                    </Button>
-                </DialogActions>
-            </Dialog>
-
-            <Snackbar
-                open={snackbarOpen}
-                autoHideDuration={3000}
-                onClose={handleSnackbarClose}
-                anchorOrigin={{ vertical: 'bottom', horizontal: 'center' }}
-            >
-                <Alert onClose={handleSnackbarClose} severity={snackbarSeverity} variant="filled" sx={{ width: '100%' }}>
-                    {snackbarMsg}
-                </Alert>
-            </Snackbar>
+                        {snackbarMsg}
+                    </Alert>
+                </Snackbar>
+            </Drawer>
         </LocalizationProvider>
     );
 }

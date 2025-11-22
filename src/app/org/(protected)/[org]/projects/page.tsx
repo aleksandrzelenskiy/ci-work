@@ -1,7 +1,7 @@
 // src/app/org/[org]/projects/page.tsx
 'use client';
 
-import { useCallback, useEffect, useState } from 'react';
+import { type ReactNode, useCallback, useEffect, useState } from 'react';
 import {
     Box,
     Button,
@@ -19,6 +19,7 @@ import {
     Tooltip,
 } from '@mui/material';
 import Grid from '@mui/material/Grid';
+import { useTheme } from '@mui/material/styles';
 import EditIcon from '@mui/icons-material/Edit';
 import DeleteIcon from '@mui/icons-material/Delete';
 import AddIcon from '@mui/icons-material/Add';
@@ -59,6 +60,14 @@ type MemberDTO = {
     status: 'active' | 'invited';
 };
 type MembersResponse = { members: MemberDTO[] } | { error: string };
+
+const ROLE_LABELS: Record<OrgRole, string> = {
+    owner: 'Владелец',
+    org_admin: 'Администратор',
+    manager: 'Менеджер',
+    executor: 'Исполнитель',
+    viewer: 'Наблюдатель',
+};
 
 // Ответ /api/org/[org]
 type OrgInfoOk = { org: { _id: string; name: string; orgSlug: string }; role: OrgRole };
@@ -217,6 +226,159 @@ export default function OrgProjectsPage() {
         : '';
     const activeProjectsCount = projects.length;
     const projectsLimitLabel = subscription?.projectsLimit ? String(subscription.projectsLimit) : 'XX';
+
+    const theme = useTheme();
+    const isDarkMode = theme.palette.mode === 'dark';
+    const headerBg = isDarkMode ? 'rgba(11,16,26,0.82)' : 'rgba(255,255,255,0.88)';
+    const headerBorder = isDarkMode ? 'rgba(255,255,255,0.08)' : 'rgba(15,23,42,0.12)';
+    const headerShadow = isDarkMode ? '0 35px 90px rgba(0,0,0,0.65)' : '0 35px 90px rgba(15,23,42,0.2)';
+    const cardBg = isDarkMode ? 'rgba(13,18,30,0.85)' : 'rgba(255,255,255,0.92)';
+    const cardBorder = isDarkMode ? 'rgba(255,255,255,0.06)' : 'rgba(15,23,42,0.08)';
+    const cardShadow = isDarkMode ? '0 35px 80px rgba(0,0,0,0.55)' : '0 35px 80px rgba(15,23,42,0.15)';
+    const textPrimary = isDarkMode ? '#f8fafc' : '#0f172a';
+    const textSecondary = isDarkMode ? 'rgba(226,232,240,0.78)' : 'rgba(15,23,42,0.65)';
+    const iconBorderColor = isDarkMode ? 'rgba(255,255,255,0.18)' : 'rgba(15,23,42,0.12)';
+    const iconBg = isDarkMode ? 'rgba(255,255,255,0.08)' : 'rgba(255,255,255,0.85)';
+    const iconHoverBg = isDarkMode ? 'rgba(255,255,255,0.16)' : 'rgba(255,255,255,0.95)';
+    const iconShadow = isDarkMode ? '0 6px 20px rgba(0,0,0,0.45)' : '0 6px 20px rgba(15,23,42,0.12)';
+    const disabledIconColor = isDarkMode ? 'rgba(148,163,184,0.6)' : 'rgba(148,163,184,0.45)';
+    const buttonShadow = isDarkMode ? '0 25px 45px rgba(0,0,0,0.55)' : '0 25px 45px rgba(15,23,42,0.15)';
+    const pillBg = isDarkMode ? 'rgba(59,130,246,0.18)' : 'rgba(59,130,246,0.12)';
+    const pillBorder = isDarkMode ? 'rgba(59,130,246,0.3)' : 'rgba(59,130,246,0.2)';
+
+    const pageWrapperSx = {
+        minHeight: '100%',
+        py: { xs: 4, md: 6 },
+        px: { xs: 0.5, md: 4 },
+        position: 'relative',
+        overflow: 'hidden',
+    };
+
+    const panelBaseSx = {
+        borderRadius: 4,
+        p: { xs: 2, md: 3 },
+        backgroundColor: headerBg,
+        border: `1px solid ${headerBorder}`,
+        boxShadow: headerShadow,
+        color: textPrimary,
+        backdropFilter: 'blur(26px)',
+        position: 'relative' as const,
+        overflow: 'hidden',
+    };
+    const statCardSx = {
+        borderRadius: 3,
+        px: { xs: 2, md: 2.5 },
+        py: { xs: 1.25, md: 1.5 },
+        border: `1px solid ${cardBorder}`,
+        backgroundColor: cardBg,
+        boxShadow: cardShadow,
+        backdropFilter: 'blur(20px)',
+    };
+    const pillSx = {
+        borderRadius: 999,
+        px: 1.5,
+        py: 0.4,
+        fontSize: '0.75rem',
+        fontWeight: 600,
+        border: `1px solid ${pillBorder}`,
+        backgroundColor: pillBg,
+        color: textPrimary,
+        letterSpacing: 0.3,
+    };
+    const actionButtonBaseSx = {
+        borderRadius: 999,
+        textTransform: 'none',
+        fontWeight: 600,
+        px: { xs: 2.5, md: 3 },
+        py: 1,
+        boxShadow: buttonShadow,
+        transition: 'transform 0.2s ease, box-shadow 0.2s ease',
+        '&:hover': {
+            transform: 'translateY(-2px)',
+            boxShadow: buttonShadow,
+        },
+        '&:disabled': {
+            opacity: 0.55,
+            boxShadow: 'none',
+        },
+    };
+    const getAlertSx = (tone: 'error' | 'warning' | 'info') => {
+        const palette = {
+            error: {
+                bg: isDarkMode ? 'rgba(239,68,68,0.12)' : 'rgba(254,242,242,0.95)',
+                border: isDarkMode ? 'rgba(248,113,113,0.35)' : 'rgba(239,68,68,0.25)',
+            },
+            warning: {
+                bg: isDarkMode ? 'rgba(251,191,36,0.14)' : 'rgba(255,251,235,0.95)',
+                border: isDarkMode ? 'rgba(251,191,36,0.35)' : 'rgba(251,191,36,0.25)',
+            },
+            info: {
+                bg: isDarkMode ? 'rgba(59,130,246,0.12)' : 'rgba(219,234,254,0.9)',
+                border: isDarkMode ? 'rgba(59,130,246,0.35)' : 'rgba(59,130,246,0.2)',
+            },
+        };
+        const paletteEntry = palette[tone];
+        return {
+            borderRadius: 3,
+            border: `1px solid ${paletteEntry.border}`,
+            backgroundColor: paletteEntry.bg,
+            backdropFilter: 'blur(18px)',
+            color: textPrimary,
+            '& .MuiAlert-icon': {
+                color: paletteEntry.border,
+            },
+        };
+    };
+    const getCardIconButtonSx = (variant: 'default' | 'danger' = 'default') => ({
+        borderRadius: '12px',
+        border: `1px solid ${
+            variant === 'danger'
+                ? isDarkMode
+                    ? 'rgba(248,113,113,0.35)'
+                    : 'rgba(239,68,68,0.3)'
+                : iconBorderColor
+        }`,
+        backgroundColor: iconBg,
+        color: variant === 'danger' ? (isDarkMode ? '#fecdd3' : '#b91c1c') : textPrimary,
+        boxShadow: iconShadow,
+        padding: 0.5,
+        backdropFilter: 'blur(12px)',
+        transition: 'all 0.2s ease',
+        '&:hover': {
+            transform: 'translateY(-2px)',
+            backgroundColor: iconHoverBg,
+            color: variant === 'danger' ? '#ffffff' : textPrimary,
+        },
+        '&.Mui-disabled': {
+            color: disabledIconColor,
+        },
+    });
+    const renderBackdrop = (content: ReactNode) => (
+        <Box sx={pageWrapperSx}>
+            {content}
+        </Box>
+    );
+    const subscriptionStatusLabel = subscriptionLoading
+        ? 'Проверяем…'
+        : isSubscriptionActive
+            ? isTrialActive
+                ? 'Пробный период'
+                : 'Подписка активна'
+            : 'Подписка не активна';
+    const subscriptionStatusColor = subscriptionLoading
+        ? textSecondary
+        : isSubscriptionActive
+            ? '#34d399'
+            : '#fbbf24';
+    const subscriptionStatusDescription = subscriptionLoading
+        ? 'Получаем данные'
+        : isTrialActive && formattedTrialEnd
+            ? `До ${formattedTrialEnd} осталось ${trialDaysLeft} дней`
+            : subscription?.plan
+                ? `Тариф ${subscription.plan.toUpperCase()}`
+                : 'Тариф не выбран';
+    const roleLabel = myRole ? ROLE_LABELS[myRole] ?? myRole : '—';
+
 
     // ---- Участники для менеджеров ----
     const [managerOptions, setManagerOptions] = useState<ProjectManagerOption[]>([]);
@@ -432,44 +594,182 @@ export default function OrgProjectsPage() {
     };
 
     // ---- Рендер с учётом доступа ----
-    if (!accessChecked) {
-        return (
-            <Box sx={{ p: 3 }}>
-                <Stack direction="row" spacing={1} alignItems="center">
-                    <CircularProgress size={20} />
-                    <Typography>Проверяем доступ…</Typography>
-                </Stack>
+    const renderStatusPanel = (content: ReactNode) =>
+        renderBackdrop(
+            <Box sx={{ maxWidth: 720, mx: 'auto', width: '100%' }}>
+                <Box sx={panelBaseSx}>{content}</Box>
             </Box>
+        );
+
+    const subscriptionAlerts: ReactNode[] = [];
+    if (subscriptionError) {
+        subscriptionAlerts.push(
+            <Alert key="sub-error" severity="error" sx={getAlertSx('error')}>
+                Не удалось получить статус подписки: {subscriptionError}
+            </Alert>
+        );
+    }
+    if (!subscriptionError && subscriptionLoading) {
+        subscriptionAlerts.push(
+            <Alert key="sub-loading" severity="info" sx={getAlertSx('info')}>
+                Проверяем статус подписки…
+            </Alert>
+        );
+    }
+    if (!subscriptionError && !subscriptionLoading && !isSubscriptionActive) {
+        subscriptionAlerts.push(
+            <Alert key="sub-inactive" severity="warning" sx={getAlertSx('warning')}>
+                <Stack
+                    direction={{ xs: 'column', sm: 'row' }}
+                    spacing={2}
+                    alignItems={{ xs: 'flex-start', sm: 'center' }}
+                    justifyContent="space-between"
+                >
+                    <Box>
+                        <Typography fontWeight={600} color={textPrimary}>
+                            Подписка не активна
+                        </Typography>
+                        {isTrialExpired && formattedTrialEnd && (
+                            <Typography variant="body2" color={textSecondary} sx={{ mt: 0.5 }}>
+                                Пробный период завершился {formattedTrialEnd}.
+                            </Typography>
+                        )}
+                        <Typography variant="body2" color={textSecondary} sx={{ mt: 0.5 }}>
+                            Получите бесплатный 10-дневный период PRO, чтобы запускать проекты без ограничений.
+                        </Typography>
+                        {!canStartTrial && (
+                            <Typography variant="body2" color={textSecondary} sx={{ mt: 0.5 }}>
+                                Обратитесь к владельцу организации, чтобы активировать подписку.
+                            </Typography>
+                        )}
+                    </Box>
+                    {canStartTrial && (
+                        <Button
+                            variant="contained"
+                            onClick={handleStartTrial}
+                            disabled={startTrialLoading}
+                            sx={{
+                                ...actionButtonBaseSx,
+                                px: { xs: 2.25, md: 2.75 },
+                                py: 0.9,
+                                backgroundImage: 'linear-gradient(120deg, #f97316, #facc15)',
+                                color: '#2f1000',
+                            }}
+                        >
+                            {startTrialLoading ? 'Запускаем…' : 'Активировать'}
+                        </Button>
+                    )}
+                </Stack>
+            </Alert>
+        );
+    }
+    if (!subscriptionError && !subscriptionLoading && isTrialActive) {
+        subscriptionAlerts.push(
+            <Alert key="sub-trial" severity="info" sx={getAlertSx('info')}>
+                Пробный период активен до {formattedTrialEnd ?? '—'}
+                {typeof trialDaysLeft === 'number' && (
+                    <Typography component="span" sx={{ ml: 0.5 }}>
+                        (осталось {trialDaysLeft} дн.)
+                    </Typography>
+                )}
+            </Alert>
+        );
+    }
+
+    const secondaryAlerts: ReactNode[] = [];
+    if (managerOptionsError) {
+        secondaryAlerts.push(
+            <Alert key="managers" severity="warning" sx={getAlertSx('warning')}>
+                Не удалось загрузить список менеджеров: {managerOptionsError}
+            </Alert>
+        );
+    }
+    if (err) {
+        secondaryAlerts.push(
+            <Alert key="projects" severity="error" sx={getAlertSx('error')}>
+                {err}
+            </Alert>
+        );
+    }
+
+    if (!accessChecked) {
+        return renderStatusPanel(
+            <Stack direction="row" spacing={1.5} alignItems="center">
+                <CircularProgress size={20} />
+                <Typography color={textPrimary}>Проверяем доступ…</Typography>
+            </Stack>
         );
     }
 
     if (!canManage) {
-        return (
-            <Box sx={{ p: 3, maxWidth: 900, mx: 'auto' }}>
-                <Alert severity="error" variant="outlined">
-                    Недостаточно прав для просмотра страницы проектов.
-                </Alert>
-            </Box>
+        return renderStatusPanel(
+            <Alert severity="error" sx={getAlertSx('error')}>
+                Недостаточно прав для просмотра страницы проектов.
+            </Alert>
         );
     }
 
-    return (
-        <Box sx={{ p: 3 }}>
-            <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', mb: 2, gap: 2, flexWrap: 'wrap' }}>
-                <Box>
-                    <Typography variant="h5" fontWeight={700}>
-                        <TopicIcon
-                            sx={{ mr: 0.5, verticalAlign: 'middle' }}
-                        />
-                        Проекты {orgName}
-                    </Typography>
-                    <Typography variant="body2" color="text.secondary">
-                        Активных проектов: {activeProjectsCount} из {projectsLimitLabel}
-                    </Typography>
-                </Box>
-                <Tooltip title={createButtonTooltip} disableHoverListener={!createButtonTooltip}>
-                    <span style={{ display: 'inline-block' }}>
-                        <Stack direction="row" spacing={1}>
+    return renderBackdrop(
+        <>
+            <Box sx={{ maxWidth: 1200, mx: 'auto', width: '100%', display: 'flex', flexDirection: 'column', gap: 3 }}>
+                <Box
+                    sx={{
+                        ...panelBaseSx,
+                        '&::after': {
+                            content: '""',
+                            position: 'absolute',
+                            inset: 0,
+                            background: isDarkMode
+                                ? 'linear-gradient(120deg, rgba(59,130,246,0.18), transparent 60%)'
+                                : 'linear-gradient(120deg, rgba(59,130,246,0.15), transparent 55%)',
+                            pointerEvents: 'none',
+                        },
+                    }}
+                >
+                    <Stack
+                        direction={{ xs: 'column', md: 'row' }}
+                        spacing={{ xs: 2, md: 3 }}
+                        alignItems={{ xs: 'flex-start', md: 'center' }}
+                        justifyContent="space-between"
+                    >
+                        <Box sx={{ width: '100%' }}>
+                            <Stack direction="row" spacing={1.5} alignItems="center" sx={{ mb: 1 }}>
+                                <Box
+                                    sx={{
+                                        width: 44,
+                                        height: 44,
+                                        borderRadius: '16px',
+                                        display: 'flex',
+                                        alignItems: 'center',
+                                        justifyContent: 'center',
+                                        backgroundColor: isDarkMode
+                                            ? 'rgba(59,130,246,0.18)'
+                                            : 'rgba(59,130,246,0.15)',
+                                        color: isDarkMode ? '#93c5fd' : '#1d4ed8',
+                                        boxShadow: iconShadow,
+                                    }}
+                                >
+                                    <TopicIcon />
+                                </Box>
+                                <Typography
+                                    variant="h5"
+                                    fontWeight={700}
+                                    color={textPrimary}
+                                    sx={{ fontSize: { xs: '1.55rem', md: '1.95rem' } }}
+                                >
+                                    {orgName} - Проекты
+                                </Typography>
+                            </Stack>
+                            <Typography variant="body2" color={textSecondary} sx={{ mt: 0.5 }}>
+                                Создайте проект. Выберите регион и оператора и управляйте задачами максимально эффективно!
+                            </Typography>
+                        </Box>
+                        <Stack
+                            direction={{ xs: 'column', sm: 'row' }}
+                            spacing={1.25}
+                            alignItems={{ xs: 'stretch', sm: 'center' }}
+                            sx={{ width: '100%', justifyContent: 'flex-end', flexWrap: 'wrap', rowGap: 1 }}
+                        >
                             <Button
                                 variant="outlined"
                                 startIcon={<BusinessIcon />}
@@ -477,181 +777,235 @@ export default function OrgProjectsPage() {
                                     if (!orgSlug) return;
                                     router.push(`/org/${encodeURIComponent(orgSlug)}`);
                                 }}
+                                sx={{
+                                    ...actionButtonBaseSx,
+                                    borderColor: headerBorder,
+                                    color: textPrimary,
+                                    backgroundColor: isDarkMode
+                                        ? 'rgba(15,18,28,0.65)'
+                                        : 'rgba(255,255,255,0.85)',
+                                }}
                             >
                                 Организация
                             </Button>
-                            <Button
-                                variant="contained"
-                                startIcon={<AddIcon />}
-                                onClick={openCreateDialog}
-                                disabled={disableCreateButton}
-                            >
-                                Новый проект
-                            </Button>
+                            <Tooltip title={createButtonTooltip} disableHoverListener={!createButtonTooltip}>
+                                <span style={{ display: 'inline-flex' }}>
+                                    <Button
+                                        variant="contained"
+                                        disableElevation
+                                        startIcon={<AddIcon />}
+                                        onClick={openCreateDialog}
+                                        disabled={disableCreateButton}
+                                        sx={{
+                                            ...actionButtonBaseSx,
+                                            border: 'none',
+                                            color: '#ffffff',
+                                            backgroundImage: disableCreateButton
+                                                ? isDarkMode
+                                                    ? 'linear-gradient(120deg, rgba(148,163,184,0.4), rgba(100,116,139,0.35))'
+                                                    : 'linear-gradient(120deg, rgba(148,163,184,0.3), rgba(100,116,139,0.25))'
+                                                : 'linear-gradient(120deg, #3b82f6, #6366f1)',
+                                        }}
+                                    >
+                                        Новый проект
+                                    </Button>
+                                </span>
+                            </Tooltip>
                         </Stack>
-                    </span>
-                </Tooltip>
-            </Box>
-
-            {subscriptionError && (
-                <Alert severity="error" sx={{ mb: 2 }}>
-                    Не удалось получить статус подписки: {subscriptionError}
-                </Alert>
-            )}
-
-            {!subscriptionError && subscriptionLoading && (
-                <Alert severity="info" sx={{ mb: 2 }}>
-                    Проверяем статус подписки…
-                </Alert>
-            )}
-
-            {!subscriptionError && !subscriptionLoading && !isSubscriptionActive && (
-                <Alert severity="warning" sx={{ mb: 2 }}>
-                    <Stack
-                        direction={{ xs: 'column', sm: 'row' }}
-                        spacing={2}
-                        alignItems={{ xs: 'flex-start', sm: 'center' }}
-                        justifyContent="space-between"
-                    >
-                        <Box>
-                            <Typography fontWeight={600}>Подписка не активна.</Typography>
-                            {isTrialExpired && formattedTrialEnd && (
-                                <Typography variant="body2" color="text.secondary" sx={{ mt: 0.5 }}>
-                                    Пробный период завершился {formattedTrialEnd}.
-                                </Typography>
-                            )}
-                            <Typography variant="body2" color="text.secondary" sx={{ mt: 0.5 }}>
-                                Получите бесплатный пробный период на 10 дней с тарифом PRO.
-                            </Typography>
-                            {!canStartTrial && (
-                                <Typography variant="body2" color="text.secondary" sx={{ mt: 0.5 }}>
-                                    Обратитесь к владельцу организации, чтобы активировать подписку.
-                                </Typography>
-                            )}
-                        </Box>
-                        {canStartTrial && (
-                            <Button
-                                variant="contained"
-                                color="warning"
-                                onClick={handleStartTrial}
-                                disabled={startTrialLoading}
-                            >
-                                {startTrialLoading ? 'Запускаем…' : 'Активировать'}
-                            </Button>
-                        )}
                     </Stack>
-                </Alert>
-            )}
 
-            {!subscriptionError && !subscriptionLoading && isTrialActive && (
-                <Alert severity="info" sx={{ mb: 2 }}>
-                    Пробный период активен до {formattedTrialEnd ?? '—'}
-                    {typeof trialDaysLeft === 'number' && (
-                        <Typography component="span" sx={{ ml: 0.5 }}>
-                            (осталось {trialDaysLeft} дн.)
-                        </Typography>
-                    )}
-                </Alert>
-            )}
-
-            {managerOptionsError && (
-                <Alert severity="warning" sx={{ mb: 2 }}>
-                    Не удалось загрузить список менеджеров: {managerOptionsError}
-                </Alert>
-            )}
-
-            {err && (
-                <Alert severity="error" sx={{ mb: 2 }}>
-                    {err}
-                </Alert>
-            )}
-
-            {loading ? (
-                <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'center', minHeight: 240 }}>
-                    <CircularProgress />
+                    <Stack direction={{ xs: 'column', md: 'row' }} spacing={2.5} sx={{ mt: { xs: 2.5, md: 3 } }}>
+                        <Box sx={statCardSx}>
+                            <Typography variant="overline" sx={{ color: textSecondary, letterSpacing: 1 }}>
+                                Активные проекты
+                            </Typography>
+                            <Typography variant="h4" fontWeight={700} color={textPrimary}>
+                                {activeProjectsCount}
+                            </Typography>
+                            <Typography variant="body2" color={textSecondary}>
+                                из {projectsLimitLabel}
+                            </Typography>
+                        </Box>
+                        <Box sx={statCardSx}>
+                            <Typography variant="overline" sx={{ color: textSecondary, letterSpacing: 1 }}>
+                                Статус подписки
+                            </Typography>
+                            <Typography variant="h6" fontWeight={600} sx={{ color: subscriptionStatusColor }}>
+                                {subscriptionStatusLabel}
+                            </Typography>
+                            <Typography variant="body2" color={textSecondary}>
+                                {subscriptionStatusDescription}
+                            </Typography>
+                        </Box>
+                        <Box sx={statCardSx}>
+                            <Typography variant="overline" sx={{ color: textSecondary, letterSpacing: 1 }}>
+                                Ваша роль
+                            </Typography>
+                            <Typography variant="h6" fontWeight={600} color={textPrimary}>
+                                {roleLabel}
+                            </Typography>
+                            <Typography variant="body2" color={textSecondary}>
+                                Организация {orgName}
+                            </Typography>
+                        </Box>
+                    </Stack>
                 </Box>
-            ) : (
-                <Grid container spacing={2}>
-                    {projects.map((p) => {
-                        const manager =
-                            p.managerEmail ??
-                            (Array.isArray(p.managers) && p.managers.length > 0 ? p.managers[0] : '—');
-                        const regionLabel = getRegionLabel(p.regionCode);
-                        const operatorLabel = OPERATORS.find((item) => item.value === p.operator)?.label ?? p.operator;
 
-                        return (
-                            <Grid key={p._id} item xs={12} md={6} lg={4}>
-                                <Paper
-                                    sx={{
-                                        p: 2,
-                                        position: 'relative',
-                                        cursor: 'pointer',
-                                        transition: 'transform 0.08s ease',
-                                        '&:hover': { transform: 'translateY(-2px)' },
-                                    }}
-                                    onClick={() => handleCardClick(p.key)}
-                                    role="button"
-                                    aria-label={`Открыть задачи проекта ${p.name}`}
-                                    elevation={2}
-                                >
-                                    {/* Action icons */}
-                                    <Stack direction="row" spacing={1} sx={{ position: 'absolute', top: 8, right: 8 }}>
-                                        <Tooltip title="Редактировать">
-                                            <IconButton
-                                                size="small"
-                                                aria-label="Редактировать"
-                                                onClick={(e) => {
-                                                    e.stopPropagation();
-                                                    openEditDialog(p);
-                                                }}
+                {subscriptionAlerts.length > 0 && (
+                    <Stack spacing={2}>{subscriptionAlerts}</Stack>
+                )}
+
+                {secondaryAlerts.length > 0 && (
+                    <Stack spacing={2}>{secondaryAlerts}</Stack>
+                )}
+
+                {loading ? (
+                    <Box
+                        sx={{
+                            ...panelBaseSx,
+                            display: 'flex',
+                            alignItems: 'center',
+                            justifyContent: 'center',
+                            minHeight: 260,
+                        }}
+                    >
+                        <CircularProgress />
+                    </Box>
+                ) : (
+                    <Grid container spacing={{ xs: 2, md: 3 }}>
+                        {projects.map((p) => {
+                            const manager =
+                                p.managerEmail ??
+                                (Array.isArray(p.managers) && p.managers.length > 0 ? p.managers[0] : '—');
+                            const regionLabel = getRegionLabel(p.regionCode);
+                            const operatorLabel = OPERATORS.find((item) => item.value === p.operator)?.label ?? p.operator;
+
+                            return (
+                                <Grid key={p._id} item xs={12} md={6} lg={4}>
+                                    <Paper
+                                        elevation={0}
+                                        onClick={() => handleCardClick(p.key)}
+                                        role="button"
+                                        aria-label={`Открыть задачи проекта ${p.name}`}
+                                        sx={{
+                                            p: { xs: 2, md: 2.5 },
+                                            borderRadius: 4,
+                                            border: `1px solid ${cardBorder}`,
+                                            backgroundColor: cardBg,
+                                            boxShadow: cardShadow,
+                                            backdropFilter: 'blur(26px)',
+                                            position: 'relative',
+                                            overflow: 'hidden',
+                                            cursor: 'pointer',
+                                            color: textPrimary,
+                                            minHeight: 240,
+                                            transition: 'transform 0.25s ease, box-shadow 0.25s ease',
+                                            '&:hover': {
+                                                transform: 'translateY(-6px)',
+                                                boxShadow: isDarkMode
+                                                    ? '0 35px 90px rgba(0,0,0,0.6)'
+                                                    : '0 35px 90px rgba(15,23,42,0.18)',
+                                            },
+                                        }}
+                                    >
+                                        <Stack direction="row" spacing={1} sx={{ position: 'absolute', top: 12, right: 12 }}>
+                                            <Tooltip title="Редактировать">
+                                                <IconButton
+                                                    size="small"
+                                                    aria-label="Редактировать"
+                                                    onClick={(e) => {
+                                                        e.stopPropagation();
+                                                        openEditDialog(p);
+                                                    }}
+                                                    sx={getCardIconButtonSx()}
+                                                >
+                                                    <EditIcon fontSize="small" />
+                                                </IconButton>
+                                            </Tooltip>
+                                            <Tooltip title="Удалить">
+                                                <IconButton
+                                                    size="small"
+                                                    aria-label="Удалить"
+                                                    onClick={(e) => {
+                                                        e.stopPropagation();
+                                                        askDelete(p);
+                                                    }}
+                                                    sx={getCardIconButtonSx('danger')}
+                                                >
+                                                    <DeleteIcon fontSize="small" />
+                                                </IconButton>
+                                            </Tooltip>
+                                        </Stack>
+
+                                        <Typography
+                                            variant="overline"
+                                            sx={{ color: textSecondary, letterSpacing: 1, display: 'block' }}
+                                        >
+                                            {p.key}
+                                        </Typography>
+                                        <Typography variant="h6" fontWeight={700} color={textPrimary}>
+                                            {p.name}
+                                        </Typography>
+
+                                        {p.description && (
+                                            <Typography variant="body2" color={textSecondary} sx={{ mt: 1 }}>
+                                                {p.description}
+                                            </Typography>
+                                        )}
+
+                                        <Stack direction="row" spacing={1} sx={{ flexWrap: 'wrap', mt: 2 }}>
+                                            <Box sx={pillSx}>{regionLabel}</Box>
+                                            <Box sx={pillSx}>{operatorLabel}</Box>
+                                        </Stack>
+
+                                        <Stack spacing={1.5} sx={{ mt: 2.5 }}>
+                                            <Box>
+                                                <Typography
+                                                    variant="caption"
+                                                    sx={{ color: textSecondary, letterSpacing: 0.6 }}
+                                                >
+                                                    Менеджер
+                                                </Typography>
+                                                <Typography variant="body1" fontWeight={600} color={textPrimary}>
+                                                    {manager}
+                                                </Typography>
+                                            </Box>
+                                            <Stack
+                                                direction={{ xs: 'column', sm: 'row' }}
+                                                spacing={{ xs: 1, sm: 2 }}
+                                                sx={{ width: '100%' }}
                                             >
-                                                <EditIcon fontSize="small" />
-                                            </IconButton>
-                                        </Tooltip>
-                                        <Tooltip title="Удалить">
-                                            <IconButton
-                                                size="small"
-                                                aria-label="Удалить"
-                                                onClick={(e) => {
-                                                    e.stopPropagation();
-                                                    askDelete(p);
-                                                }}
-                                            >
-                                                <DeleteIcon fontSize="small" />
-                                            </IconButton>
-                                        </Tooltip>
-                                    </Stack>
-
-                                    <Typography variant="subtitle2" color="text.secondary">
-                                        {p.key}
-                                    </Typography>
-                                    <Typography variant="h6" fontWeight={700}>
-                                        {p.name}
-                                    </Typography>
-
-                                    {p.description && (
-                                        <Typography variant="body2" sx={{ mt: 1 }}>
-                                            {p.description}
-                                        </Typography>
-                                    )}
-
-                                    <Box sx={{ mt: 2 }}>
-                                        <Typography variant="body2" color="text.secondary">
-                                            Менеджер: <strong>{manager}</strong>
-                                        </Typography>
-                                        <Typography variant="body2" color="text.secondary" sx={{ mt: 0.5 }}>
-                                            Регион: <strong>{regionLabel}</strong>
-                                        </Typography>
-                                        <Typography variant="body2" color="text.secondary">
-                                            Оператор: <strong>{operatorLabel}</strong>
-                                        </Typography>
-                                    </Box>
-                                </Paper>
-                            </Grid>
-                        );
-                    })}
-                </Grid>
-            )}
+                                                <Box sx={{ flex: 1 }}>
+                                                    <Typography
+                                                        variant="caption"
+                                                        sx={{ color: textSecondary, letterSpacing: 0.6 }}
+                                                    >
+                                                        Регион
+                                                    </Typography>
+                                                    <Typography variant="body2" color={textPrimary}>
+                                                        {regionLabel}
+                                                    </Typography>
+                                                </Box>
+                                                <Box sx={{ flex: 1 }}>
+                                                    <Typography
+                                                        variant="caption"
+                                                        sx={{ color: textSecondary, letterSpacing: 0.6 }}
+                                                    >
+                                                        Оператор
+                                                    </Typography>
+                                                    <Typography variant="body2" color={textPrimary}>
+                                                        {operatorLabel}
+                                                    </Typography>
+                                                </Box>
+                                            </Stack>
+                                        </Stack>
+                                    </Paper>
+                                </Grid>
+                            );
+                        })}
+                    </Grid>
+                )}
+            </Box>
 
             <ProjectDialog
                 open={projectDialogOpen}
@@ -663,19 +1017,18 @@ export default function OrgProjectsPage() {
                 initialData={
                     projectDialogMode === 'edit' && projectToEdit
                         ? {
-                              projectId: projectToEdit._id,
-                              name: projectToEdit.name,
-                              key: projectToEdit.key,
-                              description: projectToEdit.description ?? '',
-                              regionCode: normalizeRegionCode(projectToEdit.regionCode),
-                              operator: projectToEdit.operator,
-                              managers: projectToEdit.managers ?? [],
-                          }
+                            projectId: projectToEdit._id,
+                            name: projectToEdit.name,
+                            key: projectToEdit.key,
+                            description: projectToEdit.description ?? '',
+                            regionCode: normalizeRegionCode(projectToEdit.regionCode),
+                            operator: projectToEdit.operator,
+                            managers: projectToEdit.managers ?? [],
+                        }
                         : undefined
                 }
             />
 
-            {/* Delete confirm */}
             <Dialog open={openDelete} onClose={() => setOpenDelete(false)}>
                 <DialogTitle>Удалить проект?</DialogTitle>
                 <DialogContent>
@@ -701,6 +1054,6 @@ export default function OrgProjectsPage() {
                     {snackMsg}
                 </Alert>
             </Snackbar>
-        </Box>
+        </>
     );
 }

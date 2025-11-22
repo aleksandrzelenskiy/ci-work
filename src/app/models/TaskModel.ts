@@ -65,7 +65,7 @@ const TaskSchema = new Schema<Task & Document>({
     default: 'construction',
   },
 
-  // Какие вложения обязательны
+  // Какие вложения возможны
   requiredAttachments: [
     {
       type: String,

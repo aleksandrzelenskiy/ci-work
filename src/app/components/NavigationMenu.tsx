@@ -15,7 +15,7 @@ import { useTheme } from '@mui/material/styles';
 import { usePathname } from 'next/navigation';
 import HomeIcon from '@mui/icons-material/Home';
 import TaskIcon from '@mui/icons-material/Task';
-import PermMediaIcon from '@mui/icons-material/PermMedia';
+// import PermMediaIcon from '@mui/icons-material/PermMedia';
 import PlaceIcon from '@mui/icons-material/Place';
 import LogoutIcon from '@mui/icons-material/Logout';
 import { useClerk, useUser } from '@clerk/nextjs';
@@ -40,11 +40,11 @@ const NAV_ITEMS: Array<{
         path: '/tasks',
         icon: <TaskIcon sx={{ fontSize: 20 }} />,
     },
-    {
-        label: 'ФОТООТЧЕТЫ',
-        path: '/reports',
-        icon: <PermMediaIcon sx={{ fontSize: 20 }} />,
-    },
+    // {
+    //     label: 'ФОТООТЧЕТЫ',
+    //     path: '/reports',
+    //     icon: <PermMediaIcon sx={{ fontSize: 20 }} />,
+    // },
     {
         label: 'ГЕОЛОКАЦИИ',
         path: '/map',

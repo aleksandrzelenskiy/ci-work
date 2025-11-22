@@ -30,7 +30,7 @@ import SearchIcon from '@mui/icons-material/Search';
 import CloseIcon from '@mui/icons-material/Close';
 import FilterListIcon from '@mui/icons-material/FilterList';
 import ViewColumnOutlinedIcon from '@mui/icons-material/ViewColumnOutlined';
-import DriveFileMoveOutlinedIcon from '@mui/icons-material/DriveFileMoveOutlined';
+import DriveFileMoveRtlOutlinedIcon from '@mui/icons-material/DriveFileMoveRtlOutlined';
 import type { SelectChangeEvent } from '@mui/material/Select';
 import { LocalizationProvider } from '@mui/x-date-pickers/LocalizationProvider';
 import { AdapterDateFns } from '@mui/x-date-pickers/AdapterDateFns';
@@ -533,7 +533,7 @@ export default function ProjectTasksPage() {
                                             aria-label="Перейти к проектам"
                                             sx={getIconButtonSx({ disabled: !orgSlug })}
                                         >
-                                            <DriveFileMoveOutlinedIcon />
+                                            <DriveFileMoveRtlOutlinedIcon />
                                         </IconButton>
                                     </span>
                                 </Tooltip>
