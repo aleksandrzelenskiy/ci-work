@@ -73,6 +73,12 @@ type Task = {
     taskDescription?: string;
     bsLatitude?: number;
     bsLongitude?: number;
+    workItems?: Array<{
+        workType?: string;
+        quantity?: number;
+        unit?: string;
+        note?: string;
+    }>;
     files?: Array<{ name?: string; url?: string; size?: number }>;
     attachments?: string[];
     bsLocation?: Array<{ name: string; coordinates: string }>;
