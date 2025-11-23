@@ -23,6 +23,11 @@ import {
     Accordion,
     AccordionSummary,
     AccordionDetails,
+    Table,
+    TableBody,
+    TableCell,
+    TableHead,
+    TableRow,
 } from '@mui/material';
 import { styled } from '@mui/material/styles';
 import ArrowBackIcon from '@mui/icons-material/ArrowBack';
@@ -32,15 +37,16 @@ import EditNoteIcon from '@mui/icons-material/EditNote';
 import DeleteOutlineIcon from '@mui/icons-material/DeleteOutline';
 import InfoOutlinedIcon from '@mui/icons-material/InfoOutlined';
 import DescriptionOutlinedIcon from '@mui/icons-material/DescriptionOutlined';
+import TocOutlinedIcon from '@mui/icons-material/TocOutlined';
 import AttachFileOutlinedIcon from '@mui/icons-material/AttachFileOutlined';
 import HistoryIcon from '@mui/icons-material/History';
 import WorkspaceTaskDialog, {
     type TaskForEdit,
 } from '@/app/workspace/components/WorkspaceTaskDialog';
+import type { ParsedWorkItem } from '@/app/workspace/components/T2/T2EstimateParser';
 import { getPriorityIcon, normalizePriority } from '@/utils/priorityIcons';
 import TaskGeoLocation from '@/app/workspace/components/TaskGeoLocation';
 import { getStatusColor } from '@/utils/statusColors';
-import Masonry from '@mui/lab/Masonry';
 import {
     Timeline,
     TimelineItem,
@@ -74,6 +80,13 @@ type TaskEvent = {
     details?: TaskEventDetails;
 };
 
+type WorkItem = {
+    workType?: string;
+    quantity?: number;
+    unit?: string;
+    note?: string;
+};
+
 type Task = {
     _id: string;
     taskId: string;
@@ -99,6 +112,7 @@ type Task = {
     files?: TaskFile[];
     attachments?: string[];
     events?: TaskEvent[];
+    workItems?: WorkItem[];
 };
 
 // карточка с тенью как в примере MUI
@@ -216,10 +230,26 @@ export default function TaskDetailsPage() {
         void loadOrg();
     }, [loadOrg]);
 
+    const hasWorkItems = Array.isArray(task?.workItems) && task.workItems.length > 0;
     const hasAttachments =
         !!task &&
         ((Array.isArray(task.files) && task.files.length > 0) ||
             (Array.isArray(task.attachments) && task.attachments.length > 0));
+
+    const toEditWorkItems = (list: Task['workItems']): ParsedWorkItem[] | undefined => {
+        if (!Array.isArray(list)) return undefined;
+        const cleaned: ParsedWorkItem[] = [];
+        list.forEach((wi) => {
+            const workType = typeof wi?.workType === 'string' ? wi.workType.trim() : '';
+            const unit = typeof wi?.unit === 'string' ? wi.unit.trim() : '';
+            const qty = typeof wi?.quantity === 'number' ? wi.quantity : Number(wi?.quantity);
+            if (!workType || !unit || !Number.isFinite(qty)) return;
+            const note =
+                typeof wi?.note === 'string' && wi.note.trim() ? wi.note.trim() : undefined;
+            cleaned.push({ workType, quantity: qty, unit, note });
+        });
+        return cleaned.length ? cleaned : undefined;
+    };
 
     const toEditShape = (t: Task): TaskForEdit => {
         return {
@@ -236,12 +266,7 @@ export default function TaskDetailsPage() {
             executorId: t.executorId,
             executorName: t.executorName,
             executorEmail: t.executorEmail,
-            workItems: t.workItems?.map((wi) => ({
-                workType: wi.workType,
-                quantity: wi.quantity,
-                unit: wi.unit,
-                note: wi.note,
-            })),
+            workItems: toEditWorkItems(t.workItems),
             files: t.files?.map((f) => ({ name: f.name, url: f.url, size: f.size })),
             attachments: t.attachments,
             bsLocation: t.bsLocation
@@ -632,9 +657,21 @@ export default function TaskDetailsPage() {
                 </Paper>
             ) : (
                 <Box sx={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
-                    <Masonry columns={{ xs: 1, sm: 2, md: 3 }} spacing={2}>
+                    <Box
+                        sx={{
+                            display: 'grid',
+                            gridTemplateColumns: {
+                                xs: '1fr',
+                                sm: '1fr 1fr',
+                                md: '2fr 1fr 1fr',
+                            },
+                            gridAutoFlow: 'row dense',
+                            gap: 2,
+                            alignItems: 'stretch',
+                        }}
+                    >
                         {/* Информация */}
-                        <CardItem>
+                        <CardItem sx={{ height: '100%' }}>
                             <Typography
                                 variant="subtitle1"
                                 fontWeight={600}
@@ -704,6 +741,76 @@ export default function TaskDetailsPage() {
 
 
                         </CardItem>
+
+                        {/* Состав работ */}
+                        {(hasWorkItems || Array.isArray(task.workItems)) && (
+                            <CardItem
+                                sx={{
+                                    gridColumn: { xs: 'span 1', sm: 'span 2', md: 'span 2' },
+                                    minWidth: 0,
+                                }}
+                            >
+                                <Accordion
+                                    defaultExpanded
+                                    disableGutters
+                                    elevation={0}
+                                    sx={{ '&:before': { display: 'none' } }}
+                                >
+                                    <AccordionSummary expandIcon={<ExpandMoreIcon />}>
+                                        <Typography
+                                            variant="subtitle1"
+                                            fontWeight={600}
+                                            gutterBottom
+                                            sx={{ display: 'flex', alignItems: 'center', gap: 1 }}
+                                        >
+                                            <TocOutlinedIcon fontSize="small" />
+                                            Состав работ
+                                        </Typography>
+                                    </AccordionSummary>
+                                    <AccordionDetails sx={{ pt: 0 }}>
+                                        <Divider sx={{ mb: 1.5 }} />
+                                        {!hasWorkItems ? (
+                                            <Typography color="text.secondary" sx={{ px: 1 }}>
+                                                Нет данных
+                                            </Typography>
+                                        ) : (
+                                            <Box sx={{ maxHeight: { xs: 320, md: 420 }, overflow: 'auto' }}>
+                                                <Table size="small" stickyHeader>
+                                                    <TableHead>
+                                                        <TableRow>
+                                                            <TableCell>Вид работ</TableCell>
+                                                            <TableCell>Кол-во</TableCell>
+                                                            <TableCell>Ед.</TableCell>
+                                                            <TableCell>Примечание</TableCell>
+                                                        </TableRow>
+                                                    </TableHead>
+                                                    <TableBody>
+                                                        {task.workItems?.map((item, idx) => (
+                                                            <TableRow key={`work-${idx}`}>
+                                                                <TableCell sx={{ minWidth: 180 }}>
+                                                                    {item.workType || '—'}
+                                                                </TableCell>
+                                                                <TableCell sx={{ whiteSpace: 'nowrap' }}>
+                                                                    {typeof item.quantity === 'number'
+                                                                        ? item.quantity
+                                                                        : '—'}
+                                                                </TableCell>
+                                                                <TableCell sx={{ whiteSpace: 'nowrap' }}>
+                                                                    {item.unit || '—'}
+                                                                </TableCell>
+                                                                <TableCell>
+                                                                    {item.note || '—'}
+                                                                </TableCell>
+                                                            </TableRow>
+                                                        ))}
+                                                    </TableBody>
+                                                </Table>
+                                            </Box>
+                                        )}
+                                    </AccordionDetails>
+                                </Accordion>
+                            </CardItem>
+                        )}
 
 
                         {/* Описание */}
@@ -814,7 +921,7 @@ export default function TaskDetailsPage() {
                         )}
 
                         {/* История */}
-                        <CardItem sx={{ p: 0, minWidth: 0 }}>
+                        <CardItem sx={{ p: 0, minWidth: 0, gridColumn: 'span 1' }}>
                             <Accordion
                                 disableGutters
                                 elevation={0}
@@ -886,7 +993,7 @@ export default function TaskDetailsPage() {
                                 </AccordionDetails>
                             </Accordion>
                         </CardItem>
-                    </Masonry>
+                    </Box>
                 </Box>
             )}
 
