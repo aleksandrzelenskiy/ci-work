@@ -169,8 +169,7 @@ export async function POST(request: Request) {
     await newTask.save();
 
     // === Фоновая отправка почты ===
-    // eslint-disable-next-line @typescript-eslint/no-floating-promises
-    (async () => {
+    void (async () => {
       try {
         const recipients = [
           newTask.authorEmail,

@@ -8,7 +8,7 @@ import { getOrgAndProjectByRef } from '../_helpers';
 import { ensureIrkutskT2Station } from '@/app/models/BsCoordinateModel';
 import { notifyTaskAssignment } from '@/app/utils/taskNotifications';
 import { syncBsCoordsForProject } from '@/app/utils/syncBsCoords';
-import { buildBsAddressFromLocations, normalizeSingleBsAddress, sanitizeBsLocationAddresses } from '@/utils/bsLocation';
+import { buildBsAddressFromLocations, sanitizeBsLocationAddresses } from '@/utils/bsLocation';
 
 
 export const runtime = 'nodejs';
@@ -67,17 +67,6 @@ function parseCoordinatesPair(value?: string | null): { lat?: number; lon?: numb
         lat: Number.isFinite(lat) ? Number(lat.toFixed(6)) : undefined,
         lon: Number.isFinite(lon) ? Number(lon.toFixed(6)) : undefined,
     };
-}
-
-function normalizeBsLocation(
-    list?: Array<{ name?: string; coordinates?: string; address?: string }> | null
-): Array<{ name: string; coordinates: string; address?: string }> | undefined {
-    if (!Array.isArray(list)) return undefined;
-    return list.map((item) => ({
-        name: (item.name ?? '').trim(),
-        coordinates: (item.coordinates ?? '').trim(),
-        address: normalizeSingleBsAddress(item.address),
-    }));
 }
 
 type CreateTaskBody = {

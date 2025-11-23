@@ -742,6 +742,7 @@ export default function PhotoReportPage() {
           {photos.map((photo) => (
             <Grid item xs={6} sm={4} md={2} key={photo}>
               <PhotoView src={photo}>
+                {/* eslint-disable-next-line @next/next/no-img-element */}
                 <img
                   src={photo}
                   alt='Uploaded photo'
@@ -934,6 +935,7 @@ export default function PhotoReportPage() {
                             padding: 1,
                           }}
                         >
+                          {/* eslint-disable-next-line @next/next/no-img-element */}
                           <img
                             src={uf.preview}
                             alt={uf.file.name}
@@ -1068,6 +1070,7 @@ export default function PhotoReportPage() {
                   {fixedPhotos.map((photo, idx) => (
                     <Grid item xs={6} sm={4} md={2} key={`fixed-${idx}`}>
                       <PhotoView src={photo}>
+                        {/* eslint-disable-next-line @next/next/no-img-element */}
                         <img
                           src={photo}
                           alt={`Fixed Photo ${idx + 1}`}

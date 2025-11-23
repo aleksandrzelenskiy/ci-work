@@ -57,15 +57,9 @@ import ExpandLessIcon from '@mui/icons-material/ExpandLess';
 // import CloudUploadIcon from '@mui/icons-material/CloudUpload';
 import OpenInNewIcon from '@mui/icons-material/OpenInNew';
 import CloudDownloadIcon from '@mui/icons-material/CloudDownload';
-import AddLinkIcon from '@mui/icons-material/AddLink';
-import EditIcon from '@mui/icons-material/Edit';
-import DeleteIcon from '@mui/icons-material/Delete';
 import AttachFileIcon from '@mui/icons-material/AttachFile';
 import CommentOutlinedIcon from '@mui/icons-material/CommentOutlined';
 import Skeleton from '@mui/material/Skeleton';
-import { LocalizationProvider } from '@mui/x-date-pickers/LocalizationProvider';
-import { AdapterDayjs } from '@mui/x-date-pickers/AdapterDayjs';
-import { DatePicker } from '@mui/x-date-pickers/DatePicker';
 import dayjs from 'dayjs';
 import { YMaps, Map, Placemark, FullscreenControl, TypeSelector, ZoomControl, GeolocationControl, SearchControl, } from '@pbe/react-yandex-maps';
 
@@ -80,10 +74,7 @@ import {
 } from '@/app/types/taskTypes';
 import { TransitionProps } from '@mui/material/transitions';
 import { fetchUserContext, resolveRoleFromContext, type UserContextResponse } from '@/app/utils/userContext';
-import TaskForm from '@/app/components/TaskForm';
 import { getStatusColor } from '@/utils/statusColors';
-import { useDropzone } from 'react-dropzone';
-import LinearProgress from '@mui/material/LinearProgress';
 import type { EffectiveOrgRole } from '@/app/types/roles';
 import { isAdminRole, isExecutorRole } from '@/app/utils/roleGuards';
 
@@ -142,47 +133,12 @@ export default function TaskDetailPage() {
     const [snackbarOpen, setSnackbarOpen] = useState(false);
     const [snackbarMessage, setSnackbarMessage] = useState('');
     const [snackbarSeverity, setSnackbarSeverity] = useState<'success' | 'error'>('success');
-    const [isEditFormOpen, setIsEditFormOpen] = useState(false);
     const [selectedMapPoint, setSelectedMapPoint] = useState<{ coords: [number, number]; title: string } | null>(null);
     const [mapOpen, setMapOpen] = useState(false);
-
-    const [reportLinkDialogOpen, setReportLinkDialogOpen] = useState(false);
-    const [reportLinkValue, setReportLinkValue] = useState('');
-    const [savingReportLink, setSavingReportLink] = useState(false);
-
-
-    const [openOrderDialog, setOpenOrderDialog] = useState(false);
-    const [orderData, setOrderData] = useState({
-        orderNumber: '',
-        orderDate: null as dayjs.Dayjs | null,
-        orderSignDate: null as dayjs.Dayjs | null,
-    });
-
-    const [orderFile, setOrderFile] = useState<File | null>(null);
-    const [uploadingOrder, setUploadingOrder] = useState(false);
-    const [uploadProgress, setUploadProgress] = useState<number>(0);
-
-    const [confirmDeleteOrderOpen, setConfirmDeleteOrderOpen] = useState(false);
-    const [deletingOrder, setDeletingOrder] = useState(false);
-
-    const [confirmDeleteNcwOpen, setConfirmDeleteNcwOpen] = useState(false);
-    const [deletingNcw, setDeletingNcw] = useState(false);
 
     const [newCommentText, setNewCommentText] = useState('');
     const [newCommentPhoto, setNewCommentPhoto] = useState<File | null>(null);
     const [postingComment, setPostingComment] = useState(false);
-
-    const { getRootProps, getInputProps, isDragActive } = useDropzone({
-        multiple: false,
-        accept: {
-            'application/pdf': ['.pdf'],
-            'image/*': ['.jpg', '.jpeg', '.png', '.webp'],
-        },
-        maxSize: 15 * 1024 * 1024,
-        onDrop: (acceptedFiles) => {
-            if (acceptedFiles?.length) setOrderFile(acceptedFiles[0]);
-        },
-    });
 
     const formatRuble = (value: number) => {
         const num = new Intl.NumberFormat('ru-RU', {
@@ -300,36 +256,6 @@ export default function TaskDetailPage() {
         }
     };
 
-    const handleSaveReportLink = async () => {
-        try {
-            setSavingReportLink(true);
-            const res = await fetch(`/api/tasks/${encodeURIComponent(taskId)}`, {
-                method: 'PATCH',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ reportLink: reportLinkValue }),
-            });
-            const data = await res.json();
-            if (!res.ok) {
-                setSnackbarMessage(data?.error || 'Failed to save report link');
-                setSnackbarSeverity('error');
-                setSnackbarOpen(true);
-                return;
-            }
-            setTask(data.task);
-            setSnackbarMessage('Report link saved');
-            setSnackbarSeverity('success');
-            setSnackbarOpen(true);
-            setReportLinkDialogOpen(false);
-        } catch (e) {
-            console.error(e);
-            setSnackbarMessage('Failed to save report link');
-            setSnackbarSeverity('error');
-            setSnackbarOpen(true);
-        } finally {
-            setSavingReportLink(false);
-        }
-    };
-
 
     const handleConfirmAction = async () => {
         if (!task) return;
@@ -359,119 +285,6 @@ export default function TaskDetailPage() {
     };
 
     const handleCloseSnackbar = () => setSnackbarOpen(false);
-
-    const handleSaveOrder = async () => {
-        setUploadingOrder(true);
-        setUploadProgress(0);
-        try {
-            const formData = new FormData();
-            formData.append('orderNumber', orderData.orderNumber);
-            if (orderData.orderDate) {
-                formData.append('orderDate', orderData.orderDate.toDate().toISOString());
-            }
-            if (orderData.orderSignDate) {
-                formData.append('orderSignDate', orderData.orderSignDate.toDate().toISOString());
-            }
-            if (orderFile) {
-                formData.append('orderFile', orderFile);
-            }
-
-            await new Promise<void>((resolve, reject) => {
-                const xhr = new XMLHttpRequest();
-                xhr.open('PATCH', `/api/tasks/${taskId}`);
-
-                xhr.upload.onprogress = (e) => {
-                    if (e.lengthComputable) {
-                        const percent = Math.round((e.loaded / e.total) * 100);
-                        setUploadProgress(percent);
-                    }
-                };
-
-                xhr.onload = () => {
-                    if (xhr.status >= 200 && xhr.status < 300) {
-                        try {
-                            const resp = JSON.parse(xhr.responseText) as { task: Task };
-                            setTask(resp.task);
-                            setSnackbarMessage('Order details saved successfully!');
-                            setSnackbarSeverity('success');
-                            setSnackbarOpen(true);
-                            setOpenOrderDialog(false);
-                            setOrderFile(null);
-                            resolve();
-                        } catch (parseErr) {
-                            reject(parseErr);
-                        }
-                    } else {
-                        reject(new Error(xhr.responseText || 'Failed to save order details'));
-                    }
-                };
-
-                xhr.onerror = () => reject(new Error('Network error while uploading order'));
-                xhr.send(formData);
-            });
-        } catch (_err) {
-            console.error('Error saving order details:', _err);
-            setSnackbarMessage('Failed to save order details');
-            setSnackbarSeverity('error');
-            setSnackbarOpen(true);
-        } finally {
-            setUploadingOrder(false);
-            setUploadProgress(0);
-        }
-    };
-
-    const handleDeleteOrder = async () => {
-        setDeletingOrder(true);
-        try {
-            const res = await fetch(`/api/tasks/${encodeURIComponent(taskId)}?file=order`, { method: 'DELETE' });
-            const data = (await res.json().catch(() => ({}))) as { task?: Task; error?: string };
-            if (!res.ok) {
-                setSnackbarMessage(data.error || 'Failed to delete order file');
-                setSnackbarSeverity('error');
-                setSnackbarOpen(true);
-                return;
-            }
-            if (data.task) setTask(data.task);
-            setSnackbarMessage('Order file deleted');
-            setSnackbarSeverity('success');
-            setSnackbarOpen(true);
-        } catch (_err) {
-            console.error(_err);
-            setSnackbarMessage('Failed to delete order file');
-            setSnackbarSeverity('error');
-            setSnackbarOpen(true);
-        } finally {
-            setDeletingOrder(false);
-            setConfirmDeleteOrderOpen(false);
-        }
-    };
-
-    const handleDeleteNcw = async () => {
-        setDeletingNcw(true);
-        try {
-            const res = await fetch(`/api/tasks/${encodeURIComponent(taskId)}?file=ncw`, { method: 'DELETE' });
-            const data = await res.json().catch(() => ({}));
-            if (!res.ok) {
-                setSnackbarMessage(data.error || 'Failed to delete NCW file');
-                setSnackbarSeverity('error');
-                setSnackbarOpen(true);
-                return;
-            }
-            const refreshed = await fetch(`/api/tasks/${encodeURIComponent(taskId)}`).then(r => r.json());
-            setTask(refreshed.task);
-            setSnackbarMessage('NCW file deleted');
-            setSnackbarSeverity('success');
-            setSnackbarOpen(true);
-        } catch (e) {
-            console.error(e);
-            setSnackbarMessage('Failed to delete NCW file');
-            setSnackbarSeverity('error');
-            setSnackbarOpen(true);
-        } finally {
-            setDeletingNcw(false);
-            setConfirmDeleteNcwOpen(false);
-        }
-    };
 
 
     const handlePostComment = async () => {
@@ -573,6 +386,7 @@ export default function TaskDetailPage() {
     }
 
     const isExecutor = isExecutorRole(userRole);
+    const allowTaskMutations = false;
     const isAdmin = isAdminRole(userRole);
 
     const isTaskAssigned = task.status === 'Assigned';
@@ -621,17 +435,6 @@ export default function TaskDetailPage() {
 
             <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, mb: 3, flexWrap: 'wrap' }}>
                 <Chip label={String(task.taskId)} color="default" />
-                {roleLoaded && !isExecutor && (
-                    <Button
-                        size="small"
-                        variant="outlined"
-                        startIcon={<EditIcon />}
-                        onClick={() => setIsEditFormOpen(true)}
-                    >
-                        Edit
-                    </Button>
-                )}
-
                 {task.reportLink && (
                     <Button
                         size="small"
@@ -766,7 +569,7 @@ export default function TaskDetailPage() {
                                     </>
                                 )}
 
-                                {isAdmin && (
+                                {allowTaskMutations && isAdmin && (
                                     <Box
                                         sx={{
                                             mt: 1,
@@ -880,15 +683,7 @@ export default function TaskDetailPage() {
                                     {/* Order */}
                                     {task.orderUrl ? (
                                         <Box sx={{ mb: 2 }}>
-                                            <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
-                                                <Typography variant="subtitle2" component="div">Order</Typography>
-                                                <Tooltip title="Delete Order">
-                                                    <IconButton size="small" aria-label="Delete Order" onClick={() => setConfirmDeleteOrderOpen(true)}>
-                                                        <DeleteIcon fontSize="small" />
-                                                    </IconButton>
-                                                </Tooltip>
-                                            </Box>
-
+                                            <Typography variant="subtitle2" component="div">Order</Typography>
                                             <Button
                                                 component="a"
                                                 href={task.orderUrl}
@@ -910,18 +705,7 @@ export default function TaskDetailPage() {
                                     {/* NCW (уведомление о завершении работ) */}
                                     {task.ncwUrl ? (
                                         <Box sx={{ mb: 2 }}>
-                                            <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
-                                                <Typography variant="subtitle2" component="div">NCW (уведомление)</Typography>
-                                                <Tooltip title="Delete NCW">
-                                                    <IconButton
-                                                        size="small"
-                                                        aria-label="Delete NCW"
-                                                        onClick={() => setConfirmDeleteNcwOpen(true)}
-                                                    >
-                                                        <DeleteIcon fontSize="small" />
-                                                    </IconButton>
-                                                </Tooltip>
-                                            </Box>
+                                            <Typography variant="subtitle2" component="div">NCW (уведомление)</Typography>
 
 
                                             <Box sx={{ display: 'flex', gap: 1, flexWrap: 'wrap', mt: 1 }}>
@@ -1173,19 +957,7 @@ export default function TaskDetailPage() {
                                         >
                                             View report
                                         </Button>
-                                    ) : (
-                                        // если ссылки нет — только исполнитель видит Send link
-                                        <Button
-                                            variant="contained"
-                                            startIcon={<AddLinkIcon />}
-                                            onClick={() => {
-                                                setReportLinkValue(task.reportLink || '');
-                                                setReportLinkDialogOpen(true);
-                                            }}
-                                        >
-                                            Send link
-                                        </Button>
-                                    )}
+                                    ) : null}
                                 </Box>
 
                             )}
@@ -1232,7 +1004,7 @@ export default function TaskDetailPage() {
 
                 {/* Кнопки статусов */}
                 <Grid item xs={12}>
-                    {isExecutor && isTaskAssigned && (
+                    {allowTaskMutations && isExecutor && isTaskAssigned && (
                         <Box sx={{ mb: 3 }}>
                             <Box sx={{ display: 'flex', justifyContent: 'center', gap: 2 }}>
                                 <Button
@@ -1261,7 +1033,7 @@ export default function TaskDetailPage() {
                         </Box>
                     )}
 
-                    {isExecutor && isTaskAtWork && (
+                    {allowTaskMutations && isExecutor && isTaskAtWork && (
                         <Box sx={{ mb: 3 }}>
                             <Box sx={{ display: 'flex', justifyContent: 'center', gap: 2 }}>
                                 <Button
@@ -1532,238 +1304,13 @@ export default function TaskDetailPage() {
                 </DialogActions>
             </Dialog>
 
-            {/* Диалог добваления внешней ссылки фотоотчета */}
-            <Dialog
-                open={reportLinkDialogOpen}
-                onClose={() => setReportLinkDialogOpen(false)}
-                fullWidth
-                maxWidth="sm"
-            >
-                <DialogTitle>Send link</DialogTitle>
-                <DialogContent>
-                    <TextField
-                        label="Report link (Google Drive / Dropbox / S3 / др.)"
-                        fullWidth
-                        sx={{ mt: 1 }}
-                        value={reportLinkValue}
-                        onChange={(e) => setReportLinkValue(e.target.value)}
-                        placeholder="https://…"
-                    />
-                    <Typography variant="caption" color="text.secondary">
-                        Вставь ссылку на папку/архив с фотоотчётом (дайте доступ по ссылке).
-                    </Typography>
-                </DialogContent>
-                <DialogActions>
-                    <Button onClick={() => setReportLinkDialogOpen(false)}>Cancel</Button>
-                    <Button
-                        onClick={handleSaveReportLink}
-                        variant="contained"
-                        disabled={savingReportLink}
-                    >
-                        {savingReportLink ? <CircularProgress size={20} /> : 'Save'}
-                    </Button>
-                </DialogActions>
-            </Dialog>
-
-
-            {/* Диалог заказа (admin) */}
-            {isAdmin && (
-                <Dialog open={openOrderDialog} onClose={() => setOpenOrderDialog(false)} fullWidth maxWidth="sm">
-                    <DialogTitle>{task.orderNumber ? 'Edit Order Details' : 'Add Order Details'}</DialogTitle>
-                    <DialogContent>
-                        <Box sx={{ mt: 2, display: 'flex', flexDirection: 'column', gap: 3 }}>
-                            <TextField
-                                label="Order Number"
-                                value={orderData.orderNumber}
-                                onChange={(e) => setOrderData({ ...orderData, orderNumber: e.target.value })}
-                                fullWidth
-                            />
-
-                            <LocalizationProvider dateAdapter={AdapterDayjs}>
-                                <DatePicker
-                                    label="Order Date"
-                                    value={orderData.orderDate}
-                                    onChange={(newValue) => setOrderData({ ...orderData, orderDate: newValue })}
-                                    format="DD.MM.YYYY"
-                                    slotProps={{ textField: { fullWidth: true } }}
-                                />
-
-                                <DatePicker
-                                    label="Order Sign Date"
-                                    value={orderData.orderSignDate}
-                                    onChange={(newValue) => setOrderData({ ...orderData, orderSignDate: newValue })}
-                                    format="DD.MM.YYYY"
-                                    slotProps={{ textField: { fullWidth: true } }}
-                                />
-
-                                {task.orderUrl ? (
-                                    <Box sx={{ mt: 1 }}>
-                                        <Typography variant="subtitle2" gutterBottom>
-                                            Current file
-                                        </Typography>
-
-                                        <Button
-                                            component="a"
-                                            href={task.orderUrl}
-                                            target="_blank"
-                                            rel="noopener noreferrer"
-                                            startIcon={<CloudDownloadIcon />}
-                                            variant="text"
-                                            sx={{ p: 0, minWidth: 0 }}
-                                        >
-                                            {(task.orderNumber || 'Order') +
-                                                (task.orderDate ? ` от ${dayjs(task.orderDate).format('DD.MM.YYYY')}` : '')}
-                                        </Button>
-
-                                        <Box sx={{ mt: 1 }}>
-                                            <Button color="error" variant="outlined" onClick={() => setConfirmDeleteOrderOpen(true)}>
-                                                Delete file
-                                            </Button>
-                                        </Box>
-
-                                        <Typography variant="caption" color="text.secondary" display="block" sx={{ mt: 1 }}>
-                                            Delete the current file to upload a new one.
-                                        </Typography>
-                                    </Box>
-                                ) : (
-                                    <>
-                                        <Box
-                                            {...getRootProps()}
-                                            sx={{
-                                                border: '2px dashed',
-                                                borderColor: isDragActive ? 'primary.main' : 'grey.400',
-                                                borderRadius: 2,
-                                                p: 3,
-                                                textAlign: 'center',
-                                                cursor: 'pointer',
-                                                backgroundColor: isDragActive ? 'action.hover' : 'transparent',
-                                                transition: 'all 0.2s ease-in-out',
-                                            }}
-                                        >
-                                            <input {...getInputProps()} />
-                                            <Typography variant="subtitle2" gutterBottom>
-                                                Signed Order (PDF or Image)
-                                            </Typography>
-                                            {orderFile ? (
-                                                <Typography variant="body2">Selected: {orderFile.name}</Typography>
-                                            ) : (
-                                                <Typography variant="body2" color="text.secondary">
-                                                    Drag & drop file here, or click to select
-                                                </Typography>
-                                            )}
-                                            <Typography variant="caption" color="text.secondary" display="block" sx={{ mt: 1 }}>
-                                                Allowed: PDF, JPG, PNG (up to 15&nbsp;MB)
-                                            </Typography>
-                                        </Box>
-
-                                        {uploadingOrder && (
-                                            <Box sx={{ mt: 2 }}>
-                                                <LinearProgress variant="determinate" value={uploadProgress} />
-                                                <Typography variant="caption" sx={{ display: 'block', mt: 0.5 }}>
-                                                    Uploading… {uploadProgress}%
-                                                </Typography>
-                                            </Box>
-                                        )}
-                                    </>
-                                )}
-                            </LocalizationProvider>
-                        </Box>
-                    </DialogContent>
-                    <DialogActions>
-                        <Button
-                            onClick={() => {
-                                setOpenOrderDialog(false);
-                                setOrderFile(null);
-                            }}
-                            color="primary"
-                        >
-                            Cancel
-                        </Button>
-                        <Button
-                            onClick={handleSaveOrder}
-                            color="primary"
-                            variant="contained"
-                            disabled={uploadingOrder}
-                            startIcon={uploadingOrder ? <CircularProgress size={20} color="inherit" /> : null}
-                        >
-                            {uploadingOrder ? 'Uploading…' : 'Save'}
-                        </Button>
-                    </DialogActions>
-                </Dialog>
-            )}
-
-            {/* Подтверждение удаления файла заказа */}
-            <Dialog open={confirmDeleteOrderOpen} onClose={() => setConfirmDeleteOrderOpen(false)}>
-                <DialogTitle>Delete order file?</DialogTitle>
-                <DialogContent>
-                    <Typography>Current order file will be permanently removed.</Typography>
-                </DialogContent>
-                <DialogActions>
-                    <Button onClick={() => setConfirmDeleteOrderOpen(false)}>Cancel</Button>
-                    <Button onClick={handleDeleteOrder} color="error" variant="contained" disabled={deletingOrder}>
-                        {deletingOrder ? <CircularProgress size={20} color="inherit" /> : 'Delete'}
-                    </Button>
-                </DialogActions>
-            </Dialog>
-
-            {/* Подтверждение удаления файла уведомления */}
-            <Dialog open={confirmDeleteNcwOpen} onClose={() => setConfirmDeleteNcwOpen(false)}>
-                <DialogTitle>Delete NCW file?</DialogTitle>
-                <DialogContent>
-                    <Typography>NCW file will be permanently removed.</Typography>
-                </DialogContent>
-                <DialogActions>
-                    <Button onClick={() => setConfirmDeleteNcwOpen(false)}>Cancel</Button>
-                    <Button
-                        onClick={handleDeleteNcw}
-                        color="error"
-                        variant="contained"
-                        disabled={deletingNcw}
-                        startIcon={deletingNcw ? <CircularProgress size={20} color="inherit" /> : null}
-                    >
-                        {deletingNcw ? 'Deleting…' : 'Delete'}
-                    </Button>
-                </DialogActions>
-            </Dialog>
-
-
+            
             <Snackbar open={snackbarOpen} autoHideDuration={6000} onClose={handleCloseSnackbar}>
                 <Alert onClose={handleCloseSnackbar} severity={snackbarSeverity} sx={{ width: '100%' }}>
                     {snackbarMessage}
                 </Alert>
             </Snackbar>
 
-            <TaskForm
-                open={isEditFormOpen}
-                task={task}
-                onClose={() => setIsEditFormOpen(false)}
-                onSubmit={async (formData) => {
-                    try {
-                        const response = await fetch(`/api/tasks/${taskId}`, {
-                            method: 'PATCH',
-                            body: formData,
-                        });
-                        const data = (await response.json().catch(() => ({}))) as { task?: Task; error?: string };
-                        if (!response.ok || !data.task) {
-                            setSnackbarMessage(data.error || 'Failed to update task');
-                            setSnackbarSeverity('error');
-                            setSnackbarOpen(true);
-                            return;
-                        }
-                        setTask(data.task);
-                        setSnackbarMessage('Task updated successfully!');
-                        setSnackbarSeverity('success');
-                        setSnackbarOpen(true);
-                    } catch (_err) {
-                        console.error('Error updating task:', _err);
-                        setSnackbarMessage('Failed to update task');
-                        setSnackbarSeverity('error');
-                        setSnackbarOpen(true);
-                    } finally {
-                        setIsEditFormOpen(false);
-                    }
-                }}
-            />
         </Box>
     );
 }
