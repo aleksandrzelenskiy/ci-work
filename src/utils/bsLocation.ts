@@ -47,9 +47,7 @@ export function normalizeSingleBsAddress(address?: string | null): string {
 }
 
 // Возвращает очищенный массив bsLocation: убирает повторные конкатенации адресов.
-export function sanitizeBsLocationAddresses<
-    T extends { address?: string | null } & Record<string, unknown>
->(
+export function sanitizeBsLocationAddresses<T extends { address?: string | null }>(
     bsLocation: T[] | null | undefined,
     fallbackAddress?: string | null
 ): T[] | undefined {
