@@ -229,20 +229,19 @@ function splitAddresses(raw?: string | null): string[] {
 
 function sanitizeWorkItemsInput(value: unknown): ParsedWorkItem[] {
     if (!Array.isArray(value)) return [];
-    return value
-        .map((item) => {
-            if (!item || typeof item !== 'object') return null;
-            const raw = item as Partial<ParsedWorkItem>;
-            const workType = typeof raw.workType === 'string' ? raw.workType.trim() : '';
-            const unit = typeof raw.unit === 'string' ? raw.unit.trim() : '';
-            const qtyRaw = raw.quantity;
-            const quantity = typeof qtyRaw === 'number' ? qtyRaw : Number(qtyRaw);
-            if (!workType || !unit || !Number.isFinite(quantity)) return null;
-            const note =
-                typeof raw.note === 'string' && raw.note.trim() ? raw.note.trim() : undefined;
-            return { workType, unit, quantity, note };
-        })
-        .filter((item): item is ParsedWorkItem => Boolean(item));
+    const parsed: ParsedWorkItem[] = [];
+    value.forEach((item) => {
+        if (!item || typeof item !== 'object') return;
+        const raw = item as Partial<ParsedWorkItem>;
+        const workType = typeof raw.workType === 'string' ? raw.workType.trim() : '';
+        const unit = typeof raw.unit === 'string' ? raw.unit.trim() : '';
+        const qtyRaw = raw.quantity;
+        const quantity = typeof qtyRaw === 'number' ? qtyRaw : Number(qtyRaw);
+        if (!workType || !unit || !Number.isFinite(quantity)) return;
+        const note = typeof raw.note === 'string' && raw.note.trim() ? raw.note.trim() : undefined;
+        parsed.push({ workType, unit, quantity, note });
+    });
+    return parsed;
 }
 
 
