@@ -569,35 +569,6 @@ export default function TaskDetailPage() {
                                     </>
                                 )}
 
-                                {allowTaskMutations && isAdmin && (
-                                    <Box
-                                        sx={{
-                                            mt: 1,
-                                            display: 'flex',
-                                            gap: 1,
-                                            alignItems: 'center',
-                                            flexWrap: 'wrap',
-                                        }}
-                                    >
-                                        <Button
-                                            size="small"
-                                            variant="outlined"
-                                            startIcon={<DescriptionOutlinedIcon />}
-                                            onClick={() => {
-                                                setOrderData({
-                                                    orderNumber: task.orderNumber || '',
-                                                    orderDate: task.orderDate ? dayjs(task.orderDate) : null,
-                                                    orderSignDate: task.orderSignDate ? dayjs(task.orderSignDate) : null,
-                                                });
-                                                setOrderFile(null);
-                                                setOpenOrderDialog(true);
-                                            }}
-                                        >
-                                            {task.orderNumber ? 'Edit Order' : 'Add Order'}
-                                        </Button>
-
-                                    </Box>
-                                )}
                             </AccordionDetails>
                         </Accordion>
                     </Box>
