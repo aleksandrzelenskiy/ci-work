@@ -2,7 +2,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import dbConnect from '@/utils/mongoose';
 import mongoose from 'mongoose';
-import { getBaseStationModel, normalizeBsNumber } from '@/app/models/BaseStation';
+import { getBsCoordinateModel, normalizeBsNumber } from '@/app/models/BsCoordinateModel';
 import { BASE_STATION_COLLECTIONS } from '@/app/constants/baseStations';
 import { REGION_MAP, REGION_ISO_MAP } from '@/app/utils/regions';
 
@@ -12,7 +12,6 @@ export const dynamic = 'force-dynamic';
 type StationDoc = {
     _id: mongoose.Types.ObjectId | string;
     name?: string;
-    num?: string;
     address?: string;
     lat?: number | null;
     lon?: number | null;
@@ -49,7 +48,7 @@ const findCollectionName = (region?: string | null, operator?: string | null): s
 
 const mapStation = (doc: StationDoc) => {
     const id = typeof doc._id === 'string' ? doc._id : doc._id.toString();
-    const stationName = doc.num || doc.name || '';
+    const stationName = doc.name || '';
     return {
         id,
         name: normalizeBsNumber(stationName),
@@ -74,19 +73,18 @@ export async function GET(req: NextRequest) {
             return NextResponse.json({ objects: [] });
         }
 
-        const BaseStationModel = getBaseStationModel(collectionName);
+        const BaseStationModel = getBsCoordinateModel(collectionName);
 
         const filter: Record<string, unknown> = {};
         if (q) {
             filter.$or = [
-                { num: { $regex: q, $options: 'i' } },
                 { name: { $regex: q, $options: 'i' } },
                 { address: { $regex: q, $options: 'i' } },
             ];
         }
 
         const docs = await BaseStationModel.find(filter)
-            .sort({ num: 1, name: 1 })
+            .sort({ name: 1 })
             .limit(limit)
             .lean<StationDoc[]>();
 

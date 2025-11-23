@@ -1,5 +1,5 @@
 import dbConnect from '@/utils/mongoose';
-import BaseStation, { IBaseStation } from '../models/BaseStation';
+import { getDefaultBsCoordinateModel, BsCoordinate as IBaseStation } from '../models/BsCoordinateModel';
 import mongoose from 'mongoose';
 
 async function cleanDuplicates() {
@@ -7,14 +7,16 @@ async function cleanDuplicates() {
     await dbConnect();
     console.log('Connected to database');
 
+    const BaseStation = getDefaultBsCoordinateModel();
     const duplicates = await BaseStation.aggregate<{
       _id: string;
       docs: IBaseStation[];
       count: number;
     }>([
+      { $match: { name: { $exists: true, $ne: '' } } },
       {
         $group: {
-          _id: { $ifNull: ['$name', '$num'] },
+          _id: '$name',
           docs: { $push: '$$ROOT' },
           count: { $sum: 1 },
         },

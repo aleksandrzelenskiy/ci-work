@@ -46,6 +46,24 @@ function ensureLocalDirForKey(key: string): string {
   return full;
 }
 
+// Нормализация имени файла: убираем слеши/лишние пробелы и пытаемся починить latin1-кодировку
+function normalizeFilename(raw: string): string {
+  let base = path.basename(raw || 'file');
+  const suspect = /[ÃÐÒÑÂÃäöüÄÖÜß]/.test(base);
+  if (suspect) {
+    try {
+      const fixed = Buffer.from(base, 'latin1').toString('utf8');
+      if (/[А-Яа-яЁё]/.test(fixed)) {
+        base = fixed;
+      }
+    } catch {
+      /* ignore */
+    }
+  }
+  base = base.replace(/[/\\]+/g, '_').replace(/\s+/g, ' ').trim();
+  return base || 'file';
+}
+
 /**
  * Загрузка по готовому ключу (используется в pages/api/upload.ts)
  * Возвращает ПУБЛИЧНЫЙ URL string.
@@ -80,7 +98,7 @@ export async function uploadBuffer(
 /** Сборка ключа вида: uploads/<TASKID>/<TASKID>-<subfolder>/<filename> */
 function buildFileKey(taskId: string, subfolder: string, filename: string): string {
   const safeTaskId = taskId.replace(/[^a-zA-Z0-9_-]/g, '');
-  const safeName = path.basename(filename);
+  const safeName = normalizeFilename(filename);
   return path.posix.join('uploads', `${safeTaskId}`, `${safeTaskId}-${subfolder}`, safeName);
 }
 

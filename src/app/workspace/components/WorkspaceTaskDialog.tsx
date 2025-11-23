@@ -208,10 +208,21 @@ function getTaskBsNumber(entries: BsFormEntry[]): string {
 }
 
 function getPrimaryAddress(entries: BsFormEntry[]): string {
-    const firstWithAddr = entries.find(
-        (e: BsFormEntry) => e.bsAddress.trim()
-    );
-    return firstWithAddr?.bsAddress.trim() ?? '';
+    const addresses = entries
+        .map((e: BsFormEntry) => e.bsAddress.trim())
+        .filter(Boolean);
+    if (addresses.length > 1) {
+        return addresses.join('; ');
+    }
+    return addresses[0] ?? '';
+}
+
+function splitAddresses(raw?: string | null): string[] {
+    if (!raw) return [];
+    return raw
+        .split(';')
+        .map((s) => s.trim())
+        .filter(Boolean);
 }
 
 
@@ -399,9 +410,15 @@ export default function WorkspaceTaskDialog({
         const entries: BsFormEntry[] = [];
 
         if (Array.isArray(initialTask.bsLocation) && initialTask.bsLocation.length > 0) {
+            const hasMultiple = initialTask.bsLocation.length > 1;
+            const bsAddresses = splitAddresses(initialTask.bsAddress);
             initialTask.bsLocation.forEach((loc, idx) => {
                 const { lat, lon } = parseLatLonFromCoordinates(loc.coordinates);
-                const addr = (loc.address ?? initialTask.bsAddress ?? '').trim();
+                const addrFromLoc = (loc.address ?? '').trim();
+                const addr =
+                    addrFromLoc ||
+                    bsAddresses[idx] ||
+                    (!hasMultiple ? bsAddresses[0] : '');
                 const name = loc.name || '';
                 entries.push({
                     id: `edit-bs-${idx}`,
@@ -1028,6 +1045,14 @@ export default function WorkspaceTaskDialog({
         !taskBsAddress ||
         hasInvalidCoords;
 
+    const savingIndicator = (saving || uploading) ? (
+        <CircularProgress
+            color="inherit"
+            size={18}
+            sx={{ ml: 1 }}
+        />
+    ) : null;
+
     return (
         <LocalizationProvider dateAdapter={AdapterDateFns}>
             <Drawer
@@ -1630,9 +1655,13 @@ export default function WorkspaceTaskDialog({
                                     textTransform: 'none',
                                     boxShadow:
                                         '0 20px 45px rgba(59,130,246,0.45)',
+                                    display: 'inline-flex',
+                                    alignItems: 'center',
+                                    gap: 0.75,
                                 }}
                             >
                                 Сохранить
+                                {savingIndicator}
                             </Button>
                         ) : (
                             <Button
@@ -1645,9 +1674,13 @@ export default function WorkspaceTaskDialog({
                                     textTransform: 'none',
                                     boxShadow:
                                         '0 20px 45px rgba(59,130,246,0.45)',
+                                    display: 'inline-flex',
+                                    alignItems: 'center',
+                                    gap: 0.75,
                                 }}
                             >
                                 Создать
+                                {savingIndicator}
                             </Button>
                         )}
                     </Box>

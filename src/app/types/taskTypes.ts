@@ -22,6 +22,7 @@ export interface BsLocation {
   id?: string;
   name: string;
   coordinates: string;
+  address?: string;
 }
 
 export interface WorkItem {

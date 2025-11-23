@@ -5,8 +5,11 @@ import dbConnect from '@/utils/mongoose';
 import TaskModel from '@/app/models/TaskModel';
 import { Types } from 'mongoose';
 import { getOrgAndProjectByRef } from '../_helpers';
-import { ensureIrkutskT2Station } from '@/app/models/BaseStation';
+import { ensureIrkutskT2Station } from '@/app/models/BsCoordinateModel';
 import { notifyTaskAssignment } from '@/app/utils/taskNotifications';
+import { syncBsCoordsForProject } from '@/app/utils/syncBsCoords';
+import { buildBsAddressFromLocations, normalizeSingleBsAddress, sanitizeBsLocationAddresses } from '@/utils/bsLocation';
+
 
 export const runtime = 'nodejs';
 export const dynamic = 'force-dynamic';
@@ -66,12 +69,23 @@ function parseCoordinatesPair(value?: string | null): { lat?: number; lon?: numb
     };
 }
 
+function normalizeBsLocation(
+    list?: Array<{ name?: string; coordinates?: string; address?: string }> | null
+): Array<{ name: string; coordinates: string; address?: string }> | undefined {
+    if (!Array.isArray(list)) return undefined;
+    return list.map((item) => ({
+        name: (item.name ?? '').trim(),
+        coordinates: (item.coordinates ?? '').trim(),
+        address: normalizeSingleBsAddress(item.address),
+    }));
+}
+
 type CreateTaskBody = {
     taskId?: string;
     taskName: string;
     bsNumber?: string;
     bsAddress?: string;
-    bsLocation?: Array<{ name: string; coordinates: string }>;
+    bsLocation?: Array<{ name: string; coordinates: string; address?: string }>;
     bsLatitude?: number;
     bsLongitude?: number;
     totalCost?: number | string;
@@ -209,9 +223,13 @@ export async function POST(
             ...rest
         } = body;
 
+        const normalizedBsLocation = sanitizeBsLocationAddresses(bsLocation, bsAddress);
+        const finalBsAddress = buildBsAddressFromLocations(normalizedBsLocation, bsAddress);
+
         if (!taskName) return NextResponse.json({ error: 'taskName is required' }, { status: 400 });
         if (!bsNumber) return NextResponse.json({ error: 'bsNumber is required' }, { status: 400 });
-        if (!bsAddress) return NextResponse.json({ error: 'bsAddress is required' }, { status: 400 });
+        if (!finalBsAddress)
+            return NextResponse.json({ error: 'bsAddress is required' }, { status: 400 });
 
         const hasExecutor = typeof executorId === 'string' && executorId.trim().length > 0;
         const finalStatus = hasExecutor ? 'Assigned' : normalizeStatus(status);
@@ -263,8 +281,8 @@ export async function POST(
             taskId: taskId || genTaskId(),
             taskName,
             bsNumber,
-            bsAddress,
-            bsLocation,
+            bsAddress: finalBsAddress,
+            bsLocation: normalizedBsLocation,
             totalCost:
                 typeof totalCost === 'number'
                     ? totalCost
@@ -320,18 +338,43 @@ export async function POST(
         }
 
         const coordsSource =
-            Array.isArray(bsLocation) && bsLocation.length > 0 ? bsLocation[0]?.coordinates : undefined;
+            Array.isArray(normalizedBsLocation) && normalizedBsLocation.length > 0
+                ? normalizedBsLocation[0]?.coordinates
+                : undefined;
         const coordsPair = parseCoordinatesPair(coordsSource);
         const latForSync = typeof bsLatitude === 'number' ? bsLatitude : coordsPair.lat;
         const lonForSync = typeof bsLongitude === 'number' ? bsLongitude : coordsPair.lon;
 
-        if (bsNumber) {
+        const stationsForEnsure =
+            Array.isArray(normalizedBsLocation) && normalizedBsLocation.length > 0
+                ? normalizedBsLocation
+                : bsNumber
+                    ? [{ name: bsNumber, coordinates: coordsSource ?? '', address: finalBsAddress }]
+                    : [];
+
+        for (const st of stationsForEnsure) {
+            const pair = parseCoordinatesPair(st.coordinates);
+            const ensureLat =
+                typeof pair.lat === 'number'
+                    ? pair.lat
+                    : stationsForEnsure.length === 1
+                        ? latForSync
+                        : undefined;
+            const ensureLon =
+                typeof pair.lon === 'number'
+                    ? pair.lon
+                    : stationsForEnsure.length === 1
+                        ? lonForSync
+                        : undefined;
+
+            if (!st.name) continue;
+
             try {
                 await ensureIrkutskT2Station({
-                    bsNumber,
-                    bsAddress,
-                    lat: latForSync,
-                    lon: lonForSync,
+                    bsNumber: st.name,
+                    bsAddress: st.address ?? finalBsAddress,
+                    lat: ensureLat,
+                    lon: ensureLon,
                     regionCode: rel.projectDoc.regionCode,
                     operatorCode: rel.projectDoc.operator,
                 });
@@ -340,7 +383,26 @@ export async function POST(
             }
         }
 
+        // Синхронизация с коллекцией координат региона / оператора
+        try {
+            await syncBsCoordsForProject({
+                regionCode: rel.projectDoc.regionCode,
+                operatorCode: rel.projectDoc.operator,
+                bsNumber:
+                    Array.isArray(normalizedBsLocation) && normalizedBsLocation.length > 1
+                        ? undefined
+                        : bsNumber,
+                bsAddress: finalBsAddress,
+                bsLocation: normalizedBsLocation,
+                lat: latForSync,
+                lon: lonForSync,
+            });
+        } catch (err) {
+            console.error('Failed to sync bs coords collection:', err);
+        }
+
         return NextResponse.json({ ok: true, task: created }, { status: 201 });
+
     } catch (err) {
         return NextResponse.json({ error: errorMessage(err) }, { status: 500 });
     }

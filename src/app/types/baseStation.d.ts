@@ -4,7 +4,6 @@ import { Document } from 'mongoose';
 
 export interface IBaseStation extends Document {
   name?: string;
-  num?: string;
   coordinates?: string;
   address?: string;
   lat?: number;

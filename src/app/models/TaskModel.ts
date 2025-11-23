@@ -13,6 +13,7 @@ const TaskSchema = new Schema<Task & Document>({
     {
       name: String,
       coordinates: String,
+      address: String,
     },
   ],
   bsAddress: { type: String, required: true },
@@ -132,4 +133,3 @@ if (mutableModels[MODEL_NAME]) {
 }
 
 export default model<Task & Document>(MODEL_NAME, TaskSchema);
-

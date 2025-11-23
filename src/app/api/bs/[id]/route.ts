@@ -1,6 +1,6 @@
 // app/api/bs/[id]/route.ts
 import { NextRequest, NextResponse } from 'next/server';
-import BaseStation, { normalizeBsNumber } from '@/app/models/BaseStation';
+import { getDefaultBsCoordinateModel, normalizeBsNumber } from '@/app/models/BsCoordinateModel';
 import dbConnect from '@/utils/mongoose';
 
 export async function PUT(req: NextRequest) {
@@ -19,7 +19,8 @@ export async function PUT(req: NextRequest) {
 
     const body = await req.json();
 
-    const existingStation = await BaseStation.findById(id);
+    const Model = getDefaultBsCoordinateModel();
+    const existingStation = await Model.findById(id);
     if (!existingStation) {
       return NextResponse.json(
         { message: 'Базовая станция не найдена' },
@@ -29,10 +30,7 @@ export async function PUT(req: NextRequest) {
 
     if (body.name) {
       const normalizedName = normalizeBsNumber(body.name);
-      const duplicateStation = await BaseStation.findOne({
-        $or: [{ name: normalizedName }, { num: normalizedName }],
-        _id: { $ne: id },
-      });
+      const duplicateStation = await Model.findOne({ name: normalizedName, _id: { $ne: id } });
       if (duplicateStation) {
         return NextResponse.json(
           { message: 'Базовая станция с таким номером уже существует' },
@@ -40,7 +38,6 @@ export async function PUT(req: NextRequest) {
         );
       }
       existingStation.name = normalizedName;
-      existingStation.num = normalizedName;
     }
     existingStation.coordinates =
       body.coordinates || existingStation.coordinates;
@@ -69,7 +66,8 @@ export async function DELETE(req: NextRequest) {
       );
     }
 
-    const deletedStation = await BaseStation.findByIdAndDelete(id);
+    const Model = getDefaultBsCoordinateModel();
+    const deletedStation = await Model.findByIdAndDelete(id);
     if (!deletedStation) {
       return NextResponse.json(
         { message: 'Базовая станция не найдена' },

@@ -22,6 +22,7 @@ import {
 } from '@mui/material';
 import { useDropzone, FileRejection } from 'react-dropzone';
 import CloseIcon from '@mui/icons-material/Close';
+import CloudUploadIcon from '@mui/icons-material/CloudUpload';
 
 interface ExcelData {
     [sheetName: string]: Array<Record<string, unknown>>;
@@ -227,70 +228,75 @@ const T2EstimateParser: React.FC<Props> = ({ open, onClose, onApply }) => {
             bsAddress: bsAddress || undefined,
             totalCost: typeof total === 'number' ? total : undefined,
             workItems,
-            sourceFile: file || undefined,
-        });
+        sourceFile: file || undefined,
+    });
 
         resetState();
         onClose();
     };
 
     const canApply = !!excelData;
+    const hasParsedPreview = !!excelData || !!bsNumber || !!bsAddress || typeof total === 'number';
 
     return (
         <Dialog open={open} onClose={handleClose} maxWidth="lg" fullWidth>
-            <DialogTitle>Заполнить по смете (Tele2)</DialogTitle>
+            <DialogTitle>Заполнить по смете (T2)</DialogTitle>
             <DialogContent dividers>
                 <Box sx={{ display: 'flex', flexDirection: 'column', gap: 2, mt: 1 }}>
                     <Box
                         {...getRootProps()}
                         sx={{
-                            border: '2px dashed #1976d2',
-                            borderRadius: 2,
+                            borderRadius: 3,
                             p: 2,
                             cursor: 'pointer',
-                            backgroundColor: isDragActive ? '#e3f2fd' : '#fafafa',
-                            transition: 'background-color 0.3s',
+                            background: isDragActive
+                                ? 'linear-gradient(135deg, #e9f3ff, #eef2ff)'
+                                : 'linear-gradient(135deg, #f7f9fc, #f0f4fb)',
+                            transition: 'all 200ms ease',
                             textAlign: 'center',
+                            boxShadow: 'inset 0 0 0 1px rgba(148,163,184,0.35)',
+                            minHeight: 120,
+                            display: 'flex',
+                            alignItems: 'center',
+                            justifyContent: 'center',
+                            gap: 1,
                         }}
                     >
                         <input {...getInputProps()} />
-                        <Typography variant="body2">
-                            {isDragActive
-                                ? 'Отпустите файл для загрузки'
-                                : file
-                                    ? `Выбран файл: ${file.name}`
-                                    : 'Перетащите Excel-смету сюда или нажмите, чтобы выбрать'}
-                        </Typography>
+                        <CloudUploadIcon sx={{ color: '#2563eb' }} />
+                        <Box>
+                            <Typography variant="body2" fontWeight={600}>
+                                {file ? file.name : 'Перетащите Excel сюда или нажмите'}
+                            </Typography>
+                            <Typography variant="caption" color="text.secondary">
+                                Поддерживаются .xlsx / .xls
+                            </Typography>
+                        </Box>
                     </Box>
 
-                    {file && (
-                        <Box sx={{ display: 'flex', gap: 1 }}>
-                            <Button
-                                size="small"
-                                variant="contained"
-                                onClick={handleUpload}
-                                disabled={uploading}
-                            >
-                                {uploading ? 'Обработка...' : 'Распарсить смету'}
-                            </Button>
-                            <Button
-                                size="small"
-                                variant="text"
-                                onClick={resetState}
-                                disabled={uploading}
-                            >
-                                Сбросить
-                            </Button>
-                        </Box>
-                    )}
-
-                    {uploading && (
-                        <LinearProgress
-                            variant="determinate"
-                            value={uploadProgress}
-                            sx={{ mt: 0.5 }}
-                        />
-                    )}
+                    <Box sx={{ display: 'flex', gap: 1, alignItems: 'center' }}>
+                        <Button
+                            size="small"
+                            variant="contained"
+                            onClick={handleUpload}
+                            disabled={uploading || !file}
+                        >
+                            {uploading ? 'Обработка...' : 'Распарсить смету'}
+                        </Button>
+                        <Button
+                            size="small"
+                            variant="text"
+                            onClick={resetState}
+                            disabled={uploading || (!file && !hasParsedPreview)}
+                        >
+                            Сбросить
+                        </Button>
+                        {uploading && (
+                            <Box sx={{ flex: 1 }}>
+                                <LinearProgress variant="determinate" value={uploadProgress} />
+                            </Box>
+                        )}
+                    </Box>
 
                     <Collapse in={!!error}>
                         {error && (
@@ -312,55 +318,65 @@ const T2EstimateParser: React.FC<Props> = ({ open, onClose, onApply }) => {
                         )}
                     </Collapse>
 
-                    {(bsNumber || bsAddress || typeof total === 'number') && (
-                        <Box sx={{ mt: 1 }}>
-                            {bsNumber && (
-                                <Typography variant="body2">
-                                    <b>БС:</b> {bsNumber}
-                                </Typography>
-                            )}
-                            {bsAddress && (
-                                <Typography variant="body2">
-                                    <b>Адрес:</b> {bsAddress}
-                                </Typography>
-                            )}
-                            {typeof total === 'number' && (
-                                <Typography variant="body2">
-                                    <b>Сумма сметы, ₽:</b> {total.toFixed(2)}
-                                </Typography>
-                            )}
-                        </Box>
-                    )}
+                    <Collapse in={hasParsedPreview} timeout={250} unmountOnExit>
+                        <Paper
+                            variant="outlined"
+                            sx={{
+                                p: 2,
+                                borderRadius: 3,
+                                background: 'linear-gradient(135deg, #f8fafc, #eef2ff)',
+                                boxShadow: '0 12px 30px rgba(15,23,42,0.12)',
+                            }}
+                        >
+                            <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 2, mb: 2 }}>
+                                {bsNumber && (
+                                    <Typography variant="body2">
+                                        <b>БС:</b> {bsNumber}
+                                    </Typography>
+                                )}
+                                {bsAddress && (
+                                    <Typography variant="body2">
+                                        <b>Адрес:</b> {bsAddress}
+                                    </Typography>
+                                )}
+                                {typeof total === 'number' && (
+                                    <Typography variant="body2">
+                                        <b>Сумма сметы, ₽:</b> {total.toFixed(2)}
+                                    </Typography>
+                                )}
+                            </Box>
 
-                    {excelData && (
-                        <Box sx={{ mt: 2 }}>
-                            <Typography variant="subtitle2" gutterBottom>
-                                Состав работ из сметы
-                            </Typography>
-                            <Paper variant="outlined">
-                                <Table size="small">
-                                    <TableHead>
-                                        <TableRow>
-                                            <TableCell>Вид работ</TableCell>
-                                            <TableCell>Кол-во</TableCell>
-                                            <TableCell>Ед.</TableCell>
-                                            <TableCell>Примечание</TableCell>
-                                        </TableRow>
-                                    </TableHead>
-                                    <TableBody>
-                                        {getTableData().map((item, index) => (
-                                            <TableRow key={index}>
-                                                <TableCell>{item.workType}</TableCell>
-                                                <TableCell>{item.quantity}</TableCell>
-                                                <TableCell>{item.unit}</TableCell>
-                                                <TableCell>{item.note}</TableCell>
-                                            </TableRow>
-                                        ))}
-                                    </TableBody>
-                                </Table>
-                            </Paper>
-                        </Box>
-                    )}
+                            {excelData && (
+                                <Box>
+                                    <Typography variant="subtitle2" gutterBottom>
+                                        Состав работ
+                                    </Typography>
+                                    <Paper variant="outlined" sx={{ borderRadius: 2 }}>
+                                        <Table size="small">
+                                            <TableHead>
+                                                <TableRow>
+                                                    <TableCell>Вид работ</TableCell>
+                                                    <TableCell>Кол-во</TableCell>
+                                                    <TableCell>Ед.</TableCell>
+                                                    <TableCell>Примечание</TableCell>
+                                                </TableRow>
+                                            </TableHead>
+                                            <TableBody>
+                                                {getTableData().map((item, index) => (
+                                                    <TableRow key={index}>
+                                                        <TableCell>{item.workType}</TableCell>
+                                                        <TableCell>{item.quantity}</TableCell>
+                                                        <TableCell>{item.unit}</TableCell>
+                                                        <TableCell>{item.note}</TableCell>
+                                                    </TableRow>
+                                                ))}
+                                            </TableBody>
+                                        </Table>
+                                    </Paper>
+                                </Box>
+                            )}
+                        </Paper>
+                    </Collapse>
                 </Box>
             </DialogContent>
             <DialogActions>

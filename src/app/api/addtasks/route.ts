@@ -1,7 +1,7 @@
 // app/api/addTasks/route.ts
 import { NextResponse } from 'next/server';
 import Task from '@/app/models/TaskModel';
-import BaseStation, { normalizeBsNumber as normalizeBsNumberModel } from '@/app/models/BaseStation';
+import { getDefaultBsCoordinateModel, normalizeBsNumber as normalizeBsNumberModel } from '@/app/models/BsCoordinateModel';
 import dbConnect from '@/utils/mongoose';
 import { PriorityLevel, WorkItem } from '@/app/types/taskTypes';
 import { v4 as uuidv4 } from 'uuid';
@@ -41,8 +41,8 @@ export async function POST(request: Request) {
     const bsLocation = await Promise.all(
         bsNames.map(async (name) => {
           const normalized = normalizeBsNumberModel(name);
-          const station = await BaseStation.findOne({
-            $or: [{ name: normalized }, { num: normalized }],
+          const station = await getDefaultBsCoordinateModel().findOne({
+            name: normalized,
           }).lean();
           const coordinates =
             (station?.coordinates && station.coordinates.trim()) ||

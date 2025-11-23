@@ -3,10 +3,23 @@ import { NextRequest, NextResponse } from 'next/server';
 import { currentUser } from '@clerk/nextjs/server';
 import dbConnect from '@/utils/mongoose';
 import TaskModel from '@/app/models/TaskModel';
-import BaseStation, { IBaseStation, ensureIrkutskT2Station, normalizeBsNumber } from '@/app/models/BaseStation';
+import {
+    getBsCoordinateModel,
+    ensureIrkutskT2Station,
+    normalizeBsNumber,
+    BsCoordinate as IBaseStation,
+} from '@/app/models/BsCoordinateModel';
+import { BASE_STATION_COLLECTIONS } from '@/app/constants/baseStations';
 import { Types } from 'mongoose';
 import { getOrgAndProjectByRef } from '../../_helpers';
 import { notifyTaskAssignment } from '@/app/utils/taskNotifications';
+import { syncBsCoordsForProject } from '@/app/utils/syncBsCoords';
+import {
+    buildBsAddressFromLocations,
+    normalizeSingleBsAddress,
+    sanitizeBsLocationAddresses,
+} from '@/utils/bsLocation';
+
 
 export const runtime = 'nodejs';
 export const dynamic = 'force-dynamic';
@@ -31,6 +44,21 @@ const STATUS_TITLE_MAP: Record<string, string> = {
     FIXED: 'Fixed',
     AGREED: 'Agreed',
 };
+
+const DEFAULT_BS_COLLECTION =
+    BASE_STATION_COLLECTIONS[0]?.collection || '38-t2-bs-coords';
+
+function resolveCollectionName(region?: string | null, operator?: string | null): string {
+    const regionCode = region?.toString().trim();
+    const operatorCode = operator?.toString().trim();
+    if (regionCode && operatorCode) {
+        const entry = BASE_STATION_COLLECTIONS.find(
+            (item) => item.regionCode === regionCode && item.operator === operatorCode
+        );
+        if (entry?.collection) return entry.collection;
+    }
+    return DEFAULT_BS_COLLECTION;
+}
 
 // нормализуем статус
 function normalizeStatus(input?: string): string | undefined {
@@ -92,9 +120,9 @@ interface TaskBsLocationItem {
 function normalizeBsLocation(list: TaskBsLocationItem[] | undefined | null): TaskBsLocationItem[] {
     if (!Array.isArray(list)) return [];
     return list.map((item) => ({
-        name: item.name ?? '',
-        coordinates: item.coordinates ?? '',
-        address: item.address ?? '',
+        name: (item.name ?? '').trim(),
+        coordinates: (item.coordinates ?? '').trim(),
+        address: normalizeSingleBsAddress(item.address),
     }));
 }
 
@@ -333,11 +361,7 @@ export async function PUT(
             allowedPatch.bsNumber = body.bsNumber;
         }
 
-        // адрес БС
-        if (typeof body.bsAddress === 'string') {
-            markChange('bsAddress', currentTask.bsAddress, body.bsAddress);
-            allowedPatch.bsAddress = body.bsAddress;
-        }
+        const clientBsAddress = typeof body.bsAddress === 'string' ? body.bsAddress : undefined;
 
         // описание
         if (typeof body.taskDescription === 'string') {
@@ -375,6 +399,9 @@ export async function PUT(
         const clientBsLocation: TaskBsLocationItem[] | null = Array.isArray(body.bsLocation)
             ? (body.bsLocation as TaskBsLocationItem[])
             : null;
+        const normalizedClientBsLocation = clientBsLocation
+            ? sanitizeBsLocationAddresses(clientBsLocation, typeof clientBsAddress === 'string' ? clientBsAddress : undefined)
+            : null;
 
         const bsNumberChanged = newBsNumber !== currentTask.bsNumber;
         let bsLocationChanged = false;
@@ -385,13 +412,13 @@ export async function PUT(
         if (bsNumberChanged) {
             // подтягиваем из своей БС
             const normalizedBs = normalizeBsNumber(newBsNumber);
-            const bsQuery: Record<string, unknown> = {
-                $or: [{ name: normalizedBs }, { num: normalizedBs }],
-            };
+            const bsQuery: Record<string, unknown> = { name: normalizedBs };
             if (operatorCode) bsQuery.operatorCode = operatorCode;
             if (regionCode) bsQuery.regionCode = regionCode;
 
-            const bs = (await BaseStation.findOne(bsQuery).lean()) as
+            const collectionName = resolveCollectionName(regionCode, operatorCode);
+            const StationModel = getBsCoordinateModel(collectionName);
+            const bs = (await StationModel.findOne(bsQuery).lean()) as
                 | (IBaseStation & { lat?: number; lon?: number; address?: string })
                 | null;
 
@@ -404,12 +431,12 @@ export async function PUT(
                     allowedPatch.bsLocation = newLoc;
                     bsLocationChanged = true;
                 }
-            } else if (clientBsLocation) {
+            } else if (normalizedClientBsLocation) {
                 const prevNorm = normalizeBsLocation(currentTask.bsLocation as TaskBsLocationItem[]);
-                const nextNorm = normalizeBsLocation(clientBsLocation);
+                const nextNorm = normalizedClientBsLocation;
                 if (!isSameValue(prevNorm, nextNorm)) {
                     markChange('bsLocation', prevNorm, nextNorm);
-                    allowedPatch.bsLocation = clientBsLocation;
+                    allowedPatch.bsLocation = normalizedClientBsLocation;
                     bsLocationChanged = true;
                 }
             } else {
@@ -420,13 +447,13 @@ export async function PUT(
                     bsLocationChanged = true;
                 }
             }
-        } else if (clientBsLocation) {
+        } else if (normalizedClientBsLocation) {
             // номер не менялся, но клиент прислал — проверим реально ли другое
             const prevNorm = normalizeBsLocation(currentTask.bsLocation as TaskBsLocationItem[]);
-            const nextNorm = normalizeBsLocation(clientBsLocation);
+            const nextNorm = normalizedClientBsLocation;
             if (!isSameValue(prevNorm, nextNorm)) {
                 markChange('bsLocation', prevNorm, nextNorm);
-                allowedPatch.bsLocation = clientBsLocation;
+                allowedPatch.bsLocation = normalizedClientBsLocation;
                 bsLocationChanged = true;
             }
         }
@@ -448,6 +475,24 @@ export async function PUT(
                 markChange('bsLongitude', ctCoords.bsLongitude, lon);
                 allowedPatch.bsLongitude = lon;
             }
+        }
+
+        const finalBsLocationForAddress = (allowedPatch.bsLocation ??
+            (currentTask.bsLocation as TaskBsLocationItem[] | undefined)) as TaskBsLocationItem[] | undefined;
+        const normalizedLocationForAddress = sanitizeBsLocationAddresses(
+            finalBsLocationForAddress || [],
+            typeof clientBsAddress === 'string' ? clientBsAddress : currentTask.bsAddress
+        );
+        const bsAddressBase =
+            typeof clientBsAddress === 'string' ? clientBsAddress : currentTask.bsAddress;
+        const recomputedBsAddress = buildBsAddressFromLocations(
+            normalizedLocationForAddress,
+            bsAddressBase
+        );
+        const finalBsAddress = typeof recomputedBsAddress === 'undefined' ? currentTask.bsAddress : recomputedBsAddress;
+        if (!isSameValue(currentTask.bsAddress, finalBsAddress)) {
+            markChange('bsAddress', currentTask.bsAddress, finalBsAddress);
+            allowedPatch.bsAddress = finalBsAddress;
         }
 
         const extraEvents: Array<{
@@ -587,8 +632,6 @@ export async function PUT(
 
         const finalBsNumber =
             typeof allowedPatch.bsNumber === 'string' ? allowedPatch.bsNumber : currentTask.bsNumber;
-        const finalBsAddress =
-            typeof allowedPatch.bsAddress === 'string' ? allowedPatch.bsAddress : currentTask.bsAddress;
         const finalBsLocation = (allowedPatch.bsLocation ??
             (currentTask.bsLocation as TaskBsLocationItem[] | undefined)) as
             | TaskBsLocationItem[]
@@ -601,19 +644,60 @@ export async function PUT(
         const latForSync = typeof lat === 'number' ? lat : coordsPair.lat;
         const lonForSync = typeof lon === 'number' ? lon : coordsPair.lon;
 
-        if (finalBsNumber) {
+        const stationsForEnsure =
+            Array.isArray(finalBsLocation) && finalBsLocation.length > 0
+                ? finalBsLocation
+                : finalBsNumber
+                    ? [{ name: finalBsNumber, coordinates: coordsSource ?? '', address: finalBsAddress }]
+                    : [];
+
+        for (const st of stationsForEnsure) {
+            const pair = parseCoordinatesPair(st.coordinates);
+            const ensureLat =
+                typeof pair.lat === 'number'
+                    ? pair.lat
+                    : stationsForEnsure.length === 1
+                        ? latForSync
+                        : undefined;
+            const ensureLon =
+                typeof pair.lon === 'number'
+                    ? pair.lon
+                    : stationsForEnsure.length === 1
+                        ? lonForSync
+                        : undefined;
+
+            if (!st.name) continue;
+
             try {
                 await ensureIrkutskT2Station({
-                    bsNumber: finalBsNumber,
-                    bsAddress: finalBsAddress,
-                    lat: latForSync,
-                    lon: lonForSync,
+                    bsNumber: st.name,
+                    bsAddress: st.address ?? finalBsAddress,
+                    lat: ensureLat,
+                    lon: ensureLon,
                     regionCode,
                     operatorCode,
                 });
             } catch (syncErr) {
                 console.error('Failed to sync base station document:', syncErr);
             }
+        }
+
+        // Синхронизация с коллекцией координат региона / оператора
+        try {
+            await syncBsCoordsForProject({
+                regionCode,
+                operatorCode,
+                bsNumber:
+                    Array.isArray(finalBsLocation) && finalBsLocation.length > 1
+                        ? undefined
+                        : finalBsNumber,
+                bsAddress: finalBsAddress,
+                bsLocation: finalBsLocation,
+                lat: latForSync,
+                lon: lonForSync,
+            });
+        } catch (err) {
+            console.error('Failed to sync bs coords collection:', err);
         }
 
         if (shouldNotifyExecutorAssignment && assignedExecutorClerkId) {

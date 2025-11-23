@@ -1,7 +1,7 @@
 // app/api/bs/route.ts
 
 import { NextRequest, NextResponse } from 'next/server';
-import BaseStation, { normalizeBsNumber } from '@/app/models/BaseStation';
+import { getDefaultBsCoordinateModel, normalizeBsNumber, normalizeCoords } from '@/app/models/BsCoordinateModel';
 import dbConnect from '@/utils/mongoose';
 
 export async function GET() {
@@ -9,20 +9,20 @@ export async function GET() {
     await dbConnect();
 
     // Агрегация для группировки и выбора последней версии
-    const stations = await BaseStation.aggregate([
+    const stations = await getDefaultBsCoordinateModel().aggregate([
+      {
+        $match: {
+          name: { $exists: true, $ne: '' },
+        },
+      },
       {
         $group: {
-          _id: { $ifNull: ['$name', '$num'] },
+          _id: '$name',
           doc: { $first: '$$ROOT' },
         },
       },
       {
         $replaceRoot: { newRoot: '$doc' },
-      },
-      {
-        $addFields: {
-          name: { $ifNull: ['$name', '$num'] },
-        },
       },
     ]);
 
@@ -49,9 +49,8 @@ export async function POST(req: NextRequest) {
     }
 
     const normalizedName = normalizeBsNumber(body.name);
-    const existingStation = await BaseStation.findOne({
-      $or: [{ name: normalizedName }, { num: normalizedName }],
-    });
+    const Model = getDefaultBsCoordinateModel();
+    const existingStation = await Model.findOne({ name: normalizedName });
     if (existingStation) {
       return NextResponse.json(
         { message: 'Базовая станция с таким номером уже существует' },
@@ -59,10 +58,27 @@ export async function POST(req: NextRequest) {
       );
     }
 
-    const newStation = new BaseStation({
-      ...body,
+    const [latRaw, lonRaw] = String(body.coordinates)
+      .split(/\s+/)
+      .map((part: string) => Number(part.replace(',', '.')));
+    const normalizedCoords = normalizeCoords(latRaw, lonRaw);
+    if (typeof normalizedCoords.lat !== 'number' || typeof normalizedCoords.lon !== 'number') {
+      return NextResponse.json(
+        { message: 'Некорректные координаты' },
+        { status: 400 }
+      );
+    }
+
+    const newStation = new Model({
       name: normalizedName,
-      num: normalizedName,
+      address: body.address ?? '',
+      lat: normalizedCoords.lat,
+      lon: normalizedCoords.lon,
+      coordinates: normalizedCoords.coordinates,
+      coordKey: normalizedCoords.coordKey,
+      op: body.op ?? null,
+      region: body.region ?? null,
+      source: body.source ?? 'manual',
     });
     await newStation.save();
 

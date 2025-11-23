@@ -24,7 +24,10 @@ export async function GET(request: NextRequest): Promise<NextResponse> {
 
         await dbConnect();
         const Model = getBsCoordinateModel(collection);
-        const stations = await Model.find({}, { op: 1, num: 1, lat: 1, lon: 1, mcc: 1, mnc: 1, region: 1 })
+        const stations = await Model.find(
+            {},
+            { op: 1, name: 1, lat: 1, lon: 1, address: 1, mcc: 1, mnc: 1, region: 1 }
+        )
             .lean()
             .exec();
 
@@ -33,9 +36,10 @@ export async function GET(request: NextRequest): Promise<NextResponse> {
             stations: stations.map((station) => ({
                 _id: station._id.toString(),
                 op: station.op ?? null,
-                num: station.num ?? null,
+                name: resolveStationName(station.name),
                 lat: station.lat,
                 lon: station.lon,
+                address: station.address ?? null,
                 mcc: station.mcc ?? null,
                 mnc: station.mnc ?? null,
                 region: station.region ?? null,
@@ -49,9 +53,10 @@ export async function GET(request: NextRequest): Promise<NextResponse> {
 
 type StationPayload = {
     op: string | null;
-    num: string | number | null;
+    name: string | null;
     lat: number;
     lon: number;
+    address: string | null;
     mcc: string | null;
     mnc: string | null;
     region: string | null;
@@ -66,13 +71,23 @@ function normalizeOperator(value: string | null | undefined): keyof typeof OPERA
     return null;
 }
 
+function resolveStationName(primary: unknown): string | null {
+    if (typeof primary === 'string') {
+        const trimmed = primary.trim();
+        if (trimmed) return trimmed;
+    }
+    return null;
+}
+
 function serializeStation(doc: StationDocument): StationPayload & { _id: string } {
+    const name = resolveStationName(doc.name);
     return {
         _id: typeof doc._id === 'string' ? doc._id : doc._id.toString(),
         op: doc.op ?? null,
-        num: doc.num ?? null,
+        name,
         lat: doc.lat,
         lon: doc.lon,
+        address: doc.address ?? null,
         mcc: doc.mcc ?? null,
         mnc: doc.mnc ?? null,
         region: doc.region ?? null,
@@ -84,10 +99,11 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
         const body = (await request.json().catch(() => null)) as
             | {
                   operator?: string;
-                  num?: string | number | null;
+                  name?: string | null;
                   lat?: number;
                   lon?: number;
                   region?: string;
+                  address?: string | null;
               }
             | null;
 
@@ -97,12 +113,10 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
 
         const operatorKey = normalizeOperator(body.operator) ?? 't2';
         const collectionEntry = OPERATOR_COLLECTIONS[operatorKey];
-        const numValue =
-            body.num === null || typeof body.num === 'undefined'
-                ? null
-                : typeof body.num === 'number'
-                ? body.num
-                : body.num.trim();
+        const stationName = resolveStationName(body.name);
+        if (!stationName) {
+            return NextResponse.json({ error: 'Не указан номер БС' }, { status: 400 });
+        }
         const regionValue = typeof body.region === 'string' && body.region.trim().length > 0 ? body.region.trim() : null;
 
         if (!regionValue) {
@@ -113,10 +127,11 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
         const Model = getBsCoordinateModel(collectionEntry.collection);
         const createdDoc = await Model.create({
             op: operatorKey,
-            num: numValue,
+            name: stationName,
             lat: body.lat,
             lon: body.lon,
             region: regionValue,
+            address: typeof body.address === 'string' && body.address.trim().length > 0 ? body.address.trim() : undefined,
         });
         const created = createdDoc.toObject() as StationDocument;
 
@@ -133,10 +148,11 @@ export async function PUT(request: NextRequest): Promise<NextResponse> {
             | {
                   id?: string;
                   operator?: string;
-                  num?: string | number | null;
+                  name?: string | null;
                   lat?: number;
                   lon?: number;
                   region?: string | null;
+                  address?: string | null;
               }
             | null;
 
@@ -160,10 +176,15 @@ export async function PUT(request: NextRequest): Promise<NextResponse> {
                     : undefined,
         };
 
-        if (typeof body.num === 'string') {
-            updatePayload.num = body.num.trim();
-        } else if (typeof body.num === 'number' || body.num === null) {
-            updatePayload.num = body.num;
+        const resolvedName = resolveStationName(body.name);
+        if (resolvedName !== null) {
+            updatePayload.name = resolvedName;
+        }
+        if (typeof body.address === 'string') {
+            const trimmed = body.address.trim();
+            updatePayload.address = trimmed.length > 0 ? trimmed : null;
+        } else if (body.address === null) {
+            updatePayload.address = null;
         }
 
         await dbConnect();

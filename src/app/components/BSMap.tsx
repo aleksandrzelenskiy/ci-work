@@ -38,12 +38,77 @@ import AddLocationOutlinedIcon from '@mui/icons-material/AddLocationOutlined';
 type BaseStation = {
     _id: string;
     op: string | null;
-    num: string | number | null;
+    name: string | null;
     lat: number;
     lon: number;
+    address: string | null;
     mcc: string | null;
     mnc: string | null;
     region: string | null;
+};
+type ApiStation = {
+    _id: string;
+    op: string | null;
+    name?: string | null;
+    lat?: number | string | null;
+    lon?: number | string | null;
+    address?: string | null;
+    mcc?: string | null;
+    mnc?: string | null;
+    region?: string | null;
+};
+
+const resolveStationName = (primary?: string | null): string | null => {
+    if (typeof primary === 'string') {
+        const trimmed = primary.trim();
+        if (trimmed) return trimmed;
+    }
+    return null;
+};
+
+const parseCoordinate = (value: unknown): number | null => {
+    if (typeof value === 'number' && Number.isFinite(value)) {
+        return value;
+    }
+    if (typeof value === 'string') {
+        const parsed = Number(value);
+        return Number.isFinite(parsed) ? parsed : null;
+    }
+    return null;
+};
+
+const normalizeStationPayload = (station: ApiStation): BaseStation | null => {
+    const lat = parseCoordinate(station.lat);
+    const lon = parseCoordinate(station.lon);
+    if (lat === null || lon === null) {
+        return null;
+    }
+    const name = resolveStationName(station.name ?? null);
+    return {
+        _id: station._id,
+        op: station.op ?? null,
+        name,
+        lat,
+        lon,
+        address: station.address ?? null,
+        mcc: station.mcc ?? null,
+        mnc: station.mnc ?? null,
+        region: station.region ?? null,
+    };
+};
+
+const normalizeStations = (stations: ApiStation[] | undefined | null): BaseStation[] => {
+    if (!Array.isArray(stations)) {
+        return [];
+    }
+    const normalized: BaseStation[] = [];
+    for (const station of stations) {
+        const parsed = normalizeStationPayload(station);
+        if (parsed) {
+            normalized.push(parsed);
+        }
+    }
+    return normalized;
 };
 
 type YMapsLang = 'tr_TR' | 'en_US' | 'en_RU' | 'ru_RU' | 'ru_UA' | 'uk_UA';
@@ -200,27 +265,27 @@ export default function BSMap(): React.ReactElement {
     const [stations, setStations] = React.useState<BaseStation[]>([]);
     const [loading, setLoading] = React.useState(true);
     const [error, setError] = React.useState<string | null>(null);
-    const [searchNumber, setSearchNumber] = React.useState('');
+    const [searchName, setSearchName] = React.useState('');
     const [operator, setOperator] = React.useState<typeof OPERATORS[number]['value']>('t2');
     const [filtersOpen, setFiltersOpen] = React.useState(false);
     const [selectedRegionCode, setSelectedRegionCode] = React.useState<string>(ALL_REGIONS_OPTION.code);
     const [isFullscreen, setIsFullscreen] = React.useState(false);
     const [editingStationId, setEditingStationId] = React.useState<string | null>(null);
-    const [editForm, setEditForm] = React.useState({ num: '', lat: '', lon: '' });
+    const [editForm, setEditForm] = React.useState({ name: '', lat: '', lon: '', address: '' });
     const [deletingStationId, setDeletingStationId] = React.useState<string | null>(null);
     const [editDialogLoading, setEditDialogLoading] = React.useState(false);
     const [editDialogError, setEditDialogError] = React.useState<string | null>(null);
     const [deleteDialogLoading, setDeleteDialogLoading] = React.useState(false);
     const [deleteDialogError, setDeleteDialogError] = React.useState<string | null>(null);
     const [createDialogOpen, setCreateDialogOpen] = React.useState(false);
-    const [createForm, setCreateForm] = React.useState({ num: '', lat: '', lon: '' });
+    const [createForm, setCreateForm] = React.useState({ name: '', lat: '', lon: '', address: '' });
     const [createDialogLoading, setCreateDialogLoading] = React.useState(false);
     const [createDialogError, setCreateDialogError] = React.useState<string | null>(null);
 
     const mapRef = React.useRef<YMapInstance | null>(null);
 
     React.useEffect(() => {
-        setSearchNumber('');
+        setSearchName('');
     }, [operator]);
 
     React.useEffect(() => {
@@ -236,7 +301,7 @@ export default function BSMap(): React.ReactElement {
                     signal: controller.signal,
                 });
                 const data = (await res.json().catch(() => null)) as
-                    | { stations: BaseStation[] }
+                    | { stations: ApiStation[] }
                     | { error: string }
                     | null;
 
@@ -253,7 +318,7 @@ export default function BSMap(): React.ReactElement {
                 }
 
                 if (!cancelled) {
-                    setStations(data.stations ?? []);
+                    setStations(normalizeStations(data.stations));
                 }
             } catch (e) {
                 if (!cancelled) {
@@ -301,10 +366,10 @@ export default function BSMap(): React.ReactElement {
     }, [stations, selectedRegion, operator]);
 
     const filteredStations = React.useMemo(() => {
-        const term = searchNumber.trim();
+        const term = searchName.trim();
         if (!term) return regionFilteredStations;
-        return regionFilteredStations.filter((station) => station.num?.toString().includes(term));
-    }, [regionFilteredStations, searchNumber]);
+        return regionFilteredStations.filter((station) => station.name?.toString().includes(term));
+    }, [regionFilteredStations, searchName]);
 
     const mapCenter = React.useMemo<[number, number]>(() => {
         if (!filteredStations.length) return DEFAULT_CENTER;
@@ -333,7 +398,7 @@ export default function BSMap(): React.ReactElement {
 
     const mapKey = `${mapCenter[0].toFixed(4)}-${mapCenter[1].toFixed(4)}-${filteredStations.length}`;
     const noSearchResults =
-        !loading && !error && Boolean(searchNumber.trim()) && filteredStations.length === 0;
+        !loading && !error && Boolean(searchName.trim()) && filteredStations.length === 0;
     const noStationsAfterFilters =
         !loading && !error && selectedRegion.code !== ALL_REGIONS_OPTION.code && !regionFilteredStations.length;
     const selectedOperatorLabel = React.useMemo(
@@ -411,12 +476,13 @@ export default function BSMap(): React.ReactElement {
     React.useEffect(() => {
         if (editingStation) {
             setEditForm({
-                num: editingStation.num?.toString() ?? '',
+                name: editingStation.name ?? '',
                 lat: editingStation.lat.toString(),
                 lon: editingStation.lon.toString(),
+                address: editingStation.address ?? '',
             });
         } else {
-            setEditForm({ num: '', lat: '', lon: '' });
+            setEditForm({ name: '', lat: '', lon: '', address: '' });
         }
     }, [editingStation]);
 
@@ -432,7 +498,7 @@ export default function BSMap(): React.ReactElement {
 
     React.useEffect(() => {
         if (!createDialogOpen) {
-            setCreateForm({ num: '', lat: '', lon: '' });
+            setCreateForm({ name: '', lat: '', lon: '', address: '' });
             setCreateDialogError(null);
             setCreateDialogLoading(false);
         }
@@ -482,7 +548,7 @@ export default function BSMap(): React.ReactElement {
         if (!editingStation) return;
 
         const editingOperator = normalizeOperator(editingStation.op ?? operator);
-        const numValue = editForm.num.trim() || null;
+        const nameValue = editForm.name.trim() || null;
         const latNumber = Number(editForm.lat);
         const lonNumber = Number(editForm.lon);
         if (!Number.isFinite(latNumber) || !Number.isFinite(lonNumber)) {
@@ -500,10 +566,11 @@ export default function BSMap(): React.ReactElement {
                 body: JSON.stringify({
                     id: editingStation._id,
                     operator: editingOperator,
-                    num: numValue,
+                    name: nameValue,
                     lat: latNumber,
                     lon: lonNumber,
                     region: editingStation.region ?? selectedRegion.code,
+                    address: editForm.address.trim() || null,
                 }),
             });
             const payload = (await response.json().catch(() => null)) as
@@ -560,8 +627,8 @@ export default function BSMap(): React.ReactElement {
             setCreateDialogError('Выберите регион перед добавлением объекта');
             return;
         }
-        if (!createForm.num.trim()) {
-            setCreateDialogError('Введите номер БС');
+        if (!createForm.name.trim()) {
+            setCreateDialogError('Введите имя/номер БС');
             return;
         }
 
@@ -581,10 +648,11 @@ export default function BSMap(): React.ReactElement {
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({
                     operator,
-                    num: createForm.num.trim(),
+                    name: createForm.name.trim(),
                     lat: latNumber,
                     lon: lonNumber,
                     region: selectedRegion.code,
+                    address: createForm.address.trim() || null,
                 }),
             });
             const payload = (await response.json().catch(() => null)) as
@@ -605,15 +673,19 @@ export default function BSMap(): React.ReactElement {
     }, [closeCreateDialog, createForm, operator, selectedRegion.code]);
 
     const buildBalloonContent = React.useCallback((station: BaseStation) => {
-        const hintTitle = station.num ? `БС №${station.num}` : 'Базовая станция';
+        const hintTitle = station.name ? `БС №${station.name}` : 'Базовая станция';
         const operatorLabel = station.op ? station.op.toUpperCase() : '—';
         const mccMnc = station.mcc && station.mnc ? ` (${station.mcc}/${station.mnc})` : '';
         const linkStyle = 'color:#1976d2;text-decoration:none;font-weight:500;';
         const regionInfo = formatRegion(station.region);
+        const addressBlock = station.address
+            ? `<div style="margin-bottom:4px;">Адрес: ${station.address}</div>`
+            : '';
         return `<div style="font-family:Inter,Arial,sans-serif;min-width:240px;">
             <div style="font-weight:600;margin-bottom:4px;">${hintTitle}</div>
             <div style="margin-bottom:4px;">Оператор: ${operatorLabel}${mccMnc}</div>
             <div style="margin-bottom:4px;">Регион: ${regionInfo}</div>
+            ${addressBlock}
             <div style="margin-bottom:4px;">Координаты: ${station.lat.toFixed(5)}, ${station.lon.toFixed(5)}</div>
             <div style="margin-top:12px;display:flex;gap:16px;">
                 <a href="#" data-bsmap-link="history" data-bsmap-station="${station._id}" style="${linkStyle}">История работ</a>
@@ -723,9 +795,9 @@ export default function BSMap(): React.ReactElement {
                             renderInput={(params) => <TextField {...params} label="Регион" />}
                         />
                         <TextField
-                            label="Поиск по номеру БС"
-                            value={searchNumber}
-                            onChange={(event) => setSearchNumber(event.target.value)}
+                            label="Поиск по БС"
+                            value={searchName}
+                            onChange={(event) => setSearchName(event.target.value)}
                             type="text"
                             fullWidth
                             size="small"
@@ -736,9 +808,9 @@ export default function BSMap(): React.ReactElement {
                                         <SearchIcon fontSize="small" />
                                     </InputAdornment>
                                 ),
-                                endAdornment: searchNumber ? (
+                                endAdornment: searchName ? (
                                     <InputAdornment position="end">
-                                        <IconButton size="small" onClick={() => setSearchNumber('')}>
+                                        <IconButton size="small" onClick={() => setSearchName('')}>
                                             <CloseIcon fontSize="small" />
                                         </IconButton>
                                     </InputAdornment>
@@ -752,7 +824,7 @@ export default function BSMap(): React.ReactElement {
                         )}
                         {noSearchResults && (
                             <Alert severity="warning" sx={{ mt: 1 }}>
-                                БС «{searchNumber.trim()}» для оператора {selectedOperatorLabel} не найдена.
+                                БС «{searchName.trim()}» для оператора {selectedOperatorLabel} не найдена.
                             </Alert>
                         )}
                         {noStationsAfterFilters && (
@@ -809,12 +881,12 @@ export default function BSMap(): React.ReactElement {
                                 }}
                             >
                                 {filteredStations.map((station) => {
-                                    const hintTitle = station.num ? `БС ${station.num}` : 'Базовая станция';
+                                    const hintTitle = station.name ? `БС ${station.name}` : 'Базовая станция';
                                     const normalizedOperator = normalizeOperator(station.op);
                                     const iconColor = OPERATOR_COLORS[normalizedOperator] ?? OPERATOR_COLORS.t2;
                                     const label =
-                                        station.num != null && station.num !== ''
-                                            ? String(station.num)
+                                        station.name != null && station.name !== ''
+                                            ? String(station.name)
                                             : station._id.slice(-4);
 
                                     return (
@@ -859,11 +931,20 @@ export default function BSMap(): React.ReactElement {
                     />
                     <TextField
                         margin="dense"
-                        label="Номер БС"
-                        value={createForm.num}
-                        onChange={handleCreateFieldChange('num')}
+                        label="Имя/номер БС"
+                        value={createForm.name}
+                        onChange={handleCreateFieldChange('name')}
                         fullWidth
                         autoFocus
+                    />
+                    <TextField
+                        margin="dense"
+                        label="Адрес"
+                        value={createForm.address}
+                        onChange={handleCreateFieldChange('address')}
+                        fullWidth
+                        multiline
+                        minRows={2}
                     />
                     <TextField
                         margin="dense"
@@ -901,10 +982,19 @@ export default function BSMap(): React.ReactElement {
                 <DialogContent dividers>
                     <TextField
                         margin="dense"
-                        label="Номер БС"
-                        value={editForm.num}
-                        onChange={handleEditFieldChange('num')}
+                        label="Имя/номер БС"
+                        value={editForm.name}
+                        onChange={handleEditFieldChange('name')}
                         fullWidth
+                    />
+                    <TextField
+                        margin="dense"
+                        label="Адрес"
+                        value={editForm.address}
+                        onChange={handleEditFieldChange('address')}
+                        fullWidth
+                        multiline
+                        minRows={2}
                     />
                     <TextField
                         margin="dense"
@@ -946,7 +1036,7 @@ export default function BSMap(): React.ReactElement {
                 <DialogTitle>Удаление БС</DialogTitle>
                 <DialogContent dividers>
                     Вы уверены, что хотите удалить{' '}
-                    {deletingStation?.num ? `БС №${deletingStation.num}` : 'эту базовую станцию'}?
+                    {deletingStation?.name ? `БС №${deletingStation.name}` : 'эту базовую станцию'}?
                     {deleteDialogError && (
                         <Alert severity="error" sx={{ mt: 2 }}>
                             {deleteDialogError}

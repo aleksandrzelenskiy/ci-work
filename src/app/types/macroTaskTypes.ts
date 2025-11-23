@@ -46,6 +46,7 @@ export interface MacroTask {
     bsLocation?: {
         name: string;
         coordinates: string;
+        address?: string;
     };
 
     // даты и приоритет
