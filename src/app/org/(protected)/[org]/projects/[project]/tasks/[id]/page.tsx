@@ -236,6 +236,12 @@ export default function TaskDetailsPage() {
             executorId: t.executorId,
             executorName: t.executorName,
             executorEmail: t.executorEmail,
+            workItems: t.workItems?.map((wi) => ({
+                workType: wi.workType,
+                quantity: wi.quantity,
+                unit: wi.unit,
+                note: wi.note,
+            })),
             files: t.files?.map((f) => ({ name: f.name, url: f.url, size: f.size })),
             attachments: t.attachments,
             bsLocation: t.bsLocation

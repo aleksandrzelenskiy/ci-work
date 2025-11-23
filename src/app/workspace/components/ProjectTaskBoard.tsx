@@ -402,6 +402,7 @@ export default function ProjectTaskBoard({
                         files: selectedTask.files,
                         attachments: selectedTask.attachments,
                         bsLocation: selectedTask.bsLocation,
+                        workItems: selectedTask.workItems,
                     } as TaskForEdit}
                     onCloseAction={() => setEditOpen(false)}
                     onCreatedAction={handleEdited}

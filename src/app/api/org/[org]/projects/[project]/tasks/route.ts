@@ -69,6 +69,33 @@ function parseCoordinatesPair(value?: string | null): { lat?: number; lon?: numb
     };
 }
 
+type WorkItemInput = {
+    workType: string;
+    quantity: number;
+    unit: string;
+    note?: string;
+};
+
+function sanitizeWorkItems(raw: unknown): WorkItemInput[] | null {
+    if (!Array.isArray(raw)) return null;
+    const cleaned: WorkItemInput[] = [];
+
+    raw.forEach((item) => {
+        if (!item || typeof item !== 'object') return;
+        const source = item as Partial<WorkItemInput> & Record<string, unknown>;
+        const workType = typeof source.workType === 'string' ? source.workType.trim() : '';
+        const unit = typeof source.unit === 'string' ? source.unit.trim() : '';
+        const quantityRaw = source.quantity;
+        const quantity = typeof quantityRaw === 'number' ? quantityRaw : Number(quantityRaw);
+        if (!workType || !unit || !Number.isFinite(quantity)) return;
+        const note =
+            typeof source.note === 'string' && source.note.trim() ? source.note.trim() : undefined;
+        cleaned.push({ workType, quantity, unit, note });
+    });
+
+    return cleaned;
+}
+
 type CreateTaskBody = {
     taskId?: string;
     taskName: string;
@@ -222,6 +249,7 @@ export async function POST(
 
         const hasExecutor = typeof executorId === 'string' && executorId.trim().length > 0;
         const finalStatus = hasExecutor ? 'Assigned' : normalizeStatus(status);
+        const sanitizedWorkItems = sanitizeWorkItems(workItems);
 
         const creatorName =
             user.fullName || user.username || user.emailAddresses?.[0]?.emailAddress || 'User';
@@ -278,7 +306,7 @@ export async function POST(
                     : totalCost
                         ? Number(totalCost)
                         : undefined,
-            workItems,
+            workItems: sanitizedWorkItems ?? undefined,
             status: finalStatus,
             priority,
             dueDate: dueDate ? new Date(dueDate) : undefined,

@@ -39,6 +39,7 @@ import AddIcon from '@mui/icons-material/Add';
 import { YMaps, Map, Placemark } from '@pbe/react-yandex-maps';
 import T2EstimateParser, {
     ParsedEstimateResult,
+    ParsedWorkItem,
 } from '@/app/workspace/components/T2/T2EstimateParser';
 import {
     extractBsNumbersFromString,
@@ -81,6 +82,7 @@ export type TaskForEdit = {
     files?: Array<{ name?: string; url?: string; size?: number }>;
     attachments?: string[];
     bsLocation?: Array<{ name: string; coordinates: string; address?: string }>;
+    workItems?: ParsedWorkItem[];
 };
 
 type Props = {
@@ -225,6 +227,24 @@ function splitAddresses(raw?: string | null): string[] {
         .filter(Boolean);
 }
 
+function sanitizeWorkItemsInput(value: unknown): ParsedWorkItem[] {
+    if (!Array.isArray(value)) return [];
+    return value
+        .map((item) => {
+            if (!item || typeof item !== 'object') return null;
+            const raw = item as Partial<ParsedWorkItem>;
+            const workType = typeof raw.workType === 'string' ? raw.workType.trim() : '';
+            const unit = typeof raw.unit === 'string' ? raw.unit.trim() : '';
+            const qtyRaw = raw.quantity;
+            const quantity = typeof qtyRaw === 'number' ? qtyRaw : Number(qtyRaw);
+            if (!workType || !unit || !Number.isFinite(quantity)) return null;
+            const note =
+                typeof raw.note === 'string' && raw.note.trim() ? raw.note.trim() : undefined;
+            return { workType, unit, quantity, note };
+        })
+        .filter((item): item is ParsedWorkItem => Boolean(item));
+}
+
 
 export default function WorkspaceTaskDialog({
                                                 open,
@@ -269,6 +289,7 @@ export default function WorkspaceTaskDialog({
 
     // новое поле: стоимость
     const [totalCost, setTotalCost] = React.useState<string>('');
+    const [workItems, setWorkItems] = React.useState<ParsedWorkItem[]>([]);
 
     const [projectMeta, setProjectMeta] = React.useState<{ regionCode?: string; operator?: string } | null>(null);
 
@@ -406,6 +427,7 @@ export default function WorkspaceTaskDialog({
                 ? String(initialTask.totalCost)
                 : ''
         );
+        setWorkItems(sanitizeWorkItemsInput(initialTask.workItems));
 
         const entries: BsFormEntry[] = [];
 
@@ -581,7 +603,7 @@ export default function WorkspaceTaskDialog({
 
     const handleEstimateApply = React.useCallback(
         (data: ParsedEstimateResult) => {
-            const { bsNumber, bsAddress, totalCost, sourceFile } = data;
+            const { bsNumber, bsAddress, totalCost, sourceFile, workItems } = data;
 
             // 0) парсим номера БС из строки сметы
             const parsedNumbers = extractBsNumbersFromString(bsNumber, {
@@ -654,6 +676,9 @@ export default function WorkspaceTaskDialog({
             if (typeof totalCost === 'number') {
                 setTotalCost(String(totalCost));
             }
+
+            // 2.1) состав работ
+            setWorkItems(sanitizeWorkItemsInput(workItems));
 
             // 3) подставить имя задачи, если пустое
             if (!taskName && numbersToUse.length) {
@@ -737,6 +762,7 @@ export default function WorkspaceTaskDialog({
         setUploadProgress(0);
         setUploading(false);
         setTotalCost('');
+        setWorkItems([]);
         setBsEntries([
             {
                 id: 'bs-main',
@@ -892,6 +918,7 @@ export default function WorkspaceTaskDialog({
                 executorName: selectedExecutor ? selectedExecutor.name : null,
                 executorEmail: selectedExecutor ? selectedExecutor.email : null,
                 totalCost: totalCost.trim() ? Number(totalCost.trim()) : undefined,
+                workItems,
             };
 
             const res = await fetch(apiPath(`/projects/${encodeURIComponent(projectRef)}/tasks`), {
@@ -947,6 +974,7 @@ export default function WorkspaceTaskDialog({
                 executorName: selectedExecutor ? selectedExecutor.name : null,
                 executorEmail: selectedExecutor ? selectedExecutor.email : null,
                 totalCost: totalCost.trim() ? Number(totalCost.trim()) : undefined,
+                workItems,
             };
 
             const res = await fetch(

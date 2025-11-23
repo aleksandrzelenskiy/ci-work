@@ -103,6 +103,27 @@ function parseCoordinatesPair(value?: string | null): { lat?: number; lon?: numb
     };
 }
 
+type WorkItemInput = { workType: string; quantity: number; unit: string; note?: string };
+
+function sanitizeWorkItems(raw: unknown): WorkItemInput[] | null {
+    if (!Array.isArray(raw)) return null;
+    const cleaned: WorkItemInput[] = [];
+
+    raw.forEach((item) => {
+        if (!item || typeof item !== 'object') return;
+        const src = item as Partial<WorkItemInput> & Record<string, unknown>;
+        const workType = typeof src.workType === 'string' ? src.workType.trim() : '';
+        const unit = typeof src.unit === 'string' ? src.unit.trim() : '';
+        const quantityRaw = src.quantity;
+        const quantity = typeof quantityRaw === 'number' ? quantityRaw : Number(quantityRaw);
+        if (!workType || !unit || !Number.isFinite(quantity)) return;
+        const note = typeof src.note === 'string' && src.note.trim() ? src.note.trim() : undefined;
+        cleaned.push({ workType, unit, quantity, note });
+    });
+
+    return cleaned;
+}
+
 // приводим к ObjectId
 function toObjectId(id: unknown): Types.ObjectId {
     if (id instanceof Types.ObjectId) return id;
@@ -588,6 +609,15 @@ export async function PUT(
             } else {
                 markChange('totalCost', prev, undefined);
                 allowedPatch.totalCost = undefined;
+            }
+        }
+
+        const newWorkItems = sanitizeWorkItems(body.workItems);
+        if (newWorkItems !== null) {
+            const prevWorkItems = Array.isArray(currentTask.workItems) ? currentTask.workItems : [];
+            if (!isSameValue(prevWorkItems, newWorkItems)) {
+                markChange('workItems', prevWorkItems, newWorkItems);
+                allowedPatch.workItems = newWorkItems;
             }
         }
 
