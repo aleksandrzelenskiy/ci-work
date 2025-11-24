@@ -853,10 +853,7 @@ export default function TaskDetailsPage() {
                                                                 <TableCell
                                                                     sx={{ whiteSpace: 'nowrap' }}
                                                                 >
-                                                                    {typeof item.quantity ===
-                                                                    'number'
-                                                                        ? item.quantity
-                                                                        : '—'}
+                                                                    {item.quantity ?? '—'}
                                                                 </TableCell>
                                                                 <TableCell
                                                                     sx={{ whiteSpace: 'nowrap' }}
