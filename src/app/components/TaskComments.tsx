@@ -103,7 +103,7 @@ export default function TaskComments({
     };
 
     return (
-        <Stack gap={2}>
+        <Stack gap={2} sx={{ minWidth: 0 }}>
             {comments.length === 0 ? (
                 <Typography color="text.secondary">Комментариев пока нет</Typography>
             ) : (
@@ -127,6 +127,8 @@ export default function TaskComments({
                                 sx={{
                                     p: 1.25,
                                     flex: 1,
+                                    minWidth: 0,
+                                    maxWidth: '100%',
                                     borderRadius: 3,
                                     bgcolor: '#f5f5f7',
                                     border: '1px solid #e5e5ea',
@@ -148,7 +150,11 @@ export default function TaskComments({
                                 </Stack>
                                 <Typography
                                     variant="body2"
-                                    sx={{ whiteSpace: 'pre-wrap', color: 'text.primary' }}
+                                    sx={{
+                                        whiteSpace: 'pre-wrap',
+                                        color: 'text.primary',
+                                        wordBreak: 'break-word',
+                                    }}
                                 >
                                     {comment.text}
                                 </Typography>

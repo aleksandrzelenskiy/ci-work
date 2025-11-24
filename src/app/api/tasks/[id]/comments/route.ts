@@ -138,53 +138,69 @@ export async function POST(
       return NextResponse.json({ error: 'Task not found' }, { status: 404 });
     }
 
-    // ===== Уведомление исполнителя через NotificationBell =====
+    // ===== Уведомления через NotificationBell =====
     try {
       const executorClerkId = typeof updatedTask.executorId === 'string' ? updatedTask.executorId.trim() : '';
-      if (executorClerkId && executorClerkId !== user.id) {
-        const executor = await UserModel.findOne({ clerkUserId: executorClerkId })
+      const initiatorClerkId = typeof updatedTask.initiatorId === 'string' ? updatedTask.initiatorId.trim() : '';
+      const authorClerkId = typeof updatedTask.authorId === 'string' ? updatedTask.authorId.trim() : '';
+
+      const notifyUser = async (targetClerkId: string) => {
+        const target = await UserModel.findOne({ clerkUserId: targetClerkId })
             .select('_id email name')
             .lean();
 
-        if (executor?._id) {
-          const shortText =
-              commentText.length > 140 ? `${commentText.slice(0, 137).trimEnd()}...` : commentText;
-
-          const link = `/tasks/${encodeURIComponent(taskId.toLowerCase())}`;
-          const metadataEntries = Object.entries({
-            taskId: updatedTask.taskId,
-            taskMongoId: updatedTask._id?.toString?.(),
-            bsNumber: updatedTask.bsNumber,
-            commentId: newComment._id,
-          }).filter(([, value]) => typeof value !== 'undefined' && value !== null);
-          const metadata = metadataEntries.length > 0 ? Object.fromEntries(metadataEntries) : undefined;
-
-          const bsInfo =
-              typeof updatedTask.bsNumber === 'string' && updatedTask.bsNumber.trim()
-                  ? ` (БС ${updatedTask.bsNumber})`
-                  : '';
-
-          const title =
-              (updatedTask.taskName
-                  ? `Новый комментарий в задаче "${updatedTask.taskName}"${bsInfo}`
-                  : 'Новый комментарий в задаче') || 'Новый комментарий в задаче';
-
-          const message = `${authorName} оставил комментарий${bsInfo ? ` по${bsInfo}` : ''}: ${shortText}`;
-
-          await createNotification({
-            recipientUserId: executor._id,
-            type: 'task_comment',
-            title,
-            message,
-            link,
-            orgId: updatedTask.orgId ?? undefined,
-            senderName: authorName,
-            senderEmail: authorEmail ?? undefined,
-            metadata,
-          });
-        } else {
-          console.warn('Comment notification skipped: executor not found', executorClerkId);
+        if (!target?._id) {
+          console.warn('Comment notification skipped: user not found', targetClerkId);
+          return;
         }
+
+        const shortText =
+            commentText.length > 140 ? `${commentText.slice(0, 137).trimEnd()}...` : commentText;
+
+        const link = `/tasks/${encodeURIComponent(taskId.toLowerCase())}`;
+        const metadataEntries = Object.entries({
+          taskId: updatedTask.taskId,
+          taskMongoId: updatedTask._id?.toString?.(),
+          bsNumber: updatedTask.bsNumber,
+          commentId: newComment._id,
+        }).filter(([, value]) => typeof value !== 'undefined' && value !== null);
+        const metadata = metadataEntries.length > 0 ? Object.fromEntries(metadataEntries) : undefined;
+
+        const bsInfo =
+            typeof updatedTask.bsNumber === 'string' && updatedTask.bsNumber.trim()
+                ? ` (БС ${updatedTask.bsNumber})`
+                : '';
+
+        const title =
+            (updatedTask.taskName
+                ? `Новый комментарий в задаче "${updatedTask.taskName}"${bsInfo}`
+                : 'Новый комментарий в задаче') || 'Новый комментарий в задаче';
+
+        const message = `${authorName} оставил комментарий${bsInfo ? ` по${bsInfo}` : ''}: ${shortText}`;
+
+        await createNotification({
+          recipientUserId: target._id,
+          type: 'task_comment',
+          title,
+          message,
+          link,
+          orgId: updatedTask.orgId ?? undefined,
+          senderName: authorName,
+          senderEmail: authorEmail ?? undefined,
+          metadata,
+        });
+      };
+
+      // Исполнитель получает уведомление, если коммент оставил не он
+      if (executorClerkId && executorClerkId !== user.id) {
+        await notifyUser(executorClerkId);
+      }
+
+      // Менеджер (инициатор или автор) получает уведомление, когда коммент оставил исполнитель
+      const commenterIsExecutor = executorClerkId && executorClerkId === user.id;
+      const managerClerkId = commenterIsExecutor ? (initiatorClerkId || authorClerkId) : '';
+      if (managerClerkId && managerClerkId !== user.id && managerClerkId !== executorClerkId) {
+        await notifyUser(managerClerkId);
       }
     } catch (notifyErr) {
       console.error('Ошибка при создании уведомления о комментарии:', notifyErr);

@@ -290,7 +290,15 @@ export default function TaskDetailPage() {
     }
 
     return (
-        <Box sx={{ p: 2, display: 'flex', flexDirection: 'column', gap: 2 }}>
+        <Box
+            sx={{
+                px: { xs: 1, md: 1.5 },
+                py: 2,
+                display: 'flex',
+                flexDirection: 'column',
+                gap: 2,
+            }}
+        >
             <Stack direction="row" alignItems="center" justifyContent="space-between" gap={1}>
                 <Stack direction="row" spacing={1} alignItems="center" sx={{ minWidth: 0 }}>
                     <Tooltip title="Назад">
