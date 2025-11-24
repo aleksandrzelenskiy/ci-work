@@ -14,6 +14,7 @@ import {
 } from '@mui/material';
 import LocationOnOutlinedIcon from '@mui/icons-material/LocationOnOutlined';
 import CloseIcon from '@mui/icons-material/Close';
+import Button from '@mui/material/Button';
 import {
     YMaps,
     Map,
@@ -49,6 +50,7 @@ export default function TaskGeoLocation({ locations = [] }: TaskGeoLocationProps
         name?: string;
         coordinates: string;
     } | null>(null);
+    const [routePoint, setRoutePoint] = React.useState<[number, number] | null>(null);
 
     const handleOpen = (loc: { name?: string; coordinates: string }, idx: number) => {
         const coords = parseCoords(loc.coordinates);
@@ -58,6 +60,7 @@ export default function TaskGeoLocation({ locations = [] }: TaskGeoLocationProps
             title: loc.name || `Точка ${idx + 1}`,
         });
         setActiveLocationMeta(loc);
+        setRoutePoint(coords);
         setMapOpen(true);
     };
 
@@ -72,9 +75,19 @@ export default function TaskGeoLocation({ locations = [] }: TaskGeoLocationProps
         return `<div style="font-family:Inter,Arial,sans-serif;min-width:220px;max-width:260px;">
             <div style="font-weight:600;margin-bottom:6px;">${title}</div>
             <div style="margin-bottom:4px;">Координаты: ${coordString || '—'}</div>
-            <div style="color:#6b7280;font-size:12px;">(добавьте описание для этой точки при необходимости)</div>
         </div>`;
     };
+
+    const openRoute = () => {
+        if (!routePoint) return;
+        const [lat, lon] = routePoint;
+        const url = `https://yandex.ru/maps/?rtext=~${lat},${lon}&rtt=auto`;
+        window.open(url, '_blank', 'noopener,noreferrer');
+    };
+
+    const mapState = selectedPoint
+        ? { center: selectedPoint.coords, zoom: 14, type: 'yandex#hybrid', controls: [] as string[] }
+        : { center: [55.751244, 37.618423] as [number, number], zoom: 4, type: 'yandex#map', controls: [] as string[] };
 
     return (
         <>
@@ -124,14 +137,10 @@ export default function TaskGeoLocation({ locations = [] }: TaskGeoLocationProps
                         </Typography>
                     </Toolbar>
                 </AppBar>
-                <Box sx={{ height: '100%', width: '100%' }}>
+                <Box sx={{ position: 'relative', height: '100%', width: '100%' }}>
                     <YMaps query={{ apikey: '1c3860d8-3994-4e6e-841b-31ad57f69c78', lang: 'ru_RU' }}>
                         <Map
-                            state={
-                                selectedPoint
-                                    ? { center: selectedPoint.coords, zoom: 14, type: 'yandex#hybrid' }
-                                    : { center: [55.751244, 37.618423], zoom: 4, type: 'yandex#map' }
-                            }
+                            state={mapState}
                             width="100%"
                             height="100%"
                             modules={[
@@ -171,6 +180,25 @@ export default function TaskGeoLocation({ locations = [] }: TaskGeoLocationProps
                             <FullscreenControl />
                         </Map>
                     </YMaps>
+                    {routePoint && (
+                        <Box
+                            sx={{
+                                position: 'absolute',
+                                left: 16,
+                                bottom: 16,
+                                zIndex: 5,
+                            }}
+                        >
+                            <Button
+                                variant="contained"
+                                color="primary"
+                                onClick={openRoute}
+                                sx={{ borderRadius: 999 }}
+                            >
+                                Маршрут
+                            </Button>
+                        </Box>
+                    )}
                 </Box>
             </Dialog>
         </>
