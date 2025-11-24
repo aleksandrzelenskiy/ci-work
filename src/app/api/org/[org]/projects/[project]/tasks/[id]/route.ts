@@ -20,6 +20,7 @@ import {
     sanitizeBsLocationAddresses,
 } from '@/utils/bsLocation';
 import { splitAttachmentsAndDocuments } from '@/utils/taskFiles';
+import { deleteTaskFolder } from '@/utils/s3';
 
 
 export const runtime = 'nodejs';
@@ -320,11 +321,17 @@ export async function DELETE(
 
         const query = buildTaskQuery(orgId, projectId, id);
 
-        const del = await TaskModel.deleteOne(query);
+        const deletedTask = await TaskModel.findOneAndDelete(query).select('taskId').lean();
 
-        if (del.deletedCount === 0) {
+        if (!deletedTask) {
             return NextResponse.json({ error: 'Task not found' }, { status: 404 });
         }
+
+        const taskIdForCleanup =
+            typeof deletedTask.taskId === 'string' && deletedTask.taskId.trim()
+                ? deletedTask.taskId
+                : id;
+        await deleteTaskFolder(taskIdForCleanup);
 
         return NextResponse.json({ ok: true });
     } catch (err) {
