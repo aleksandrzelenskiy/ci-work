@@ -86,8 +86,18 @@ export default function TaskGeoLocation({ locations = [] }: TaskGeoLocationProps
     };
 
     const mapState = selectedPoint
-        ? { center: selectedPoint.coords, zoom: 14, type: 'yandex#hybrid', controls: [] as string[] }
-        : { center: [55.751244, 37.618423] as [number, number], zoom: 4, type: 'yandex#map', controls: [] as string[] };
+        ? {
+              center: selectedPoint.coords,
+              zoom: 14,
+              type: 'yandex#hybrid' as const,
+              controls: [] as const,
+          }
+        : {
+              center: [55.751244, 37.618423] as [number, number],
+              zoom: 4,
+              type: 'yandex#map' as const,
+              controls: [] as const,
+          };
 
     return (
         <>
