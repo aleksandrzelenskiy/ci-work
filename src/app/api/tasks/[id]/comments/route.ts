@@ -35,6 +35,16 @@ export async function POST(
     const dbUser = await UserModel.findOne({ clerkUserId: user.id });
     const profilePic = dbUser?.profilePic || '';
 
+    const clerkFullName = `${user.firstName ?? ''} ${user.lastName ?? ''}`.trim();
+    const dbName = dbUser?.name?.trim();
+    const fallbackEmail = authorEmail || '';
+    const authorName =
+        clerkFullName ||
+        dbName ||
+        user.username ||
+        fallbackEmail ||
+        'Unknown';
+
     const contentType = request.headers.get('content-type') || '';
     let commentText = '';
     let file: File | null = null;
@@ -96,8 +106,6 @@ export async function POST(
     }
 
     // ===== Формируем комментарий и событие =====
-    const authorName = `${user.firstName ?? ''} ${user.lastName ?? ''}`.trim() || 'Unknown';
-
     const newComment = {
       _id: uuidv4(),
       text: commentText,

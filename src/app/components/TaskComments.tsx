@@ -6,6 +6,7 @@ import {
     Box,
     Button,
     CircularProgress,
+    Paper,
     Stack,
     TextField,
     Typography,
@@ -111,7 +112,7 @@ export default function TaskComments({
                         <Stack
                             key={comment._id}
                             direction="row"
-                            spacing={1.5}
+                            spacing={1}
                             alignItems="flex-start"
                         >
                             <Avatar
@@ -121,11 +122,34 @@ export default function TaskComments({
                             >
                                 {comment.author?.[0]?.toUpperCase() || '?'}
                             </Avatar>
-                            <Stack spacing={0.5} sx={{ minWidth: 0, flex: 1 }}>
-                                <Typography variant="body2" fontWeight={600}>
-                                    {comment.author}
-                                </Typography>
-                                <Typography variant="body2" sx={{ whiteSpace: 'pre-wrap' }}>
+                            <Paper
+                                elevation={0}
+                                sx={{
+                                    p: 1.25,
+                                    flex: 1,
+                                    borderRadius: 3,
+                                    bgcolor: '#f5f5f7',
+                                    border: '1px solid #e5e5ea',
+                                    boxShadow: '0 6px 18px rgba(0,0,0,0.04)',
+                                }}
+                            >
+                                <Stack
+                                    direction="row"
+                                    justifyContent="space-between"
+                                    alignItems="baseline"
+                                    sx={{ mb: 0.75 }}
+                                >
+                                    <Typography variant="body2" fontWeight={600} noWrap>
+                                        {comment.author}
+                                    </Typography>
+                                    <Typography variant="caption" color="text.secondary">
+                                        {formatDateTime(comment.createdAt)}
+                                    </Typography>
+                                </Stack>
+                                <Typography
+                                    variant="body2"
+                                    sx={{ whiteSpace: 'pre-wrap', color: 'text.primary' }}
+                                >
                                     {comment.text}
                                 </Typography>
                                 {comment.photoUrl && (
@@ -135,11 +159,11 @@ export default function TaskComments({
                                             src={comment.photoUrl}
                                             alt="Комментарий"
                                             sx={{
-                                                mt: 0.5,
+                                                mt: 1,
                                                 maxWidth: '100%',
-                                                borderRadius: 1,
-                                                border: '1px solid',
-                                                borderColor: 'divider',
+                                                borderRadius: 2,
+                                                border: '1px solid #e5e5ea',
+                                                boxShadow: '0 10px 30px rgba(0,0,0,0.08)',
                                             }}
                                         />
                                     ) : (
@@ -149,16 +173,19 @@ export default function TaskComments({
                                             rel="noreferrer"
                                             variant="outlined"
                                             size="small"
-                                            sx={{ alignSelf: 'flex-start', mt: 0.5 }}
+                                            sx={{
+                                                alignSelf: 'flex-start',
+                                                mt: 1,
+                                                borderRadius: 999,
+                                                textTransform: 'none',
+                                                borderColor: '#d1d1d6',
+                                            }}
                                         >
                                             Открыть вложение
                                         </Button>
                                     )
                                 )}
-                                <Typography variant="caption" color="text.secondary">
-                                    {formatDateTime(comment.createdAt)}
-                                </Typography>
-                            </Stack>
+                            </Paper>
                         </Stack>
                     ))}
                 </Stack>
@@ -172,13 +199,35 @@ export default function TaskComments({
                     value={text}
                     onChange={(e) => setText(e.target.value)}
                     fullWidth
+                    placeholder="Напишите что-нибудь…"
+                    InputProps={{
+                        sx: {
+                            borderRadius: 3,
+                            bgcolor: '#f5f5f7',
+                            '& fieldset': {
+                                borderColor: '#e5e5ea',
+                            },
+                            '&:hover fieldset': {
+                                borderColor: '#c7c7cc',
+                            },
+                            '&.Mui-focused fieldset': {
+                                borderColor: '#007aff',
+                            },
+                        },
+                    }}
                 />
                 <Stack direction="row" spacing={1} alignItems="center" flexWrap="wrap">
                     <Button
                         variant="text"
                         startIcon={<AttachFileOutlinedIcon />}
                         component="label"
-                        sx={{ alignSelf: 'flex-start' }}
+                        sx={{
+                            alignSelf: 'flex-start',
+                            color: '#007aff',
+                            textTransform: 'none',
+                            fontWeight: 600,
+                            '&:hover': { bgcolor: 'rgba(0,122,255,0.08)' },
+                        }}
                     >
                         Добавить файл
                         <input
@@ -208,7 +257,17 @@ export default function TaskComments({
                     onClick={handleSubmit}
                     disabled={submitting || !taskId}
                     startIcon={submitting ? <CircularProgress size={18} color="inherit" /> : undefined}
-                    sx={{ alignSelf: 'flex-start' }}
+                    sx={{
+                        alignSelf: 'flex-start',
+                        borderRadius: 999,
+                        px: 2.5,
+                        bgcolor: '#007aff',
+                        boxShadow: '0 8px 24px rgba(0,122,255,0.25)',
+                        '&:hover': {
+                            bgcolor: '#0062d6',
+                            boxShadow: '0 10px 28px rgba(0,122,255,0.35)',
+                        },
+                    }}
                 >
                     Добавить комментарий
                 </Button>
