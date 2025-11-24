@@ -37,6 +37,7 @@ import EditNoteIcon from '@mui/icons-material/EditNote';
 import DeleteOutlineIcon from '@mui/icons-material/DeleteOutline';
 import InfoOutlinedIcon from '@mui/icons-material/InfoOutlined';
 import DescriptionOutlinedIcon from '@mui/icons-material/DescriptionOutlined';
+import CommentOutlinedIcon from '@mui/icons-material/CommentOutlined';
 import TocOutlinedIcon from '@mui/icons-material/TocOutlined';
 import AttachFileOutlinedIcon from '@mui/icons-material/AttachFileOutlined';
 import HistoryIcon from '@mui/icons-material/History';
@@ -47,6 +48,7 @@ import type { ParsedWorkItem } from '@/app/workspace/components/T2/T2EstimatePar
 import { getPriorityIcon, normalizePriority } from '@/utils/priorityIcons';
 import TaskGeoLocation from '@/app/workspace/components/TaskGeoLocation';
 import { getStatusColor } from '@/utils/statusColors';
+import TaskComments, { type TaskComment } from '@/app/components/TaskComments';
 import {
     Timeline,
     TimelineItem,
@@ -76,6 +78,7 @@ type TaskEvent = {
     action: string;
     author: string;
     authorId: string;
+    authorEmail?: string;
     date: string;
     details?: TaskEventDetails;
 };
@@ -113,6 +116,7 @@ type Task = {
     attachments?: string[];
     events?: TaskEvent[];
     workItems?: WorkItem[];
+    comments?: TaskComment[];
 };
 
 // карточка с тенью как в примере MUI
@@ -538,6 +542,17 @@ export default function TaskDetailsPage() {
         ));
     };
 
+    const getEventAuthorLine = (ev: TaskEvent): string => {
+        const detailEmail =
+            ev.details && typeof ev.details.authorEmail === 'string'
+                ? ev.details.authorEmail
+                : undefined;
+        const email = ev.authorEmail || detailEmail;
+        if (email && ev.author) return `${ev.author} (${email})`;
+        if (email) return email;
+        return ev.author;
+    };
+
 
     return (
         <Box sx={{ p: 2, display: 'flex', flexDirection: 'column', gap: 2 }}>
@@ -660,18 +675,32 @@ export default function TaskDetailsPage() {
                     <Box
                         sx={{
                             display: 'grid',
+                            gap: 2,
+                            alignItems: 'start',
                             gridTemplateColumns: {
                                 xs: '1fr',
-                                sm: '1fr 1fr',
-                                md: '2fr 1fr 1fr',
+                                sm: 'repeat(3, minmax(0, 1fr))',
                             },
-                            gridAutoFlow: 'row dense',
-                            gap: 2,
-                            alignItems: 'stretch',
+                            gridTemplateAreas: {
+                                xs: `
+                                    "info"
+                                    "work"
+                                    "desc"
+                                    "geo"
+                                    "files"
+                                    "comments"
+                                    "history"
+                                `,
+                                sm: `
+                                    "info work work"
+                                    "desc geo files"
+                                    "comments comments history"
+                                `,
+                            },
                         }}
                     >
                         {/* Информация */}
-                        <CardItem sx={{ height: '100%' }}>
+                        <CardItem sx={{ gridArea: 'info', minWidth: 0 }}>
                             <Typography
                                 variant="subtitle1"
                                 fontWeight={600}
@@ -694,59 +723,78 @@ export default function TaskDetailsPage() {
                                     <strong>Адрес:</strong> {task.bsAddress || 'Адрес не указан'}
                                 </Typography>
 
-                                {/* Срок + приоритет в одну строку, как на скрине */}
-                                <Box sx={{ display: 'flex', gap: 3, alignItems: 'center', flexWrap: 'wrap' }}>
-                                    <Typography variant="body1">
-                                        <strong>Срок:</strong> {task.dueDate ? formatDate(task.dueDate) : '—'}
-                                    </Typography>
-                                    <Box sx={{ display: 'flex', gap: 0.5, alignItems: 'center' }}>
-                                        <Typography variant="body1">
-                                            <strong>Приоритет:</strong>
-                                        </Typography>
+                                <Typography variant="body1">
+                                    <strong>Срок:</strong>{' '}
+                                    {task.dueDate ? formatDate(task.dueDate) : '—'}
+                                </Typography>
+                                <Typography
+                                    variant="body1"
+                                    sx={{
+                                        display: 'flex',
+                                        alignItems: 'center',
+                                        gap: 0.75,
+                                        flexWrap: 'wrap',
+                                    }}
+                                >
+                                    <strong>Приоритет:</strong>
+                                    <Box
+                                        component="span"
+                                        sx={{
+                                            display: 'inline-flex',
+                                            alignItems: 'center',
+                                            gap: 0.5,
+                                        }}
+                                    >
                                         {getPriorityIcon(
                                             (normalizePriority(task.priority as string) ?? 'medium') as
                                                 'urgent' | 'high' | 'medium' | 'low'
                                         )}
-                                        <Typography variant="body1">{task.priority || '—'}</Typography>
+                                        <span>{task.priority || '—'}</span>
                                     </Box>
-                                </Box>
+                                </Typography>
 
-                                {/* Стоимость + тип задачи */}
-                                <Box sx={{ display: 'flex', gap: 3, alignItems: 'center', flexWrap: 'wrap' }}>
-                                    <Typography variant="body1">
-                                        <strong>Стоимость:</strong> {formatPrice(task.totalCost)}
-                                    </Typography>
-                                    <Typography variant="body1">
-                                        <strong>Тип задачи:</strong> {task.taskType || '—'}
-                                    </Typography>
-                                </Box>
-
-                                {/* Создана + обновлена */}
-                                <Box sx={{ display: 'flex', gap: 3, alignItems: 'center', flexWrap: 'wrap' }}>
-                                    <Typography variant="body1">
-                                        <strong>Создана:</strong> {task.createdAt ? formatDate(task.createdAt) : '—'}
-                                    </Typography>
-                                    <Typography variant="body1">
-                                        <strong>Обновлена:</strong> {task.updatedAt ? formatDate(task.updatedAt) : '—'}
-                                    </Typography>
-                                </Box>
+                                <Typography variant="body1">
+                                    <strong>Стоимость:</strong> {formatPrice(task.totalCost)}
+                                </Typography>
+                                <Typography variant="body1">
+                                    <strong>Тип задачи:</strong> {task.taskType || '—'}
+                                </Typography>
 
                                 {/* Исполнитель (если есть) */}
                                 {(task.executorName || task.executorEmail) && (
                                     <Typography variant="body1">
-                                        <strong>Исполнитель:</strong> {task.executorName || task.executorEmail}
+                                        <strong>Исполнитель:</strong>{' '}
+                                        {task.executorName || task.executorEmail}
                                     </Typography>
                                 )}
+
+                                {/* Создана + обновлена */}
+                                <Box
+                                    sx={{
+                                        display: 'flex',
+                                        gap: 3,
+                                        alignItems: 'center',
+                                        flexWrap: 'wrap',
+                                        pt: 0.5,
+                                    }}
+                                >
+                                    <Typography variant="body1">
+                                        <strong>Создана:</strong>{' '}
+                                        {task.createdAt ? formatDate(task.createdAt) : '—'}
+                                    </Typography>
+                                    <Typography variant="body1">
+                                        <strong>Обновлена:</strong>{' '}
+                                        {task.updatedAt ? formatDate(task.updatedAt) : '—'}
+                                    </Typography>
+                                </Box>
                             </Stack>
-
-
                         </CardItem>
 
                         {/* Состав работ */}
                         {(hasWorkItems || Array.isArray(task.workItems)) && (
                             <CardItem
                                 sx={{
-                                    gridColumn: { xs: 'span 1', sm: 'span 2', md: 'span 2' },
+                                    gridArea: 'work',
                                     minWidth: 0,
                                 }}
                             >
@@ -761,7 +809,11 @@ export default function TaskDetailsPage() {
                                             variant="subtitle1"
                                             fontWeight={600}
                                             gutterBottom
-                                            sx={{ display: 'flex', alignItems: 'center', gap: 1 }}
+                                            sx={{
+                                                display: 'flex',
+                                                alignItems: 'center',
+                                                gap: 1,
+                                            }}
                                         >
                                             <TocOutlinedIcon fontSize="small" />
                                             Состав работ
@@ -770,11 +822,19 @@ export default function TaskDetailsPage() {
                                     <AccordionDetails sx={{ pt: 0 }}>
                                         <Divider sx={{ mb: 1.5 }} />
                                         {!hasWorkItems ? (
-                                            <Typography color="text.secondary" sx={{ px: 1 }}>
+                                            <Typography
+                                                color="text.secondary"
+                                                sx={{ px: 1 }}
+                                            >
                                                 Нет данных
                                             </Typography>
                                         ) : (
-                                            <Box sx={{ maxHeight: { xs: 320, md: 420 }, overflow: 'auto' }}>
+                                            <Box
+                                                sx={{
+                                                    maxHeight: { xs: 320, md: 420 },
+                                                    overflow: 'auto',
+                                                }}
+                                            >
                                                 <Table size="small" stickyHeader>
                                                     <TableHead>
                                                         <TableRow>
@@ -790,12 +850,17 @@ export default function TaskDetailsPage() {
                                                                 <TableCell sx={{ minWidth: 180 }}>
                                                                     {item.workType || '—'}
                                                                 </TableCell>
-                                                                <TableCell sx={{ whiteSpace: 'nowrap' }}>
-                                                                    {typeof item.quantity === 'number'
+                                                                <TableCell
+                                                                    sx={{ whiteSpace: 'nowrap' }}
+                                                                >
+                                                                    {typeof item.quantity ===
+                                                                    'number'
                                                                         ? item.quantity
                                                                         : '—'}
                                                                 </TableCell>
-                                                                <TableCell sx={{ whiteSpace: 'nowrap' }}>
+                                                                <TableCell
+                                                                    sx={{ whiteSpace: 'nowrap' }}
+                                                                >
                                                                     {item.unit || '—'}
                                                                 </TableCell>
                                                                 <TableCell>
@@ -812,9 +877,8 @@ export default function TaskDetailsPage() {
                             </CardItem>
                         )}
 
-
                         {/* Описание */}
-                        <CardItem>
+                        <CardItem sx={{ gridArea: 'desc', minWidth: 0 }}>
                             <Typography
                                 variant="body1"
                                 fontWeight={600}
@@ -830,23 +894,30 @@ export default function TaskDetailsPage() {
                                     {task.taskDescription}
                                 </Typography>
                             ) : (
-                                <Typography color="text.secondary">Нет описания</Typography>
+                                <Typography color="text.secondary">
+                                    Нет описания
+                                </Typography>
                             )}
                         </CardItem>
 
+                        {/* Геолокация */}
+                        <CardItem sx={{ gridArea: 'geo', minWidth: 0 }}>
+                            <TaskGeoLocation locations={task.bsLocation} />
+                        </CardItem>
+
                         {/* Вложения — если есть */}
-                        {hasAttachments && (
-                            <CardItem>
-                                <Typography
-                                    variant="subtitle1"
-                                    fontWeight={600}
-                                    gutterBottom
-                                    sx={{ display: 'flex', alignItems: 'center', gap: 1 }}
-                                >
-                                    <AttachFileOutlinedIcon fontSize="small" />
-                                    Вложения
-                                </Typography>
-                                <Divider sx={{ mb: 1.5 }} />
+                        <CardItem sx={{ gridArea: 'files', minWidth: 0 }}>
+                            <Typography
+                                variant="subtitle1"
+                                fontWeight={600}
+                                gutterBottom
+                                sx={{ display: 'flex', alignItems: 'center', gap: 1 }}
+                            >
+                                <AttachFileOutlinedIcon fontSize="small" />
+                                Вложения
+                            </Typography>
+                            <Divider sx={{ mb: 1.5 }} />
+                            {hasAttachments ? (
                                 <Stack gap={1}>
                                     {task.files?.map((file, idx) => (
                                         <Link
@@ -868,60 +939,44 @@ export default function TaskDetailsPage() {
                                             underline="hover"
                                         >
                                             {decodeURIComponent(
-                                                url.split('/').pop() || `Вложение ${idx + 1}`
+                                                url.split('/').pop() ||
+                                                `Вложение ${idx + 1}`
                                             )}
                                         </Link>
                                     ))}
                                 </Stack>
-                            </CardItem>
-                        )}
-
-                        {/* Геолокация */}
-                        <CardItem>
-                            <TaskGeoLocation locations={task.bsLocation} />
+                            ) : (
+                                <Typography color="text.secondary">
+                                    Нет вложений
+                                </Typography>
+                            )}
                         </CardItem>
 
-                        {/* Заказ / договор — если есть */}
-                        {(task.orderNumber ||
-                            task.orderUrl ||
-                            task.orderDate ||
-                            task.orderSignDate) && (
-                            <CardItem>
-                                <Typography variant="subtitle1" fontWeight={600} gutterBottom>
-                                    Заказ / договор
-                                </Typography>
-                                <Divider sx={{ mb: 1.5 }} />
-                                <Stack gap={0.5}>
-                                    {task.orderNumber && (
-                                        <Typography>Номер: {task.orderNumber}</Typography>
-                                    )}
-                                    {task.orderDate && (
-                                        <Typography>
-                                            Дата заказа: {formatDate(task.orderDate)}
-                                        </Typography>
-                                    )}
-                                    {task.orderSignDate && (
-                                        <Typography>
-                                            Дата подписания: {formatDate(task.orderSignDate)}
-                                        </Typography>
-                                    )}
-                                    {task.orderUrl && (
-                                        <Button
-                                            href={task.orderUrl}
-                                            target="_blank"
-                                            rel="noreferrer"
-                                            variant="text"
-                                            sx={{ alignSelf: 'flex-start' }}
-                                        >
-                                            Открыть заказ
-                                        </Button>
-                                    )}
-                                </Stack>
-                            </CardItem>
-                        )}
+                        {/* Комментарии */}
+                        <CardItem sx={{ gridArea: 'comments', minWidth: 0 }}>
+                            <Typography
+                                variant="subtitle1"
+                                fontWeight={600}
+                                gutterBottom
+                                sx={{ display: 'flex', alignItems: 'center', gap: 1 }}
+                            >
+                                <CommentOutlinedIcon fontSize="small" />
+                                Комментарии
+                            </Typography>
+                            <Divider sx={{ mb: 1.5 }} />
+                            <TaskComments
+                                taskId={task.taskId || id}
+                                initialComments={task.comments}
+                                onTaskUpdated={(updatedTask) =>
+                                    setTask((prev) =>
+                                        prev ? { ...prev, ...(updatedTask as Partial<Task>) } : prev
+                                    )
+                                }
+                            />
+                        </CardItem>
 
                         {/* История */}
-                        <CardItem sx={{ p: 0, minWidth: 0, gridColumn: 'span 1' }}>
+                        <CardItem sx={{ gridArea: 'history', p: 0, minWidth: 0 }}>
                             <Accordion
                                 disableGutters
                                 elevation={0}
@@ -932,7 +987,11 @@ export default function TaskDetailsPage() {
                                         variant="subtitle1"
                                         fontWeight={600}
                                         gutterBottom
-                                        sx={{ display: 'flex', alignItems: 'center', gap: 1 }}
+                                        sx={{
+                                            display: 'flex',
+                                            alignItems: 'center',
+                                            gap: 1,
+                                        }}
                                     >
                                         <HistoryIcon fontSize="small" />
                                         История
@@ -941,7 +1000,10 @@ export default function TaskDetailsPage() {
                                 <AccordionDetails sx={{ pt: 0 }}>
                                     <Divider sx={{ mb: 1.5 }} />
                                     {sortedEvents.length === 0 ? (
-                                        <Typography color="text.secondary" sx={{ px: 2, pb: 1.5 }}>
+                                        <Typography
+                                            color="text.secondary"
+                                            sx={{ px: 2, pb: 1.5 }}
+                                        >
                                             История пуста
                                         </Typography>
                                     ) : (
@@ -965,22 +1027,41 @@ export default function TaskDetailsPage() {
                                             {sortedEvents.map((ev, idx) => (
                                                 <TimelineItem key={idx}>
                                                     <TimelineOppositeContent sx={{ pr: 1 }}>
-                                                        <Typography variant="caption" color="text.secondary">
+                                                        <Typography
+                                                            variant="caption"
+                                                            color="text.secondary"
+                                                        >
                                                             {formatDateTime(ev.date)}
                                                         </Typography>
                                                     </TimelineOppositeContent>
                                                     <TimelineSeparator>
                                                         <TimelineDot
-                                                            color={ev.action === 'created' ? 'primary' : 'success'}
+                                                            color={
+                                                                ev.action === 'created'
+                                                                    ? 'primary'
+                                                                    : 'success'
+                                                            }
                                                         />
-                                                        {idx < sortedEvents.length - 1 && <TimelineConnector />}
+                                                        {idx <
+                                                            sortedEvents.length - 1 && (
+                                                                <TimelineConnector />
+                                                            )}
                                                     </TimelineSeparator>
-                                                    <TimelineContent sx={{ py: 1, minWidth: 0 }}>
-                                                        <Typography variant="body2" fontWeight={600}>
+                                                    <TimelineContent
+                                                        sx={{ py: 1, minWidth: 0 }}
+                                                    >
+                                                        <Typography
+                                                            variant="body2"
+                                                            fontWeight={600}
+                                                        >
                                                             {getEventTitle(ev.action, ev)}
                                                         </Typography>
-                                                        <Typography variant="body2" color="text.secondary">
-                                                            {ev.author}
+                                                        <Typography
+                                                            variant="body2"
+                                                            color="text.secondary"
+                                                        >
+                                                            Автор:{' '}
+                                                            {getEventAuthorLine(ev)}
                                                         </Typography>
                                                         <Box sx={{ mt: 0.5 }}>
                                                             {renderEventDetails(ev)}
@@ -993,9 +1074,57 @@ export default function TaskDetailsPage() {
                                 </AccordionDetails>
                             </Accordion>
                         </CardItem>
+
+                        {/* Заказ / договор — если есть */}
+                        {(task.orderNumber ||
+                            task.orderUrl ||
+                            task.orderDate ||
+                            task.orderSignDate) && (
+                            <CardItem sx={{ gridColumn: '1 / -1', minWidth: 0 }}>
+                                <Typography
+                                    variant="subtitle1"
+                                    fontWeight={600}
+                                    gutterBottom
+                                >
+                                    Заказ / договор
+                                </Typography>
+                                <Divider sx={{ mb: 1.5 }} />
+                                <Stack gap={0.5}>
+                                    {task.orderNumber && (
+                                        <Typography>
+                                            Номер: {task.orderNumber}
+                                        </Typography>
+                                    )}
+                                    {task.orderDate && (
+                                        <Typography>
+                                            Дата заказа:{' '}
+                                            {formatDate(task.orderDate)}
+                                        </Typography>
+                                    )}
+                                    {task.orderSignDate && (
+                                        <Typography>
+                                            Дата подписания:{' '}
+                                            {formatDate(task.orderSignDate)}
+                                        </Typography>
+                                    )}
+                                    {task.orderUrl && (
+                                        <Button
+                                            href={task.orderUrl}
+                                            target="_blank"
+                                            rel="noreferrer"
+                                            variant="text"
+                                            sx={{ alignSelf: 'flex-start' }}
+                                        >
+                                            Открыть заказ
+                                        </Button>
+                                    )}
+                                </Stack>
+                            </CardItem>
+                        )}
                     </Box>
                 </Box>
             )}
+
 
             {task && (
                 <WorkspaceTaskDialog

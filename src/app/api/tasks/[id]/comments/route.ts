@@ -5,8 +5,8 @@ import TaskModel from '@/app/models/TaskModel';
 import UserModel from '@/app/models/UserModel';
 import { currentUser } from '@clerk/nextjs/server';
 import { v4 as uuidv4 } from 'uuid';
-import { sendEmail } from '@/utils/mailer';
 import { uploadTaskFile } from '@/utils/s3';
+import { createNotification } from '@/app/utils/notificationService';
 
 export const runtime = 'nodejs';
 export const dynamic = 'force-dynamic';
@@ -29,6 +29,7 @@ export async function POST(
     if (!user) {
       return NextResponse.json({ error: 'Authentication required' }, { status: 401 });
     }
+    const authorEmail = user.emailAddresses?.[0]?.emailAddress;
 
     // данные пользователя (аватар)
     const dbUser = await UserModel.findOne({ clerkUserId: user.id });
@@ -129,37 +130,56 @@ export async function POST(
       return NextResponse.json({ error: 'Task not found' }, { status: 404 });
     }
 
-    // ===== Уведомления по почте (без падения роута при сбое почты) =====
+    // ===== Уведомление исполнителя через NotificationBell =====
     try {
-      const frontendUrl = process.env.FRONTEND_URL || 'https://ciwork.ru';
-      const taskLink = `${frontendUrl}/tasks/${updatedTask.taskId}`;
-      const recipients = new Set<string>(
-          [
-            updatedTask.authorEmail,
-            // updatedTask.initiatorEmail,
-            updatedTask.executorEmail,
-            // 'transport@t2.ru',
-          ].filter((e): e is string => Boolean(e && e.trim()))
-      );
+      const executorClerkId = typeof updatedTask.executorId === 'string' ? updatedTask.executorId.trim() : '';
+      if (executorClerkId && executorClerkId !== user.id) {
+        const executor = await UserModel.findOne({ clerkUserId: executorClerkId })
+            .select('_id email name')
+            .lean();
 
-      const subject = `Новый комментарий в задаче "${updatedTask.taskName} ${updatedTask.bsNumber}" (${updatedTask.taskId})`;
-      const text = `Автор: ${authorName}\nКомментарий: ${commentText}\nСсылка: ${taskLink}`;
-      const html = `
-        <p>Автор: <strong>${authorName}</strong></p>
-        <p>Комментарий: ${commentText}</p>
-        <p><a href="${taskLink}">Перейти к задаче</a></p>
-      `;
+        if (executor?._id) {
+          const shortText =
+              commentText.length > 140 ? `${commentText.slice(0, 137).trimEnd()}...` : commentText;
 
-      for (const to of recipients) {
-        try {
-          await sendEmail({ to, subject, text, html });
-          console.log(`Уведомление отправлено на ${to}`);
-        } catch (emailErr) {
-          console.error(`Ошибка отправки на ${to}:`, emailErr);
+          const link = `/tasks/${encodeURIComponent(taskId.toLowerCase())}`;
+          const metadataEntries = Object.entries({
+            taskId: updatedTask.taskId,
+            taskMongoId: updatedTask._id?.toString?.(),
+            bsNumber: updatedTask.bsNumber,
+            commentId: newComment._id,
+          }).filter(([, value]) => typeof value !== 'undefined' && value !== null);
+          const metadata = metadataEntries.length > 0 ? Object.fromEntries(metadataEntries) : undefined;
+
+          const bsInfo =
+              typeof updatedTask.bsNumber === 'string' && updatedTask.bsNumber.trim()
+                  ? ` (БС ${updatedTask.bsNumber})`
+                  : '';
+
+          const title =
+              (updatedTask.taskName
+                  ? `Новый комментарий в задаче "${updatedTask.taskName}"${bsInfo}`
+                  : 'Новый комментарий в задаче') || 'Новый комментарий в задаче';
+
+          const message = `${authorName} оставил комментарий${bsInfo ? ` по${bsInfo}` : ''}: ${shortText}`;
+
+          await createNotification({
+            recipientUserId: executor._id,
+            type: 'task_comment',
+            title,
+            message,
+            link,
+            orgId: updatedTask.orgId ?? undefined,
+            senderName: authorName,
+            senderEmail: authorEmail ?? undefined,
+            metadata,
+          });
+        } else {
+          console.warn('Comment notification skipped: executor not found', executorClerkId);
         }
       }
     } catch (notifyErr) {
-      console.error('Ошибка при отправке уведомлений:', notifyErr);
+      console.error('Ошибка при создании уведомления о комментарии:', notifyErr);
     }
 
     return NextResponse.json({ comment: newComment, task: updatedTask });

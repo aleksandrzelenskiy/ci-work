@@ -26,7 +26,7 @@ const NotificationSchema = new Schema<NotificationDoc>(
         recipientUserId: { type: Schema.Types.ObjectId, ref: 'User', required: true, index: true },
         type: {
             type: String,
-            enum: ['org_invite', 'invite_accepted', 'invite_declined', 'task_assigned'],
+            enum: ['org_invite', 'invite_accepted', 'invite_declined', 'task_assigned', 'task_comment'],
             required: true,
         },
         title: { type: String, required: true },
