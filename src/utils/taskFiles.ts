@@ -1,6 +1,6 @@
 // src/utils/taskFiles.ts
 
-const DOCUMENT_FOLDER_PATTERN = /-(estimate|documents)\//i;
+const DOCUMENT_FOLDER_PATTERN = /-(estimate|documents)(\/|%2F)/i;
 const SUSPECT_LATIN1_PATTERN = /[ÃÐÒÑÂäöüÄÖÜß]/;
 
 /** Checks whether the URL points to a document (estimate or other docs) rather than a regular attachment. */
@@ -34,7 +34,7 @@ export function splitAttachmentsAndDocuments(
     }
 
     return {
-        attachments: filteredAttachments,
+        attachments: Array.from(new Set(filteredAttachments)),
         documents: Array.from(new Set(docs)),
     };
 }

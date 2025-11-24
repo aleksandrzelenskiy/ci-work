@@ -74,7 +74,7 @@ export async function GET(
     });
 
     const baseTask = task.toObject();
-    const { attachments, documents } = splitAttachmentsAndDocuments(
+    const { attachments } = splitAttachmentsAndDocuments(
         baseTask.attachments,
         baseTask.documents
     );
@@ -83,7 +83,7 @@ export async function GET(
       task: {
         ...baseTask,
         attachments,
-        documents,
+        documents: undefined,
         photoReports: photoReports || [],
       },
     });

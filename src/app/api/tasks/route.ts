@@ -151,14 +151,14 @@ export async function GET() {
     );
 
     const normalizedTasks = filteredTasks.map((task) => {
-      const { attachments, documents } = splitAttachmentsAndDocuments(
+      const { attachments } = splitAttachmentsAndDocuments(
           (task as { attachments?: unknown }).attachments,
           (task as { documents?: unknown }).documents
       );
       return {
         ...task,
         attachments,
-        documents,
+        documents: undefined,
       };
     });
 
