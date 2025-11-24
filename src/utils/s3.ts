@@ -110,7 +110,7 @@ function buildFileKey(taskId: string, subfolder: string, filename: string): stri
 export async function uploadTaskFile(
     fileBuffer: Buffer,
     taskId: string,
-    subfolder: 'estimate' | 'attachments' | 'order' | 'comments' | 'ncw',
+    subfolder: 'estimate' | 'attachments' | 'order' | 'comments' | 'ncw' | 'documents',
     filename: string,
     contentType: string
 ): Promise<string> {

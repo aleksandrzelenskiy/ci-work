@@ -41,6 +41,7 @@ import CommentOutlinedIcon from '@mui/icons-material/CommentOutlined';
 import TocOutlinedIcon from '@mui/icons-material/TocOutlined';
 import AttachFileOutlinedIcon from '@mui/icons-material/AttachFileOutlined';
 import HistoryIcon from '@mui/icons-material/History';
+import ArticleOutlinedIcon from '@mui/icons-material/ArticleOutlined';
 import WorkspaceTaskDialog, {
     type TaskForEdit,
 } from '@/app/workspace/components/WorkspaceTaskDialog';
@@ -58,6 +59,7 @@ import {
     TimelineContent,
     TimelineOppositeContent,
 } from '@mui/lab';
+import { extractFileNameFromUrl, isDocumentUrl } from '@/utils/taskFiles';
 
 type TaskFile = {
     url: string;
@@ -114,6 +116,7 @@ type Task = {
     executorEmail?: string;
     files?: TaskFile[];
     attachments?: string[];
+    documents?: string[];
     events?: TaskEvent[];
     workItems?: WorkItem[];
     comments?: TaskComment[];
@@ -234,11 +237,31 @@ export default function TaskDetailsPage() {
         void loadOrg();
     }, [loadOrg]);
 
+    const attachmentLinks = React.useMemo(
+        () =>
+            Array.isArray(task?.attachments)
+                ? task.attachments.filter((url) => !isDocumentUrl(url))
+                : [],
+        [task]
+    );
+
+    const documentLinks = React.useMemo(
+        () => {
+            const docs = Array.isArray(task?.documents) ? task.documents : [];
+            const docsFromAttachments = Array.isArray(task?.attachments)
+                ? task.attachments.filter((url) => isDocumentUrl(url))
+                : [];
+            return Array.from(new Set([...docs, ...docsFromAttachments]));
+        },
+        [task]
+    );
+
     const hasWorkItems = Array.isArray(task?.workItems) && task.workItems.length > 0;
+    const hasDocuments = documentLinks.length > 0;
     const hasAttachments =
         !!task &&
         ((Array.isArray(task.files) && task.files.length > 0) ||
-            (Array.isArray(task.attachments) && task.attachments.length > 0));
+            attachmentLinks.length > 0);
 
     const toEditWorkItems = (list: Task['workItems']): ParsedWorkItem[] | undefined => {
         if (!Array.isArray(list)) return undefined;
@@ -272,7 +295,9 @@ export default function TaskDetailsPage() {
             executorEmail: t.executorEmail,
             workItems: toEditWorkItems(t.workItems),
             files: t.files?.map((f) => ({ name: f.name, url: f.url, size: f.size })),
-            attachments: t.attachments,
+            attachments: Array.isArray(t.attachments)
+                ? t.attachments.filter((url) => !isDocumentUrl(url))
+                : t.attachments,
             bsLocation: t.bsLocation
                 ? t.bsLocation.map((loc, idx) => ({
                     name: loc.name ?? `Точка ${idx + 1}`,
@@ -695,6 +720,7 @@ export default function TaskDetailsPage() {
                                     "work"
                                     "desc"
                                     "geo"
+                                    "docs"
                                     "files"
                                     "comments"
                                     "history"
@@ -702,6 +728,7 @@ export default function TaskDetailsPage() {
                                 sm: `
                                     "info work work"
                                     "desc geo files"
+                                    "docs docs files"
                                     "comments comments history"
                                 `,
                             },
@@ -910,6 +937,39 @@ export default function TaskDetailsPage() {
                             <TaskGeoLocation locations={task.bsLocation} />
                         </CardItem>
 
+                        {/* Документы */}
+                        <CardItem sx={{ gridArea: 'docs', minWidth: 0 }}>
+                            <Typography
+                                variant="subtitle1"
+                                fontWeight={600}
+                                gutterBottom
+                                sx={{ display: 'flex', alignItems: 'center', gap: 1 }}
+                            >
+                                <ArticleOutlinedIcon fontSize="small" />
+                                Документы
+                            </Typography>
+                            <Divider sx={{ mb: 1.5 }} />
+                            {hasDocuments ? (
+                                <Stack gap={1}>
+                                    {documentLinks.map((url, idx) => (
+                                        <Link
+                                            key={`doc-${idx}`}
+                                            href={url}
+                                            target="_blank"
+                                            rel="noreferrer"
+                                            underline="hover"
+                                        >
+                                            {idx === 0
+                                                ? `Смета — ${extractFileNameFromUrl(url, 'Смета')}`
+                                                : extractFileNameFromUrl(url, `Документ ${idx + 1}`)}
+                                        </Link>
+                                    ))}
+                                </Stack>
+                            ) : (
+                                <Typography color="text.secondary">Документы отсутствуют</Typography>
+                            )}
+                        </CardItem>
+
                         {/* Вложения — если есть */}
                         <CardItem sx={{ gridArea: 'files', minWidth: 0 }}>
                             <Typography
@@ -935,7 +995,7 @@ export default function TaskDetailsPage() {
                                             {file.name || `Файл ${idx + 1}`}
                                         </Link>
                                     ))}
-                                    {task.attachments?.map((url, idx) => (
+                                    {attachmentLinks.map((url, idx) => (
                                         <Link
                                             key={`att-${idx}`}
                                             href={url}
@@ -943,10 +1003,7 @@ export default function TaskDetailsPage() {
                                             rel="noreferrer"
                                             underline="hover"
                                         >
-                                            {decodeURIComponent(
-                                                url.split('/').pop() ||
-                                                `Вложение ${idx + 1}`
-                                            )}
+                                            {extractFileNameFromUrl(url, `Вложение ${idx + 1}`)}
                                         </Link>
                                     ))}
                                 </Stack>

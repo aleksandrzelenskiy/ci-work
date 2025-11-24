@@ -45,6 +45,7 @@ import {
     extractBsNumbersFromString,
     DEFAULT_BS_PREFIXES,
 } from '@/app/workspace/components/T2/t2EstimateHelpers';
+import { isDocumentUrl } from '@/utils/taskFiles';
 
 
 
@@ -514,7 +515,9 @@ export default function WorkspaceTaskDialog({
         }
 
         const filesFromTask = initialTask.files ?? [];
-        const attachmentsFromTask = Array.isArray(initialTask.attachments) ? initialTask.attachments : [];
+        const attachmentsFromTask = Array.isArray(initialTask.attachments)
+            ? initialTask.attachments.filter((url) => !isDocumentUrl(url))
+            : [];
 
         const merged = [
             ...filesFromTask

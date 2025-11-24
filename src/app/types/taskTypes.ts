@@ -109,6 +109,7 @@ export interface Task {
   approvedAt?: Date; // когда согласовали
 
   attachments?: string[];
+  documents?: string[];
 
   orderUrl?: string;
   orderNumber?: string;
@@ -131,4 +132,5 @@ export interface Task {
 
 export interface CreateTaskPayload extends Omit<Task, '_id' | 'createdAt'> {
   attachments?: string[];
+  documents?: string[];
 }

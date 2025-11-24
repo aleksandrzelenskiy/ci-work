@@ -13,6 +13,7 @@ import type { PriorityLevel } from '@/app/types/taskTypes';
 import { generateClosingDocumentsExcel } from '@/utils/generateExcel';
 import { uploadTaskFile, deleteTaskFile } from '@/utils/s3';
 import { notifyTaskAssignment } from '@/app/utils/taskNotifications';
+import { splitAttachmentsAndDocuments } from '@/utils/taskFiles';
 
 interface UpdateData {
   status?: string;
@@ -72,8 +73,19 @@ export async function GET(
       reportId: { $regex: `^${taskIdUpper}` },
     });
 
+    const baseTask = task.toObject();
+    const { attachments, documents } = splitAttachmentsAndDocuments(
+        baseTask.attachments,
+        baseTask.documents
+    );
+
     return NextResponse.json({
-      task: { ...task.toObject(), photoReports: photoReports || [] },
+      task: {
+        ...baseTask,
+        attachments,
+        documents,
+        photoReports: photoReports || [],
+      },
     });
   } catch (err) {
     console.error('GET task error:', err);
@@ -108,6 +120,10 @@ export async function PATCH(
     if (!Array.isArray(task.attachments)) {
       task.attachments = [];
     }
+
+    const splitFiles = splitAttachmentsAndDocuments(task.attachments, task.documents);
+    task.attachments = splitFiles.attachments;
+    task.documents = splitFiles.documents;
 
     const contentType = request.headers.get('content-type');
     let updateData: UpdateData = {} as UpdateData;

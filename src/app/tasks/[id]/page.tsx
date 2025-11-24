@@ -45,6 +45,7 @@ import { fetchUserContext, resolveRoleFromContext } from '@/app/utils/userContex
 import type { EffectiveOrgRole } from '@/app/types/roles';
 import { isAdminRole, isExecutorRole } from '@/app/utils/roleGuards';
 import type { Task, WorkItem, TaskEvent } from '@/app/types/taskTypes';
+import { extractFileNameFromUrl, isDocumentUrl } from '@/utils/taskFiles';
 
 type LoadedRole = EffectiveOrgRole | null;
 
@@ -204,7 +205,12 @@ export default function TaskDetailPage() {
     }, [loadTask]);
 
     const hasWorkItems = Array.isArray(task?.workItems) && task.workItems.length > 0;
-    const hasAttachments = Array.isArray(task?.attachments) && task.attachments.length > 0;
+    const attachmentLinks = React.useMemo(
+        () => (Array.isArray(task?.attachments) ? task.attachments.filter((url) => !isDocumentUrl(url)) : []),
+        [task]
+    );
+
+    const hasAttachments = attachmentLinks.length > 0;
 
     const sortedEvents = React.useMemo(() => {
         if (!task?.events) return [];
@@ -597,7 +603,7 @@ export default function TaskDetailPage() {
                         <Divider sx={{ mb: 1.5 }} />
                         {hasAttachments || task.reportLink ? (
                             <Stack gap={1}>
-                                {task.attachments?.map((url, idx) => (
+                                {attachmentLinks.map((url, idx) => (
                                     <Link
                                         key={`att-${idx}`}
                                         href={url}
@@ -605,7 +611,7 @@ export default function TaskDetailPage() {
                                         rel="noreferrer"
                                         underline="hover"
                                     >
-                                        {decodeURIComponent(url.split('/').pop() || `Вложение ${idx + 1}`)}
+                                        {extractFileNameFromUrl(url, `Вложение ${idx + 1}`)}
                                     </Link>
                                 ))}
                                 {task.reportLink && (

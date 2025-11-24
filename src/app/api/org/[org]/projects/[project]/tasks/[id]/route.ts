@@ -19,6 +19,7 @@ import {
     normalizeSingleBsAddress,
     sanitizeBsLocationAddresses,
 } from '@/utils/bsLocation';
+import { splitAttachmentsAndDocuments } from '@/utils/taskFiles';
 
 
 export const runtime = 'nodejs';
@@ -781,7 +782,19 @@ export async function GET(
         const taskDoc = await TaskModel.findOne(taskQuery, {}, { lean: true });
 
         if (!taskDoc) return NextResponse.json({ error: 'Task not found' }, { status: 404 });
-        return NextResponse.json({ task: taskDoc });
+
+        const { attachments, documents } = splitAttachmentsAndDocuments(
+            taskDoc.attachments,
+            taskDoc.documents
+        );
+
+        return NextResponse.json({
+            task: {
+                ...taskDoc,
+                attachments,
+                documents,
+            },
+        });
     } catch (err) {
         return NextResponse.json({ error: errorMessage(err) }, { status: 500 });
     }

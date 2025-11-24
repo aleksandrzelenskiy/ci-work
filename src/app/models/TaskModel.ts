@@ -122,6 +122,14 @@ const TaskSchema = new Schema<Task & Document>({
       profilePic: { type: String },
     },
   ],
+
+  // Документы (например, сметы)
+  documents: [
+    {
+      type: String,
+      required: false,
+    },
+  ],
 });
 
 const MODEL_NAME = 'Task';

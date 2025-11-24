@@ -9,6 +9,7 @@ import { ensureIrkutskT2Station } from '@/app/models/BsCoordinateModel';
 import { notifyTaskAssignment } from '@/app/utils/taskNotifications';
 import { syncBsCoordsForProject } from '@/app/utils/syncBsCoords';
 import { buildBsAddressFromLocations, sanitizeBsLocationAddresses } from '@/utils/bsLocation';
+import { splitAttachmentsAndDocuments } from '@/utils/taskFiles';
 
 
 export const runtime = 'nodejs';
@@ -180,7 +181,15 @@ export async function GET(
             TaskModel.countDocuments(filter),
         ]);
 
-        return NextResponse.json({ ok: true, page, limit, total, items });
+        const normalizedItems = items.map((task) => {
+            const { attachments, documents } = splitAttachmentsAndDocuments(
+                (task as { attachments?: unknown }).attachments,
+                (task as { documents?: unknown }).documents
+            );
+            return { ...task, attachments, documents };
+        });
+
+        return NextResponse.json({ ok: true, page, limit, total, items: normalizedItems });
     } catch (err) {
         return NextResponse.json({ error: errorMessage(err) }, { status: 500 });
     }

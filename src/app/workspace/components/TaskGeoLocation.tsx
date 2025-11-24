@@ -73,14 +73,12 @@ export default function TaskGeoLocation({ locations = [] }: TaskGeoLocationProps
             coords && Number.isFinite(coords[0]) && Number.isFinite(coords[1])
                 ? `https://yandex.ru/maps/?rtext=~${coords[0]},${coords[1]}&rtt=auto`
                 : null;
-        const iconSvg =
-            '<svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" fill="currentColor" viewBox="0 0 24 24"><path d="M18.92 6.01C18.72 5.42 18.16 5 17.53 5H6.47c-.63 0-1.18.42-1.39 1.01L3 11v8c0 .55.45 1 1 1h1c.55 0 1-.45 1-1v-1h10v1c0 .55.45 1 1 1h1c.55 0 1-.45 1-1v-8l-2.08-4.99zM6.85 7h10.29l1.04 2.5H5.81L6.85 7zM19 15H5v-3h14v3zM7.5 17c-.83 0-1.5-.67-1.5-1.5S6.67 14 7.5 14s1.5.67 1.5 1.5S8.33 17 7.5 17zm9 0c-.83 0-1.5-.67-1.5-1.5S15.67 14 16.5 14s1.5.67 1.5 1.5S17.33 17 16.5 17z"/></svg>';
         return `<div style="font-family:Inter,Arial,sans-serif;min-width:220px;max-width:260px;">
             <div style="font-weight:600;margin-bottom:6px;">${title}</div>
             <div style="margin-bottom:4px;">Координаты: ${coordString || '—'}</div>
             ${
                 routeUrl
-                    ? `<a href="${routeUrl}" target="_blank" rel="noreferrer" style="display:inline-flex;align-items:center;gap:6px;color:#1976d2;text-decoration:none;font-weight:600;margin-top:6px;">Маршрут ${iconSvg}</a>`
+                    ? `<a href="${routeUrl}" target="_blank" rel="noreferrer" style="display:inline-flex;align-items:center;gap:6px;color:#1976d2;text-decoration:none;font-weight:600;margin-top:6px;">Маршрут <span style="display:inline-flex;align-items:center;justify-content:center;width:18px;height:18px;"><svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" fill="#1976d2" viewBox="0 0 24 24"><path d="m9 6 2-4 2 4 4 .5-3 3.3.8 4.2L12 12.7l-3.8 1.3.8-4.2-3-3.3z"/></svg></span></a>`
                     : ''
             }
         </div>`;

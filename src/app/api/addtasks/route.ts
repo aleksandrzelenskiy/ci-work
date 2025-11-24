@@ -112,7 +112,7 @@ export async function POST(request: Request) {
     const estimateUrl = await uploadTaskFile(
         Buffer.from(await excelFile.arrayBuffer()),
         cleanTaskId,
-        'estimate',
+        'documents',
         `${Date.now()}-${excelFile.name}`,
         excelFile.type ||
         'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'
@@ -131,7 +131,7 @@ export async function POST(request: Request) {
         )
     );
 
-    const allAttachments = [estimateUrl, ...attachmentsUrls];
+    const documents = [estimateUrl];
 
     // === Создание задачи ===
     const taskStatus = taskData.executorId ? 'Assigned' : 'To do';
@@ -161,7 +161,8 @@ export async function POST(request: Request) {
     const newTask = new Task({
       ...taskData,
       status: taskStatus,
-      attachments: allAttachments,
+      attachments: attachmentsUrls,
+      documents,
       createdAt: new Date(),
       events,
     });

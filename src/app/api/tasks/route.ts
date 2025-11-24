@@ -6,6 +6,7 @@ import TaskModel from '@/app/models/TaskModel';
 import ProjectModel from '@/app/models/ProjectModel';
 import mongoose from 'mongoose';
 import { GetUserContext } from '@/server-actions/user-context';
+import { splitAttachmentsAndDocuments } from '@/utils/taskFiles';
 
 interface Location {
   coordinates: [number, number];
@@ -149,7 +150,19 @@ export async function GET() {
         )
     );
 
-    return NextResponse.json({ tasks: filteredTasks });
+    const normalizedTasks = filteredTasks.map((task) => {
+      const { attachments, documents } = splitAttachmentsAndDocuments(
+          (task as { attachments?: unknown }).attachments,
+          (task as { documents?: unknown }).documents
+      );
+      return {
+        ...task,
+        attachments,
+        documents,
+      };
+    });
+
+    return NextResponse.json({ tasks: normalizedTasks });
   } catch (error) {
     console.error('Error fetching tasks:', error);
     return NextResponse.json(
