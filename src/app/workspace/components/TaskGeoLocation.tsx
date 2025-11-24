@@ -45,6 +45,10 @@ export default function TaskGeoLocation({ locations = [] }: TaskGeoLocationProps
         coords: [number, number];
         title: string;
     } | null>(null);
+    const [activeLocationMeta, setActiveLocationMeta] = React.useState<{
+        name?: string;
+        coordinates: string;
+    } | null>(null);
 
     const handleOpen = (loc: { name?: string; coordinates: string }, idx: number) => {
         const coords = parseCoords(loc.coordinates);
@@ -53,7 +57,23 @@ export default function TaskGeoLocation({ locations = [] }: TaskGeoLocationProps
             coords,
             title: loc.name || `Точка ${idx + 1}`,
         });
+        setActiveLocationMeta(loc);
         setMapOpen(true);
+    };
+
+    const buildBalloonContent = (loc: { name?: string; coordinates: string }) => {
+        const coords = parseCoords(loc.coordinates);
+        const coordString =
+            coords && Number.isFinite(coords[0]) && Number.isFinite(coords[1])
+                ? `${coords[0].toFixed(6)}, ${coords[1].toFixed(6)}`
+                : loc.coordinates;
+
+        const title = loc.name || 'Точка';
+        return `<div style="font-family:Inter,Arial,sans-serif;min-width:220px;max-width:260px;">
+            <div style="font-weight:600;margin-bottom:6px;">${title}</div>
+            <div style="margin-bottom:4px;">Координаты: ${coordString || '—'}</div>
+            <div style="color:#6b7280;font-size:12px;">(добавьте описание для этой точки при необходимости)</div>
+        </div>`;
     };
 
     return (
@@ -130,11 +150,22 @@ export default function TaskGeoLocation({ locations = [] }: TaskGeoLocationProps
                             {selectedPoint && (
                                 <Placemark
                                     geometry={selectedPoint.coords}
-                                    options={{ preset: 'islands#blueStretchyIcon', iconColor: '#ff0000' }}
                                     properties={{
-                                        balloonContent: selectedPoint.title,
-                                        iconContent: selectedPoint.title,
+                                        balloonContent: buildBalloonContent(
+                                            activeLocationMeta || {
+                                                name: selectedPoint.title,
+                                                coordinates: selectedPoint.coords.join(', '),
+                                            }
+                                        ),
+                                        hintContent: selectedPoint.title,
+                                        iconCaption: selectedPoint.title,
                                     }}
+                                    options={{
+                                        preset: 'islands#redIcon',
+                                        iconColor: '#ef4444',
+                                        hideIconOnBalloonOpen: false,
+                                    }}
+                                    modules={['geoObject.addon.balloon', 'geoObject.addon.hint']}
                                 />
                             )}
                             <FullscreenControl />
