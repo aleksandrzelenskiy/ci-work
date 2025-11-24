@@ -14,7 +14,6 @@ import {
 } from '@mui/material';
 import LocationOnOutlinedIcon from '@mui/icons-material/LocationOnOutlined';
 import CloseIcon from '@mui/icons-material/Close';
-import Button from '@mui/material/Button';
 import {
     YMaps,
     Map,
@@ -50,7 +49,6 @@ export default function TaskGeoLocation({ locations = [] }: TaskGeoLocationProps
         name?: string;
         coordinates: string;
     } | null>(null);
-    const [routePoint, setRoutePoint] = React.useState<[number, number] | null>(null);
 
     const handleOpen = (loc: { name?: string; coordinates: string }, idx: number) => {
         const coords = parseCoords(loc.coordinates);
@@ -60,7 +58,6 @@ export default function TaskGeoLocation({ locations = [] }: TaskGeoLocationProps
             title: loc.name || `Точка ${idx + 1}`,
         });
         setActiveLocationMeta(loc);
-        setRoutePoint(coords);
         setMapOpen(true);
     };
 
@@ -72,17 +69,21 @@ export default function TaskGeoLocation({ locations = [] }: TaskGeoLocationProps
                 : loc.coordinates;
 
         const title = loc.name || 'Точка';
+        const routeUrl =
+            coords && Number.isFinite(coords[0]) && Number.isFinite(coords[1])
+                ? `https://yandex.ru/maps/?rtext=~${coords[0]},${coords[1]}&rtt=auto`
+                : null;
+        const iconSvg =
+            '<svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" fill="currentColor" viewBox="0 0 24 24"><path d="M18.92 6.01C18.72 5.42 18.16 5 17.53 5H6.47c-.63 0-1.18.42-1.39 1.01L3 11v8c0 .55.45 1 1 1h1c.55 0 1-.45 1-1v-1h10v1c0 .55.45 1 1 1h1c.55 0 1-.45 1-1v-8l-2.08-4.99zM6.85 7h10.29l1.04 2.5H5.81L6.85 7zM19 15H5v-3h14v3zM7.5 17c-.83 0-1.5-.67-1.5-1.5S6.67 14 7.5 14s1.5.67 1.5 1.5S8.33 17 7.5 17zm9 0c-.83 0-1.5-.67-1.5-1.5S15.67 14 16.5 14s1.5.67 1.5 1.5S17.33 17 16.5 17z"/></svg>';
         return `<div style="font-family:Inter,Arial,sans-serif;min-width:220px;max-width:260px;">
             <div style="font-weight:600;margin-bottom:6px;">${title}</div>
             <div style="margin-bottom:4px;">Координаты: ${coordString || '—'}</div>
+            ${
+                routeUrl
+                    ? `<a href="${routeUrl}" target="_blank" rel="noreferrer" style="display:inline-flex;align-items:center;gap:6px;color:#1976d2;text-decoration:none;font-weight:600;margin-top:6px;">Маршрут ${iconSvg}</a>`
+                    : ''
+            }
         </div>`;
-    };
-
-    const openRoute = () => {
-        if (!routePoint) return;
-        const [lat, lon] = routePoint;
-        const url = `https://yandex.ru/maps/?rtext=~${lat},${lon}&rtt=auto`;
-        window.open(url, '_blank', 'noopener,noreferrer');
     };
 
     const mapState = selectedPoint
@@ -190,25 +191,6 @@ export default function TaskGeoLocation({ locations = [] }: TaskGeoLocationProps
                             <FullscreenControl />
                         </Map>
                     </YMaps>
-                    {routePoint && (
-                        <Box
-                            sx={{
-                                position: 'absolute',
-                                left: 16,
-                                bottom: 16,
-                                zIndex: 5,
-                            }}
-                        >
-                            <Button
-                                variant="contained"
-                                color="primary"
-                                onClick={openRoute}
-                                sx={{ borderRadius: 999 }}
-                            >
-                                Маршрут
-                            </Button>
-                        </Box>
-                    )}
                 </Box>
             </Dialog>
         </>
