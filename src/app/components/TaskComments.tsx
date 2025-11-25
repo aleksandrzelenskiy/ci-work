@@ -86,6 +86,11 @@ export default function TaskComments({
         setComments(initialComments ?? []);
     }, [initialComments]);
 
+    const normalizedTaskId = React.useMemo(
+        () => (taskId ? taskId.trim().toUpperCase() : ''),
+        [taskId]
+    );
+
     const optimizeImageFile = React.useCallback(async (input: File): Promise<File> => {
         if (!input.type.startsWith('image/')) return input;
 
@@ -168,7 +173,7 @@ export default function TaskComments({
     }, []);
 
     React.useEffect(() => {
-        if (!taskId) return undefined;
+        if (!normalizedTaskId) return undefined;
 
         let cancelled = false;
         let cleanup: (() => void) | null = null;
@@ -176,18 +181,18 @@ export default function TaskComments({
         const connectSocket = async () => {
             try {
                 const socket = (await getSocketClient()) as TaskSocket;
-                if (cancelled || !taskId) return;
+                if (cancelled || !normalizedTaskId) return;
 
                 const handleNewComment = (comment: TaskComment) => {
                     upsertComment(comment);
                 };
 
-                socket.emit('task:join', { taskId });
+                socket.emit('task:join', { taskId: normalizedTaskId });
                 socket.on('task:comment:new', handleNewComment);
 
                 cleanup = () => {
                     socket.off('task:comment:new', handleNewComment);
-                    socket.emit('task:leave', { taskId });
+                    socket.emit('task:leave', { taskId: normalizedTaskId });
                 };
             } catch (socketError) {
                 console.error('task comments socket error', socketError);
@@ -200,7 +205,7 @@ export default function TaskComments({
             cancelled = true;
             cleanup?.();
         };
-    }, [taskId, upsertComment]);
+    }, [normalizedTaskId, upsertComment]);
 
     const handleSubmit = async () => {
         if (!taskId) {

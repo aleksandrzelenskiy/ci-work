@@ -14,6 +14,17 @@ import type {
 import { verifySocketToken } from '@/server/socket/token';
 
 const USER_ROOM_PREFIX = 'notification:user:';
+const TASK_ROOM_PREFIX = 'task:';
+
+type TaskCommentPayload = {
+    _id: string;
+    text: string;
+    author: string;
+    authorId: string;
+    createdAt: string | Date;
+    photoUrl?: string;
+    profilePic?: string;
+};
 
 export class NotificationSocketGateway {
     private io?: SocketIOServer;
@@ -64,11 +75,28 @@ export class NotificationSocketGateway {
                 return;
             }
             socket.join(this.roomName(userId));
+
+            socket.on('task:join', ({ taskId }: { taskId?: string }) => {
+                const normalized = this.taskRoomName(taskId);
+                if (normalized) socket.join(normalized);
+            });
+
+            socket.on('task:leave', ({ taskId }: { taskId?: string }) => {
+                const normalized = this.taskRoomName(taskId);
+                if (normalized) socket.leave(normalized);
+            });
         });
     }
 
     private roomName(userId: string) {
         return `${USER_ROOM_PREFIX}${userId}`;
+    }
+
+    private taskRoomName(taskIdInput?: unknown) {
+        if (typeof taskIdInput !== 'string') return '';
+        const cleaned = taskIdInput.trim();
+        if (!cleaned) return '';
+        return `${TASK_ROOM_PREFIX}${cleaned.toUpperCase()}`;
     }
 
     private emit<E extends keyof NotificationServerToClientEvents>(
@@ -100,6 +128,13 @@ export class NotificationSocketGateway {
 
     public emitUnreadCount(userId: string, payload: NotificationUnreadEventPayload) {
         this.emit(userId, 'notification:unread', payload);
+    }
+
+    public emitTaskComment(taskId: string, payload: TaskCommentPayload) {
+        if (!this.io) return;
+        const room = this.taskRoomName(taskId);
+        if (!room) return;
+        this.io.to(room).emit('task:comment:new', payload);
     }
 }
 

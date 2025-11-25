@@ -7,6 +7,7 @@ import { currentUser } from '@clerk/nextjs/server';
 import { v4 as uuidv4 } from 'uuid';
 import { uploadTaskFile } from '@/utils/s3';
 import { createNotification } from '@/app/utils/notificationService';
+import { notificationSocketGateway } from '@/server/socket/notificationSocket';
 
 export const runtime = 'nodejs';
 export const dynamic = 'force-dynamic';
@@ -136,6 +137,12 @@ export async function POST(
 
     if (!updatedTask) {
       return NextResponse.json({ error: 'Task not found' }, { status: 404 });
+    }
+
+    try {
+      notificationSocketGateway.emitTaskComment(taskIdUpper, newComment);
+    } catch (socketError) {
+      console.error('Failed to emit task comment socket event', socketError);
     }
 
     // ===== Уведомления через NotificationBell =====
