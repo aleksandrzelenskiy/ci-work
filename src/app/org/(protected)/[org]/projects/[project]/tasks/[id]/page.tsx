@@ -59,6 +59,7 @@ import {
     TimelineContent,
     TimelineOppositeContent,
 } from '@mui/lab';
+import Masonry from '@mui/lab/Masonry';
 import { extractFileNameFromUrl, isDocumentUrl } from '@/utils/taskFiles';
 
 type TaskFile = {
@@ -705,37 +706,18 @@ export default function TaskDetailsPage() {
                 </Paper>
             ) : (
                 <Box sx={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
-                    <Box
+                    <Masonry
+                        columns={{ xs: 1, sm: 2, md: 3 }}
+                        spacing={2}
                         sx={{
-                            display: 'grid',
-                            gap: 2,
-                            alignItems: 'start',
-                            gridTemplateColumns: {
-                                xs: '1fr',
-                                sm: 'repeat(3, minmax(0, 1fr))',
-                            },
-                            gridTemplateAreas: {
-                                xs: `
-                                    "info"
-                                    "work"
-                                    "desc"
-                                    "geo"
-                                    "files"
-                                    "docs"
-                                    "comments"
-                                    "history"
-                                `,
-                                sm: `
-                                    "info work work"
-                                    "desc geo files"
-                                    "docs docs files"
-                                    "comments comments history"
-                                `,
+                            '& > *': {
+                                width: '100%',
+                                boxSizing: 'border-box',
                             },
                         }}
                     >
                         {/* Информация */}
-                        <CardItem sx={{ gridArea: 'info', minWidth: 0 }}>
+                        <CardItem sx={{ minWidth: 0 }}>
                             <Typography
                                 variant="subtitle1"
                                 fontWeight={600}
@@ -825,14 +807,37 @@ export default function TaskDetailsPage() {
                             </Stack>
                         </CardItem>
 
+                        {/* Описание */}
+                        <CardItem sx={{ minWidth: 0 }}>
+                            <Typography
+                                variant="body1"
+                                fontWeight={600}
+                                gutterBottom
+                                sx={{ display: 'flex', alignItems: 'center', gap: 1 }}
+                            >
+                                <DescriptionOutlinedIcon fontSize="small" />
+                                Описание
+                            </Typography>
+                            <Divider sx={{ mb: 1.5 }} />
+                            {task.taskDescription ? (
+                                <Typography sx={{ whiteSpace: 'pre-wrap' }}>
+                                    {task.taskDescription}
+                                </Typography>
+                            ) : (
+                                <Typography color="text.secondary">
+                                    Нет описания
+                                </Typography>
+                            )}
+                        </CardItem>
+
+                        {/* Геолокация */}
+                        <CardItem sx={{ minWidth: 0 }}>
+                            <TaskGeoLocation locations={task.bsLocation} />
+                        </CardItem>
+
                         {/* Состав работ */}
                         {(hasWorkItems || Array.isArray(task.workItems)) && (
-                            <CardItem
-                                sx={{
-                                    gridArea: 'work',
-                                    minWidth: 0,
-                                }}
-                            >
+                            <CardItem sx={{ minWidth: 0 }}>
                                 <Accordion
                                     defaultExpanded
                                     disableGutters
@@ -909,36 +914,8 @@ export default function TaskDetailsPage() {
                             </CardItem>
                         )}
 
-                        {/* Описание */}
-                        <CardItem sx={{ gridArea: 'desc', minWidth: 0 }}>
-                            <Typography
-                                variant="body1"
-                                fontWeight={600}
-                                gutterBottom
-                                sx={{ display: 'flex', alignItems: 'center', gap: 1 }}
-                            >
-                                <DescriptionOutlinedIcon fontSize="small" />
-                                Описание
-                            </Typography>
-                            <Divider sx={{ mb: 1.5 }} />
-                            {task.taskDescription ? (
-                                <Typography sx={{ whiteSpace: 'pre-wrap' }}>
-                                    {task.taskDescription}
-                                </Typography>
-                            ) : (
-                                <Typography color="text.secondary">
-                                    Нет описания
-                                </Typography>
-                            )}
-                        </CardItem>
-
-                        {/* Геолокация */}
-                        <CardItem sx={{ gridArea: 'geo', minWidth: 0 }}>
-                            <TaskGeoLocation locations={task.bsLocation} />
-                        </CardItem>
-
                         {/* Вложения — если есть */}
-                        <CardItem sx={{ gridArea: 'files', minWidth: 0 }}>
+                        <CardItem sx={{ minWidth: 0 }}>
                             <Typography
                                 variant="subtitle1"
                                 fontWeight={600}
@@ -982,7 +959,7 @@ export default function TaskDetailsPage() {
                         </CardItem>
 
                         {/* Документы */}
-                        <CardItem sx={{ gridArea: 'docs', minWidth: 0 }}>
+                        <CardItem sx={{ minWidth: 0 }}>
                             <Typography
                                 variant="subtitle1"
                                 fontWeight={600}
@@ -1015,7 +992,7 @@ export default function TaskDetailsPage() {
                         </CardItem>
 
                         {/* Комментарии */}
-                        <CardItem sx={{ gridArea: 'comments', minWidth: 0 }}>
+                        <CardItem sx={{ minWidth: 0 }}>
                             <Typography
                                 variant="subtitle1"
                                 fontWeight={600}
@@ -1038,7 +1015,7 @@ export default function TaskDetailsPage() {
                         </CardItem>
 
                         {/* История */}
-                        <CardItem sx={{ gridArea: 'history', p: 0, minWidth: 0 }}>
+                        <CardItem sx={{ p: 0, minWidth: 0 }}>
                             <Accordion
                                 disableGutters
                                 elevation={0}
@@ -1142,7 +1119,7 @@ export default function TaskDetailsPage() {
                             task.orderUrl ||
                             task.orderDate ||
                             task.orderSignDate) && (
-                            <CardItem sx={{ gridColumn: '1 / -1', minWidth: 0 }}>
+                            <CardItem sx={{ minWidth: 0 }}>
                                 <Typography
                                     variant="subtitle1"
                                     fontWeight={600}
@@ -1183,7 +1160,7 @@ export default function TaskDetailsPage() {
                                 </Stack>
                             </CardItem>
                         )}
-                    </Box>
+                    </Masonry>
                 </Box>
             )}
 
