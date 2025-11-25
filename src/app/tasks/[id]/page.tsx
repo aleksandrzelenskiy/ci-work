@@ -405,6 +405,17 @@ export default function TaskDetailPage() {
                                     sx={{ mt: 0.5 }}
                                 />
                             )}
+                            {task.status && (
+                                <Chip
+                                    label={task.status}
+                                    size="small"
+                                    sx={{
+                                        bgcolor: getStatusColor(task.status),
+                                        color: '#fff',
+                                        fontWeight: 500,
+                                    }}
+                                />
+                            )}
                         </Stack>
 
                         {(task.projectName || task.projectKey) && (
@@ -430,17 +441,6 @@ export default function TaskDetailPage() {
                             </Typography>
                         )}
 
-                        {task.status && (
-                            <Chip
-                                label={task.status}
-                                size="small"
-                                sx={{
-                                    bgcolor: getStatusColor(task.status),
-                                    color: '#fff',
-                                    fontWeight: 500,
-                                }}
-                            />
-                        )}
                     </Box>
                 </Stack>
                 <Stack direction="row" spacing={1}>
