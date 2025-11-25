@@ -43,7 +43,7 @@ import ProjectTaskCalendar from '@/app/workspace/components/ProjectTaskCalendar'
 import { defaultTaskFilters, type TaskFilters } from '@/app/types/taskFilters';
 import { getPriorityLabelRu } from '@/utils/priorityIcons';
 import { startOfDay, endOfDay } from 'date-fns';
-import { getStatusLabel, STATUS_ORDER } from '@/utils/statusLabels';
+import { getStatusLabel, normalizeStatusTitle, STATUS_ORDER } from '@/utils/statusLabels';
 
 type Priority = 'urgent' | 'high' | 'medium' | 'low';
 
@@ -196,8 +196,7 @@ export default function ProjectTasksPage() {
         const statuses = Array.from(
             new Set(
                 items
-                    .map((task) => task.status)
-                    .filter((status): status is string => Boolean(status))
+                    .map((task) => normalizeStatusTitle(task.status))
             )
         );
         const priorities = Array.from(
