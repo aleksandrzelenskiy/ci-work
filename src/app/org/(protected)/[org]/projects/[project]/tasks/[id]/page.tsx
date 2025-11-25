@@ -707,11 +707,10 @@ export default function TaskDetailsPage() {
             ) : (
                 <Box sx={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
                     <Masonry
-                        columns={{ xs: 1, sm: 2, md: 3 }}
+                        columns={{ xs: 1, sm: 1, md: 2, lg: 3, xl: 4 }}
                         spacing={2}
                         sx={{
                             '& > *': {
-                                width: '100%',
                                 boxSizing: 'border-box',
                             },
                         }}
