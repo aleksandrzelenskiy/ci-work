@@ -478,9 +478,10 @@ export default function NavigationMenu({ onNavigateAction }: NavigationMenuProps
                 {navItems.map((item) => {
                     const hasChildren =
                         Array.isArray(item.children) && item.children.length > 0;
+                    const children = hasChildren ? item.children : [];
                     const childActive =
                         hasChildren &&
-                        item.children.some(
+                        children.some(
                             (child) =>
                                 pathname === child.path ||
                                 pathname.startsWith(`${child.path}/`)
@@ -587,7 +588,7 @@ export default function NavigationMenu({ onNavigateAction }: NavigationMenuProps
                                             pt: 0.5,
                                         }}
                                     >
-                                        {item.children?.map((child) => {
+                                        {children.map((child) => {
                                             const childIsActive =
                                                 pathname === child.path ||
                                                 pathname.startsWith(`${child.path}/`);
