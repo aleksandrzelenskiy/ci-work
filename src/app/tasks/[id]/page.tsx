@@ -24,6 +24,7 @@ import {
     TableRow,
     Tooltip,
     Typography,
+    Dialog,
 } from '@mui/material';
 import { styled } from '@mui/material/styles';
 import ExpandMoreIcon from '@mui/icons-material/ExpandMore';
@@ -35,7 +36,18 @@ import CommentOutlinedIcon from '@mui/icons-material/CommentOutlined';
 import TocOutlinedIcon from '@mui/icons-material/TocOutlined';
 import AttachFileOutlinedIcon from '@mui/icons-material/AttachFileOutlined';
 import HistoryIcon from '@mui/icons-material/History';
-import { Timeline, TimelineConnector, TimelineContent, TimelineDot, TimelineItem, TimelineOppositeContent, TimelineSeparator } from '@mui/lab';
+import {
+    Timeline,
+    TimelineConnector,
+    TimelineContent,
+    TimelineDot,
+    TimelineItem,
+    TimelineOppositeContent,
+    TimelineSeparator,
+} from '@mui/lab';
+import Masonry from '@mui/lab/Masonry';
+import OpenInFullIcon from '@mui/icons-material/OpenInFull';
+import CloseFullscreenIcon from '@mui/icons-material/CloseFullscreen';
 import { FINANCE_CONFIG } from '@/config/finance';
 import { getPriorityIcon, normalizePriority } from '@/utils/priorityIcons';
 import TaskGeoLocation from '@/app/workspace/components/TaskGeoLocation';
@@ -75,6 +87,8 @@ export default function TaskDetailPage() {
     const [loading, setLoading] = React.useState(true);
     const [error, setError] = React.useState<string | null>(null);
     const [userRole, setUserRole] = React.useState<LoadedRole>(null);
+    const [workItemsFullScreen, setWorkItemsFullScreen] = React.useState(false);
+    const [commentsFullScreen, setCommentsFullScreen] = React.useState(false);
 
     const roleLoaded = userRole !== null;
     const isExecutor = isExecutorRole(userRole);
@@ -255,6 +269,70 @@ export default function TaskDetailPage() {
         return parsed.name;
     };
 
+    const renderWorkItemsTable = (maxHeight?: number | string) => {
+        if (!hasWorkItems) {
+            return (
+                <Typography color="text.secondary" sx={{ px: 1 }}>
+                    Нет данных
+                </Typography>
+            );
+        }
+
+        return (
+            <Box
+                sx={{
+                    maxHeight: maxHeight ?? { xs: 320, md: 420 },
+                    overflow: 'auto',
+                }}
+            >
+                <Table size="small" stickyHeader>
+                    <TableHead>
+                        <TableRow>
+                            <TableCell>Вид работ</TableCell>
+                            <TableCell>Кол-во</TableCell>
+                            <TableCell>Ед.</TableCell>
+                            <TableCell>Примечание</TableCell>
+                        </TableRow>
+                    </TableHead>
+                    <TableBody>
+                        {task?.workItems?.map((item: WorkItem, idx) => (
+                            <TableRow key={`work-${idx}`}>
+                                <TableCell sx={{ minWidth: 180 }}>{item.workType || '—'}</TableCell>
+                                <TableCell sx={{ whiteSpace: 'nowrap' }}>
+                                    {Number.isFinite(item.quantity) ? item.quantity : '—'}
+                                </TableCell>
+                                <TableCell sx={{ whiteSpace: 'nowrap' }}>{item.unit || '—'}</TableCell>
+                                <TableCell>{item.note || '—'}</TableCell>
+                            </TableRow>
+                        ))}
+                    </TableBody>
+                </Table>
+            </Box>
+        );
+    };
+
+    const renderCommentsSection = (maxHeight?: number | string) => {
+        const currentTask = task;
+        if (!currentTask) return null;
+
+        return (
+            <Box
+                sx={{
+                    maxHeight: maxHeight ?? { xs: 360, md: 520 },
+                    overflow: 'auto',
+                }}
+            >
+                <TaskComments
+                    taskId={currentTask.taskId || taskId}
+                    initialComments={currentTask.comments as TaskComment[]}
+                    onTaskUpdated={(updatedTask) =>
+                        setTask((prev) => (prev ? { ...prev, ...(updatedTask as Partial<Task>) } : prev))
+                    }
+                />
+            </Box>
+        );
+    };
+
     if (loading) {
         return (
             <Box sx={{ display: 'flex', justifyContent: 'center', mt: 4 }}>
@@ -377,34 +455,16 @@ export default function TaskDetailPage() {
             </Stack>
 
             <Box sx={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
-                <Box
+                <Masonry
+                    columns={{ xs: 1, sm: 1, md: 2, lg: 3, xl: 4 }}
+                    spacing={2}
                     sx={{
-                        display: 'grid',
-                        gap: 2,
-                        alignItems: 'start',
-                        gridTemplateColumns: {
-                            xs: '1fr',
-                            sm: 'repeat(3, minmax(0, 1fr))',
-                        },
-                        gridTemplateAreas: {
-                            xs: `
-                                    "info"
-                                    "work"
-                                    "desc"
-                                    "geo"
-                                    "files"
-                                    "comments"
-                                    "history"
-                                `,
-                            sm: `
-                                    "info work work"
-                                    "desc geo files"
-                                    "comments comments history"
-                                `,
+                        '& > *': {
+                            boxSizing: 'border-box',
                         },
                     }}
                 >
-                    <CardItem sx={{ gridArea: 'info', minWidth: 0 }}>
+                    <CardItem sx={{ minWidth: 0 }}>
                         <Typography
                             variant="subtitle1"
                             fontWeight={600}
@@ -426,8 +486,7 @@ export default function TaskDetailPage() {
                             </Typography>
 
                             <Typography variant="body1">
-                                <strong>Срок:</strong>{' '}
-                                {task.dueDate ? formatDate(task.dueDate) : '—'}
+                                <strong>Срок:</strong> {task.dueDate ? formatDate(task.dueDate) : '—'}
                             </Typography>
                             <Typography
                                 variant="body1"
@@ -464,8 +523,7 @@ export default function TaskDetailPage() {
 
                             {(task.executorName || task.executorEmail) && (
                                 <Typography variant="body1">
-                                    <strong>Исполнитель:</strong>{' '}
-                                    {task.executorName || task.executorEmail}
+                                    <strong>Исполнитель:</strong> {task.executorName || task.executorEmail}
                                 </Typography>
                             )}
 
@@ -490,83 +548,7 @@ export default function TaskDetailPage() {
                         </Stack>
                     </CardItem>
 
-                    {(hasWorkItems || Array.isArray(task.workItems)) && (
-                        <CardItem
-                            sx={{
-                                gridArea: 'work',
-                                minWidth: 0,
-                            }}
-                        >
-                            <Accordion
-                                defaultExpanded
-                                disableGutters
-                                elevation={0}
-                                sx={{ '&:before': { display: 'none' } }}
-                            >
-                                <AccordionSummary expandIcon={<ExpandMoreIcon />}>
-                                    <Typography
-                                        variant="subtitle1"
-                                        fontWeight={600}
-                                        gutterBottom
-                                        sx={{
-                                            display: 'flex',
-                                            alignItems: 'center',
-                                            gap: 1,
-                                        }}
-                                    >
-                                        <TocOutlinedIcon fontSize="small" />
-                                        Состав работ
-                                    </Typography>
-                                </AccordionSummary>
-                                <AccordionDetails sx={{ pt: 0 }}>
-                                    <Divider sx={{ mb: 1.5 }} />
-                                    {!hasWorkItems ? (
-                                        <Typography color="text.secondary" sx={{ px: 1 }}>
-                                            Нет данных
-                                        </Typography>
-                                    ) : (
-                                        <Box
-                                            sx={{
-                                                maxHeight: { xs: 320, md: 420 },
-                                                overflow: 'auto',
-                                            }}
-                                        >
-                                            <Table size="small" stickyHeader>
-                                                <TableHead>
-                                                    <TableRow>
-                                                        <TableCell>Вид работ</TableCell>
-                                                        <TableCell>Кол-во</TableCell>
-                                                        <TableCell>Ед.</TableCell>
-                                                        <TableCell>Примечание</TableCell>
-                                                    </TableRow>
-                                                </TableHead>
-                                                <TableBody>
-                                                    {task.workItems?.map((item: WorkItem, idx) => (
-                                                        <TableRow key={`work-${idx}`}>
-                                                            <TableCell sx={{ minWidth: 180 }}>
-                                                                {item.workType || '—'}
-                                                            </TableCell>
-                                                            <TableCell sx={{ whiteSpace: 'nowrap' }}>
-                                                                {typeof item.quantity === 'number'
-                                                                    ? item.quantity
-                                                                    : '—'}
-                                                            </TableCell>
-                                                            <TableCell sx={{ whiteSpace: 'nowrap' }}>
-                                                                {item.unit || '—'}
-                                                            </TableCell>
-                                                            <TableCell>{item.note || '—'}</TableCell>
-                                                        </TableRow>
-                                                    ))}
-                                                </TableBody>
-                                            </Table>
-                                        </Box>
-                                    )}
-                                </AccordionDetails>
-                            </Accordion>
-                        </CardItem>
-                    )}
-
-                    <CardItem sx={{ gridArea: 'desc', minWidth: 0 }}>
+                    <CardItem sx={{ minWidth: 0 }}>
                         <Typography
                             variant="body1"
                             fontWeight={600}
@@ -578,19 +560,81 @@ export default function TaskDetailPage() {
                         </Typography>
                         <Divider sx={{ mb: 1.5 }} />
                         {task.taskDescription ? (
-                            <Typography sx={{ whiteSpace: 'pre-wrap' }}>
-                                {task.taskDescription}
-                            </Typography>
+                            <Typography sx={{ whiteSpace: 'pre-wrap' }}>{task.taskDescription}</Typography>
                         ) : (
                             <Typography color="text.secondary">Нет описания</Typography>
                         )}
                     </CardItem>
 
-                    <CardItem sx={{ gridArea: 'geo', minWidth: 0 }}>
+                    <CardItem sx={{ minWidth: 0 }}>
                         <TaskGeoLocation locations={task.bsLocation} />
                     </CardItem>
 
-                    <CardItem sx={{ gridArea: 'files', minWidth: 0 }}>
+                    {(hasWorkItems || Array.isArray(task.workItems)) && (
+                        <CardItem
+                            sx={(theme) => ({
+                                minWidth: 0,
+                                width: {
+                                    xs: `calc(100% - ${theme.spacing(2)})`,
+                                    sm: `calc(100% - ${theme.spacing(2)})`,
+                                    md: `calc(100% - ${theme.spacing(2)})`,
+                                    lg: `calc((100% / 3 * 2) - ${theme.spacing(2)})`,
+                                    xl: `calc((100% / 4 * 2) - ${theme.spacing(2)})`,
+                                },
+                            })}
+                        >
+                            <Accordion
+                                defaultExpanded
+                                disableGutters
+                                elevation={0}
+                                sx={{ '&:before': { display: 'none' } }}
+                            >
+                                <AccordionSummary expandIcon={<ExpandMoreIcon />}>
+                                    <Box
+                                        sx={{
+                                            display: 'flex',
+                                            alignItems: 'center',
+                                            justifyContent: 'space-between',
+                                            width: '100%',
+                                            gap: 1,
+                                        }}
+                                    >
+                                        <Typography
+                                            variant="subtitle1"
+                                            fontWeight={600}
+                                            gutterBottom
+                                            sx={{
+                                                display: 'flex',
+                                                alignItems: 'center',
+                                                gap: 1,
+                                            }}
+                                        >
+                                            <TocOutlinedIcon fontSize="small" />
+                                            Состав работ
+                                        </Typography>
+
+                                        <Tooltip title="Развернуть на весь экран">
+                                            <IconButton
+                                                size="small"
+                                                onClick={(e) => {
+                                                    e.stopPropagation();
+                                                    setWorkItemsFullScreen(true);
+                                                }}
+                                            >
+                                                <OpenInFullIcon fontSize="inherit" />
+                                            </IconButton>
+                                        </Tooltip>
+                                    </Box>
+                                </AccordionSummary>
+                                <AccordionDetails sx={{ pt: 0 }}>
+                                    <Divider sx={{ mb: 1.5 }} />
+                                    {renderWorkItemsTable()}
+                                </AccordionDetails>
+                            </Accordion>
+                        </CardItem>
+                    )}
+
+                    <CardItem sx={{ minWidth: 0 }}>
                         <Typography
                             variant="subtitle1"
                             fontWeight={600}
@@ -631,29 +675,58 @@ export default function TaskDetailPage() {
                         )}
                     </CardItem>
 
-                    <CardItem sx={{ gridArea: 'comments', minWidth: 0 }}>
-                        <Typography
-                            variant="subtitle1"
-                            fontWeight={600}
-                            gutterBottom
-                            sx={{ display: 'flex', alignItems: 'center', gap: 1 }}
+                    <CardItem sx={{ minWidth: 0 }}>
+                        <Accordion
+                            defaultExpanded={!!task?.comments?.length}
+                            disableGutters
+                            elevation={0}
+                            sx={{ '&:before': { display: 'none' } }}
                         >
-                            <CommentOutlinedIcon fontSize="small" />
-                            Комментарии
-                        </Typography>
-                        <Divider sx={{ mb: 1.5 }} />
-                        <TaskComments
-                            taskId={task.taskId || taskId}
-                            initialComments={task.comments as TaskComment[]}
-                            onTaskUpdated={(updatedTask) =>
-                                setTask((prev) =>
-                                    prev ? { ...prev, ...(updatedTask as Partial<Task>) } : prev
-                                )
-                            }
-                        />
+                            <AccordionSummary expandIcon={<ExpandMoreIcon />}>
+                                <Box
+                                    sx={{
+                                        display: 'flex',
+                                        alignItems: 'center',
+                                        justifyContent: 'space-between',
+                                        width: '100%',
+                                        gap: 1,
+                                    }}
+                                >
+                                    <Typography
+                                        variant="subtitle1"
+                                        fontWeight={600}
+                                        gutterBottom
+                                        sx={{
+                                            display: 'flex',
+                                            alignItems: 'center',
+                                            gap: 1,
+                                        }}
+                                    >
+                                        <CommentOutlinedIcon fontSize="small" />
+                                        Комментарии
+                                    </Typography>
+
+                                    <Tooltip title="Развернуть на весь экран">
+                                        <IconButton
+                                            size="small"
+                                            onClick={(e) => {
+                                                e.stopPropagation();
+                                                setCommentsFullScreen(true);
+                                            }}
+                                        >
+                                            <OpenInFullIcon fontSize="inherit" />
+                                        </IconButton>
+                                    </Tooltip>
+                                </Box>
+                            </AccordionSummary>
+                            <AccordionDetails sx={{ pt: 0 }}>
+                                <Divider sx={{ mb: 1.5 }} />
+                                {renderCommentsSection()}
+                            </AccordionDetails>
+                        </Accordion>
                     </CardItem>
 
-                    <CardItem sx={{ gridArea: 'history', p: 0, minWidth: 0 }}>
+                    <CardItem sx={{ p: 0, minWidth: 0 }}>
                         <Accordion disableGutters elevation={0} sx={{ '&:before': { display: 'none' } }}>
                             <AccordionSummary expandIcon={<ExpandMoreIcon />}>
                                 <Typography
@@ -703,11 +776,7 @@ export default function TaskDetailPage() {
                                                 </TimelineOppositeContent>
                                                 <TimelineSeparator>
                                                     <TimelineDot
-                                                        color={
-                                                            ev.action === 'TASK_CREATED'
-                                                                ? 'primary'
-                                                                : 'success'
-                                                        }
+                                                        color={ev.action === 'TASK_CREATED' ? 'primary' : 'success'}
                                                     />
                                                     {idx < sortedEvents.length - 1 && <TimelineConnector />}
                                                 </TimelineSeparator>
@@ -729,20 +798,16 @@ export default function TaskDetailPage() {
                     </CardItem>
 
                     {(task.orderNumber || task.orderUrl || task.orderDate || task.orderSignDate) && (
-                        <CardItem sx={{ gridColumn: '1 / -1', minWidth: 0 }}>
+                        <CardItem sx={{ minWidth: 0 }}>
                             <Typography variant="subtitle1" fontWeight={600} gutterBottom>
                                 Заказ / договор
                             </Typography>
                             <Divider sx={{ mb: 1.5 }} />
                             <Stack gap={0.5}>
                                 {task.orderNumber && <Typography>Номер: {task.orderNumber}</Typography>}
-                                {task.orderDate && (
-                                    <Typography>Дата заказа: {formatDate(task.orderDate)}</Typography>
-                                )}
+                                {task.orderDate && <Typography>Дата заказа: {formatDate(task.orderDate)}</Typography>}
                                 {task.orderSignDate && (
-                                    <Typography>
-                                        Дата подписания: {formatDate(task.orderSignDate)}
-                                    </Typography>
+                                    <Typography>Дата подписания: {formatDate(task.orderSignDate)}</Typography>
                                 )}
                                 {task.orderUrl && (
                                     <Button
@@ -758,8 +823,52 @@ export default function TaskDetailPage() {
                             </Stack>
                         </CardItem>
                     )}
-                </Box>
+                </Masonry>
             </Box>
+
+            <Dialog fullScreen open={workItemsFullScreen} onClose={() => setWorkItemsFullScreen(false)}>
+                <Box
+                    sx={{
+                        display: 'flex',
+                        alignItems: 'center',
+                        justifyContent: 'space-between',
+                        p: 2,
+                        borderBottom: 1,
+                        borderColor: 'divider',
+                    }}
+                >
+                    <Typography variant="h6" fontWeight={600}>
+                        Состав работ
+                    </Typography>
+                    <IconButton onClick={() => setWorkItemsFullScreen(false)}>
+                        <CloseFullscreenIcon />
+                    </IconButton>
+                </Box>
+
+                <Box sx={{ p: 2 }}>{renderWorkItemsTable('calc(100vh - 80px)')}</Box>
+            </Dialog>
+
+            <Dialog fullScreen open={commentsFullScreen} onClose={() => setCommentsFullScreen(false)}>
+                <Box
+                    sx={{
+                        display: 'flex',
+                        alignItems: 'center',
+                        justifyContent: 'space-between',
+                        p: 2,
+                        borderBottom: 1,
+                        borderColor: 'divider',
+                    }}
+                >
+                    <Typography variant="h6" fontWeight={600}>
+                        Комментарии
+                    </Typography>
+                    <IconButton onClick={() => setCommentsFullScreen(false)}>
+                        <CloseFullscreenIcon />
+                    </IconButton>
+                </Box>
+
+                <Box sx={{ p: 2 }}>{renderCommentsSection('calc(100vh - 80px)')}</Box>
+            </Dialog>
         </Box>
     );
 }
