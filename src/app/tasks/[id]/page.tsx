@@ -25,6 +25,9 @@ import {
     Tooltip,
     Typography,
     Dialog,
+    DialogActions,
+    DialogContent,
+    DialogTitle,
 } from '@mui/material';
 import { styled } from '@mui/material/styles';
 import ExpandMoreIcon from '@mui/icons-material/ExpandMore';
@@ -90,6 +93,9 @@ export default function TaskDetailPage() {
     const [userRole, setUserRole] = React.useState<LoadedRole>(null);
     const [workItemsFullScreen, setWorkItemsFullScreen] = React.useState(false);
     const [commentsFullScreen, setCommentsFullScreen] = React.useState(false);
+    const [pendingDecision, setPendingDecision] = React.useState<'accept' | 'reject' | null>(null);
+    const [decisionLoading, setDecisionLoading] = React.useState(false);
+    const [decisionError, setDecisionError] = React.useState<string | null>(null);
 
     const roleLoaded = userRole !== null;
     const isExecutor = isExecutorRole(userRole);
@@ -334,6 +340,46 @@ export default function TaskDetailPage() {
         );
     };
 
+    const closeDecisionDialog = () => {
+        if (decisionLoading) return;
+        setPendingDecision(null);
+        setDecisionError(null);
+    };
+
+    const handleDecisionConfirm = async () => {
+        if (!pendingDecision) return;
+        if (!taskId) {
+            setDecisionError('Не найден идентификатор задачи');
+            return;
+        }
+        setDecisionLoading(true);
+        setDecisionError(null);
+        try {
+            const res = await fetch(`/api/tasks/${encodeURIComponent(taskId)}`, {
+                method: 'PATCH',
+                headers: {
+                    'Content-Type': 'application/json',
+                },
+                body: JSON.stringify({ decision: pendingDecision }),
+            });
+            const data = (await res.json()) as { task?: Task; error?: string };
+            if (!res.ok || !data.task) {
+                setDecisionError(data.error || 'Не удалось обновить задачу');
+                return;
+            }
+
+            setTask((prev) => {
+                const updated = data.task as Task;
+                return prev ? { ...prev, ...updated } : updated;
+            });
+            setPendingDecision(null);
+        } catch (e) {
+            setDecisionError(e instanceof Error ? e.message : 'Неизвестная ошибка');
+        } finally {
+            setDecisionLoading(false);
+        }
+    };
+
     if (loading) {
         return (
             <Box sx={{ display: 'flex', justifyContent: 'center', mt: 4 }}>
@@ -374,11 +420,11 @@ export default function TaskDetailPage() {
         );
     }
 
-    return (
-        <Box
-            sx={{
-                px: { xs: 0.5, md: 1.5 },
-                py: 2,
+        return (
+            <Box
+                sx={{
+                    px: { xs: 0.5, md: 1.5 },
+                    py: 2,
                 display: 'flex',
                 flexDirection: 'column',
                 gap: 2,
@@ -546,6 +592,67 @@ export default function TaskDetailPage() {
                                     {task.createdAt ? formatDate(task.createdAt) : '—'}
                                 </Typography>
                             </Box>
+
+                            <Divider sx={{ mt: 1.5, mb: 1 }} />
+                            <Stack spacing={1}>
+                                <Stack
+                                    direction={{ xs: 'column', sm: 'row' }}
+                                    spacing={1.5}
+                                    alignItems={{ xs: 'stretch', sm: 'center' }}
+                                    justifyContent="flex-start"
+                                >
+                                    <Button
+                                        variant="contained"
+                                        onClick={() => {
+                                            setDecisionError(null);
+                                            setPendingDecision('accept');
+                                        }}
+                                        disabled={decisionLoading || task.status === 'At work'}
+                                        sx={{
+                                            borderRadius: 999,
+                                            textTransform: 'none',
+                                            px: 2.75,
+                                            py: 1.1,
+                                            fontWeight: 700,
+                                            background: 'linear-gradient(135deg, #2fd66b, #1ecf5a)',
+                                            boxShadow: '0 10px 28px rgba(38, 189, 104, 0.35)',
+                                            color: '#0b2916',
+                                            '&:hover': {
+                                                background: 'linear-gradient(135deg, #29c961, #1abf51)',
+                                            },
+                                        }}
+                                    >
+                                        Принять
+                                    </Button>
+                                    <Button
+                                        variant="contained"
+                                        onClick={() => {
+                                            setDecisionError(null);
+                                            setPendingDecision('reject');
+                                        }}
+                                        disabled={decisionLoading || task.status === 'To do'}
+                                        sx={{
+                                            borderRadius: 999,
+                                            textTransform: 'none',
+                                            px: 2.75,
+                                            py: 1.1,
+                                            fontWeight: 700,
+                                            background: 'linear-gradient(135deg, #f4f6fa, #e8ebf1)',
+                                            boxShadow: '0 8px 22px rgba(15, 16, 20, 0.12)',
+                                            color: '#0f1115',
+                                            border: '1px solid rgba(0,0,0,0.06)',
+                                            '&:hover': {
+                                                background: 'linear-gradient(135deg, #e6e9ef, #d9dce4)',
+                                            },
+                                        }}
+                                    >
+                                        Отказать
+                                    </Button>
+                                </Stack>
+                                <Typography variant="caption" color="text.secondary">
+                                    Статус после принятия: At work. После отказа: To do.
+                                </Typography>
+                            </Stack>
                         </Stack>
                     </CardItem>
 
@@ -826,6 +933,99 @@ export default function TaskDetailPage() {
                     )}
                 </Masonry>
             </Box>
+
+            <Dialog
+                open={!!pendingDecision}
+                onClose={closeDecisionDialog}
+                slotProps={{
+                    paper: {
+                        sx: {
+                            borderRadius: 4,
+                            background:
+                                'linear-gradient(160deg, rgba(255,255,255,0.92), rgba(244,247,252,0.94))',
+                            border: '1px solid rgba(255,255,255,0.6)',
+                            boxShadow: '0 30px 80px rgba(12, 16, 29, 0.28)',
+                            backdropFilter: 'blur(18px)',
+                            minWidth: { xs: 'calc(100% - 32px)', sm: 420 },
+                        },
+                    },
+                }}
+            >
+                <DialogTitle sx={{ fontWeight: 700, pb: 0.5 }}>
+                    {pendingDecision === 'accept' ? 'Принять задачу' : 'Отказаться от задачи'}
+                </DialogTitle>
+                <DialogContent sx={{ pt: 1 }}>
+                    <Typography variant="body1" sx={{ mb: 1.5 }}>
+                        {pendingDecision === 'accept'
+                            ? `Вы подтверждаете что готовы принять задачу ${task.taskName} ${task.bsNumber || ''}? Срок выполнение - ${
+                                  task.dueDate ? formatDate(task.dueDate) : '—'
+                              }.`
+                            : `Вы уверены что хотите отказаться от задачи ${task.taskName} ${task.bsNumber || ''}?`}
+                    </Typography>
+                    {decisionError && (
+                        <Typography variant="body2" color="error" fontWeight={600}>
+                            {decisionError}
+                        </Typography>
+                    )}
+                </DialogContent>
+                <DialogActions
+                    sx={{
+                        px: 3,
+                        pb: 2.5,
+                        display: 'flex',
+                        gap: 1,
+                        justifyContent: 'flex-end',
+                    }}
+                >
+                    <Button
+                        onClick={closeDecisionDialog}
+                        disabled={decisionLoading}
+                        sx={{
+                            textTransform: 'none',
+                            borderRadius: 999,
+                            px: 2.25,
+                            py: 1,
+                            color: '#111',
+                            background: 'rgba(17,17,17,0.06)',
+                            '&:hover': {
+                                background: 'rgba(17,17,17,0.1)',
+                            },
+                        }}
+                    >
+                        Отмена
+                    </Button>
+                    <Button
+                        variant="contained"
+                        onClick={() => void handleDecisionConfirm()}
+                        disabled={decisionLoading}
+                        sx={{
+                            textTransform: 'none',
+                            borderRadius: 999,
+                            px: 2.75,
+                            py: 1,
+                            fontWeight: 700,
+                            background:
+                                pendingDecision === 'accept'
+                                    ? 'linear-gradient(135deg, #2fd66b, #1ecf5a)'
+                                    : 'linear-gradient(135deg, #f04343, #d33131)',
+                            boxShadow: '0 12px 28px rgba(0, 0, 0, 0.18)',
+                            color: pendingDecision === 'accept' ? '#0c2d18' : '#fff',
+                            '&:hover': {
+                                background:
+                                    pendingDecision === 'accept'
+                                        ? 'linear-gradient(135deg, #29c961, #1abf51)'
+                                        : 'linear-gradient(135deg, #db3c3c, #c12b2b)',
+                            },
+                        }}
+                    >
+                        {decisionLoading
+                            ? 'Сохранение...'
+                            : pendingDecision === 'accept'
+                              ? 'Принять'
+                              : 'Отказать'}
+                    </Button>
+                </DialogActions>
+            </Dialog>
 
             <Dialog fullScreen open={workItemsFullScreen} onClose={() => setWorkItemsFullScreen(false)}>
                 <Box

@@ -17,7 +17,7 @@ export const STATUS_LABELS_RU: Record<CurrentStatus, string> = {
     'At work': 'В работе',
     Done: 'Выполнено',
     Pending: 'На проверке',
-    Issues: 'Есть замечания',
+    Issues: 'Замечания',
     Fixed: 'Исправлено',
     Agreed: 'Согласовано',
 };
