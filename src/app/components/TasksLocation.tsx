@@ -145,7 +145,7 @@ export default function TasksLocation(): React.ReactElement {
         medium: true,
         low: true,
     }));
-    const [filtersOpen, setFiltersOpen] = React.useState(true);
+    const [filtersOpen, setFiltersOpen] = React.useState(false);
     const theme = useTheme();
     const isDark = theme.palette.mode === 'dark';
 
@@ -372,65 +372,64 @@ export default function TasksLocation(): React.ReactElement {
                     top: { xs: 12, md: 16 },
                     left: { xs: 12, md: 16 },
                     zIndex: 5,
-                    width: { xs: 'calc(100% - 24px)', sm: 420, md: 460 },
+                    width: { xs: 'auto', sm: 420, md: 460 },
                     pointerEvents: 'none',
+                    display: 'flex',
+                    flexDirection: 'column',
+                    gap: 1,
                 }}
             >
-                <Paper sx={{ ...glassPaperSx, pointerEvents: 'auto' }}>
-                    <Stack spacing={1.5}>
-                        <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 1 }}>
-                            <Box>
-                                <Typography variant="h6" fontWeight={700} sx={{ letterSpacing: 0.2 }}>
-                                    Мои задачи на карте
-                                </Typography>
-                                <Typography variant="body2" color="text.secondary">
-                                    Только БС из задач, назначенных вам. Фильтры — справа.
-                                </Typography>
-                            </Box>
-                            <IconButton
-                                aria-label="Фильтры"
-                                onClick={() => setFiltersOpen((prev) => !prev)}
-                                sx={{
-                                    bgcolor: filtersOpen ? alpha('#0f172a', 0.06) : 'transparent',
-                                    border: `1px solid ${alpha('#0f172a', 0.08)}`,
-                                    boxShadow: '0 8px 20px rgba(0,0,0,0.1)',
+                <Box sx={{ display: 'flex', gap: 1, pointerEvents: 'auto' }}>
+                    <IconButton
+                        aria-label="Фильтры"
+                        onClick={() => setFiltersOpen((prev) => !prev)}
+                        sx={{
+                            width: 48,
+                            height: 48,
+                            borderRadius: '50%',
+                            bgcolor: alpha('#0f172a', 0.08),
+                            border: `1px solid ${alpha('#0f172a', 0.12)}`,
+                            boxShadow: '0 10px 24px rgba(0,0,0,0.15)',
+                            backdropFilter: 'blur(10px)',
+                        }}
+                    >
+                        {filtersOpen ? <CloseRoundedIcon /> : <TuneRoundedIcon />}
+                    </IconButton>
+                </Box>
+
+                {filtersOpen && (
+                    <Paper sx={{ ...glassPaperSx, pointerEvents: 'auto', width: { xs: '92vw', sm: '100%' } }}>
+                        <Stack spacing={1.5}>
+                            <TextField
+                                fullWidth
+                                placeholder="Поиск по БС или задаче"
+                                value={search}
+                                onChange={(event) => setSearch(event.target.value)}
+                                size="small"
+                                variant="filled"
+                                InputProps={{
+                                    startAdornment: (
+                                        <InputAdornment position="start">
+                                            <SearchIcon />
+                                        </InputAdornment>
+                                    ),
+                                    endAdornment: search ? (
+                                        <InputAdornment position="end">
+                                            <IconButton size="small" onClick={() => setSearch('')}>
+                                                <CloseRoundedIcon fontSize="small" />
+                                            </IconButton>
+                                        </InputAdornment>
+                                    ) : null,
                                 }}
-                            >
-                                {filtersOpen ? <CloseRoundedIcon /> : <TuneRoundedIcon />}
-                            </IconButton>
-                        </Box>
+                                sx={{
+                                    '& .MuiFilledInput-root': {
+                                        borderRadius: 2,
+                                        backgroundColor: alpha(isDark ? '#0b1220' : '#ffffff', isDark ? 0.5 : 0.9),
+                                        backdropFilter: 'blur(12px)',
+                                    },
+                                }}
+                            />
 
-                        <TextField
-                            fullWidth
-                            placeholder="Поиск по БС или задаче"
-                            value={search}
-                            onChange={(event) => setSearch(event.target.value)}
-                            size="small"
-                            variant="filled"
-                            InputProps={{
-                                startAdornment: (
-                                    <InputAdornment position="start">
-                                        <SearchIcon />
-                                    </InputAdornment>
-                                ),
-                                endAdornment: search ? (
-                                    <InputAdornment position="end">
-                                        <IconButton size="small" onClick={() => setSearch('')}>
-                                            <CloseRoundedIcon fontSize="small" />
-                                        </IconButton>
-                                    </InputAdornment>
-                                ) : null,
-                            }}
-                            sx={{
-                                '& .MuiFilledInput-root': {
-                                    borderRadius: 2,
-                                    backgroundColor: alpha(isDark ? '#0b1220' : '#ffffff', isDark ? 0.5 : 0.9),
-                                    backdropFilter: 'blur(12px)',
-                                },
-                            }}
-                        />
-
-                        {filtersOpen && (
                             <Stack spacing={1}>
                                 <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
                                     <Typography variant="subtitle2" sx={{ fontWeight: 700 }}>
@@ -519,32 +518,33 @@ export default function TasksLocation(): React.ReactElement {
                                     })}
                                 </Box>
                             </Stack>
-                        )}
 
-                        <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, justifyContent: 'space-between' }}>
-                            <Typography variant="body2" fontWeight={600}>
-                                Точек на карте: {filteredPlacemarks.length}
-                            </Typography>
-                            {!filtersPristine && (
-                                <Button
-                                    size="small"
-                                    variant="text"
-                                    startIcon={<RestartAltRoundedIcon fontSize="small" />}
-                                    onClick={resetFilters}
-                                >
-                                    Сбросить
-                                </Button>
-                            )}
-                        </Box>
-                    </Stack>
-                </Paper>
+                            <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, justifyContent: 'space-between' }}>
+                                <Typography variant="body2" fontWeight={600}>
+                                    Точек на карте: {filteredPlacemarks.length}
+                                </Typography>
+                                {!filtersPristine && (
+                                    <Button
+                                        size="small"
+                                        variant="text"
+                                        startIcon={<RestartAltRoundedIcon fontSize="small" />}
+                                        onClick={resetFilters}
+                                    >
+                                        Сбросить
+                                    </Button>
+                                )}
+                            </Box>
+                        </Stack>
+                    </Paper>
+                )}
+
                 {showEmptyState && (
-                    <Alert severity="info" sx={{ mt: 1.5 }}>
+                    <Alert severity="info" sx={{ pointerEvents: 'auto', width: { xs: '92vw', sm: '100%' } }}>
                         Нет задач с координатами, назначенных вам.
                     </Alert>
                 )}
                 {error && (
-                    <Alert severity="error" sx={{ mt: 1.5 }}>
+                    <Alert severity="error" sx={{ pointerEvents: 'auto', width: { xs: '92vw', sm: '100%' } }}>
                         {error}
                     </Alert>
                 )}
@@ -579,7 +579,7 @@ export default function TasksLocation(): React.ReactElement {
                             <ZoomControl options={{ position: { right: 16, top: 80 } }} />
                             <Clusterer
                                 options={{
-                                    preset: 'islands#blueClusterIcons',
+                                    preset: 'islands#redClusterIcons',
                                     groupByCoordinates: false,
                                     gridSize: 80,
                                 }}
@@ -594,7 +594,8 @@ export default function TasksLocation(): React.ReactElement {
                                             iconCaption: point.bsNumber,
                                         }}
                                         options={{
-                                            preset: 'islands#blueCircleDotIcon',
+                                            preset: 'islands#redIcon',
+                                            iconColor: '#ef4444',
                                             hideIconOnBalloonOpen: false,
                                         }}
                                         modules={['geoObject.addon.balloon', 'geoObject.addon.hint']}
