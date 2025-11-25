@@ -18,6 +18,7 @@ export async function POST(
 ) {
   const { id } = await context.params; // дождаться параметров
   const taskId = id;
+  const taskIdUpper = taskId ? taskId.toUpperCase() : '';
 
   try {
     await dbConnect();
@@ -130,7 +131,7 @@ export async function POST(
 
     // ===== Обновляем задачу =====
     const updatedTask = await TaskModel.findOneAndUpdate(
-        { taskId: taskId.toUpperCase() },
+        { taskId: taskIdUpper },
         { $push: { comments: newComment, events: commentEvent } },
         { new: true }
     );
