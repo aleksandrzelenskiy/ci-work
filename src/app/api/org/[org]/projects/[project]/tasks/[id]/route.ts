@@ -21,6 +21,7 @@ import {
 } from '@/utils/bsLocation';
 import { splitAttachmentsAndDocuments } from '@/utils/taskFiles';
 import { deleteTaskFolder } from '@/utils/s3';
+import TaskDeletionLog from '@/app/models/TaskDeletionLog';
 
 
 export const runtime = 'nodejs';
@@ -321,7 +322,9 @@ export async function DELETE(
 
         const query = buildTaskQuery(orgId, projectId, id);
 
-        const deletedTask = await TaskModel.findOneAndDelete(query).select('taskId').lean();
+        const deletedTask = await TaskModel.findOneAndDelete(query)
+            .select('taskId orgId projectId taskName bsNumber')
+            .lean();
 
         if (!deletedTask) {
             return NextResponse.json({ error: 'Task not found' }, { status: 404 });
@@ -332,6 +335,17 @@ export async function DELETE(
                 ? deletedTask.taskId
                 : id;
         await deleteTaskFolder(taskIdForCleanup, orgSlug);
+
+        await TaskDeletionLog.create({
+            orgId: deletedTask.orgId,
+            projectId: deletedTask.projectId,
+            taskId: taskIdForCleanup,
+            taskName: deletedTask.taskName,
+            bsNumber: deletedTask.bsNumber,
+            deletedById: me.id,
+            deletedByEmail: email,
+            deletedAt: new Date(),
+        });
 
         return NextResponse.json({ ok: true });
     } catch (err) {
