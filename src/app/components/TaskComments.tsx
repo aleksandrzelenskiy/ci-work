@@ -6,12 +6,15 @@ import {
     Box,
     Button,
     CircularProgress,
+    Dialog,
+    IconButton,
     Paper,
     Stack,
     TextField,
     Typography,
 } from '@mui/material';
 import AttachFileOutlinedIcon from '@mui/icons-material/AttachFileOutlined';
+import CloseIcon from '@mui/icons-material/Close';
 import type { Socket } from 'socket.io-client';
 import { getSocketClient } from '@/app/lib/socketClient';
 
@@ -63,6 +66,8 @@ export default function TaskComments({
     const [file, setFile] = React.useState<File | null>(null);
     const [submitting, setSubmitting] = React.useState(false);
     const [error, setError] = React.useState<string | null>(null);
+    const [fileProcessing, setFileProcessing] = React.useState(false);
+    const [previewUrl, setPreviewUrl] = React.useState<string | null>(null);
 
     const upsertComment = React.useCallback((nextComment: TaskComment) => {
         setComments((prev) => {
@@ -79,6 +84,64 @@ export default function TaskComments({
     React.useEffect(() => {
         setComments(initialComments ?? []);
     }, [initialComments]);
+
+    const optimizeImageFile = React.useCallback(async (input: File): Promise<File> => {
+        if (!input.type.startsWith('image/')) return input;
+
+        const readAsDataUrl = () =>
+            new Promise<string>((resolve, reject) => {
+                const reader = new FileReader();
+                reader.onload = () => resolve((reader.result as string) || '');
+                reader.onerror = reject;
+                reader.readAsDataURL(input);
+            });
+
+        try {
+            const dataUrl = await readAsDataUrl();
+            if (!dataUrl) return input;
+
+            const image = await new Promise<HTMLImageElement>((resolve, reject) => {
+                const img = new Image();
+                img.onload = () => resolve(img);
+                img.onerror = reject;
+                img.src = dataUrl;
+            });
+
+            const maxDimension = 1600;
+            const scale =
+                Math.max(image.width, image.height) > maxDimension
+                    ? maxDimension / Math.max(image.width, image.height)
+                    : 1;
+            const targetWidth = Math.max(Math.round(image.width * scale), 1);
+            const targetHeight = Math.max(Math.round(image.height * scale), 1);
+
+            const canvas = document.createElement('canvas');
+            canvas.width = targetWidth;
+            canvas.height = targetHeight;
+            const ctx = canvas.getContext('2d');
+            if (!ctx) return input;
+
+            ctx.drawImage(image, 0, 0, targetWidth, targetHeight);
+
+            const blob: Blob | null = await new Promise((resolve) =>
+                canvas.toBlob((result) => resolve(result), 'image/jpeg', 0.75)
+            );
+            if (!blob) return input;
+
+            const optimized = new File([blob], input.name.replace(/\.(\w+)$/, '.jpg'), {
+                type: blob.type,
+                lastModified: Date.now(),
+            });
+
+            if (optimized.size >= input.size) {
+                return input;
+            }
+            return optimized;
+        } catch (optimizeError) {
+            console.error('optimize image failed', optimizeError);
+            return input;
+        }
+    }, []);
 
     React.useEffect(() => {
         if (!taskId) return undefined;
@@ -122,6 +185,10 @@ export default function TaskComments({
         }
         if (!text.trim()) {
             setError('Введите текст комментария');
+            return;
+        }
+        if (fileProcessing) {
+            setError('Дождитесь окончания оптимизации файла');
             return;
         }
 
@@ -224,12 +291,14 @@ export default function TaskComments({
                                             component="img"
                                             src={comment.photoUrl}
                                             alt="Комментарий"
+                                            onClick={() => setPreviewUrl(comment.photoUrl ?? null)}
                                             sx={{
                                                 mt: 1,
                                                 maxWidth: '100%',
                                                 borderRadius: 2,
                                                 border: '1px solid #e5e5ea',
                                                 boxShadow: '0 10px 30px rgba(0,0,0,0.08)',
+                                                cursor: 'pointer',
                                             }}
                                         />
                                     ) : (
@@ -300,9 +369,29 @@ export default function TaskComments({
                             type="file"
                             hidden
                             accept="image/*,application/pdf"
-                            onChange={(e) => {
-                                if (e.target.files && e.target.files[0]) {
-                                    setFile(e.target.files[0]);
+                            onChange={async (e) => {
+                                const inputEl = e.target;
+                                const selected = inputEl.files?.[0];
+                                if (!selected) {
+                                    inputEl.value = '';
+                                    return;
+                                }
+
+                                setFile(selected);
+                                if (!selected.type.startsWith('image/')) {
+                                    inputEl.value = '';
+                                    return;
+                                }
+
+                                setFileProcessing(true);
+                                try {
+                                    const optimized = await optimizeImageFile(selected);
+                                    setFile(optimized);
+                                } catch (optError) {
+                                    console.error(optError);
+                                } finally {
+                                    setFileProcessing(false);
+                                    inputEl.value = '';
                                 }
                             }}
                         />
@@ -310,6 +399,7 @@ export default function TaskComments({
                     {file && (
                         <Typography variant="body2" color="text.secondary">
                             {file.name}
+                            {fileProcessing ? ' (оптимизация...)' : ''}
                         </Typography>
                     )}
                 </Stack>
@@ -321,7 +411,7 @@ export default function TaskComments({
                 <Button
                     variant="contained"
                     onClick={handleSubmit}
-                    disabled={submitting || !taskId}
+                    disabled={submitting || !taskId || fileProcessing}
                     startIcon={submitting ? <CircularProgress size={18} color="inherit" /> : undefined}
                     sx={{
                         alignSelf: 'flex-start',
@@ -338,6 +428,48 @@ export default function TaskComments({
                     Добавить комментарий
                 </Button>
             </Stack>
+            <Dialog
+                fullScreen
+                open={Boolean(previewUrl)}
+                onClose={() => setPreviewUrl(null)}
+                PaperProps={{
+                    sx: {
+                        backgroundColor: 'rgba(0,0,0,0.9)',
+                        display: 'flex',
+                        alignItems: 'center',
+                        justifyContent: 'center',
+                        position: 'relative',
+                    },
+                }}
+            >
+                <IconButton
+                    aria-label="Закрыть"
+                    onClick={() => setPreviewUrl(null)}
+                    sx={{
+                        position: 'absolute',
+                        top: 16,
+                        right: 16,
+                        color: '#fff',
+                        bgcolor: 'rgba(0,0,0,0.35)',
+                        '&:hover': { bgcolor: 'rgba(0,0,0,0.55)' },
+                    }}
+                >
+                    <CloseIcon />
+                </IconButton>
+                {previewUrl && (
+                    <Box
+                        component="img"
+                        src={previewUrl}
+                        alt="Просмотр изображения"
+                        sx={{
+                            maxWidth: '100%',
+                            maxHeight: '100%',
+                            objectFit: 'contain',
+                            boxShadow: '0 12px 40px rgba(0,0,0,0.45)',
+                        }}
+                    />
+                )}
+            </Dialog>
         </Stack>
     );
 }
