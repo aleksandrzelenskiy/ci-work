@@ -905,8 +905,10 @@ export default function TaskDetailsPage() {
 
                         {/* Геолокация */}
                         <CardItem sx={{ minWidth: 0 }}>
-                            <Box sx={{ fontSize: '1rem', lineHeight: 1.6 }}>
+                            <Box sx={{ lineHeight: 1.6 }}>
+                                <Typography variant="body1">
                                 <TaskGeoLocation locations={task.bsLocation} />
+                                </Typography>
                             </Box>
                         </CardItem>
 
