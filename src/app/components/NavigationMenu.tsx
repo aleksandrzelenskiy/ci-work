@@ -478,7 +478,9 @@ export default function NavigationMenu({ onNavigateAction }: NavigationMenuProps
                 {navItems.map((item) => {
                     const hasChildren =
                         Array.isArray(item.children) && item.children.length > 0;
-                    const children = hasChildren ? item.children : [];
+                    const children: NavChildItem[] = hasChildren
+                        ? item.children ?? []
+                        : [];
                     const childActive =
                         hasChildren &&
                         children.some(
