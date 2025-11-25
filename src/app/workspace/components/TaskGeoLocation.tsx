@@ -99,12 +99,12 @@ export default function TaskGeoLocation({ locations = [] }: TaskGeoLocationProps
           };
 
     return (
-        <>
+        <Box sx={{ lineHeight: 1.6 }}>
             <Typography
-                variant="subtitle1"
+                variant="body1"
                 fontWeight={600}
                 gutterBottom
-                sx={{ display: 'flex', alignItems: 'center', gap: 1 }}
+                sx={{ display: 'flex', alignItems: 'center', gap: 1, lineHeight: 1.6 }}
             >
                 <LocationOnOutlinedIcon fontSize="small" />
                 Геолокация
@@ -115,13 +115,13 @@ export default function TaskGeoLocation({ locations = [] }: TaskGeoLocationProps
                 <Stack gap={1}>
                     {locations.map((loc, idx) => (
                         <Box key={idx}>
-                            <Typography variant="body2" sx={{ fontWeight: 500 }}>
+                            <Typography variant="body1" sx={{ fontWeight: 500, lineHeight: 1.6 }}>
                                 {loc.name || `Точка ${idx + 1}`}
                             </Typography>
                             <Typography
-                                variant="body2"
+                                variant="body1"
                                 color="primary"
-                                sx={{ cursor: 'pointer' }}
+                                sx={{ cursor: 'pointer', lineHeight: 1.6 }}
                                 onClick={() => handleOpen(loc, idx)}
                             >
                                 {loc.coordinates}
@@ -130,7 +130,7 @@ export default function TaskGeoLocation({ locations = [] }: TaskGeoLocationProps
                     ))}
                 </Stack>
             ) : (
-                <Typography color="text.secondary" variant="body2">
+                <Typography color="text.secondary" variant="body1" sx={{ lineHeight: 1.6 }}>
                     Геоданных нет
                 </Typography>
             )}
@@ -191,6 +191,6 @@ export default function TaskGeoLocation({ locations = [] }: TaskGeoLocationProps
                     </YMaps>
                 </Box>
             </Dialog>
-        </>
+        </Box>
     );
 }

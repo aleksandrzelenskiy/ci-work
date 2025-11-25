@@ -52,6 +52,7 @@ import { FINANCE_CONFIG } from '@/config/finance';
 import { getPriorityIcon, normalizePriority } from '@/utils/priorityIcons';
 import TaskGeoLocation from '@/app/workspace/components/TaskGeoLocation';
 import { getStatusColor } from '@/utils/statusColors';
+import { getStatusLabel, normalizeStatusTitle } from '@/utils/statusLabels';
 import TaskComments, { type TaskComment } from '@/app/components/TaskComments';
 import { fetchUserContext, resolveRoleFromContext } from '@/app/utils/userContext';
 import type { EffectiveOrgRole } from '@/app/types/roles';
@@ -407,10 +408,10 @@ export default function TaskDetailPage() {
                             )}
                             {task.status && (
                                 <Chip
-                                    label={task.status}
+                                    label={getStatusLabel(task.status)}
                                     size="small"
                                     sx={{
-                                        bgcolor: getStatusColor(task.status),
+                                        bgcolor: getStatusColor(normalizeStatusTitle(task.status)),
                                         color: '#fff',
                                         fontWeight: 500,
                                     }}

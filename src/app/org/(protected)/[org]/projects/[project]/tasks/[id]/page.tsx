@@ -52,6 +52,7 @@ import type { ParsedWorkItem } from '@/app/workspace/components/T2/T2EstimatePar
 import { getPriorityIcon, normalizePriority } from '@/utils/priorityIcons';
 import TaskGeoLocation from '@/app/workspace/components/TaskGeoLocation';
 import { getStatusColor } from '@/utils/statusColors';
+import { getStatusLabel, normalizeStatusTitle } from '@/utils/statusLabels';
 import TaskComments, { type TaskComment } from '@/app/components/TaskComments';
 import {
     Timeline,
@@ -759,10 +760,10 @@ export default function TaskDetailsPage() {
                             )}
                             {task?.status && (
                                 <Chip
-                                    label={task.status}
+                                    label={getStatusLabel(task.status)}
                                     size="small"
                                     sx={{
-                                        bgcolor: getStatusColor(task.status),
+                                        bgcolor: getStatusColor(normalizeStatusTitle(task.status)),
                                         color: '#fff',
                                         fontWeight: 500,
                                     }}
@@ -972,11 +973,7 @@ export default function TaskDetailsPage() {
 
                         {/* Геолокация */}
                         <CardItem sx={{ minWidth: 0 }}>
-                            <Box sx={{ lineHeight: 1.6 }}>
-                                <Typography variant="body1">
-                                <TaskGeoLocation locations={task.bsLocation} />
-                                </Typography>
-                            </Box>
+                            <TaskGeoLocation locations={task.bsLocation} />
                         </CardItem>
 
                         {/* Состав работ */}

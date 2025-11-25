@@ -290,7 +290,7 @@ export default function TaskComments({
                                 </Avatar>
                                 <Paper
                                     elevation={0}
-                                    sx={{
+                                    sx={(theme) => ({
                                         p: 1.25,
                                         flex: '0 1 82%',
                                         minWidth: 0,
@@ -302,7 +302,16 @@ export default function TaskComments({
                                             ? '0 10px 28px rgba(0,122,255,0.12)'
                                             : '0 6px 18px rgba(0,0,0,0.04)',
                                         alignSelf: 'flex-start',
-                                    }}
+                                        ...theme.applyStyles?.('dark', {
+                                            bgcolor: isOwn
+                                                ? 'rgba(0,122,255,0.16)'
+                                                : 'rgba(255,255,255,0.06)',
+                                            border: isOwn
+                                                ? '1px solid rgba(99,179,255,0.6)'
+                                                : '1px solid rgba(255,255,255,0.12)',
+                                            boxShadow: '0 10px 28px rgba(0,0,0,0.55)',
+                                        }),
+                                    })}
                                 >
                                     <Stack
                                         direction="row"
@@ -314,11 +323,14 @@ export default function TaskComments({
                                             variant="body2"
                                             fontWeight={600}
                                             noWrap
-                                            sx={{
+                                            sx={(theme) => ({
                                                 color: isOwn ? '#0a84ff' : 'text.primary',
                                                 textAlign: isOwn ? 'right' : 'left',
                                                 flex: 1,
-                                            }}
+                                                ...theme.applyStyles?.('dark', {
+                                                    color: isOwn ? theme.palette.primary.light : theme.palette.grey[50],
+                                                }),
+                                            })}
                                         >
                                             {comment.author}
                                         </Typography>
@@ -348,7 +360,7 @@ export default function TaskComments({
                                                 src={comment.photoUrl}
                                                 alt="Комментарий"
                                                 onClick={() => setPreviewUrl(comment.photoUrl ?? null)}
-                                                sx={{
+                                                sx={(theme) => ({
                                                     mt: 1,
                                                     maxWidth: '100%',
                                                     borderRadius: 2,
@@ -361,7 +373,15 @@ export default function TaskComments({
                                                     cursor: 'pointer',
                                                     display: 'block',
                                                     ml: isOwn ? 'auto' : 0,
-                                                }}
+                                                    ...theme.applyStyles?.('dark', {
+                                                        border: isOwn
+                                                            ? '1px solid rgba(99,179,255,0.6)'
+                                                            : '1px solid rgba(255,255,255,0.12)',
+                                                        boxShadow: isOwn
+                                                            ? '0 12px 30px rgba(0,122,255,0.28)'
+                                                            : '0 10px 30px rgba(0,0,0,0.6)',
+                                                    }),
+                                                })}
                                             />
                                         ) : (
                                             <Button
@@ -370,7 +390,7 @@ export default function TaskComments({
                                                 rel="noreferrer"
                                                 variant="outlined"
                                                 size="small"
-                                                sx={{
+                                                sx={(theme) => ({
                                                     alignSelf: isOwn ? 'flex-end' : 'flex-start',
                                                     mt: 1,
                                                     borderRadius: 999,
@@ -384,7 +404,22 @@ export default function TaskComments({
                                                               borderColor: '#9fc7ff',
                                                           }
                                                         : undefined,
-                                                }}
+                                                    ...theme.applyStyles?.('dark', {
+                                                        borderColor: isOwn
+                                                            ? 'rgba(99,179,255,0.6)'
+                                                            : 'rgba(255,255,255,0.2)',
+                                                        color: isOwn ? theme.palette.primary.light : theme.palette.grey[100],
+                                                        bgcolor: isOwn ? 'rgba(0,122,255,0.14)' : 'rgba(255,255,255,0.04)',
+                                                        '&:hover': isOwn
+                                                            ? {
+                                                                  bgcolor: 'rgba(0,122,255,0.22)',
+                                                                  borderColor: 'rgba(99,179,255,0.7)',
+                                                              }
+                                                            : {
+                                                                  bgcolor: 'rgba(255,255,255,0.08)',
+                                                              },
+                                                    }),
+                                                })}
                                             >
                                                 Открыть вложение
                                             </Button>
@@ -407,7 +442,7 @@ export default function TaskComments({
                     fullWidth
                     placeholder="Напишите что-нибудь…"
                     InputProps={{
-                        sx: {
+                        sx: (theme) => ({
                             borderRadius: 3,
                             bgcolor: '#f5f5f7',
                             '& fieldset': {
@@ -419,7 +454,19 @@ export default function TaskComments({
                             '&.Mui-focused fieldset': {
                                 borderColor: '#007aff',
                             },
-                        },
+                            ...theme.applyStyles?.('dark', {
+                                bgcolor: 'rgba(255,255,255,0.06)',
+                                '& fieldset': {
+                                    borderColor: 'rgba(255,255,255,0.14)',
+                                },
+                                '&:hover fieldset': {
+                                    borderColor: 'rgba(255,255,255,0.2)',
+                                },
+                                '&.Mui-focused fieldset': {
+                                    borderColor: theme.palette.primary.light,
+                                },
+                            }),
+                        }),
                     }}
                 />
                 <Stack direction="row" spacing={1} alignItems="center" flexWrap="wrap">
