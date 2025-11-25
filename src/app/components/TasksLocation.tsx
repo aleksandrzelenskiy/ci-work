@@ -1,9 +1,31 @@
 'use client';
 
 import * as React from 'react';
-import { Box, CircularProgress, Alert, Typography, Paper, Stack } from '@mui/material';
+import {
+    Box,
+    CircularProgress,
+    Alert,
+    Typography,
+    Paper,
+    Stack,
+    IconButton,
+    TextField,
+    InputAdornment,
+    Chip,
+    Divider,
+    Tooltip,
+    Button,
+} from '@mui/material';
+import { alpha, useTheme } from '@mui/material/styles';
+import SearchIcon from '@mui/icons-material/Search';
+import TuneRoundedIcon from '@mui/icons-material/TuneRounded';
+import RestartAltRoundedIcon from '@mui/icons-material/RestartAltRounded';
+import CloseRoundedIcon from '@mui/icons-material/CloseRounded';
 import { YMaps, Map, Placemark, Clusterer, ZoomControl, FullscreenControl } from '@pbe/react-yandex-maps';
 import { fetchUserContext } from '@/app/utils/userContext';
+import type { CurrentStatus, PriorityLevel } from '@/app/types/taskTypes';
+import { getStatusColor } from '@/utils/statusColors';
+import { getPriorityIcon, getPriorityLabelRu } from '@/utils/priorityIcons';
 
 type TaskLocation = {
     _id?: string;
@@ -13,6 +35,9 @@ type TaskLocation = {
     bsLocation?: Array<{ name?: string; coordinates?: string | null }>;
     executorId?: string | null;
     executorEmail?: string | null;
+    executorName?: string | null;
+    status?: CurrentStatus;
+    priority?: PriorityLevel;
 };
 
 type MapPoint = {
@@ -23,6 +48,9 @@ type MapPoint = {
     taskName: string;
     relatedNumbers: string | null;
     slug: string | null;
+    status?: CurrentStatus;
+    priority?: PriorityLevel;
+    executorName?: string | null;
 };
 
 type UserIdentity = {
@@ -31,6 +59,17 @@ type UserIdentity = {
 };
 
 const DEFAULT_CENTER: [number, number] = [56.0, 104.0];
+const ALL_STATUSES: CurrentStatus[] = [
+    'To do',
+    'Assigned',
+    'At work',
+    'Done',
+    'Pending',
+    'Issues',
+    'Fixed',
+    'Agreed',
+];
+const ALL_PRIORITIES: PriorityLevel[] = ['urgent', 'high', 'medium', 'low'];
 
 const parseCoords = (raw?: string | null): [number, number] | null => {
     if (!raw) return null;
@@ -86,6 +125,29 @@ export default function TasksLocation(): React.ReactElement {
     const [loading, setLoading] = React.useState(true);
     const [error, setError] = React.useState<string | null>(null);
     const [userIdentity, setUserIdentity] = React.useState<UserIdentity | null>(null);
+    const [search, setSearch] = React.useState('');
+    const [statusFilter, setStatusFilter] = React.useState<Record<CurrentStatus, boolean>>(() => {
+        const base: Record<CurrentStatus, boolean> = {
+            'To do': true,
+            Assigned: true,
+            'At work': true,
+            Done: true,
+            Pending: true,
+            Issues: true,
+            Fixed: true,
+            Agreed: false,
+        };
+        return base;
+    });
+    const [priorityFilter, setPriorityFilter] = React.useState<Record<PriorityLevel, boolean>>(() => ({
+        urgent: true,
+        high: true,
+        medium: true,
+        low: true,
+    }));
+    const [filtersOpen, setFiltersOpen] = React.useState(true);
+    const theme = useTheme();
+    const isDark = theme.palette.mode === 'dark';
 
     React.useEffect(() => {
         let active = true;
@@ -172,15 +234,32 @@ export default function TasksLocation(): React.ReactElement {
                     taskName: task.taskName?.trim() || 'Задача',
                     relatedNumbers,
                     slug: normalizeSlug(task),
+                    status: task.status,
+                    priority: task.priority,
+                    executorName: task.executorName ?? null,
                 });
             });
         }
         return result;
     }, [assignedTasks]);
 
+    const filteredPlacemarks = React.useMemo(() => {
+        const query = search.trim().toLowerCase();
+        return placemarks.filter((point) => {
+            const matchesSearch =
+                !query ||
+                point.bsNumber.toLowerCase().includes(query) ||
+                point.taskName.toLowerCase().includes(query) ||
+                (point.relatedNumbers ? point.relatedNumbers.toLowerCase().includes(query) : false);
+            const statusOk = point.status ? Boolean(statusFilter[point.status]) : true;
+            const priorityOk = point.priority ? Boolean(priorityFilter[point.priority]) : true;
+            return matchesSearch && statusOk && priorityOk;
+        });
+    }, [placemarks, priorityFilter, search, statusFilter]);
+
     const mapCenter = React.useMemo<[number, number]>(() => {
-        if (!placemarks.length) return DEFAULT_CENTER;
-        const sums = placemarks.reduce(
+        if (!filteredPlacemarks.length) return DEFAULT_CENTER;
+        const sums = filteredPlacemarks.reduce(
             (acc, point) => {
                 acc.lat += point.coords[0];
                 acc.lon += point.coords[1];
@@ -188,13 +267,13 @@ export default function TasksLocation(): React.ReactElement {
             },
             { lat: 0, lon: 0 }
         );
-        return [sums.lat / placemarks.length, sums.lon / placemarks.length];
-    }, [placemarks]);
+        return [sums.lat / filteredPlacemarks.length, sums.lon / filteredPlacemarks.length];
+    }, [filteredPlacemarks]);
 
     const zoom = React.useMemo(() => {
-        if (!placemarks.length) return 4;
-        return placemarks.length > 1 ? 5 : 12;
-    }, [placemarks.length]);
+        if (!filteredPlacemarks.length) return 4;
+        return filteredPlacemarks.length > 1 ? 5 : 12;
+    }, [filteredPlacemarks.length]);
 
     const ymapsQuery = React.useMemo(() => {
         const apiKey =
@@ -203,18 +282,37 @@ export default function TasksLocation(): React.ReactElement {
         return apiKey ? { ...base, apikey: apiKey } : base;
     }, []);
 
-    const mapKey = `${mapCenter[0].toFixed(4)}-${mapCenter[1].toFixed(4)}-${placemarks.length}`;
-    const showEmptyState = !loading && !error && placemarks.length === 0;
+    const mapKey = `${mapCenter[0].toFixed(4)}-${mapCenter[1].toFixed(4)}-${filteredPlacemarks.length}`;
+    const showEmptyState = !loading && !error && filteredPlacemarks.length === 0;
+    const filtersPristine = React.useMemo(() => {
+        if (search.trim()) return false;
+        for (const status of ALL_STATUSES) {
+            const expected = status !== 'Agreed';
+            if (statusFilter[status] !== expected) return false;
+        }
+        for (const pr of ALL_PRIORITIES) {
+            if (!priorityFilter[pr]) return false;
+        }
+        return true;
+    }, [priorityFilter, search, statusFilter]);
 
     const buildBalloonContent = React.useCallback((point: MapPoint) => {
         const linkHref = point.slug ? `/tasks/${encodeURIComponent(point.slug)}` : null;
         const relatedBlock = point.relatedNumbers
             ? `<div style="margin-bottom:4px;">Связанные БС: ${point.relatedNumbers}</div>`
             : '';
+        const statusLine = point.status
+            ? `<div style="margin-bottom:4px;">Статус: ${point.status}</div>`
+            : '';
+        const priorityLine = point.priority
+            ? `<div style="margin-bottom:4px;">Приоритет: ${getPriorityLabelRu(point.priority)}</div>`
+            : '';
         return `<div style="font-family:Inter,Arial,sans-serif;min-width:240px;">
             <div style="font-weight:600;margin-bottom:4px;">БС ${point.bsNumber}</div>
             <div style="margin-bottom:4px;">ID задачи: ${point.taskId || '—'}</div>
             <div style="margin-bottom:4px;">${point.taskName || '—'}</div>
+            ${statusLine}
+            ${priorityLine}
             ${relatedBlock}
             ${
                 linkHref
@@ -222,6 +320,40 @@ export default function TasksLocation(): React.ReactElement {
                     : ''
             }
         </div>`;
+    }, []);
+
+    const glassPaperSx = React.useMemo(() => {
+        const borderColor = alpha(isDark ? '#ffffff' : '#0f172a', isDark ? 0.12 : 0.08);
+        return {
+            p: 2,
+            boxShadow: '0 20px 40px rgba(0,0,0,0.12)',
+            borderRadius: 3,
+            backdropFilter: 'blur(16px)',
+            background: isDark
+                ? 'rgba(18,24,36,0.78)'
+                : 'linear-gradient(145deg, rgba(255,255,255,0.9), rgba(243,247,252,0.82))',
+            border: `1px solid ${borderColor}`,
+        };
+    }, [isDark]);
+
+    const resetFilters = React.useCallback(() => {
+        setSearch('');
+        setStatusFilter({
+            'To do': true,
+            Assigned: true,
+            'At work': true,
+            Done: true,
+            Pending: true,
+            Issues: true,
+            Fixed: true,
+            Agreed: false,
+        });
+        setPriorityFilter({
+            urgent: true,
+            high: true,
+            medium: true,
+            low: true,
+        });
     }, []);
 
     return (
@@ -237,25 +369,173 @@ export default function TasksLocation(): React.ReactElement {
             <Box
                 sx={{
                     position: 'absolute',
-                    top: 16,
-                    left: 16,
+                    top: { xs: 12, md: 16 },
+                    left: { xs: 12, md: 16 },
                     zIndex: 5,
-                    width: { xs: 'calc(100% - 32px)', sm: 360 },
+                    width: { xs: 'calc(100% - 24px)', sm: 420, md: 460 },
                     pointerEvents: 'none',
                 }}
             >
-                <Paper sx={{ p: 2, boxShadow: 3, pointerEvents: 'auto' }}>
-                    <Stack spacing={0.5}>
-                        <Typography variant="h6" fontWeight={700}>
-                            Мои задачи на карте
-                        </Typography>
-                        <Typography variant="body2" color="text.secondary">
-                            Показаны только базовые станции из задач, назначенных вам. Нажмите на маркер, чтобы
-                            открыть карточку задачи.
-                        </Typography>
-                        <Typography variant="body2" fontWeight={600}>
-                            Точек на карте: {placemarks.length}
-                        </Typography>
+                <Paper sx={{ ...glassPaperSx, pointerEvents: 'auto' }}>
+                    <Stack spacing={1.5}>
+                        <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 1 }}>
+                            <Box>
+                                <Typography variant="h6" fontWeight={700} sx={{ letterSpacing: 0.2 }}>
+                                    Мои задачи на карте
+                                </Typography>
+                                <Typography variant="body2" color="text.secondary">
+                                    Только БС из задач, назначенных вам. Фильтры — справа.
+                                </Typography>
+                            </Box>
+                            <IconButton
+                                aria-label="Фильтры"
+                                onClick={() => setFiltersOpen((prev) => !prev)}
+                                sx={{
+                                    bgcolor: filtersOpen ? alpha('#0f172a', 0.06) : 'transparent',
+                                    border: `1px solid ${alpha('#0f172a', 0.08)}`,
+                                    boxShadow: '0 8px 20px rgba(0,0,0,0.1)',
+                                }}
+                            >
+                                {filtersOpen ? <CloseRoundedIcon /> : <TuneRoundedIcon />}
+                            </IconButton>
+                        </Box>
+
+                        <TextField
+                            fullWidth
+                            placeholder="Поиск по БС или задаче"
+                            value={search}
+                            onChange={(event) => setSearch(event.target.value)}
+                            size="small"
+                            variant="filled"
+                            InputProps={{
+                                startAdornment: (
+                                    <InputAdornment position="start">
+                                        <SearchIcon />
+                                    </InputAdornment>
+                                ),
+                                endAdornment: search ? (
+                                    <InputAdornment position="end">
+                                        <IconButton size="small" onClick={() => setSearch('')}>
+                                            <CloseRoundedIcon fontSize="small" />
+                                        </IconButton>
+                                    </InputAdornment>
+                                ) : null,
+                            }}
+                            sx={{
+                                '& .MuiFilledInput-root': {
+                                    borderRadius: 2,
+                                    backgroundColor: alpha(isDark ? '#0b1220' : '#ffffff', isDark ? 0.5 : 0.9),
+                                    backdropFilter: 'blur(12px)',
+                                },
+                            }}
+                        />
+
+                        {filtersOpen && (
+                            <Stack spacing={1}>
+                                <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+                                    <Typography variant="subtitle2" sx={{ fontWeight: 700 }}>
+                                        Статусы
+                                    </Typography>
+                                    <Tooltip title="Сбросить фильтры">
+                                        <IconButton size="small" onClick={resetFilters}>
+                                            <RestartAltRoundedIcon fontSize="small" />
+                                        </IconButton>
+                                    </Tooltip>
+                                </Box>
+                                <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 0.75 }}>
+                                    {ALL_STATUSES.map((status) => {
+                                        const active = statusFilter[status];
+                                        return (
+                                            <Chip
+                                                key={status}
+                                                label={status}
+                                                onClick={() =>
+                                                    setStatusFilter((prev) => ({
+                                                        ...prev,
+                                                        [status]: !prev[status],
+                                                    }))
+                                                }
+                                                size="small"
+                                                icon={
+                                                    <Box
+                                                        sx={{
+                                                            width: 10,
+                                                            height: 10,
+                                                            borderRadius: '50%',
+                                                            backgroundColor: getStatusColor(status),
+                                                        }}
+                                                    />
+                                                }
+                                                variant={active ? 'filled' : 'outlined'}
+                                                sx={{
+                                                    backgroundColor: active
+                                                        ? alpha(getStatusColor(status), 0.14)
+                                                        : 'transparent',
+                                                    borderColor: alpha(getStatusColor(status), active ? 0.24 : 0.4),
+                                                    color: active ? 'text.primary' : 'text.secondary',
+                                                    '&:hover': {
+                                                        backgroundColor: alpha(getStatusColor(status), 0.2),
+                                                    },
+                                                }}
+                                            />
+                                        );
+                                    })}
+                                </Box>
+
+                                <Divider flexItem sx={{ my: 0.5, opacity: 0.35 }} />
+
+                                <Typography variant="subtitle2" sx={{ fontWeight: 700 }}>
+                                    Приоритет
+                                </Typography>
+                                <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 0.75 }}>
+                                    {ALL_PRIORITIES.map((priority) => {
+                                        const active = priorityFilter[priority];
+                                        const icon = getPriorityIcon(priority, { fontSize: 18 });
+                                        return (
+                                            <Chip
+                                                key={priority}
+                                                label={getPriorityLabelRu(priority) || priority}
+                                                onClick={() =>
+                                                    setPriorityFilter((prev) => ({
+                                                        ...prev,
+                                                        [priority]: !prev[priority],
+                                                    }))
+                                                }
+                                                size="small"
+                                                icon={icon ?? undefined}
+                                                variant={active ? 'filled' : 'outlined'}
+                                                sx={{
+                                                    backgroundColor: active
+                                                        ? alpha('#0f172a', isDark ? 0.4 : 0.08)
+                                                        : 'transparent',
+                                                    color: active ? 'text.primary' : 'text.secondary',
+                                                    borderColor: alpha('#0f172a', 0.2),
+                                                    '&:hover': {
+                                                        backgroundColor: alpha('#0f172a', isDark ? 0.5 : 0.12),
+                                                    },
+                                                }}
+                                            />
+                                        );
+                                    })}
+                                </Box>
+                            </Stack>
+                        )}
+
+                        <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, justifyContent: 'space-between' }}>
+                            <Typography variant="body2" fontWeight={600}>
+                                Точек на карте: {filteredPlacemarks.length}
+                            </Typography>
+                            {!filtersPristine && (
+                                <Button
+                                    size="small"
+                                    variant="text"
+                                    startIcon={<RestartAltRoundedIcon fontSize="small" />}
+                                    onClick={resetFilters}
+                                >
+                                    Сбросить
+                                </Button>
+                            )}
+                        </Box>
                     </Stack>
                 </Paper>
                 {showEmptyState && (
@@ -304,7 +584,7 @@ export default function TasksLocation(): React.ReactElement {
                                     gridSize: 80,
                                 }}
                             >
-                                {placemarks.map((point) => (
+                                {filteredPlacemarks.map((point) => (
                                     <Placemark
                                         key={point.id}
                                         geometry={point.coords}
