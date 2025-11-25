@@ -16,6 +16,7 @@ export interface UserContextResponse {
   effectiveOrgRole?: EffectiveOrgRole | null;
   membershipRole?: OrgRole | null;
   isSuperAdmin?: boolean;
+  profileType?: 'employer' | 'contractor';
   profileSetupCompleted?: boolean;
   name?: string;
   email?: string;
