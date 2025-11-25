@@ -1054,18 +1054,8 @@ export default function TaskDetailsPage() {
 
                         {/* Комментарии */}
                         <CardItem sx={{ minWidth: 0 }}>
-                            <Typography
-                                variant="subtitle1"
-                                fontWeight={600}
-                                gutterBottom
-                                sx={{ display: 'flex', alignItems: 'center', gap: 1 }}
-                            >
-                                <CommentOutlinedIcon fontSize="small" />
-                                Комментарии
-                            </Typography>
-                            <Divider sx={{ mb: 1.5 }} />
                             <Accordion
-                                defaultExpanded
+                                defaultExpanded={!!task?.comments?.length}
                                 disableGutters
                                 elevation={0}
                                 sx={{ '&:before': { display: 'none' } }}
