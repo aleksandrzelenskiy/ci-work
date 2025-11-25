@@ -38,22 +38,9 @@ import { fetchUserContext, resolveRoleFromContext } from '@/app/utils/userContex
 import type { EffectiveOrgRole } from '@/app/types/roles';
 import { defaultTaskFilters, type TaskFilterOptions, type TaskFilters } from '@/app/types/taskFilters';
 import { getPriorityLabelRu } from '@/utils/priorityIcons';
+import { getStatusLabel } from '@/utils/statusLabels';
 
 type ViewMode = 'table' | 'kanban';
-
-const STATUS_LABELS_RU: Record<string, string> = {
-    'To do': 'К выполнению',
-    Assigned: 'Назначена',
-    'At work': 'В работе',
-    Pending: 'На проверке',
-    Issues: 'Есть замечания',
-    Done: 'Выполнено',
-    Agreed: 'Согласовано',
-    Cancelled: 'Отменено',
-    Fixed: 'Исправлено',
-};
-
-const getStatusLabelRu = (status: string) => STATUS_LABELS_RU[status] ?? status;
 
 export default function TasksPage() {
     const [tab, setTab] = useState<ViewMode>('table');
@@ -458,7 +445,7 @@ export default function TasksPage() {
                                 .filter((status): status is string => Boolean(status))
                                 .map((status) => (
                                     <MenuItem key={status} value={status}>
-                                        {getStatusLabelRu(status)}
+                                        {getStatusLabel(status)}
                                     </MenuItem>
                                 ))}
                         </Select>

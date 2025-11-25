@@ -43,6 +43,7 @@ import ProjectTaskCalendar from '@/app/workspace/components/ProjectTaskCalendar'
 import { defaultTaskFilters, type TaskFilters } from '@/app/types/taskFilters';
 import { getPriorityLabelRu } from '@/utils/priorityIcons';
 import { startOfDay, endOfDay } from 'date-fns';
+import { getStatusLabel, STATUS_ORDER } from '@/utils/statusLabels';
 
 type Priority = 'urgent' | 'high' | 'medium' | 'low';
 
@@ -84,30 +85,6 @@ type ProjectMetaResponse =
     };
 }
     | { error: string };
-
-const STATUS_ORDER = [
-    'To do',
-    'Assigned',
-    'At work',
-    'Done',
-    'Pending',
-    'Issues',
-    'Fixed',
-    'Agreed',
-];
-
-const STATUS_LABELS_RU: Record<string, string> = {
-    'To do': 'К выполнению',
-    Assigned: 'Назначена',
-    'At work': 'В работе',
-    Pending: 'На проверке',
-    Issues: 'Есть замечания',
-    Done: 'Выполнено',
-    Agreed: 'Согласовано',
-    Fixed: 'Исправлено',
-};
-
-const getStatusLabelRu = (status: string) => STATUS_LABELS_RU[status] ?? status;
 
 const getExecutorLabel = (task: Task) => {
     const candidate =
@@ -733,7 +710,7 @@ export default function ProjectTasksPage() {
                                     </MenuItem>
                                     {filterOptions.statuses.map((status) => (
                                         <MenuItem key={status} value={status}>
-                                            {getStatusLabelRu(status)}
+                                            {getStatusLabel(status)}
                                         </MenuItem>
                                     ))}
                                 </Select>

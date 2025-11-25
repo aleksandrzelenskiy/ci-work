@@ -16,6 +16,7 @@ import { getStatusColor } from '@/utils/statusColors';
 import { useRouter } from 'next/navigation';
 import type { EffectiveOrgRole } from '@/app/types/roles';
 import { isAdminRole } from '@/app/utils/roleGuards';
+import { getStatusLabel, STATUS_ORDER } from '@/utils/statusLabels';
 
 interface ChartData {
   name: string;
@@ -58,7 +59,8 @@ export default function TaskMetricDiagram({
       try {
         const res = await fetch('/api/tasks');
         if (!res.ok) {
-          throw new Error('Error fetching tasks');
+          setError('Error fetching tasks');
+          return;
         }
         const data = await res.json();
         setTasks(data.tasks);
@@ -105,20 +107,8 @@ export default function TaskMetricDiagram({
     tasksForMetrics = tasks.filter((t) => t.executorId === clerkUserId);
   }
 
-  // Полный список допустимых статусов
-  const statuses: string[] = [
-    'To do',
-    'Assigned',
-    'At work',
-    'Done',
-    'Pending',
-    'Issues',
-    'Fixed',
-    'Agreed',
-  ];
-
   // Группируем задачи по статусам и считаем количество для каждого
-  const chartData: ChartData[] = statuses.map((status) => {
+  const chartData: ChartData[] = STATUS_ORDER.map((status) => {
     const filteredTasks = tasksForMetrics.filter((t) => t.status === status);
     return {
       name: status,
@@ -174,7 +164,7 @@ export default function TaskMetricDiagram({
     return (
       <div style={{ textAlign: 'center' }}>
         <Typography variant='h6' gutterBottom>
-          {`Total tasks: ${totalCount}`}
+          {`Всего задач: ${totalCount}`}
         </Typography>
         <div
           style={{
@@ -196,7 +186,7 @@ export default function TaskMetricDiagram({
                   textDecoration: 'underline',
                 }}
               >
-                {`${data.name} (${data.count})`}
+                {`${getStatusLabel(data.name)} (${data.count})`}
               </Link>
             );
           })}
@@ -207,7 +197,7 @@ export default function TaskMetricDiagram({
 
   return (
     <Box>
-      <Typography variant='h6'>Task counts</Typography>
+      <Typography variant='h6'>Статусы задач</Typography>
       <Box width='100%' height={350}>
         <ResponsiveContainer>
           <PieChart>
@@ -231,11 +221,14 @@ export default function TaskMetricDiagram({
                 />
               ))}
             </Pie>
-            <Tooltip formatter={(value: number) => `${value}`} />
+            <Tooltip
+              formatter={(value: number) => `${value}`}
+              labelFormatter={(name) => getStatusLabel(name as string)}
+            />
             <Legend
               payload={legendData.map((item) => ({
                 color: getStatusColor(item.name),
-                value: item.name,
+                value: getStatusLabel(item.name),
                 payload: { ...item, strokeDasharray: '' },
               }))}
               content={renderLegend}

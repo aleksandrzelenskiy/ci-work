@@ -22,29 +22,12 @@ import Tooltip from '@mui/material/Tooltip';
 import TaskOutlinedIcon from '@mui/icons-material/TaskOutlined';
 import { getStatusColor } from '@/utils/statusColors';
 import { getPriorityIcon, normalizePriority } from '@/utils/priorityIcons';
+import { STATUS_ORDER, getStatusLabel, normalizeStatusTitle } from '@/utils/statusLabels';
+import type { CurrentStatus } from '@/app/types/taskTypes';
 import WorkspaceTaskDialog, { TaskForEdit } from '@/app/workspace/components/WorkspaceTaskDialog';
 import TaskContextMenu from '@/app/workspace/components/TaskContextMenu';
 
-type StatusTitle =
-    | 'To do'
-    | 'Assigned'
-    | 'At work'
-    | 'Done'
-    | 'Pending'
-    | 'Issues'
-    | 'Fixed'
-    | 'Agreed';
-
-const STATUS_ORDER: StatusTitle[] = [
-    'To do',
-    'Assigned',
-    'At work',
-    'Done',
-    'Pending',
-    'Issues',
-    'Fixed',
-    'Agreed',
-];
+type StatusTitle = CurrentStatus;
 
 // тип задачи, приходящей в доску
 type Task = {
@@ -79,27 +62,6 @@ type Task = {
 };
 
 const formatDateRU = (v?: string) => (v ? new Date(v).toLocaleDateString('ru-RU') : '—');
-
-const TITLE_CASE_MAP: Record<string, StatusTitle> = {
-    'TO DO': 'To do',
-    TODO: 'To do',
-    'TO-DO': 'To do',
-    ASSIGNED: 'Assigned',
-    'IN PROGRESS': 'At work',
-    'IN-PROGRESS': 'At work',
-    'AT WORK': 'At work',
-    DONE: 'Done',
-    PENDING: 'Pending',
-    ISSUES: 'Issues',
-    FIXED: 'Fixed',
-    AGREED: 'Agreed',
-};
-
-function normalizeStatusTitle(s?: string): StatusTitle {
-    if (!s) return 'To do';
-    const key = s.trim().toUpperCase();
-    return TITLE_CASE_MAP[key] ?? (s as StatusTitle);
-}
 
 function TaskCard({
                       t,
@@ -174,7 +136,11 @@ function TaskCard({
                     gap: 1,
                 }}
             >
-                <Chip label={statusTitle} size="small" sx={{ bgcolor: getStatusColor(statusTitle), color: '#fff' }} />
+                <Chip
+                    label={getStatusLabel(statusTitle)}
+                    size="small"
+                    sx={{ bgcolor: getStatusColor(statusTitle), color: '#fff' }}
+                />
 
                 <Box sx={{ ml: 'auto', display: 'flex', alignItems: 'center' }}>
                     {p && (
@@ -210,16 +176,10 @@ export default function ProjectTaskBoard({
 
     // группировка по статусу
     const grouped = useMemo(() => {
-        const base: Record<StatusTitle, Task[]> = {
-            'To do': [],
-            Assigned: [],
-            'At work': [],
-            Done: [],
-            Pending: [],
-            Issues: [],
-            Fixed: [],
-            Agreed: [],
-        };
+        const base: Record<StatusTitle, Task[]> = STATUS_ORDER.reduce((acc, status) => {
+            acc[status] = [];
+            return acc;
+        }, {} as Record<StatusTitle, Task[]>);
         for (const t of items) {
             const s = normalizeStatusTitle(t.status);
             base[s].push(t);
@@ -338,7 +298,7 @@ export default function ProjectTaskBoard({
                         }}
                     >
                         <Typography variant="h6" sx={{ mb: 2, textTransform: 'none' }}>
-                            {status} ({grouped[status]?.length || 0})
+                            {getStatusLabel(status)} ({grouped[status]?.length || 0})
                         </Typography>
                         {(grouped[status] || []).map((t) => (
                             <TaskCard

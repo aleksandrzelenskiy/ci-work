@@ -38,6 +38,7 @@ import { getStatusColor } from '@/utils/statusColors';
 import { useRouter } from 'next/navigation';
 import { getPriorityIcon, getPriorityLabelRu } from '@/utils/priorityIcons';
 import { defaultTaskFilters, type TaskFilterOptions, type TaskFilters } from '@/app/types/taskFilters';
+import { getStatusLabel } from '@/utils/statusLabels';
 
 interface TaskListPageProps {
   searchQuery?: string;
@@ -60,19 +61,6 @@ const formatDateRU = (value?: Date | string) => {
   if (Number.isNaN(d.getTime())) return '';
   return d.toLocaleDateString('ru-RU'); // dd.mm.yyyy
 };
-
-const STATUS_LABELS: Record<string, string> = {
-  'To do': 'К выполнению',
-  Assigned: 'Назначена',
-  'At work': 'В работе',
-  Pending: 'На проверке',
-  Issues: 'Есть замечания',
-  Done: 'Выполнено',
-  Agreed: 'Согласовано',
-  Cancelled: 'Отменено',
-};
-
-const getStatusLabel = (status: string) => STATUS_LABELS[status] ?? status;
 
 const DEFAULT_COLUMN_VISIBILITY = {
   taskId: true,

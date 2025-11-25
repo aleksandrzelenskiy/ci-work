@@ -25,6 +25,7 @@ import { YMaps, Map, Placemark, Clusterer, ZoomControl, FullscreenControl } from
 import type { CurrentStatus, PriorityLevel } from '@/app/types/taskTypes';
 import { getStatusColor } from '@/utils/statusColors';
 import { getPriorityIcon, getPriorityLabelRu } from '@/utils/priorityIcons';
+import { getStatusLabel } from '@/utils/statusLabels';
 
 type TaskLocation = {
     _id?: string;
@@ -272,7 +273,7 @@ export default function ProjectTaskLocation(): React.ReactElement {
             ? `<div style="margin-bottom:4px;">Связанные БС: ${point.relatedNumbers}</div>`
             : '';
         const statusLine = point.status
-            ? `<div style="margin-bottom:4px;">Статус: ${point.status}</div>`
+            ? `<div style="margin-bottom:4px;">Статус: ${getStatusLabel(point.status)}</div>`
             : '';
         const priorityLine = point.priority
             ? `<div style="margin-bottom:4px;">Приоритет: ${getPriorityLabelRu(point.priority)}</div>`
@@ -436,7 +437,7 @@ export default function ProjectTaskLocation(): React.ReactElement {
                                         return (
                                             <Chip
                                                 key={status}
-                                                label={status}
+                                                label={getStatusLabel(status)}
                                                 onClick={() =>
                                                     setStatusFilter((prev) => ({
                                                         ...prev,

@@ -41,6 +41,7 @@ import { LocalizationProvider } from '@mui/x-date-pickers/LocalizationProvider';
 import Pagination from '@mui/material/Pagination';
 import { AdapterDateFns } from '@mui/x-date-pickers/AdapterDateFns';
 import { getStatusColor } from '@/utils/statusColors';
+import { getStatusLabel } from '@/utils/statusLabels';
 
 // Цвет иконки папки в зависимости от статуса
 const getFolderColor = (status: string) => {
@@ -240,6 +241,7 @@ function Row({ report, role }: { report: ReportClient; role: string }) {
             {report.baseStatuses
               .map((bs) => bs.status)
               .filter((value, index, self) => self.indexOf(value) === index)
+              .map((status) => getStatusLabel(status))
               .join(' | ')}
           </Box>
         </TableCell>
@@ -285,7 +287,7 @@ function Row({ report, role }: { report: ReportClient; role: string }) {
                         color: '#787878',
                       }}
                     >
-                      status changed:{' '}
+                      Статус изменён:{' '}
                       {getReportDate(baseStatus.latestStatusChangeDate)}
                     </Typography>
                   </Typography>
@@ -298,7 +300,7 @@ function Row({ report, role }: { report: ReportClient; role: string }) {
                       color: '#fff', // Белый текст для лучшей читаемости
                     }}
                   >
-                    {baseStatus.status}
+                    {getStatusLabel(baseStatus.status)}
                   </Box>
                 </Box>
               ))}
@@ -552,7 +554,7 @@ export default function ReportListPage() {
               )}
               {statusFilter && (
                 <Chip
-                  label={`Status: ${statusFilter}`}
+                  label={`Статус: ${getStatusLabel(statusFilter)}`}
                   onDelete={() => setStatusFilter('')}
                   color='primary'
                   size='small'
@@ -947,12 +949,12 @@ export default function ReportListPage() {
                   id='status-filter-label'
                   sx={{ fontSize: '0.75rem' }}
                 >
-                  Status
+                  Статус
                 </InputLabel>
                 <Select
                   labelId='status-filter-label'
                   value={statusFilter}
-                  label='Status'
+                  label='Статус'
                   onChange={(e) => setStatusFilter(e.target.value)}
                   autoFocus
                   sx={{
@@ -961,11 +963,11 @@ export default function ReportListPage() {
                   }}
                 >
                   <MenuItem value=''>
-                    <em>All</em>
+                    <em>Все</em>
                   </MenuItem>
                   {uniqueStatuses.map((status) => (
                     <MenuItem key={status} value={status}>
-                      {status}
+                      {getStatusLabel(status)}
                     </MenuItem>
                   ))}
                 </Select>

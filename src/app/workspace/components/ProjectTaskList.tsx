@@ -17,42 +17,14 @@ import DeleteOutlineIcon from '@mui/icons-material/DeleteOutline';
 import { useTheme } from '@mui/material/styles';
 import { getStatusColor } from '@/utils/statusColors';
 import { getPriorityIcon, getPriorityLabelRu, normalizePriority, type Priority as Pri } from '@/utils/priorityIcons';
+import { STATUS_ORDER, getStatusLabel, normalizeStatusTitle } from '@/utils/statusLabels';
+import type { CurrentStatus } from '@/app/types/taskTypes';
 
 
 import WorkspaceTaskDialog, { TaskForEdit } from '@/app/workspace/components/WorkspaceTaskDialog';
 
 /* ───────────── типы ───────────── */
-type StatusTitle =
-    | 'To do'
-    | 'Assigned'
-    | 'At work'
-    | 'Done'
-    | 'Pending'
-    | 'Issues'
-    | 'Fixed'
-    | 'Agreed';
-
-const STATUS_ORDER: StatusTitle[] = [
-    'To do',
-    'Assigned',
-    'At work',
-    'Done',
-    'Pending',
-    'Issues',
-    'Fixed',
-    'Agreed',
-];
-
-const STATUS_LABELS_RU: Record<StatusTitle, string> = {
-    'To do': 'К выполнению',
-    Assigned: 'Назначена',
-    'At work': 'В работе',
-    Done: 'Выполнено',
-    Pending: 'На проверке',
-    Issues: 'Есть замечания',
-    Fixed: 'Исправлено',
-    Agreed: 'Согласовано',
-};
+type StatusTitle = CurrentStatus;
 
 type Priority = 'urgent' | 'high' | 'medium' | 'low';
 
@@ -93,27 +65,6 @@ const formatDate = (iso?: string) => {
     if (Number.isNaN(d.getTime())) return '—';
     return d.toLocaleDateString('ru-RU');
 };
-
-const TITLE_CASE_MAP: Record<string, StatusTitle> = {
-    'TO DO': 'To do',
-    'TODO': 'To do',
-    'TO-DO': 'To do',
-    ASSIGNED: 'Assigned',
-    'IN PROGRESS': 'At work',
-    'IN-PROGRESS': 'At work',
-    'AT WORK': 'At work',
-    DONE: 'Done',
-    PENDING: 'Pending',
-    ISSUES: 'Issues',
-    FIXED: 'Fixed',
-    AGREED: 'Agreed',
-};
-
-function normalizeStatusTitle(s?: string): StatusTitle {
-    if (!s) return 'To do';
-    const key = s.trim().toUpperCase();
-    return TITLE_CASE_MAP[key] ?? (s as StatusTitle);
-}
 
 const getInitials = (s?: string) =>
     (s ?? '')
@@ -375,7 +326,7 @@ const ProjectTaskListInner = (
                                             <TableCell align="center">
                                                 <Chip
                                                     size="small"
-                                                    label={STATUS_LABELS_RU[statusTitle] ?? statusTitle}
+                                                    label={getStatusLabel(statusTitle)}
                                                     variant="outlined"
                                                     sx={{ backgroundColor: getStatusColor(statusTitle), color: '#fff', borderColor: 'transparent' }}
                                                 />

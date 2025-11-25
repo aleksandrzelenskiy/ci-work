@@ -32,6 +32,7 @@ import { fetchUserContext, resolveRoleFromContext } from '@/app/utils/userContex
 import type { EffectiveOrgRole } from '@/app/types/roles';
 import { isAdminRole } from '@/app/utils/roleGuards';
 import { defaultTaskFilters, type TaskFilters } from '@/app/types/taskFilters';
+import { getStatusLabel, STATUS_ORDER } from '@/utils/statusLabels';
 
 // Формат dd.mm.yyyy (ru-RU)
 const formatDateRU = (value?: Date | string) => {
@@ -42,27 +43,7 @@ const formatDateRU = (value?: Date | string) => {
 };
 
 
-const statusOrder: CurrentStatus[] = [
-  'To do',
-  'Assigned',
-  'At work',
-  'Done',
-  'Pending',
-  'Issues',
-  'Fixed',
-  'Agreed',
-];
-
-const STATUS_LABELS_RU: Record<CurrentStatus, string> = {
-  'To do': 'К выполнению',
-  Assigned: 'Назначена',
-  'At work': 'В работе',
-  Done: 'Выполнено',
-  Pending: 'На проверке',
-  Issues: 'Есть замечания',
-  Fixed: 'Исправлено',
-  Agreed: 'Согласовано',
-};
+const statusOrder: CurrentStatus[] = STATUS_ORDER;
 
 type CurrentStatus =
   | 'To do'
@@ -161,7 +142,7 @@ function DraggableTask({ task, role }: { task: Task; role: EffectiveOrgRole | nu
           }}
         >
           <Chip
-            label={task.status}
+            label={getStatusLabel(task.status)}
             sx={{
               backgroundColor: getStatusColor(task.status),
               color: '#fff',
@@ -196,7 +177,7 @@ function DroppableColumn({
   const headerBg = isDarkMode ? 'rgba(255,255,255,0.08)' : 'rgba(255,255,255,0.95)';
   const headerBorder = isDarkMode ? 'rgba(255,255,255,0.12)' : 'rgba(15,23,42,0.08)';
   const headerText = isDarkMode ? '#f8fafc' : '#0f172a';
-  const statusLabel = STATUS_LABELS_RU[status] ?? status;
+  const statusLabel = getStatusLabel(status);
 
   useEffect(() => {
     const element = ref.current;
