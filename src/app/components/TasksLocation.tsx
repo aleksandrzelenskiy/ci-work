@@ -325,7 +325,7 @@ export default function TasksLocation(): React.ReactElement {
     const glassPaperSx = React.useMemo(() => {
         const borderColor = alpha(isDark ? '#ffffff' : '#0f172a', isDark ? 0.12 : 0.08);
         return {
-            p: 2,
+            p: 1.5,
             boxShadow: '0 20px 40px rgba(0,0,0,0.12)',
             borderRadius: 3,
             backdropFilter: 'blur(16px)',
@@ -387,7 +387,8 @@ export default function TasksLocation(): React.ReactElement {
                             width: 48,
                             height: 48,
                             borderRadius: '50%',
-                            bgcolor: alpha('#0f172a', 0.08),
+                            bgcolor: '#ffffff',
+                            color: '#0f172a',
                             border: `1px solid ${alpha('#0f172a', 0.12)}`,
                             boxShadow: '0 10px 24px rgba(0,0,0,0.15)',
                             backdropFilter: 'blur(10px)',
@@ -398,7 +399,15 @@ export default function TasksLocation(): React.ReactElement {
                 </Box>
 
                 {filtersOpen && (
-                    <Paper sx={{ ...glassPaperSx, pointerEvents: 'auto', width: { xs: '92vw', sm: '100%' } }}>
+                    <Paper
+                        sx={{
+                            ...glassPaperSx,
+                            pointerEvents: 'auto',
+                            width: { xs: '88vw', sm: '100%' },
+                        maxHeight: { xs: '70vh', sm: '80vh' },
+                        overflowY: 'auto',
+                    }}
+                >
                         <Stack spacing={1.5}>
                             <TextField
                                 fullWidth
