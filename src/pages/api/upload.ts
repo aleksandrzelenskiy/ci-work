@@ -73,6 +73,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
 
         const taskId = (req.query.taskId as string | undefined)?.trim();
         const url = (req.query.url as string | undefined)?.trim();
+        const mode = (req.query.mode as string | undefined)?.trim().toLowerCase();
 
         if (!taskId || !url) {
             return res.status(400).json({ error: 'taskId and url are required' });
@@ -81,7 +82,11 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
         try {
             await dbConnect();
             // убираем URL из attachments
-            await TaskModel.updateOne({ taskId }, { $pull: { attachments: url } }).exec();
+            const pullQuery: Record<string, string> = { attachments: url };
+            if (mode === 'documents') {
+                pullQuery.documents = url;
+            }
+            await TaskModel.updateOne({ taskId }, { $pull: pullQuery }).exec();
 
             // удаляем сам файл
             await deleteTaskFile(url);

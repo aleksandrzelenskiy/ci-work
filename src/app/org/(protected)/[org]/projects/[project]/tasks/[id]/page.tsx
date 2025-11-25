@@ -35,6 +35,7 @@ import ExpandMoreIcon from '@mui/icons-material/ExpandMore';
 import RefreshIcon from '@mui/icons-material/Refresh';
 import EditNoteIcon from '@mui/icons-material/EditNote';
 import DeleteOutlineIcon from '@mui/icons-material/DeleteOutline';
+import DownloadOutlinedIcon from '@mui/icons-material/DownloadOutlined';
 import InfoOutlinedIcon from '@mui/icons-material/InfoOutlined';
 import DescriptionOutlinedIcon from '@mui/icons-material/DescriptionOutlined';
 import CommentOutlinedIcon from '@mui/icons-material/CommentOutlined';
@@ -156,6 +157,9 @@ export default function TaskDetailsPage() {
     const [editOpen, setEditOpen] = React.useState(false);
     const [deleteOpen, setDeleteOpen] = React.useState(false);
     const [deleting, setDeleting] = React.useState(false);
+    const [deleteDocumentOpen, setDeleteDocumentOpen] = React.useState(false);
+    const [documentToDelete, setDocumentToDelete] = React.useState<string | null>(null);
+    const [documentDeleting, setDocumentDeleting] = React.useState(false);
 
     const [orgName, setOrgName] = React.useState<string | null>(null);
     const [workItemsFullScreen, setWorkItemsFullScreen] = React.useState(false);
@@ -332,6 +336,70 @@ export default function TaskDetailsPage() {
         } finally {
             setDeleting(false);
             setDeleteOpen(false);
+        }
+    };
+
+    const handleDownloadDocument = async (url: string) => {
+        try {
+            const res = await fetch(url);
+            if (!res.ok) {
+                console.error('Не удалось скачать документ');
+                return;
+            }
+            const blob = await res.blob();
+            const blobUrl = URL.createObjectURL(blob);
+            const link = document.createElement('a');
+            link.href = blobUrl;
+            link.download = extractFileNameFromUrl(url, 'document');
+            document.body.appendChild(link);
+            link.click();
+            document.body.removeChild(link);
+            URL.revokeObjectURL(blobUrl);
+        } catch (e) {
+            console.error(e);
+        }
+    };
+
+    const openDeleteDocumentDialog = (url: string) => {
+        setDocumentToDelete(url);
+        setDeleteDocumentOpen(true);
+    };
+
+    const closeDeleteDocumentDialog = () => {
+        if (documentDeleting) return;
+        setDeleteDocumentOpen(false);
+        setDocumentToDelete(null);
+    };
+
+    const confirmDeleteDocument = async () => {
+        if (!task?.taskId || !documentToDelete) return;
+        setDocumentDeleting(true);
+        try {
+            const q = new URLSearchParams({
+                taskId: task.taskId,
+                url: documentToDelete,
+                mode: 'documents',
+            });
+            const res = await fetch(`/api/upload?${q.toString()}`, { method: 'DELETE' });
+            if (!res.ok) {
+                console.error('Не удалось удалить документ');
+            } else {
+                setTask((prev) =>
+                    prev
+                        ? {
+                              ...prev,
+                              documents: prev.documents?.filter((d) => d !== documentToDelete),
+                              attachments: prev.attachments?.filter((a) => a !== documentToDelete),
+                          }
+                        : prev
+                );
+            }
+        } catch (e) {
+            console.error(e);
+        } finally {
+            setDocumentDeleting(false);
+            setDeleteDocumentOpen(false);
+            setDocumentToDelete(null);
         }
     };
 
@@ -1035,19 +1103,64 @@ export default function TaskDetailsPage() {
                             <Divider sx={{ mb: 1.5 }} />
                             {hasDocuments ? (
                                 <Stack gap={1}>
-                                    {documentLinks.map((url, idx) => (
-                                        <Link
-                                            key={`doc-${idx}`}
-                                            href={url}
-                                            target="_blank"
-                                            rel="noreferrer"
-                                            underline="hover"
-                                        >
-                                            {idx === 0
-                                                ? `Смета — ${extractFileNameFromUrl(url, 'Смета')}`
-                                                : extractFileNameFromUrl(url, `Документ ${idx + 1}`)}
-                                        </Link>
-                                    ))}
+                                    {documentLinks.map((url, idx) => {
+                                        const isEstimate = idx === 0;
+                                        const label = isEstimate
+                                            ? `Смета — ${extractFileNameFromUrl(url, 'Смета')}`
+                                            : extractFileNameFromUrl(url, `Документ ${idx + 1}`);
+                                        const isCurrentDeleting = documentDeleting && documentToDelete === url;
+
+                                        return (
+                                            <Box
+                                                key={`doc-${idx}`}
+                                                sx={{
+                                                    display: 'flex',
+                                                    alignItems: 'center',
+                                                    gap: 1,
+                                                    flexWrap: 'wrap',
+                                                }}
+                                            >
+                                                {isEstimate && (
+                                                    <>
+                                                        <Tooltip title="Скачать смету">
+                                                            <span>
+                                                                <IconButton
+                                                                    size="small"
+                                                                    onClick={() => void handleDownloadDocument(url)}
+                                                                    disabled={isCurrentDeleting}
+                                                                >
+                                                                    <DownloadOutlinedIcon fontSize="small" />
+                                                                </IconButton>
+                                                            </span>
+                                                        </Tooltip>
+                                                        <Tooltip title="Удалить смету">
+                                                            <span>
+                                                                <IconButton
+                                                                    size="small"
+                                                                    onClick={() => openDeleteDocumentDialog(url)}
+                                                                    disabled={isCurrentDeleting}
+                                                                >
+                                                                    {isCurrentDeleting ? (
+                                                                        <CircularProgress size={18} />
+                                                                    ) : (
+                                                                        <DeleteOutlineIcon fontSize="small" />
+                                                                    )}
+                                                                </IconButton>
+                                                            </span>
+                                                        </Tooltip>
+                                                    </>
+                                                )}
+                                                <Link
+                                                    href={url}
+                                                    target="_blank"
+                                                    rel="noreferrer"
+                                                    underline="hover"
+                                                >
+                                                    {label}
+                                                </Link>
+                                            </Box>
+                                        );
+                                    })}
                                 </Stack>
                             ) : (
                                 <Typography color="text.secondary">Документы отсутствуют</Typography>
@@ -1326,6 +1439,34 @@ export default function TaskDetailsPage() {
                 <Box sx={{ p: 2 }}>
                     {renderCommentsSection('calc(100vh - 80px)')}
                 </Box>
+            </Dialog>
+
+            <Dialog
+                open={deleteDocumentOpen}
+                onClose={closeDeleteDocumentDialog}
+            >
+                <DialogTitle>Удалить смету?</DialogTitle>
+                <DialogContent>
+                    <Typography>
+                        Файл сметы будет удалён из задачи.
+                    </Typography>
+                </DialogContent>
+                <DialogActions>
+                    <Button onClick={closeDeleteDocumentDialog} disabled={documentDeleting}>
+                        Отмена
+                    </Button>
+                    <Button
+                        onClick={confirmDeleteDocument}
+                        color="error"
+                        variant="contained"
+                        disabled={documentDeleting}
+                        startIcon={
+                            documentDeleting ? <CircularProgress size={18} color="inherit" /> : null
+                        }
+                    >
+                        Удалить
+                    </Button>
+                </DialogActions>
             </Dialog>
 
             <Dialog open={deleteOpen} onClose={() => !deleting && setDeleteOpen(false)}>
