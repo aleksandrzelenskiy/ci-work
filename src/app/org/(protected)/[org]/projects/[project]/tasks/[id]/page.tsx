@@ -42,6 +42,8 @@ import TocOutlinedIcon from '@mui/icons-material/TocOutlined';
 import AttachFileOutlinedIcon from '@mui/icons-material/AttachFileOutlined';
 import HistoryIcon from '@mui/icons-material/History';
 import ArticleOutlinedIcon from '@mui/icons-material/ArticleOutlined';
+import OpenInFullIcon from '@mui/icons-material/OpenInFull';
+import CloseFullscreenIcon from '@mui/icons-material/CloseFullscreen';
 import WorkspaceTaskDialog, {
     type TaskForEdit,
 } from '@/app/workspace/components/WorkspaceTaskDialog';
@@ -156,6 +158,7 @@ export default function TaskDetailsPage() {
     const [deleting, setDeleting] = React.useState(false);
 
     const [orgName, setOrgName] = React.useState<string | null>(null);
+    const [workItemsFullScreen, setWorkItemsFullScreen] = React.useState(false);
 
     const asText = (x: unknown): string => {
         if (x === null || typeof x === 'undefined') return '—';
@@ -579,6 +582,52 @@ export default function TaskDetailsPage() {
         return ev.author;
     };
 
+    const renderWorkItemsTable = (maxHeight?: number | string) => {
+        if (!hasWorkItems) {
+            return (
+                <Typography color="text.secondary" sx={{ px: 1 }}>
+                    Нет данных
+                </Typography>
+            );
+        }
+
+        return (
+            <Box
+                sx={{
+                    maxHeight: maxHeight ?? { xs: 320, md: 420 },
+                    overflow: 'auto',
+                }}
+            >
+                <Table size="small" stickyHeader>
+                    <TableHead>
+                        <TableRow>
+                            <TableCell>Вид работ</TableCell>
+                            <TableCell>Кол-во</TableCell>
+                            <TableCell>Ед.</TableCell>
+                            <TableCell>Примечание</TableCell>
+                        </TableRow>
+                    </TableHead>
+                    <TableBody>
+                        {task.workItems?.map((item, idx) => (
+                            <TableRow key={`work-${idx}`}>
+                                <TableCell sx={{ minWidth: 180 }}>
+                                    {item.workType || '—'}
+                                </TableCell>
+                                <TableCell sx={{ whiteSpace: 'nowrap' }}>
+                                    {item.quantity ?? '—'}
+                                </TableCell>
+                                <TableCell sx={{ whiteSpace: 'nowrap' }}>
+                                    {item.unit || '—'}
+                                </TableCell>
+                                <TableCell>{item.note || '—'}</TableCell>
+                            </TableRow>
+                        ))}
+                    </TableBody>
+                </Table>
+            </Box>
+        );
+    };
+
 
     return (
         <Box
@@ -855,70 +904,45 @@ export default function TaskDetailsPage() {
                                     sx={{ '&:before': { display: 'none' } }}
                                 >
                                     <AccordionSummary expandIcon={<ExpandMoreIcon />}>
-                                        <Typography
-                                            variant="subtitle1"
-                                            fontWeight={600}
-                                            gutterBottom
+                                        <Box
                                             sx={{
                                                 display: 'flex',
                                                 alignItems: 'center',
+                                                justifyContent: 'space-between',
+                                                width: '100%',
                                                 gap: 1,
                                             }}
                                         >
-                                            <TocOutlinedIcon fontSize="small" />
-                                            Состав работ
-                                        </Typography>
+                                            <Typography
+                                                variant="subtitle1"
+                                                fontWeight={600}
+                                                gutterBottom
+                                                sx={{
+                                                    display: 'flex',
+                                                    alignItems: 'center',
+                                                    gap: 1,
+                                                }}
+                                            >
+                                                <TocOutlinedIcon fontSize="small" />
+                                                Состав работ
+                                            </Typography>
+
+                                            <Tooltip title="Развернуть на весь экран">
+                                                <IconButton
+                                                    size="small"
+                                                    onClick={(e) => {
+                                                        e.stopPropagation();
+                                                        setWorkItemsFullScreen(true);
+                                                    }}
+                                                >
+                                                    <OpenInFullIcon fontSize="inherit" />
+                                                </IconButton>
+                                            </Tooltip>
+                                        </Box>
                                     </AccordionSummary>
                                     <AccordionDetails sx={{ pt: 0 }}>
                                         <Divider sx={{ mb: 1.5 }} />
-                                        {!hasWorkItems ? (
-                                            <Typography
-                                                color="text.secondary"
-                                                sx={{ px: 1 }}
-                                            >
-                                                Нет данных
-                                            </Typography>
-                                        ) : (
-                                            <Box
-                                                sx={{
-                                                    maxHeight: { xs: 320, md: 420 },
-                                                    overflow: 'auto',
-                                                }}
-                                            >
-                                                <Table size="small" stickyHeader>
-                                                    <TableHead>
-                                                        <TableRow>
-                                                            <TableCell>Вид работ</TableCell>
-                                                            <TableCell>Кол-во</TableCell>
-                                                            <TableCell>Ед.</TableCell>
-                                                            <TableCell>Примечание</TableCell>
-                                                        </TableRow>
-                                                    </TableHead>
-                                                    <TableBody>
-                                                        {task.workItems?.map((item, idx) => (
-                                                            <TableRow key={`work-${idx}`}>
-                                                                <TableCell sx={{ minWidth: 180 }}>
-                                                                    {item.workType || '—'}
-                                                                </TableCell>
-                                                                <TableCell
-                                                                    sx={{ whiteSpace: 'nowrap' }}
-                                                                >
-                                                                    {item.quantity ?? '—'}
-                                                                </TableCell>
-                                                                <TableCell
-                                                                    sx={{ whiteSpace: 'nowrap' }}
-                                                                >
-                                                                    {item.unit || '—'}
-                                                                </TableCell>
-                                                                <TableCell>
-                                                                    {item.note || '—'}
-                                                                </TableCell>
-                                                            </TableRow>
-                                                        ))}
-                                                    </TableBody>
-                                                </Table>
-                                            </Box>
-                                        )}
+                                        {renderWorkItemsTable()}
                                     </AccordionDetails>
                                 </Accordion>
                             </CardItem>
@@ -1189,6 +1213,34 @@ export default function TaskDetailsPage() {
                     initialTask={task ? toEditShape(task) : null}
                 />
             )}
+
+            <Dialog
+                fullScreen
+                open={workItemsFullScreen}
+                onClose={() => setWorkItemsFullScreen(false)}
+            >
+                <Box
+                    sx={{
+                        display: 'flex',
+                        alignItems: 'center',
+                        justifyContent: 'space-between',
+                        p: 2,
+                        borderBottom: 1,
+                        borderColor: 'divider',
+                    }}
+                >
+                    <Typography variant="h6" fontWeight={600}>
+                        Состав работ
+                    </Typography>
+                    <IconButton onClick={() => setWorkItemsFullScreen(false)}>
+                        <CloseFullscreenIcon />
+                    </IconButton>
+                </Box>
+
+                <Box sx={{ p: 2 }}>
+                    {renderWorkItemsTable('calc(100vh - 80px)')}
+                </Box>
+            </Dialog>
 
             <Dialog open={deleteOpen} onClose={() => !deleting && setDeleteOpen(false)}>
                 <DialogTitle>Удалить задачу?</DialogTitle>
