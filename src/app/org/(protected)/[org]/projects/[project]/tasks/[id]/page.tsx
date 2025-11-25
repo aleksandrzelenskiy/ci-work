@@ -725,7 +725,7 @@ export default function TaskDetailsPage() {
     return (
         <Box
             sx={{
-                px: { xs: 1, md: 1.5 },
+                px: { xs: 0.5, md: 1.5 },
                 py: 2,
                 display: 'flex',
                 flexDirection: 'column',
@@ -850,7 +850,7 @@ export default function TaskDetailsPage() {
                 <Box sx={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
                     <Masonry
                         columns={{ xs: 1, sm: 1, md: 2, lg: 3, xl: 4 }}
-                        spacing={2}
+                        spacing={{ xs: 1, sm: 1.5, md: 2 }}
                         sx={{
                             '& > *': {
                                 boxSizing: 'border-box',
@@ -986,8 +986,8 @@ export default function TaskDetailsPage() {
                                 sx={(theme) => ({
                                     minWidth: 0,
                                     width: {
-                                        xs: `calc(100% - ${theme.spacing(2)})`,
-                                        sm: `calc(100% - ${theme.spacing(2)})`,
+                                        xs: `calc(100% - ${theme.spacing(1)})`,
+                                        sm: `calc(100% - ${theme.spacing(1.5)})`,
                                         md: `calc(100% - ${theme.spacing(2)})`,
                                         lg: `calc((100% / 3 * 2) - ${theme.spacing(2)})`,
                                         xl: `calc((100% / 4 * 2) - ${theme.spacing(2)})`,
