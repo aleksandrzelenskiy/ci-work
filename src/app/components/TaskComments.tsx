@@ -12,6 +12,8 @@ import {
     Typography,
 } from '@mui/material';
 import AttachFileOutlinedIcon from '@mui/icons-material/AttachFileOutlined';
+import type { Socket } from 'socket.io-client';
+import { getSocketClient } from '@/app/lib/socketClient';
 
 export type TaskComment = {
     _id: string;
@@ -28,6 +30,17 @@ type TaskCommentsProps = {
     initialComments?: TaskComment[] | null;
     onTaskUpdated?: (task: { comments?: TaskComment[]; events?: unknown }) => void;
 };
+
+type TaskSocketServerToClientEvents = {
+    'task:comment:new': (comment: TaskComment) => void;
+};
+
+type TaskSocketClientToServerEvents = {
+    'task:join': (payload: { taskId: string }) => void;
+    'task:leave': (payload: { taskId: string }) => void;
+};
+
+type TaskSocket = Socket<TaskSocketServerToClientEvents, TaskSocketClientToServerEvents>;
 
 const formatDateTime = (value: string | Date) => {
     const date = new Date(value);
@@ -51,9 +64,56 @@ export default function TaskComments({
     const [submitting, setSubmitting] = React.useState(false);
     const [error, setError] = React.useState<string | null>(null);
 
+    const upsertComment = React.useCallback((nextComment: TaskComment) => {
+        setComments((prev) => {
+            const existingIndex = prev.findIndex((comment) => comment._id === nextComment._id);
+            if (existingIndex !== -1) {
+                const updated = [...prev];
+                updated[existingIndex] = { ...prev[existingIndex], ...nextComment };
+                return updated;
+            }
+            return [...prev, nextComment];
+        });
+    }, []);
+
     React.useEffect(() => {
         setComments(initialComments ?? []);
     }, [initialComments]);
+
+    React.useEffect(() => {
+        if (!taskId) return undefined;
+
+        let cancelled = false;
+        let cleanup: (() => void) | null = null;
+
+        const connectSocket = async () => {
+            try {
+                const socket = (await getSocketClient()) as TaskSocket;
+                if (cancelled || !taskId) return;
+
+                const handleNewComment = (comment: TaskComment) => {
+                    upsertComment(comment);
+                };
+
+                socket.emit('task:join', { taskId });
+                socket.on('task:comment:new', handleNewComment);
+
+                cleanup = () => {
+                    socket.off('task:comment:new', handleNewComment);
+                    socket.emit('task:leave', { taskId });
+                };
+            } catch (socketError) {
+                console.error('task comments socket error', socketError);
+            }
+        };
+
+        void connectSocket();
+
+        return () => {
+            cancelled = true;
+            cleanup?.();
+        };
+    }, [taskId, upsertComment]);
 
     const handleSubmit = async () => {
         if (!taskId) {
@@ -87,7 +147,7 @@ export default function TaskComments({
                 return;
             }
 
-            setComments((prev) => [...prev, data.comment as TaskComment]);
+            upsertComment(data.comment as TaskComment);
             setText('');
             setFile(null);
 
