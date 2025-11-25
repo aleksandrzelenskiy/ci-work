@@ -45,9 +45,23 @@ type ParsedFile = {
     mimetype: string;
 };
 
+const SUSPECT_LATIN1_PATTERN = /[ÃÐÒÑÂäöüÄÖÜß]/;
+
+// пробуем восстановить UTF-8 из latin1, если видим типичные артефакты
+function decodeMaybeLatin1(value: string): string {
+    if (!SUSPECT_LATIN1_PATTERN.test(value)) return value;
+    try {
+        const decoded = Buffer.from(value, 'latin1').toString('utf8');
+        return decoded || value;
+    } catch {
+        return value;
+    }
+}
+
 // безопасно приводим имя файла
 function safeBasename(name: string): string {
-    return path.basename(name).replace(/[\r\n]/g, '_');
+    const base = path.basename(name).replace(/[\r\n]/g, '_');
+    return decodeMaybeLatin1(base);
 }
 
 export default async function handler(req: NextApiRequest, res: NextApiResponse) {
