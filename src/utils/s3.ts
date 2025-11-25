@@ -182,53 +182,61 @@ export async function deleteTaskFile(publicUrl: string): Promise<void> {
 }
 
 /** Полное удаление папки задачи uploads/<TASKID>/ со всеми вложениями (S3 или локально) */
-export async function deleteTaskFolder(taskId: string): Promise<void> {
+export async function deleteTaskFolder(taskId: string, orgSlug?: string): Promise<void> {
   const safeTaskId = sanitizeTaskId(taskId);
+  const safeOrg = orgSlug ? sanitizeTaskId(orgSlug) : '';
   if (!safeTaskId) {
     console.warn('⚠️ Пустой taskId, пропускаем удаление папки');
     return;
   }
 
-  const prefix = `${path.posix.join('uploads', safeTaskId)}/`;
+  const prefixes = Array.from(
+    new Set([
+      `${path.posix.join('uploads', safeTaskId)}/`,
+      safeOrg ? `${path.posix.join('uploads', safeOrg, safeTaskId)}/` : null,
+    ].filter(Boolean) as string[])
+  );
 
-  if (s3 && BUCKET) {
-    let continuationToken: string | undefined = undefined;
+  for (const prefix of prefixes) {
+    if (s3 && BUCKET) {
+      let continuationToken: string | undefined = undefined;
 
-    do {
-      const { Contents = [], IsTruncated, NextContinuationToken } =
-        await s3.send(new ListObjectsV2Command({
-          Bucket: BUCKET,
-          Prefix: prefix,
-          ContinuationToken: continuationToken,
-        })) as ListObjectsV2CommandOutput;
+      do {
+        const { Contents = [], IsTruncated, NextContinuationToken } =
+          await s3.send(new ListObjectsV2Command({
+            Bucket: BUCKET,
+            Prefix: prefix,
+            ContinuationToken: continuationToken,
+          })) as ListObjectsV2CommandOutput;
 
-      const keys = Contents.map(({ Key }) => Key).filter(
-        (key): key is string => typeof key === 'string' && key.trim().length > 0
-      );
+        const keys = Contents.map(({ Key }) => Key).filter(
+          (key): key is string => typeof key === 'string' && key.trim().length > 0
+        );
 
-      if (keys.length > 0) {
-        const deleteCmd = new DeleteObjectsCommand({
-          Bucket: BUCKET,
-          Delete: {
-            Objects: keys.map(
-              (Key): ObjectIdentifier => ({
-                Key,
-              })
-            ),
-            Quiet: true,
-          },
-        });
-        await s3.send(deleteCmd);
-        console.log(`🗑️ Deleted ${keys.length} objects from S3 prefix ${prefix}`);
-      }
+        if (keys.length > 0) {
+          const deleteCmd = new DeleteObjectsCommand({
+            Bucket: BUCKET,
+            Delete: {
+              Objects: keys.map(
+                (Key): ObjectIdentifier => ({
+                  Key,
+                })
+              ),
+              Quiet: true,
+            },
+          });
+          await s3.send(deleteCmd);
+          console.log(`🗑️ Deleted ${keys.length} objects from S3 prefix ${prefix}`);
+        }
 
-      continuationToken = IsTruncated ? NextContinuationToken : undefined;
-    } while (continuationToken);
+        continuationToken = IsTruncated ? NextContinuationToken : undefined;
+      } while (continuationToken);
 
-    return;
+      continue;
+    }
+
+    const localDir = path.join(process.cwd(), 'public', prefix);
+    await fs.promises.rm(localDir, { recursive: true, force: true });
+    console.log(`🗑️ Deleted local task folder: ${localDir}`);
   }
-
-  const localDir = path.join(process.cwd(), 'public', prefix);
-  await fs.promises.rm(localDir, { recursive: true, force: true });
-  console.log(`🗑️ Deleted local task folder: ${localDir}`);
 }

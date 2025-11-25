@@ -331,7 +331,7 @@ export async function DELETE(
             typeof deletedTask.taskId === 'string' && deletedTask.taskId.trim()
                 ? deletedTask.taskId
                 : id;
-        await deleteTaskFolder(taskIdForCleanup);
+        await deleteTaskFolder(taskIdForCleanup, orgSlug);
 
         return NextResponse.json({ ok: true });
     } catch (err) {
