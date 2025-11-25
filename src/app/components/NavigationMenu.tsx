@@ -310,31 +310,41 @@ export default function NavigationMenu({ onNavigateAction }: NavigationMenuProps
                   path: `/org/${encodeURIComponent(org.orgSlug)}/projects`,
               }))
             : undefined;
+    const isEmployerManager = isEmployer && managerProjects.length > 0;
     const navItems = React.useMemo<NavItem[]>(() => {
         const items: NavItem[] = [...BASE_NAV_ITEMS];
-        items.push({
-            label: 'МОИ ЗАДАЧИ',
-            path: tasksPath,
-            icon: <TaskIcon sx={{ fontSize: 20 }} />,
-            children: tasksChildren,
-        });
+        const projectNavItem =
+            isEmployer && projectsPath
+                ? {
+                      label: 'МОИ ПРОЕКТЫ',
+                      path: projectsPath,
+                      icon: <FolderIcon sx={{ fontSize: 20 }} />,
+                      children: projectsChildren,
+                  }
+                : null;
+        if (isEmployerManager && projectNavItem) {
+            items.push(projectNavItem);
+        } else {
+            items.push({
+                label: 'МОИ ЗАДАЧИ',
+                path: tasksPath,
+                icon: <TaskIcon sx={{ fontSize: 20 }} />,
+                children: tasksChildren,
+            });
+        }
         items.push({
             label: 'ГЕОЛОКАЦИИ',
             path: locationsPath,
             icon: <PlaceIcon sx={{ fontSize: 20 }} />,
             children: locationsChildren,
         });
-        if (isEmployer && projectsPath) {
-            items.push({
-                label: 'МОИ ПРОЕКТЫ',
-                path: projectsPath,
-                icon: <FolderIcon sx={{ fontSize: 20 }} />,
-                children: projectsChildren,
-            });
+        if (!isEmployerManager && projectNavItem) {
+            items.push(projectNavItem);
         }
         return items;
     }, [
         isEmployer,
+        isEmployerManager,
         locationsChildren,
         locationsPath,
         projectsChildren,
