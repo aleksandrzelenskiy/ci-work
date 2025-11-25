@@ -23,10 +23,11 @@ import type { UserResource } from '@clerk/types';
 import {
     fetchUserContext,
     type UserContextResponse,
+    resolveRoleFromContext,
 } from '@/app/utils/userContext';
 
 type NavigationMenuProps = {
-    onNavigate: (path: string) => void;
+    onNavigateAction: (path: string) => void;
 };
 
 const NAV_ITEMS: Array<{
@@ -45,11 +46,6 @@ const NAV_ITEMS: Array<{
     //     path: '/reports',
     //     icon: <PermMediaIcon sx={{ fontSize: 20 }} />,
     // },
-    {
-        label: 'ГЕОЛОКАЦИИ',
-        path: '/map',
-        icon: <PlaceIcon sx={{ fontSize: 20 }} />,
-    },
 ];
 
 type DbUserPayload = {
@@ -59,10 +55,10 @@ type DbUserPayload = {
     profilePic?: string;
 };
 
-export default function NavigationMenu({ onNavigate }: NavigationMenuProps) {
+export default function NavigationMenu({ onNavigateAction }: NavigationMenuProps) {
     const { user } = useUser();
     const { signOut } = useClerk();
-    const pathname = usePathname();
+    const pathname = usePathname() ?? '';
     const theme = useTheme();
     const isDarkMode = theme.palette.mode === 'dark';
     const [userContext, setUserContext] = useState<UserContextResponse | null>(
@@ -78,13 +74,34 @@ export default function NavigationMenu({ onNavigate }: NavigationMenuProps) {
             }
         };
 
-        loadUserContext();
+        void loadUserContext();
         return () => {
             isMounted = false;
         };
     }, []);
 
     const contextUser = userContext?.user as DbUserPayload | undefined;
+    const effectiveRole = resolveRoleFromContext(userContext);
+    const isExecutor = effectiveRole === 'executor';
+    const projectMatch = pathname.match(/^\/org\/([^/]+)\/projects\/([^/]+)/);
+    const orgSlug = projectMatch?.[1];
+    const projectRef = projectMatch?.[2];
+    const managerGeoPath =
+        orgSlug && projectRef
+            ? `/org/${orgSlug}/projects/${projectRef}/tasks/locations`
+            : '/tasks/locations';
+    const geoPath = isExecutor ? '/tasks/locations' : managerGeoPath;
+    const navItems = React.useMemo(
+        () => [
+            ...NAV_ITEMS,
+            {
+                label: 'ГЕОЛОКАЦИИ',
+                path: geoPath,
+                icon: <PlaceIcon sx={{ fontSize: 20 }} />,
+            },
+        ],
+        [geoPath]
+    );
 
     const normalizeValue = (value?: string | null) => {
         if (!value) return undefined;
@@ -115,7 +132,7 @@ export default function NavigationMenu({ onNavigate }: NavigationMenuProps) {
     };
 
     const handleProfileClick = () => {
-        onNavigate('/profile');
+        onNavigateAction('/profile');
     };
 
     const palette = {
@@ -218,13 +235,15 @@ export default function NavigationMenu({ onNavigate }: NavigationMenuProps) {
                 disablePadding
                 sx={{ display: 'flex', flexDirection: 'column', gap: 1 }}
             >
-                {NAV_ITEMS.map((item) => {
-                    const isActive = pathname === item.path;
+                {navItems.map((item) => {
+                    const isActive =
+                        pathname === item.path ||
+                        pathname.startsWith(`${item.path}/`);
                     return (
                         <ListItemButton
                             key={item.path}
                             disableRipple
-                            onClick={() => onNavigate(item.path)}
+                            onClick={() => onNavigateAction(item.path)}
                             sx={{
                                 borderRadius: 3,
                                 px: 2.5,
@@ -262,13 +281,17 @@ export default function NavigationMenu({ onNavigate }: NavigationMenuProps) {
                             </ListItemIcon>
                             <ListItemText
                                 primary={item.label}
-                                primaryTypographyProps={{
-                                    fontSize: '0.85rem',
-                                    letterSpacing: '0.08em',
-                                    fontWeight: isActive ? 600 : 500,
-                                    color: isActive
-                                        ? palette.textPrimary
-                                        : palette.textSecondary,
+                                slotProps={{
+                                    primary: {
+                                        sx: {
+                                            fontSize: '0.85rem',
+                                            letterSpacing: '0.08em',
+                                            fontWeight: isActive ? 600 : 500,
+                                            color: isActive
+                                                ? palette.textPrimary
+                                                : palette.textSecondary,
+                                        },
+                                    },
                                 }}
                             />
                         </ListItemButton>

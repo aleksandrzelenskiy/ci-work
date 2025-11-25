@@ -137,7 +137,7 @@ export default function ClientApp({ children }: { children: React.ReactNode }) {
   };
 
   const DrawerList = (
-    <NavigationMenu onNavigate={handleNavigation} />
+    <NavigationMenu onNavigateAction={handleNavigation} />
   );
 
   const currentYear = new Date().getFullYear();
