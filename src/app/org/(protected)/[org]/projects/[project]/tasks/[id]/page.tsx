@@ -720,8 +720,8 @@ export default function TaskDetailsPage() {
                                     "work"
                                     "desc"
                                     "geo"
-                                    "docs"
                                     "files"
+                                    "docs"
                                     "comments"
                                     "history"
                                 `,
@@ -937,39 +937,6 @@ export default function TaskDetailsPage() {
                             <TaskGeoLocation locations={task.bsLocation} />
                         </CardItem>
 
-                        {/* Документы */}
-                        <CardItem sx={{ gridArea: 'docs', minWidth: 0 }}>
-                            <Typography
-                                variant="subtitle1"
-                                fontWeight={600}
-                                gutterBottom
-                                sx={{ display: 'flex', alignItems: 'center', gap: 1 }}
-                            >
-                                <ArticleOutlinedIcon fontSize="small" />
-                                Документы
-                            </Typography>
-                            <Divider sx={{ mb: 1.5 }} />
-                            {hasDocuments ? (
-                                <Stack gap={1}>
-                                    {documentLinks.map((url, idx) => (
-                                        <Link
-                                            key={`doc-${idx}`}
-                                            href={url}
-                                            target="_blank"
-                                            rel="noreferrer"
-                                            underline="hover"
-                                        >
-                                            {idx === 0
-                                                ? `Смета — ${extractFileNameFromUrl(url, 'Смета')}`
-                                                : extractFileNameFromUrl(url, `Документ ${idx + 1}`)}
-                                        </Link>
-                                    ))}
-                                </Stack>
-                            ) : (
-                                <Typography color="text.secondary">Документы отсутствуют</Typography>
-                            )}
-                        </CardItem>
-
                         {/* Вложения — если есть */}
                         <CardItem sx={{ gridArea: 'files', minWidth: 0 }}>
                             <Typography
@@ -1011,6 +978,39 @@ export default function TaskDetailsPage() {
                                 <Typography color="text.secondary">
                                     Нет вложений
                                 </Typography>
+                            )}
+                        </CardItem>
+
+                        {/* Документы */}
+                        <CardItem sx={{ gridArea: 'docs', minWidth: 0 }}>
+                            <Typography
+                                variant="subtitle1"
+                                fontWeight={600}
+                                gutterBottom
+                                sx={{ display: 'flex', alignItems: 'center', gap: 1 }}
+                            >
+                                <ArticleOutlinedIcon fontSize="small" />
+                                Документы
+                            </Typography>
+                            <Divider sx={{ mb: 1.5 }} />
+                            {hasDocuments ? (
+                                <Stack gap={1}>
+                                    {documentLinks.map((url, idx) => (
+                                        <Link
+                                            key={`doc-${idx}`}
+                                            href={url}
+                                            target="_blank"
+                                            rel="noreferrer"
+                                            underline="hover"
+                                        >
+                                            {idx === 0
+                                                ? `Смета — ${extractFileNameFromUrl(url, 'Смета')}`
+                                                : extractFileNameFromUrl(url, `Документ ${idx + 1}`)}
+                                        </Link>
+                                    ))}
+                                </Stack>
+                            ) : (
+                                <Typography color="text.secondary">Документы отсутствуют</Typography>
                             )}
                         </CardItem>
 

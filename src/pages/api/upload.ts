@@ -133,7 +133,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
         return res.status(400).json({ error: 'Invalid multipart form data' });
     }
 
-    // РЕЖИМ ВЛОЖЕНИЙ К ЗАДАЧЕ
+    // РЕЖИМ ВЛОЖЕНИЙ К ЗАДАЧЕ / ДОКУМЕНТОВ
     const subfolder = fields.subfolder?.trim();
     const taskIdForAttachments = fields.taskId?.trim();
     const orgSlug = fields.orgSlug?.trim();
@@ -150,6 +150,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
             }
 
             const uploadedUrls: string[] = [];
+            const targetField = subfolder === 'documents' ? 'documents' : 'attachments';
 
             for (const f of files) {
                 const filename = safeBasename(f.filename || 'file');
@@ -183,7 +184,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
                     { taskId: taskIdForAttachments },
                     {
                         $push: {
-                            attachments: {
+                            [targetField]: {
                                 $each: uploadedUrls,
                             },
                         },
@@ -193,7 +194,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
 
             return res.status(200).json({
                 success: true,
-                mode: 'attachments',
+                mode: targetField,
                 message: `Uploaded ${uploadedUrls.length} file(s) to ${subfolder}`,
                 subfolder,
                 taskId: taskIdForAttachments,

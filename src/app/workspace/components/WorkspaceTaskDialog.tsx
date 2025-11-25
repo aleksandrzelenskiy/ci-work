@@ -302,6 +302,7 @@ export default function WorkspaceTaskDialog({
         Array<{ key: string; name: string; url?: string; size?: number }>
     >([]);
     const [attachments, setAttachments] = React.useState<File[]>([]);
+    const [estimateFile, setEstimateFile] = React.useState<File | null>(null);
     const [dragActive, setDragActive] = React.useState(false);
     const [uploading, setUploading] = React.useState(false);
     const [uploadProgress, setUploadProgress] = React.useState<number>(0);
@@ -538,6 +539,7 @@ export default function WorkspaceTaskDialog({
         setExistingAttachments(merged);
 
         setAttachments([]);
+        setEstimateFile(null);
         setUploadProgress(0);
         setUploading(false);
     }, [open, isEdit, initialTask, loadBsOptions]);
@@ -688,14 +690,14 @@ export default function WorkspaceTaskDialog({
                 setTaskName(`Работы по заказу T2 для БС ${titleBs}`);
             }
 
-            // 4) добавить Excel как вложение
+            // 4) сохранить файл сметы отдельно, чтобы загрузить его как документ при сохранении задачи
             if (sourceFile) {
-                setAttachments((prev) => {
-                    const key = `${sourceFile.name}:${sourceFile.size}`;
-                    const existing = new Set(prev.map((f) => `${f.name}:${f.size}`));
-                    if (existing.has(key)) return prev;
-                    return [...prev, sourceFile];
+                setEstimateFile((prev) => {
+                    const sameFile = prev && prev.name === sourceFile.name && prev.size === sourceFile.size;
+                    return sameFile ? prev : sourceFile;
                 });
+            } else {
+                setEstimateFile(null);
             }
         },
         [taskName, loadBsOptions]
@@ -761,6 +763,7 @@ export default function WorkspaceTaskDialog({
         setSelectedExecutor(null);
         setExistingAttachments([]);
         setAttachments([]);
+        setEstimateFile(null);
         setUploadProgress(0);
         setUploading(false);
         setTotalCost('');
@@ -824,6 +827,32 @@ export default function WorkspaceTaskDialog({
     const removeFile = (name: string, size: number) => {
         setAttachments((prev) => prev.filter((f) => !(f.name === name && f.size === size)));
     };
+
+    async function uploadEstimateDocument(taskShortId: string): Promise<void> {
+        if (!estimateFile) return;
+        try {
+            const fd = new FormData();
+            fd.append('file', estimateFile, estimateFile.name);
+            fd.append('taskId', taskShortId);
+            fd.append('subfolder', 'documents');
+            fd.append('orgSlug', orgSlug || '');
+
+            const res = await fetch('/api/upload', { method: 'POST', body: fd });
+            if (!res.ok) {
+                let body: unknown = null;
+                try {
+                    body = await res.json();
+                } catch {
+                    /* ignore */
+                }
+                console.error('Estimate upload failed:', extractErrorMessage(body, res.statusText));
+            } else {
+                setEstimateFile(null);
+            }
+        } catch (err) {
+            console.error('Estimate upload error:', err);
+        }
+    }
 
     async function uploadAttachments(taskShortId: string): Promise<void> {
         if (!attachments.length) return;
@@ -940,6 +969,7 @@ export default function WorkspaceTaskDialog({
                 return;
             }
 
+            await uploadEstimateDocument(newTaskId);
             await uploadAttachments(newTaskId);
             reset();
             onCreatedAction();
@@ -999,6 +1029,7 @@ export default function WorkspaceTaskDialog({
                 return;
             }
 
+            await uploadEstimateDocument(initialTask.taskId);
             if (attachments.length) {
                 await uploadAttachments(initialTask.taskId);
             }
@@ -1611,6 +1642,13 @@ export default function WorkspaceTaskDialog({
                                         ))}
                                     </Stack>
                                 </Box>
+                            )}
+
+                            {estimateFile && (
+                                <Alert severity="info" sx={{ bgcolor: 'rgba(59,130,246,0.06)' }}>
+                                    Смета «{estimateFile.name}» будет сохранена в документы задачи и
+                                    не попадёт в вложения.
+                                </Alert>
                             )}
 
                             <Box
