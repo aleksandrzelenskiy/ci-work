@@ -62,6 +62,7 @@ export default function TaskComments({
     onTaskUpdated,
 }: TaskCommentsProps) {
     const [comments, setComments] = React.useState<TaskComment[]>(initialComments ?? []);
+    const [currentUserId, setCurrentUserId] = React.useState<string | null>(null);
     const [text, setText] = React.useState('');
     const [file, setFile] = React.useState<File | null>(null);
     const [submitting, setSubmitting] = React.useState(false);
@@ -141,6 +142,29 @@ export default function TaskComments({
             console.error('optimize image failed', optimizeError);
             return input;
         }
+    }, []);
+
+    React.useEffect(() => {
+        let cancelled = false;
+
+        const loadUser = async () => {
+            try {
+                const res = await fetch('/api/current-user', { cache: 'no-store' });
+                if (!res.ok) return;
+
+                const payload = (await res.json()) as { user?: { clerkUserId?: string; id?: string } };
+                const userId = payload?.user?.clerkUserId || payload?.user?.id || null;
+                if (!cancelled) setCurrentUserId(userId);
+            } catch (userError) {
+                console.error('task comments: failed to load current user', userError);
+            }
+        };
+
+        void loadUser();
+
+        return () => {
+            cancelled = true;
+        };
     }, []);
 
     React.useEffect(() => {
@@ -235,94 +259,136 @@ export default function TaskComments({
                 <Typography color="text.secondary">Комментариев пока нет</Typography>
             ) : (
                 <Stack gap={1.5}>
-                    {comments.map((comment) => (
-                        <Stack
-                            key={comment._id}
-                            direction="row"
-                            spacing={1}
-                            alignItems="flex-start"
-                        >
-                            <Avatar
-                                src={comment.profilePic}
-                                alt={comment.author}
-                                sx={{ width: 32, height: 32 }}
+                    {comments.map((comment) => {
+                        const isOwn = Boolean(currentUserId && comment.authorId === currentUserId);
+
+                        return (
+                            <Stack
+                                key={comment._id}
+                                direction="row"
+                                spacing={1}
+                                alignItems="flex-end"
+                                justifyContent={isOwn ? 'flex-end' : 'flex-start'}
+                                sx={{ width: '100%', flexDirection: isOwn ? 'row-reverse' : 'row' }}
                             >
-                                {comment.author?.[0]?.toUpperCase() || '?'}
-                            </Avatar>
-                            <Paper
-                                elevation={0}
-                                sx={{
-                                    p: 1.25,
-                                    flex: 1,
-                                    minWidth: 0,
-                                    maxWidth: '100%',
-                                    borderRadius: 3,
-                                    bgcolor: '#f5f5f7',
-                                    border: '1px solid #e5e5ea',
-                                    boxShadow: '0 6px 18px rgba(0,0,0,0.04)',
-                                }}
-                            >
-                                <Stack
-                                    direction="row"
-                                    justifyContent="space-between"
-                                    alignItems="baseline"
-                                    sx={{ mb: 0.75 }}
-                                >
-                                    <Typography variant="body2" fontWeight={600} noWrap>
-                                        {comment.author}
-                                    </Typography>
-                                    <Typography variant="caption" color="text.secondary">
-                                        {formatDateTime(comment.createdAt)}
-                                    </Typography>
-                                </Stack>
-                                <Typography
-                                    variant="body2"
+                                <Avatar
+                                    src={comment.profilePic}
+                                    alt={comment.author}
                                     sx={{
-                                        whiteSpace: 'pre-wrap',
-                                        color: 'text.primary',
-                                        wordBreak: 'break-word',
+                                        width: 32,
+                                        height: 32,
+                                        bgcolor: isOwn ? '#007aff' : undefined,
+                                        color: isOwn ? '#fff' : undefined,
                                     }}
                                 >
-                                    {comment.text}
-                                </Typography>
-                                {comment.photoUrl && (
-                                    isImageUrl(comment.photoUrl) ? (
-                                        <Box
-                                            component="img"
-                                            src={comment.photoUrl}
-                                            alt="Комментарий"
-                                            onClick={() => setPreviewUrl(comment.photoUrl ?? null)}
+                                    {comment.author?.[0]?.toUpperCase() || '?'}
+                                </Avatar>
+                                <Paper
+                                    elevation={0}
+                                    sx={{
+                                        p: 1.25,
+                                        flex: '0 1 82%',
+                                        minWidth: 0,
+                                        maxWidth: '100%',
+                                        borderRadius: 3,
+                                        bgcolor: isOwn ? '#e8f2ff' : '#f5f5f7',
+                                        border: isOwn ? '1px solid #b9d6ff' : '1px solid #e5e5ea',
+                                        boxShadow: isOwn
+                                            ? '0 10px 28px rgba(0,122,255,0.12)'
+                                            : '0 6px 18px rgba(0,0,0,0.04)',
+                                        alignSelf: 'flex-start',
+                                    }}
+                                >
+                                    <Stack
+                                        direction="row"
+                                        justifyContent="space-between"
+                                        alignItems="baseline"
+                                        sx={{ mb: 0.75 }}
+                                    >
+                                        <Typography
+                                            variant="body2"
+                                            fontWeight={600}
+                                            noWrap
                                             sx={{
-                                                mt: 1,
-                                                maxWidth: '100%',
-                                                borderRadius: 2,
-                                                border: '1px solid #e5e5ea',
-                                                boxShadow: '0 10px 30px rgba(0,0,0,0.08)',
-                                                cursor: 'pointer',
-                                            }}
-                                        />
-                                    ) : (
-                                        <Button
-                                            href={comment.photoUrl}
-                                            target="_blank"
-                                            rel="noreferrer"
-                                            variant="outlined"
-                                            size="small"
-                                            sx={{
-                                                alignSelf: 'flex-start',
-                                                mt: 1,
-                                                borderRadius: 999,
-                                                textTransform: 'none',
-                                                borderColor: '#d1d1d6',
+                                                color: isOwn ? '#0a84ff' : 'text.primary',
+                                                textAlign: isOwn ? 'right' : 'left',
+                                                flex: 1,
                                             }}
                                         >
-                                            Открыть вложение
-                                        </Button>
-                                    )
-                                )}
-                            </Paper>
-                        </Stack>
-                    ))}
+                                            {comment.author}
+                                        </Typography>
+                                        <Typography
+                                            variant="caption"
+                                            color="text.secondary"
+                                            sx={{ ml: 1, whiteSpace: 'nowrap' }}
+                                        >
+                                            {formatDateTime(comment.createdAt)}
+                                        </Typography>
+                                    </Stack>
+                                    <Typography
+                                        variant="body2"
+                                        sx={{
+                                            whiteSpace: 'pre-wrap',
+                                            color: 'text.primary',
+                                            wordBreak: 'break-word',
+                                            textAlign: isOwn ? 'right' : 'left',
+                                        }}
+                                    >
+                                        {comment.text}
+                                    </Typography>
+                                    {comment.photoUrl && (
+                                        isImageUrl(comment.photoUrl) ? (
+                                            <Box
+                                                component="img"
+                                                src={comment.photoUrl}
+                                                alt="Комментарий"
+                                                onClick={() => setPreviewUrl(comment.photoUrl ?? null)}
+                                                sx={{
+                                                    mt: 1,
+                                                    maxWidth: '100%',
+                                                    borderRadius: 2,
+                                                    border: isOwn
+                                                        ? '1px solid #b9d6ff'
+                                                        : '1px solid #e5e5ea',
+                                                    boxShadow: isOwn
+                                                        ? '0 12px 30px rgba(0,122,255,0.16)'
+                                                        : '0 10px 30px rgba(0,0,0,0.08)',
+                                                    cursor: 'pointer',
+                                                    display: 'block',
+                                                    ml: isOwn ? 'auto' : 0,
+                                                }}
+                                            />
+                                        ) : (
+                                            <Button
+                                                href={comment.photoUrl}
+                                                target="_blank"
+                                                rel="noreferrer"
+                                                variant="outlined"
+                                                size="small"
+                                                sx={{
+                                                    alignSelf: isOwn ? 'flex-end' : 'flex-start',
+                                                    mt: 1,
+                                                    borderRadius: 999,
+                                                    textTransform: 'none',
+                                                    borderColor: isOwn ? '#b9d6ff' : '#d1d1d6',
+                                                    color: isOwn ? '#0a84ff' : 'text.primary',
+                                                    bgcolor: isOwn ? '#f4f9ff' : undefined,
+                                                    '&:hover': isOwn
+                                                        ? {
+                                                              bgcolor: '#e8f2ff',
+                                                              borderColor: '#9fc7ff',
+                                                          }
+                                                        : undefined,
+                                                }}
+                                            >
+                                                Открыть вложение
+                                            </Button>
+                                        )
+                                    )}
+                                </Paper>
+                            </Stack>
+                        );
+                    })}
                 </Stack>
             )}
 
@@ -425,7 +491,7 @@ export default function TaskComments({
                         },
                     }}
                 >
-                    Добавить комментарий
+                    Отправить
                 </Button>
             </Stack>
             <Dialog
