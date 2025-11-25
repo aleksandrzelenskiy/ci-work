@@ -159,6 +159,7 @@ export default function TaskDetailsPage() {
 
     const [orgName, setOrgName] = React.useState<string | null>(null);
     const [workItemsFullScreen, setWorkItemsFullScreen] = React.useState(false);
+    const [commentsFullScreen, setCommentsFullScreen] = React.useState(false);
 
     const asText = (x: unknown): string => {
         if (x === null || typeof x === 'undefined') return '—';
@@ -628,6 +629,30 @@ export default function TaskDetailsPage() {
         );
     };
 
+    const renderCommentsSection = (maxHeight?: number | string) => {
+        const currentTask = task;
+        if (!currentTask) return null;
+
+        return (
+            <Box
+                sx={{
+                    maxHeight: maxHeight ?? { xs: 360, md: 520 },
+                    overflow: 'auto',
+                }}
+            >
+                <TaskComments
+                    taskId={currentTask.taskId || id}
+                    initialComments={currentTask.comments}
+                    onTaskUpdated={(updatedTask) =>
+                        setTask((prev) =>
+                            prev ? { ...prev, ...(updatedTask as Partial<Task>) } : prev
+                        )
+                    }
+                />
+            </Box>
+        );
+    };
+
 
     return (
         <Box
@@ -880,7 +905,9 @@ export default function TaskDetailsPage() {
 
                         {/* Геолокация */}
                         <CardItem sx={{ minWidth: 0 }}>
-                            <TaskGeoLocation locations={task.bsLocation} />
+                            <Box sx={{ fontSize: '1rem', lineHeight: 1.6 }}>
+                                <TaskGeoLocation locations={task.bsLocation} />
+                            </Box>
                         </CardItem>
 
                         {/* Состав работ */}
@@ -1037,15 +1064,54 @@ export default function TaskDetailsPage() {
                                 Комментарии
                             </Typography>
                             <Divider sx={{ mb: 1.5 }} />
-                            <TaskComments
-                                taskId={task.taskId || id}
-                                initialComments={task.comments}
-                                onTaskUpdated={(updatedTask) =>
-                                    setTask((prev) =>
-                                        prev ? { ...prev, ...(updatedTask as Partial<Task>) } : prev
-                                    )
-                                }
-                            />
+                            <Accordion
+                                defaultExpanded
+                                disableGutters
+                                elevation={0}
+                                sx={{ '&:before': { display: 'none' } }}
+                            >
+                                <AccordionSummary expandIcon={<ExpandMoreIcon />}>
+                                    <Box
+                                        sx={{
+                                            display: 'flex',
+                                            alignItems: 'center',
+                                            justifyContent: 'space-between',
+                                            width: '100%',
+                                            gap: 1,
+                                        }}
+                                    >
+                                        <Typography
+                                            variant="subtitle1"
+                                            fontWeight={600}
+                                            gutterBottom
+                                            sx={{
+                                                display: 'flex',
+                                                alignItems: 'center',
+                                                gap: 1,
+                                            }}
+                                        >
+                                            <CommentOutlinedIcon fontSize="small" />
+                                            Комментарии
+                                        </Typography>
+
+                                        <Tooltip title="Развернуть на весь экран">
+                                            <IconButton
+                                                size="small"
+                                                onClick={(e) => {
+                                                    e.stopPropagation();
+                                                    setCommentsFullScreen(true);
+                                                }}
+                                            >
+                                                <OpenInFullIcon fontSize="inherit" />
+                                            </IconButton>
+                                        </Tooltip>
+                                    </Box>
+                                </AccordionSummary>
+                                <AccordionDetails sx={{ pt: 0 }}>
+                                    <Divider sx={{ mb: 1.5 }} />
+                                    {renderCommentsSection()}
+                                </AccordionDetails>
+                            </Accordion>
                         </CardItem>
 
                         {/* История */}
@@ -1239,6 +1305,34 @@ export default function TaskDetailsPage() {
 
                 <Box sx={{ p: 2 }}>
                     {renderWorkItemsTable('calc(100vh - 80px)')}
+                </Box>
+            </Dialog>
+
+            <Dialog
+                fullScreen
+                open={commentsFullScreen}
+                onClose={() => setCommentsFullScreen(false)}
+            >
+                <Box
+                    sx={{
+                        display: 'flex',
+                        alignItems: 'center',
+                        justifyContent: 'space-between',
+                        p: 2,
+                        borderBottom: 1,
+                        borderColor: 'divider',
+                    }}
+                >
+                    <Typography variant="h6" fontWeight={600}>
+                        Комментарии
+                    </Typography>
+                    <IconButton onClick={() => setCommentsFullScreen(false)}>
+                        <CloseFullscreenIcon />
+                    </IconButton>
+                </Box>
+
+                <Box sx={{ p: 2 }}>
+                    {renderCommentsSection('calc(100vh - 80px)')}
                 </Box>
             </Dialog>
 
