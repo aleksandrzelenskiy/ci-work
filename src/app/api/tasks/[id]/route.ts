@@ -28,6 +28,7 @@ interface UpdateData {
   orderNumber?: string;
   orderDate?: string; // ISO
   orderSignDate?: string; // ISO
+  orderUrl?: string;
   workCompletionDate?: string; // ISO
   reportLink?: string;
   event?: { details?: { comment?: string } };
@@ -225,13 +226,34 @@ export async function PATCH(
         }
 
         const buffer = Buffer.from(await orderFile.arrayBuffer());
-        task.orderUrl = await uploadTaskFile(
+        const previousOrderUrl = task.orderUrl;
+        const newOrderUrl = await uploadTaskFile(
             buffer,
             taskIdUpper,
-            'order',
+            'documents',
             `${Date.now()}-${orderFile.name}`,
             mime
         );
+        if (previousOrderUrl && previousOrderUrl !== newOrderUrl) {
+          try {
+            await deleteTaskFile(previousOrderUrl);
+          } catch (err) {
+            console.error('Failed to remove previous order file', err);
+          }
+          if (Array.isArray(task.documents)) {
+            task.documents = task.documents.filter((d: string) => d !== previousOrderUrl);
+          }
+          if (Array.isArray(task.attachments)) {
+            task.attachments = task.attachments.filter((a: string) => a !== previousOrderUrl);
+          }
+        }
+        task.orderUrl = newOrderUrl;
+        if (!Array.isArray(task.documents)) {
+          task.documents = [];
+        }
+        if (!task.documents.includes(newOrderUrl)) {
+          task.documents.push(newOrderUrl);
+        }
       }
 
       // === NCW (уведомление) ===
@@ -495,6 +517,27 @@ export async function PATCH(
       const d = new Date(updateData.orderSignDate);
       if (!isNaN(d.getTime())) task.orderSignDate = d;
     }
+    if (updateData.orderUrl) {
+      const prevOrderUrl = task.orderUrl;
+      if (prevOrderUrl && prevOrderUrl !== updateData.orderUrl) {
+        try {
+          await deleteTaskFile(prevOrderUrl);
+        } catch (err) {
+          console.error('Failed to remove previous order file', err);
+        }
+        if (Array.isArray(task.documents)) {
+          task.documents = task.documents.filter((d: string) => d !== prevOrderUrl);
+        }
+        if (Array.isArray(task.attachments)) {
+          task.attachments = task.attachments.filter((a: string) => a !== prevOrderUrl);
+        }
+      }
+      task.orderUrl = updateData.orderUrl;
+      if (!Array.isArray(task.documents)) task.documents = [];
+      if (!task.documents.includes(updateData.orderUrl)) {
+        task.documents.push(updateData.orderUrl);
+      }
+    }
 
     // === дата окончания работ ===
     if (updateData.workCompletionDate) {
@@ -560,7 +603,22 @@ export async function PATCH(
       }
     }
 
-    return NextResponse.json({ task: updatedTask });
+    const responseTask =
+        typeof (updatedTask as typeof task & { toObject?: () => unknown }).toObject === 'function'
+            ? (updatedTask as typeof task & { toObject: () => unknown }).toObject()
+            : updatedTask;
+    const { attachments: respAttachments, documents: respDocuments } = splitAttachmentsAndDocuments(
+        (responseTask as { attachments?: unknown }).attachments,
+        (responseTask as { documents?: unknown }).documents
+    );
+
+    return NextResponse.json({
+      task: {
+        ...responseTask,
+        attachments: respAttachments,
+        documents: respDocuments,
+      },
+    });
   } catch (err) {
     console.error('Error updating task:', err);
     return NextResponse.json({ error: 'Internal server error' }, { status: 500 });
@@ -600,7 +658,30 @@ export async function DELETE(
           { new: true, runValidators: false }
       );
 
-      return NextResponse.json({ task: updatedTask });
+      const respTask =
+          updatedTask && typeof updatedTask.toObject === 'function'
+              ? updatedTask.toObject()
+              : updatedTask;
+      let attachments: string[] = [];
+      let documents: string[] = [];
+      if (respTask && typeof respTask === 'object') {
+        const split = splitAttachmentsAndDocuments(
+            (respTask as { attachments?: unknown }).attachments,
+            (respTask as { documents?: unknown }).documents
+        );
+        attachments = split.attachments;
+        documents = split.documents;
+      }
+
+      return NextResponse.json({
+        task: respTask
+            ? {
+              ...respTask,
+              attachments,
+              documents,
+            }
+            : null,
+      });
     }
 
     // --- default: order ---
@@ -608,20 +689,55 @@ export async function DELETE(
       await deleteTaskFile(task.orderUrl);
     }
 
+    const pullQuery: Record<string, string> = {};
+    if (task.orderUrl) {
+      pullQuery.attachments = task.orderUrl;
+      pullQuery.documents = task.orderUrl;
+    }
+
+    const update: Record<string, unknown> = {
+      $unset: {
+        orderUrl: '',
+        orderNumber: '',
+        orderDate: '',
+        orderSignDate: '',
+      },
+    };
+
+    if (Object.keys(pullQuery).length > 0) {
+      update.$pull = pullQuery;
+    }
+
     const updatedTask = await TaskModel.findOneAndUpdate(
         { taskId: taskIdUpper },
-        {
-          $unset: {
-            orderUrl: '',
-            orderNumber: '',
-            orderDate: '',
-            orderSignDate: '',
-          },
-        },
+        update,
         { new: true, runValidators: false }
     );
 
-    return NextResponse.json({ task: updatedTask });
+    const respTask =
+        updatedTask && typeof updatedTask.toObject === 'function'
+            ? updatedTask.toObject()
+            : updatedTask;
+    let attachments: string[] = [];
+    let documents: string[] = [];
+    if (respTask && typeof respTask === 'object') {
+      const split = splitAttachmentsAndDocuments(
+          (respTask as { attachments?: unknown }).attachments,
+          (respTask as { documents?: unknown }).documents
+      );
+      attachments = split.attachments;
+      documents = split.documents;
+    }
+
+    return NextResponse.json({
+      task: respTask
+          ? {
+            ...respTask,
+            attachments,
+            documents,
+          }
+          : null,
+    });
   } catch (err) {
     console.error('Error deleting order/ncw file:', err);
     return NextResponse.json({ error: 'Internal server error' }, { status: 500 });

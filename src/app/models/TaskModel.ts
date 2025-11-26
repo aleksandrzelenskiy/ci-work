@@ -58,12 +58,12 @@ const TaskSchema = new Schema<Task & Document>({
     default: 'To do',
   },
 
-  // Тип задачи (строительная или документальная)
+  // Тип задачи (строительная, инсталляционная или документальная)
   taskType: {
     type: String,
     enum: ['construction', 'installation', 'document'],
     required: true,
-    default: 'construction',
+    default: 'installation',
   },
 
   // Какие вложения возможны

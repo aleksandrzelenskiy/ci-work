@@ -28,6 +28,9 @@ import {
     TableCell,
     TableHead,
     TableRow,
+    Snackbar,
+    Alert,
+    TextField,
 } from '@mui/material';
 import { styled } from '@mui/material/styles';
 import ArrowBackIcon from '@mui/icons-material/ArrowBack';
@@ -45,6 +48,8 @@ import HistoryIcon from '@mui/icons-material/History';
 import ArticleOutlinedIcon from '@mui/icons-material/ArticleOutlined';
 import OpenInFullIcon from '@mui/icons-material/OpenInFull';
 import CloseFullscreenIcon from '@mui/icons-material/CloseFullscreen';
+import AddIcon from '@mui/icons-material/Add';
+import CloudUploadOutlinedIcon from '@mui/icons-material/CloudUploadOutlined';
 import WorkspaceTaskDialog, {
     type TaskForEdit,
 } from '@/app/workspace/components/WorkspaceTaskDialog';
@@ -127,6 +132,12 @@ type Task = {
     comments?: TaskComment[];
 };
 
+type DocumentItem = {
+    url: string;
+    type: 'estimate' | 'order' | 'other';
+    label: string;
+};
+
 // карточка с тенью как в примере MUI
 const CardItem = styled(Paper)(({ theme }) => ({
     backgroundColor: '#fff',
@@ -160,11 +171,28 @@ export default function TaskDetailsPage() {
     const [deleting, setDeleting] = React.useState(false);
     const [deleteDocumentOpen, setDeleteDocumentOpen] = React.useState(false);
     const [documentToDelete, setDocumentToDelete] = React.useState<string | null>(null);
+    const [documentToDeleteType, setDocumentToDeleteType] = React.useState<
+        'estimate' | 'order' | 'other' | null
+    >(null);
     const [documentDeleting, setDocumentDeleting] = React.useState(false);
 
     const [orgName, setOrgName] = React.useState<string | null>(null);
     const [workItemsFullScreen, setWorkItemsFullScreen] = React.useState(false);
     const [commentsFullScreen, setCommentsFullScreen] = React.useState(false);
+    const [documentDialogOpen, setDocumentDialogOpen] = React.useState(false);
+    const [selectedDocumentType, setSelectedDocumentType] = React.useState<'order' | null>(null);
+    const [orderNumberInput, setOrderNumberInput] = React.useState('');
+    const [orderDateInput, setOrderDateInput] = React.useState('');
+    const [orderSignDateInput, setOrderSignDateInput] = React.useState('');
+    const [orderFile, setOrderFile] = React.useState<File | null>(null);
+    const [orderDragActive, setOrderDragActive] = React.useState(false);
+    const [orderUploading, setOrderUploading] = React.useState(false);
+    const [orderFormError, setOrderFormError] = React.useState<string | null>(null);
+    const [documentSnackbar, setDocumentSnackbar] = React.useState<{
+        type: 'success' | 'error';
+        message: string;
+    } | null>(null);
+    const orderFileInputRef = React.useRef<HTMLInputElement | null>(null);
 
     const asText = (x: unknown): string => {
         if (x === null || typeof x === 'undefined') return '—';
@@ -190,6 +218,16 @@ export default function TaskDetailsPage() {
         const d = new Date(v);
         if (Number.isNaN(d.getTime())) return v;
         return d.toLocaleString('ru-RU');
+    };
+
+    const toInputDate = (v?: string) => {
+        if (!v) return '';
+        const d = new Date(v);
+        if (Number.isNaN(d.getTime())) return '';
+        const dd = String(d.getDate()).padStart(2, '0');
+        const mm = String(d.getMonth() + 1).padStart(2, '0');
+        const yyyy = d.getFullYear();
+        return `${yyyy}-${mm}-${dd}`;
     };
 
     const formatPrice = (v?: number) => {
@@ -266,8 +304,45 @@ export default function TaskDetailsPage() {
         [task]
     );
 
+    const documentItems = React.useMemo(() => {
+        const items: DocumentItem[] = [];
+        const seen = new Set<string>();
+
+        documentLinks.forEach((url, idx) => {
+            const isOrder = task?.orderUrl && url === task.orderUrl;
+            const type: DocumentItem['type'] = isOrder ? 'order' : idx === 0 ? 'estimate' : 'other';
+            const fallback =
+                type === 'estimate'
+                    ? 'Смета'
+                    : type === 'order'
+                        ? task?.orderNumber || 'Заказ'
+                        : `Документ ${idx + 1}`;
+            items.push({
+                url,
+                type,
+                label:
+                    type === 'order'
+                        ? `Заказ — ${task?.orderNumber || extractFileNameFromUrl(url, fallback)}`
+                        : type === 'estimate'
+                            ? `Смета — ${extractFileNameFromUrl(url, 'Смета')}`
+                            : extractFileNameFromUrl(url, fallback),
+            });
+            seen.add(url);
+        });
+
+        if (task?.orderUrl && !seen.has(task.orderUrl)) {
+            items.push({
+                url: task.orderUrl,
+                type: 'order',
+                label: `Заказ — ${task.orderNumber || 'файл заказа'}`,
+            });
+        }
+
+        return items;
+    }, [documentLinks, task?.orderNumber, task?.orderUrl]);
+
     const hasWorkItems = Array.isArray(task?.workItems) && task.workItems.length > 0;
-    const hasDocuments = documentLinks.length > 0;
+    const hasDocuments = documentItems.length > 0;
     const hasAttachments =
         !!task &&
         ((Array.isArray(task.files) && task.files.length > 0) ||
@@ -361,8 +436,9 @@ export default function TaskDetailsPage() {
         }
     };
 
-    const openDeleteDocumentDialog = (url: string) => {
+    const openDeleteDocumentDialog = (url: string, type: 'estimate' | 'order' | 'other') => {
         setDocumentToDelete(url);
+        setDocumentToDeleteType(type);
         setDeleteDocumentOpen(true);
     };
 
@@ -370,30 +446,60 @@ export default function TaskDetailsPage() {
         if (documentDeleting) return;
         setDeleteDocumentOpen(false);
         setDocumentToDelete(null);
+        setDocumentToDeleteType(null);
     };
 
     const confirmDeleteDocument = async () => {
-        if (!task?.taskId || !documentToDelete) return;
+        if (!task?.taskId || !documentToDelete || !documentToDeleteType) return;
         setDocumentDeleting(true);
         try {
-            const q = new URLSearchParams({
-                taskId: task.taskId,
-                url: documentToDelete,
-                mode: 'documents',
-            });
-            const res = await fetch(`/api/upload?${q.toString()}`, { method: 'DELETE' });
-            if (!res.ok) {
-                console.error('Не удалось удалить документ');
-            } else {
-                setTask((prev) =>
-                    prev
-                        ? {
-                              ...prev,
-                              documents: prev.documents?.filter((d) => d !== documentToDelete),
-                              attachments: prev.attachments?.filter((a) => a !== documentToDelete),
-                          }
-                        : prev
+            if (documentToDeleteType === 'order') {
+                const res = await fetch(
+                    `/api/tasks/${encodeURIComponent(task.taskId)}`,
+                    {
+                        method: 'DELETE',
+                    }
                 );
+                let body: unknown = null;
+                try {
+                    body = await res.json();
+                } catch {
+                    /* ignore */
+                }
+                if (!res.ok) {
+                    console.error('Не удалось удалить заказ', body);
+                } else if (body && typeof body === 'object' && 'task' in body) {
+                    const updatedTask = (body as { task: Task | null }).task;
+                    if (updatedTask) {
+                        setTask(updatedTask);
+                    } else {
+                        await load();
+                    }
+                } else {
+                    await load();
+                }
+            } else {
+                const q = new URLSearchParams({
+                    taskId: task.taskId,
+                    url: documentToDelete,
+                    mode: 'documents',
+                });
+                const res = await fetch(`/api/upload?${q.toString()}`, {
+                    method: 'DELETE',
+                });
+                if (!res.ok) {
+                    console.error('Не удалось удалить документ');
+                } else {
+                    setTask((prev) =>
+                        prev
+                            ? {
+                                  ...prev,
+                                  documents: prev.documents?.filter((d) => d !== documentToDelete),
+                                  attachments: prev.attachments?.filter((a) => a !== documentToDelete),
+                              }
+                            : prev
+                    );
+                }
             }
         } catch (e) {
             console.error(e);
@@ -401,8 +507,146 @@ export default function TaskDetailsPage() {
             setDocumentDeleting(false);
             setDeleteDocumentOpen(false);
             setDocumentToDelete(null);
+            setDocumentToDeleteType(null);
         }
     };
+
+    const prefillOrderFields = React.useCallback(() => {
+        setOrderNumberInput(task?.orderNumber || '');
+        setOrderDateInput(toInputDate(task?.orderDate));
+        setOrderSignDateInput(toInputDate(task?.orderSignDate));
+    }, [task?.orderDate, task?.orderNumber, task?.orderSignDate]);
+
+    const openAddDocumentDialog = () => {
+        prefillOrderFields();
+        setOrderFormError(null);
+        setOrderFile(null);
+        setSelectedDocumentType(null);
+        setDocumentDialogOpen(true);
+    };
+
+    const closeAddDocumentDialog = () => {
+        if (orderUploading) return;
+        setDocumentDialogOpen(false);
+        setSelectedDocumentType(null);
+        setOrderFormError(null);
+        setOrderFile(null);
+        setOrderDragActive(false);
+    };
+
+    const handleSelectOrderDocument = () => {
+        prefillOrderFields();
+        setOrderFormError(null);
+        setOrderFile(null);
+        setSelectedDocumentType('order');
+    };
+
+    const validateOrderFile = (file: File): string | null => {
+        const allowed = ['application/pdf', 'image/jpeg', 'image/png', 'image/webp'];
+        if (!allowed.includes(file.type) && !file.type.startsWith('image/')) {
+            return 'Поддерживаются PDF или изображения';
+        }
+        if (file.size > 20 * 1024 * 1024) {
+            return 'Файл больше 20 МБ';
+        }
+        return null;
+    };
+
+    const handleOrderFileChange = (fileList: FileList | null) => {
+        if (!fileList || fileList.length === 0) return;
+        const file = fileList[0];
+        const validationError = validateOrderFile(file);
+        if (validationError) {
+            setOrderFormError(validationError);
+            return;
+        }
+        setOrderFormError(null);
+        setOrderFile(file);
+    };
+
+    const onOrderDragOver = (e: React.DragEvent<HTMLDivElement>) => {
+        e.preventDefault();
+        e.stopPropagation();
+        setOrderDragActive(true);
+    };
+
+    const onOrderDragLeave = (e: React.DragEvent<HTMLDivElement>) => {
+        e.preventDefault();
+        e.stopPropagation();
+        setOrderDragActive(false);
+    };
+
+    const onOrderDrop = (e: React.DragEvent<HTMLDivElement>) => {
+        e.preventDefault();
+        e.stopPropagation();
+        setOrderDragActive(false);
+        const files = e.dataTransfer.files;
+        handleOrderFileChange(files);
+    };
+
+    const handleOrderSubmit = async () => {
+        if (!task) return;
+        if (!orderFile) {
+            setOrderFormError('Добавьте файл заказа');
+            return;
+        }
+        setOrderFormError(null);
+        setOrderUploading(true);
+        try {
+            const fd = new FormData();
+            fd.append('orderFile', orderFile, orderFile.name);
+            fd.append('orderNumber', orderNumberInput.trim());
+            if (orderDateInput) fd.append('orderDate', orderDateInput);
+            if (orderSignDateInput) fd.append('orderSignDate', orderSignDateInput);
+
+            const res = await fetch(
+                `/api/tasks/${encodeURIComponent(task.taskId)}`,
+                {
+                    method: 'PATCH',
+                    body: fd,
+                }
+            );
+
+            let body: unknown = null;
+            try {
+                body = await res.json();
+            } catch {
+                /* ignore */
+            }
+
+            if (!res.ok) {
+                const errMsg =
+                    (body &&
+                    typeof body === 'object' &&
+                    'error' in body &&
+                    typeof (body as { error?: unknown }).error === 'string'
+                        ? (body as { error?: unknown }).error
+                        : 'Не удалось загрузить заказ');
+                setDocumentSnackbar({ type: 'error', message: errMsg });
+                return;
+            }
+
+            if (body && typeof body === 'object' && 'task' in body) {
+                const updatedTask = (body as { task: Task | null }).task;
+                if (updatedTask) {
+                    setTask(updatedTask);
+                } else {
+                    await load();
+                }
+            } else {
+                await load();
+            }
+            setDocumentSnackbar({ type: 'success', message: 'Заказ загружен' });
+            closeAddDocumentDialog();
+        } catch (e) {
+            console.error(e);
+            setDocumentSnackbar({ type: 'error', message: 'Не удалось загрузить заказ' });
+        } finally {
+            setOrderUploading(false);
+        }
+    };
+
+    const handleDocumentSnackbarClose = () => setDocumentSnackbar(null);
 
     const sortedEvents = React.useMemo(() => {
         if (!task?.events) return [];
@@ -1099,16 +1343,23 @@ export default function TaskDetailsPage() {
                             <Divider sx={{ mb: 1.5 }} />
                             {hasDocuments ? (
                                 <Stack gap={1}>
-                                    {documentLinks.map((url, idx) => {
-                                        const isEstimate = idx === 0;
-                                        const label = isEstimate
-                                            ? `Смета — ${extractFileNameFromUrl(url, 'Смета')}`
-                                            : extractFileNameFromUrl(url, `Документ ${idx + 1}`);
-                                        const isCurrentDeleting = documentDeleting && documentToDelete === url;
+                                    {documentItems.map((doc) => {
+                                        const isSpecial =
+                                            doc.type === 'estimate' || doc.type === 'order';
+                                        const isCurrentDeleting =
+                                            documentDeleting && documentToDelete === doc.url;
+                                        const downloadTitle =
+                                            doc.type === 'order'
+                                                ? 'Скачать заказ'
+                                                : 'Скачать смету';
+                                        const deleteTitle =
+                                            doc.type === 'order'
+                                                ? 'Удалить заказ'
+                                                : 'Удалить смету';
 
                                         return (
                                             <Box
-                                                key={`doc-${idx}`}
+                                                key={doc.url}
                                                 sx={{
                                                     display: 'flex',
                                                     alignItems: 'center',
@@ -1116,24 +1367,29 @@ export default function TaskDetailsPage() {
                                                     flexWrap: 'wrap',
                                                 }}
                                             >
-                                                {isEstimate && (
+                                                {isSpecial && (
                                                     <>
-                                                        <Tooltip title="Скачать смету">
+                                                        <Tooltip title={downloadTitle}>
                                                             <span>
                                                                 <IconButton
                                                                     size="small"
-                                                                    onClick={() => void handleDownloadDocument(url)}
+                                                                    onClick={() => void handleDownloadDocument(doc.url)}
                                                                     disabled={isCurrentDeleting}
                                                                 >
                                                                     <DownloadOutlinedIcon fontSize="small" />
                                                                 </IconButton>
                                                             </span>
                                                         </Tooltip>
-                                                        <Tooltip title="Удалить смету">
+                                                        <Tooltip title={deleteTitle}>
                                                             <span>
                                                                 <IconButton
                                                                     size="small"
-                                                                    onClick={() => openDeleteDocumentDialog(url)}
+                                                                    onClick={() =>
+                                                                        openDeleteDocumentDialog(
+                                                                            doc.url,
+                                                                            doc.type
+                                                                        )
+                                                                    }
                                                                     disabled={isCurrentDeleting}
                                                                 >
                                                                     {isCurrentDeleting ? (
@@ -1147,19 +1403,49 @@ export default function TaskDetailsPage() {
                                                     </>
                                                 )}
                                                 <Link
-                                                    href={url}
+                                                    href={doc.url}
                                                     target="_blank"
                                                     rel="noreferrer"
                                                     underline="hover"
                                                 >
-                                                    {label}
+                                                    {doc.label}
                                                 </Link>
                                             </Box>
                                         );
                                     })}
+                                    <Box
+                                        sx={{
+                                            display: 'flex',
+                                            justifyContent: 'flex-end',
+                                            pt: 0.5,
+                                        }}
+                                    >
+                                        <Button
+                                            size="small"
+                                            startIcon={<AddIcon />}
+                                            variant="outlined"
+                                            onClick={openAddDocumentDialog}
+                                        >
+                                            Добавить
+                                        </Button>
+                                    </Box>
                                 </Stack>
                             ) : (
-                                <Typography color="text.secondary">Документы отсутствуют</Typography>
+                                <Stack gap={1}>
+                                    <Typography color="text.secondary">
+                                        Документы отсутствуют
+                                    </Typography>
+                                    <Box sx={{ display: 'flex', justifyContent: 'flex-end' }}>
+                                        <Button
+                                            size="small"
+                                            startIcon={<AddIcon />}
+                                            variant="outlined"
+                                            onClick={openAddDocumentDialog}
+                                        >
+                                            Добавить
+                                        </Button>
+                                    </Box>
+                                </Stack>
                             )}
                         </CardItem>
 
@@ -1382,6 +1668,128 @@ export default function TaskDetailsPage() {
             )}
 
             <Dialog
+                open={documentDialogOpen}
+                onClose={closeAddDocumentDialog}
+                fullWidth
+                maxWidth="sm"
+            >
+                <DialogTitle>Добавить документ</DialogTitle>
+                <DialogContent sx={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
+                    {!selectedDocumentType ? (
+                        <Stack spacing={2}>
+                            <Typography variant="body2" color="text.secondary">
+                                Выберите тип документа для добавления.
+                            </Typography>
+                            <Button
+                                variant="outlined"
+                                onClick={handleSelectOrderDocument}
+                                startIcon={<ArticleOutlinedIcon />}
+                                sx={{ alignSelf: 'flex-start' }}
+                            >
+                                Заказ на выполнение работ
+                            </Button>
+                        </Stack>
+                    ) : (
+                        <Stack spacing={2}>
+                            <Typography variant="body2">
+                                Заполните данные и прикрепите файл заказа.
+                            </Typography>
+                            <TextField
+                                label="Номер заказа"
+                                value={orderNumberInput}
+                                onChange={(e) => setOrderNumberInput(e.target.value)}
+                                size="small"
+                                fullWidth
+                            />
+                            <Stack direction={{ xs: 'column', sm: 'row' }} spacing={1.5}>
+                                <TextField
+                                    label="Дата заказа"
+                                    type="date"
+                                    value={orderDateInput}
+                                    onChange={(e) => setOrderDateInput(e.target.value)}
+                                    size="small"
+                                    fullWidth
+                                    slotProps={{ inputLabel: { shrink: true } }}
+                                />
+                                <TextField
+                                    label="Дата подписания"
+                                    type="date"
+                                    value={orderSignDateInput}
+                                    onChange={(e) => setOrderSignDateInput(e.target.value)}
+                                    size="small"
+                                    fullWidth
+                                    slotProps={{ inputLabel: { shrink: true } }}
+                                />
+                            </Stack>
+                            <Box
+                                onDragOver={onOrderDragOver}
+                                onDragLeave={onOrderDragLeave}
+                                onDrop={onOrderDrop}
+                                sx={(theme) => ({
+                                    border: '1px dashed',
+                                    borderColor: orderDragActive
+                                        ? theme.palette.primary.main
+                                        : theme.palette.divider,
+                                    borderRadius: 1.5,
+                                    p: 2,
+                                    textAlign: 'center',
+                                    backgroundColor: orderDragActive
+                                        ? theme.palette.action.hover
+                                        : 'transparent',
+                                    cursor: 'pointer',
+                                })}
+                                onClick={() => orderFileInputRef.current?.click()}
+                            >
+                                <input
+                                    ref={orderFileInputRef}
+                                    type="file"
+                                    hidden
+                                    accept=".pdf,image/*"
+                                    onChange={(e) => {
+                                        handleOrderFileChange(e.target.files);
+                                        if (e.target) e.target.value = '';
+                                    }}
+                                />
+                                <Stack spacing={1} alignItems="center">
+                                    <CloudUploadOutlinedIcon />
+                                    <Typography variant="body2" color="text.secondary">
+                                        Перетащите файл сюда или нажмите, чтобы выбрать
+                                    </Typography>
+                                    {orderFile && (
+                                        <Typography variant="body2" sx={{ wordBreak: 'break-all' }}>
+                                            Выбран файл: {orderFile.name}
+                                        </Typography>
+                                    )}
+                                </Stack>
+                            </Box>
+                            {orderFormError && (
+                                <Typography variant="body2" color="error">
+                                    {orderFormError}
+                                </Typography>
+                            )}
+                        </Stack>
+                    )}
+                </DialogContent>
+                {selectedDocumentType === 'order' && (
+                    <DialogActions>
+                        <Button onClick={closeAddDocumentDialog} disabled={orderUploading}>
+                            Отмена
+                        </Button>
+                        <Button
+                            onClick={handleOrderSubmit}
+                            variant="contained"
+                            disabled={orderUploading}
+                            startIcon={
+                                orderUploading ? <CircularProgress size={18} color="inherit" /> : null
+                            }
+                        >
+                            Загрузить
+                        </Button>
+                    </DialogActions>
+                )}
+            </Dialog>
+
+            <Dialog
                 fullScreen
                 open={workItemsFullScreen}
                 onClose={() => setWorkItemsFullScreen(false)}
@@ -1441,10 +1849,20 @@ export default function TaskDetailsPage() {
                 open={deleteDocumentOpen}
                 onClose={closeDeleteDocumentDialog}
             >
-                <DialogTitle>Удалить смету?</DialogTitle>
+                <DialogTitle>
+                    {documentToDeleteType === 'order'
+                        ? 'Удалить заказ?'
+                        : documentToDeleteType === 'estimate'
+                            ? 'Удалить смету?'
+                            : 'Удалить документ?'}
+                </DialogTitle>
                 <DialogContent>
                     <Typography>
-                        Файл сметы будет удалён из задачи.
+                        {documentToDeleteType === 'order'
+                            ? 'Файл заказа и данные о заказе будут удалены из задачи.'
+                            : documentToDeleteType === 'estimate'
+                                ? 'Файл сметы будет удалён из задачи.'
+                                : 'Файл будет удалён из задачи.'}
                     </Typography>
                 </DialogContent>
                 <DialogActions>
@@ -1487,6 +1905,24 @@ export default function TaskDetailsPage() {
                     </Button>
                 </DialogActions>
             </Dialog>
+
+            <Snackbar
+                open={!!documentSnackbar}
+                autoHideDuration={3000}
+                onClose={handleDocumentSnackbarClose}
+                anchorOrigin={{ vertical: 'bottom', horizontal: 'center' }}
+            >
+                {documentSnackbar ? (
+                    <Alert
+                        onClose={handleDocumentSnackbarClose}
+                        severity={documentSnackbar.type}
+                        variant="filled"
+                        sx={{ width: '100%' }}
+                    >
+                        {documentSnackbar.message}
+                    </Alert>
+                ) : null}
+            </Snackbar>
         </Box>
     );
 }
