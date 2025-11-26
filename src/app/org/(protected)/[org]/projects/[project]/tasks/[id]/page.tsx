@@ -615,7 +615,7 @@ export default function TaskDetailsPage() {
             }
 
             if (!res.ok) {
-                const errMsg =
+                const errMsg: string =
                     (body &&
                     typeof body === 'object' &&
                     'error' in body &&
