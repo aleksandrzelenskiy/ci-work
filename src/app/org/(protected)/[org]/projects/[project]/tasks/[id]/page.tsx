@@ -615,13 +615,15 @@ export default function TaskDetailsPage() {
             }
 
             if (!res.ok) {
-                const errMsg: string =
-                    (body &&
+                let errMsg = 'Не удалось загрузить заказ';
+                if (
+                    body &&
                     typeof body === 'object' &&
                     'error' in body &&
                     typeof (body as { error?: unknown }).error === 'string'
-                        ? (body as { error?: unknown }).error
-                        : 'Не удалось загрузить заказ');
+                ) {
+                    errMsg = (body as { error?: unknown }).error as string;
+                }
                 setDocumentSnackbar({ type: 'error', message: errMsg });
                 return;
             }
