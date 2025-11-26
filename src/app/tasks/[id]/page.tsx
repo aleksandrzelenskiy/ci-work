@@ -91,6 +91,8 @@ export default function TaskDetailPage() {
     const [loading, setLoading] = React.useState(true);
     const [error, setError] = React.useState<string | null>(null);
     const [userRole, setUserRole] = React.useState<LoadedRole>(null);
+    const [currentUserId, setCurrentUserId] = React.useState<string>('');
+    const [profileType, setProfileType] = React.useState<'employer' | 'contractor' | undefined>(undefined);
     const [workItemsFullScreen, setWorkItemsFullScreen] = React.useState(false);
     const [commentsFullScreen, setCommentsFullScreen] = React.useState(false);
     const [pendingDecision, setPendingDecision] = React.useState<'accept' | 'reject' | null>(null);
@@ -214,6 +216,8 @@ export default function TaskDetailPage() {
                 const ctx = await fetchUserContext();
                 const resolvedRole = resolveRoleFromContext(ctx);
                 setUserRole(resolvedRole ?? 'executor');
+                setCurrentUserId(typeof ctx?.user === 'object' && ctx.user && 'clerkUserId' in ctx.user ? String((ctx.user as { clerkUserId?: string }).clerkUserId ?? '') : '');
+                setProfileType(ctx?.profileType);
             } catch {
                 setUserRole('executor');
             }
@@ -420,10 +424,40 @@ export default function TaskDetailPage() {
         );
     }
 
+    const isContractorRestricted =
+        profileType === 'contractor' &&
+        Boolean(task.executorId) &&
+        Boolean(currentUserId) &&
+        task.executorId?.trim().toLowerCase() !== currentUserId.trim().toLowerCase();
+
+    if (isContractorRestricted) {
         return (
             <Box
                 sx={{
-                    px: { xs: 0.5, md: 1.5 },
+                    px: 2,
+                    py: 4,
+                    display: 'flex',
+                    flexDirection: 'column',
+                    gap: 2,
+                    alignItems: 'center',
+                    textAlign: 'center',
+                }}
+            >
+                <Typography variant="h6">Задача доступна только назначенному исполнителю</Typography>
+                <Typography color="text.secondary">
+                    Для просмотра нужно, чтобы задача была назначена вам.
+                </Typography>
+                <Button variant="contained" onClick={() => router.push('/tasks')}>
+                    К списку задач
+                </Button>
+            </Box>
+        );
+    }
+
+    return (
+        <Box
+            sx={{
+                px: { xs: 0.5, md: 1.5 },
                     py: 2,
                 display: 'flex',
                 flexDirection: 'column',
