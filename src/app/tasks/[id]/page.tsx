@@ -216,7 +216,11 @@ export default function TaskDetailPage() {
                 const ctx = await fetchUserContext();
                 const resolvedRole = resolveRoleFromContext(ctx);
                 setUserRole(resolvedRole ?? 'executor');
-                setCurrentUserId(typeof ctx?.user === 'object' && ctx.user && 'clerkUserId' in ctx.user ? String((ctx.user as { clerkUserId?: string }).clerkUserId ?? '') : '');
+                const clerkId =
+                    (ctx?.user as { clerkUserId?: string; id?: string } | undefined)?.clerkUserId ||
+                    (ctx?.user as { id?: string } | undefined)?.id ||
+                    '';
+                setCurrentUserId(clerkId);
                 setProfileType(ctx?.profileType);
             } catch {
                 setUserRole('executor');
@@ -424,11 +428,14 @@ export default function TaskDetailPage() {
         );
     }
 
-    const isContractorRestricted =
-        profileType === 'contractor' &&
-        Boolean(task.executorId) &&
-        Boolean(currentUserId) &&
-        task.executorId?.trim().toLowerCase() !== currentUserId.trim().toLowerCase();
+    const isContractorRestricted = (() => {
+        if (profileType !== 'contractor') return false;
+        const executorClerkId = (task.executorId || '').trim().toLowerCase();
+        const current = (currentUserId || '').trim().toLowerCase();
+        if (!executorClerkId) return true; // нет назначенного — доступ запрещен для подрядчиков
+        if (!current) return true; // не смогли определить текущего пользователя
+        return executorClerkId !== current;
+    })();
 
     if (isContractorRestricted) {
         return (
