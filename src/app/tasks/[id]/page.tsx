@@ -594,65 +594,67 @@ export default function TaskDetailPage() {
                             </Box>
 
                             <Divider sx={{ mt: 1.5, mb: 1 }} />
-                            <Stack spacing={1}>
-                                <Stack
-                                    direction={{ xs: 'column', sm: 'row' }}
-                                    spacing={1.5}
-                                    alignItems={{ xs: 'stretch', sm: 'center' }}
-                                    justifyContent="flex-start"
-                                >
-                                    <Button
-                                        variant="contained"
-                                        onClick={() => {
-                                            setDecisionError(null);
-                                            setPendingDecision('accept');
-                                        }}
-                                        disabled={decisionLoading || task.status === 'At work'}
-                                        sx={{
-                                            borderRadius: 999,
-                                            textTransform: 'none',
-                                            px: 2.75,
-                                            py: 1.1,
-                                            fontWeight: 700,
-                                            background: 'linear-gradient(135deg, #2fd66b, #1ecf5a)',
-                                            boxShadow: '0 10px 28px rgba(38, 189, 104, 0.35)',
-                                            color: '#0b2916',
-                                            '&:hover': {
-                                                background: 'linear-gradient(135deg, #29c961, #1abf51)',
-                                            },
-                                        }}
+                            {task.status === 'Assigned' && (
+                                <Stack spacing={1}>
+                                    <Stack
+                                        direction={{ xs: 'column', sm: 'row' }}
+                                        spacing={1.5}
+                                        alignItems={{ xs: 'stretch', sm: 'center' }}
+                                        justifyContent="flex-start"
                                     >
-                                        Принять
-                                    </Button>
-                                    <Button
-                                        variant="contained"
-                                        onClick={() => {
-                                            setDecisionError(null);
-                                            setPendingDecision('reject');
-                                        }}
-                                        disabled={decisionLoading || task.status === 'To do'}
-                                        sx={{
-                                            borderRadius: 999,
-                                            textTransform: 'none',
-                                            px: 2.75,
-                                            py: 1.1,
-                                            fontWeight: 700,
-                                            background: 'linear-gradient(135deg, #f4f6fa, #e8ebf1)',
-                                            boxShadow: '0 8px 22px rgba(15, 16, 20, 0.12)',
-                                            color: '#0f1115',
-                                            border: '1px solid rgba(0,0,0,0.06)',
-                                            '&:hover': {
-                                                background: 'linear-gradient(135deg, #e6e9ef, #d9dce4)',
-                                            },
-                                        }}
-                                    >
-                                        Отказать
-                                    </Button>
+                                        <Button
+                                            variant="contained"
+                                            onClick={() => {
+                                                setDecisionError(null);
+                                                setPendingDecision('accept');
+                                            }}
+                                            disabled={decisionLoading}
+                                            sx={{
+                                                borderRadius: 999,
+                                                textTransform: 'none',
+                                                px: 2.75,
+                                                py: 1.1,
+                                                fontWeight: 700,
+                                                background: 'linear-gradient(135deg, #2fd66b, #1ecf5a)',
+                                                boxShadow: '0 10px 28px rgba(38, 189, 104, 0.35)',
+                                                color: '#0b2916',
+                                                '&:hover': {
+                                                    background: 'linear-gradient(135deg, #29c961, #1abf51)',
+                                                },
+                                            }}
+                                        >
+                                            Принять
+                                        </Button>
+                                        <Button
+                                            variant="contained"
+                                            onClick={() => {
+                                                setDecisionError(null);
+                                                setPendingDecision('reject');
+                                            }}
+                                            disabled={decisionLoading}
+                                            sx={{
+                                                borderRadius: 999,
+                                                textTransform: 'none',
+                                                px: 2.75,
+                                                py: 1.1,
+                                                fontWeight: 700,
+                                                background: 'linear-gradient(135deg, #f4f6fa, #e8ebf1)',
+                                                boxShadow: '0 8px 22px rgba(15, 16, 20, 0.12)',
+                                                color: '#0f1115',
+                                                border: '1px solid rgba(0,0,0,0.06)',
+                                                '&:hover': {
+                                                    background: 'linear-gradient(135deg, #e6e9ef, #d9dce4)',
+                                                },
+                                            }}
+                                        >
+                                            Отказать
+                                        </Button>
+                                    </Stack>
+                                    <Typography variant="caption" color="text.secondary">
+                                        Статус после принятия: At work. После отказа: To do.
+                                    </Typography>
                                 </Stack>
-                                <Typography variant="caption" color="text.secondary">
-                                    Статус после принятия: At work. После отказа: To do.
-                                </Typography>
-                            </Stack>
+                            )}
                         </Stack>
                     </CardItem>
 

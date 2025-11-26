@@ -108,7 +108,11 @@ const formatTimestamp = (value: string) =>
     dayjs(value).isValid() ? dayjs(value).format('DD.MM.YYYY HH:mm') : value;
 
 const getNotificationLink = (notification: NotificationDTO) => {
-    if (notification.type === 'task_assigned' || notification.type === 'task_comment') {
+    if (
+        notification.type === 'task_assigned' ||
+        notification.type === 'task_comment' ||
+        notification.type === 'task_status_change'
+    ) {
         const metadataTaskId = notification.metadata?.taskId;
         const rawTaskId =
             typeof metadataTaskId === 'string'

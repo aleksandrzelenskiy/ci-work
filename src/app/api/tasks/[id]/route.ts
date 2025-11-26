@@ -14,6 +14,7 @@ import { generateClosingDocumentsExcel } from '@/utils/generateExcel';
 import { uploadTaskFile, deleteTaskFile } from '@/utils/s3';
 import { notifyTaskAssignment } from '@/app/utils/taskNotifications';
 import { splitAttachmentsAndDocuments } from '@/utils/taskFiles';
+import { createNotification } from '@/app/utils/notificationService';
 
 interface UpdateData {
   status?: string;
@@ -52,6 +53,18 @@ async function connectToDatabase() {
     console.error('Failed to connect to MongoDB:', error);
     throw new Error('Failed to connect to database');
   }
+}
+
+function buildAuthorName(user: Awaited<ReturnType<typeof currentUser>>, dbName?: string, fallbackEmail?: string) {
+  const clerkFullName = `${user?.firstName ?? ''} ${user?.lastName ?? ''}`.trim();
+  const cleanedDbName = dbName?.trim();
+  return (
+      clerkFullName ||
+      cleanedDbName ||
+      user?.username ||
+      fallbackEmail ||
+      'Unknown'
+  );
 }
 
 export async function GET(
@@ -109,6 +122,9 @@ export async function PATCH(
     const user = await currentUser();
     if (!user)
       return NextResponse.json({ error: 'Authentication required' }, { status: 401 });
+    const dbCurrentUser = await UserModel.findOne({ clerkUserId: user.id }).lean();
+    const authorName = buildAuthorName(user, dbCurrentUser?.name, user.emailAddresses?.[0]?.emailAddress);
+    const authorEmail = user.emailAddresses?.[0]?.emailAddress;
 
     const task = await TaskModel.findOne({ taskId: taskIdUpper });
     if (!task) return NextResponse.json({ error: 'Task not found' }, { status: 404 });
@@ -286,7 +302,7 @@ export async function PATCH(
           task.status = 'To do';
           task.events.push({
             action: 'EXECUTOR_REMOVED',
-            author: user.fullName || user.username || 'Unknown',
+            author: authorName,
             authorId: user.id,
             date: new Date(),
             details: {
@@ -313,7 +329,7 @@ export async function PATCH(
             task.status = 'Assigned';
             task.events.push({
               action: 'TASK_ASSIGNED',
-              author: user.fullName || user.username || 'Unknown',
+              author: authorName,
               authorId: user.id,
               date: new Date(),
               details: {
@@ -332,8 +348,60 @@ export async function PATCH(
     }
     if (updateData.priority) task.priority = updateData.priority as PriorityLevel;
 
+    const notifyManagers = async (
+        updatedTask: typeof task,
+        action: 'accept' | 'reject',
+        newStatus: string
+    ) => {
+      const possibleManagers = [updatedTask.initiatorId, updatedTask.authorId]
+          .map((v) => (typeof v === 'string' ? v.trim() : ''))
+          .filter((v) => v && v !== user.id);
+
+      if (possibleManagers.length === 0) return;
+
+      const managerUsers = await UserModel.find({ clerkUserId: { $in: possibleManagers } })
+          .select('_id name email clerkUserId')
+          .lean();
+
+      if (!managerUsers || managerUsers.length === 0) return;
+
+      const bsInfo = updatedTask.bsNumber ? ` (БС ${updatedTask.bsNumber})` : '';
+      const title = action === 'accept' ? 'Исполнитель принял задачу' : 'Исполнитель отказался от задачи';
+      const message =
+          action === 'accept'
+              ? `${authorName} подтвердил принятие задачи «${updatedTask.taskName}»${bsInfo}. Статус: ${newStatus}.`
+              : `${authorName} отказался от задачи «${updatedTask.taskName}»${bsInfo}. Статус: ${newStatus}.`;
+
+      const link = `/tasks/${encodeURIComponent(updatedTask.taskId.toLowerCase())}`;
+      const metadataEntries = Object.entries({
+        taskId: updatedTask.taskId,
+        taskMongoId: updatedTask._id?.toString?.(),
+        bsNumber: updatedTask.bsNumber,
+        newStatus,
+        decision: action,
+      }).filter(([, value]) => typeof value !== 'undefined' && value !== null);
+      const metadata = metadataEntries.length > 0 ? Object.fromEntries(metadataEntries) : undefined;
+
+      await Promise.all(
+          managerUsers.map((manager) =>
+              createNotification({
+                recipientUserId: manager._id,
+                type: 'task_status_change',
+                title,
+                message,
+                link,
+                orgId: updatedTask.orgId ?? undefined,
+                senderName: authorName,
+                senderEmail: authorEmail ?? undefined,
+                metadata,
+              })
+          )
+      );
+    };
+
     // === Accept / Reject ===
     let decision: 'accept' | 'reject' | null = null;
+    let managerDecision: 'accept' | 'reject' | null = null;
     if (typeof updateData.decision === 'string') {
       const d = updateData.decision.trim().toLowerCase();
       if (d === 'accept' || d === 'reject') decision = d;
@@ -351,13 +419,14 @@ export async function PATCH(
         task.status = 'At work';
         task.events.push({
           action: 'TASK_ACCEPTED',
-          author: user.fullName || user.username || 'Unknown',
+          author: authorName,
           authorId: user.id,
           date: new Date(),
           details: {
             comment: 'Executor accepted the task. Status → At work',
           },
         });
+        managerDecision = 'accept';
       }
     }
 
@@ -371,16 +440,17 @@ export async function PATCH(
 
       task.events.push({
         action: 'TASK_REJECTED',
-        author: user.fullName || user.username || 'Unknown',
+        author: authorName,
         authorId: user.id,
         date: new Date(),
         details: { comment: 'Executor rejected the task' },
       });
+      managerDecision = 'reject';
 
       if (hadExecutor || needRevert) {
         task.events.push({
           action: 'EXECUTOR_REMOVED',
-          author: user.fullName || user.username || 'Unknown',
+          author: authorName,
           authorId: user.id,
           date: new Date(),
           details: {
@@ -398,7 +468,7 @@ export async function PATCH(
         task.status = updateData.status as typeof task.status;
         task.events.push({
           action: 'STATUS_CHANGED',
-          author: user.fullName || user.username || 'Unknown',
+          author: authorName,
           authorId: user.id,
           date: new Date(),
           details: { comment: `Status changed to: ${updateData.status}` },
@@ -407,7 +477,7 @@ export async function PATCH(
 
       task.events.push({
         action: 'STATUS_CHANGED',
-        author: user.fullName || user.username || 'Unknown',
+        author: authorName,
         authorId: user.id,
         date: new Date(),
         details: { comment: `Status changed to: ${updateData.status}` },
@@ -442,7 +512,7 @@ export async function PATCH(
         if (task.status !== 'Pending') {
           task.events.push({
             action: 'STATUS_CHANGED',
-            author: user.fullName || user.username || 'Unknown',
+            author: authorName,
             authorId: user.id,
             date: new Date(),
             details: {
@@ -465,6 +535,14 @@ export async function PATCH(
 
     const updatedTask = await task.save();
 
+    if (managerDecision) {
+      try {
+        await notifyManagers(updatedTask, managerDecision, updatedTask.status);
+      } catch (notifyManagerErr) {
+        console.error('Failed to notify managers about decision', notifyManagerErr);
+      }
+    }
+
     if (shouldNotifyExecutorAssignment && assignedExecutorClerkId) {
       try {
         await notifyTaskAssignment({
@@ -474,8 +552,8 @@ export async function PATCH(
           taskName: updatedTask.taskName,
           bsNumber: updatedTask.bsNumber,
           orgId: updatedTask.orgId ? updatedTask.orgId.toString() : undefined,
-          triggeredByName: user.fullName || user.username || user.emailAddresses?.[0]?.emailAddress,
-          triggeredByEmail: user.emailAddresses?.[0]?.emailAddress,
+          triggeredByName: authorName,
+          triggeredByEmail: authorEmail,
         });
       } catch (notifyErr) {
         console.error('Failed to send task assignment notification', notifyErr);

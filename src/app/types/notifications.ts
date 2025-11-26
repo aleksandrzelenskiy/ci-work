@@ -5,7 +5,8 @@ export type NotificationKind =
     | 'invite_accepted'
     | 'invite_declined'
     | 'task_assigned'
-    | 'task_comment';
+    | 'task_comment'
+    | 'task_status_change';
 
 export type NotificationStatus = 'unread' | 'read';
 
