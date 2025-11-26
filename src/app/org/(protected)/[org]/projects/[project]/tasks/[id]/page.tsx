@@ -1923,7 +1923,11 @@ export default function TaskDetailsPage() {
                     >
                         {documentSnackbar.message}
                     </Alert>
-                ) : undefined}
+                ) : (
+                    <Alert severity="info" sx={{ visibility: 'hidden' }}>
+                        placeholder
+                    </Alert>
+                )}
             </Snackbar>
         </Box>
     );
