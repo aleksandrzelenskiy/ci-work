@@ -99,6 +99,10 @@ export default function TaskDetailPage() {
     const [decisionLoading, setDecisionLoading] = React.useState(false);
     const [decisionError, setDecisionError] = React.useState<string | null>(null);
 
+    const handleCompleteClick = React.useCallback(() => {
+        // TODO: implement completion action
+    }, []);
+
     const roleLoaded = userRole !== null;
     const isExecutor = isExecutorRole(userRole);
     const isAdmin = isAdminRole(userRole);
@@ -695,6 +699,25 @@ export default function TaskDetailPage() {
                                         Статус после принятия: At work. После отказа: To do.
                                     </Typography>
                                 </Stack>
+                            )}
+                            {task.status === 'At work' && (
+                                <Box sx={{ pt: 0.5 }}>
+                                    <Divider sx={{ mb: 1.5 }} />
+                                    <Button
+                                        variant="contained"
+                                        color="success"
+                                        onClick={handleCompleteClick}
+                                        fullWidth
+                                        sx={{
+                                            borderRadius: 999,
+                                            textTransform: 'none',
+                                            py: 1.1,
+                                            fontWeight: 700,
+                                        }}
+                                    >
+                                        Завершено
+                                    </Button>
+                                </Box>
                             )}
                         </Stack>
                     </CardItem>
