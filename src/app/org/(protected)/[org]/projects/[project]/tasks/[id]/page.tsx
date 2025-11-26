@@ -1914,7 +1914,7 @@ export default function TaskDetailsPage() {
                 onClose={handleDocumentSnackbarClose}
                 anchorOrigin={{ vertical: 'bottom', horizontal: 'center' }}
             >
-                {documentSnackbar ? (
+                {documentSnackbar && (
                     <Alert
                         onClose={handleDocumentSnackbarClose}
                         severity={documentSnackbar.type}
@@ -1923,7 +1923,7 @@ export default function TaskDetailsPage() {
                     >
                         {documentSnackbar.message}
                     </Alert>
-                ) : null}
+                )}
             </Snackbar>
         </Box>
     );
