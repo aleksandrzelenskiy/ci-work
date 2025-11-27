@@ -207,9 +207,9 @@ export default function TaskDetailsPage() {
         return String(x);
     };
 
-    const formatDate = (v?: string) => {
+    const formatDate = (v?: string | Date) => {
         if (!v) return '—';
-        const d = new Date(v);
+        const d = v instanceof Date ? v : new Date(v);
         if (Number.isNaN(d.getTime())) return v;
         const dd = String(d.getDate()).padStart(2, '0');
         const mm = String(d.getMonth() + 1).padStart(2, '0');
@@ -237,6 +237,14 @@ export default function TaskDetailsPage() {
     const formatPrice = (v?: number) => {
         if (typeof v !== 'number') return '—';
         return new Intl.NumberFormat('ru-RU').format(v) + ' ₽';
+    };
+
+    const addDays = (v: string, days: number): Date | null => {
+        const d = new Date(v);
+        if (Number.isNaN(d.getTime())) return null;
+        const result = new Date(d);
+        result.setDate(result.getDate() + days);
+        return result;
     };
 
     const load = React.useCallback(async () => {
@@ -351,6 +359,11 @@ export default function TaskDetailsPage() {
         !!task &&
         ((Array.isArray(task.files) && task.files.length > 0) ||
             attachmentLinks.length > 0);
+
+    const orderCompletionDate = React.useMemo(() => {
+        if (!task?.orderSignDate) return null;
+        return addDays(task.orderSignDate, 60);
+    }, [task?.orderSignDate]);
 
     const relatedTasks = React.useMemo(
         () => normalizeRelatedTasks(task?.relatedTasks),
@@ -1562,6 +1575,12 @@ export default function TaskDetailsPage() {
                                         <Typography>
                                             Дата подписания:{' '}
                                             {formatDate(task.orderSignDate)}
+                                        </Typography>
+                                    )}
+                                    {orderCompletionDate && (
+                                        <Typography>
+                                            Срок выполнения:{' '}
+                                            {formatDate(orderCompletionDate)} (от даты подписания + 60 календарных дней)
                                         </Typography>
                                     )}
                                     {task.orderUrl && (
