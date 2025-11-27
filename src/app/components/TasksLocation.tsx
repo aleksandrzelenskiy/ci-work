@@ -587,12 +587,29 @@ export default function TasksLocation(): React.ReactElement {
                         >
                             <FullscreenControl options={{ position: { right: 16, top: 16 } }} />
                             <ZoomControl options={{ position: { right: 16, top: 80 } }} />
+
                             <Clusterer
                                 options={{
                                     preset: 'islands#redClusterIcons',
                                     groupByCoordinates: false,
                                     gridSize: 80,
+
+                                    // Вместо зума — открываем балун кластера
+                                    clusterDisableClickZoom: true,
+                                    clusterOpenBalloonOnClick: true,
+
+                                    // Балун кластера в виде карусели,
+                                    // каждый Placemark -> отдельный слайд с его balloonContent
+                                    clusterBalloonContentLayout: 'cluster#balloonCarousel',
+
+                                    // Чтобы панель-кластер открывалась на любом масштабе
+                                    clusterBalloonPanelMaxMapArea: 0,
+
+                                    // Не скрывать значок кластера при открытом балуне
+                                    hideIconOnBalloonOpen: false,
                                 }}
+                                // Модули для работы баллонов и подсказок у кластера
+                                modules={['clusterer.addon.balloon', 'clusterer.addon.hint']}
                             >
                                 {filteredPlacemarks.map((point) => (
                                     <Placemark
@@ -600,6 +617,7 @@ export default function TasksLocation(): React.ReactElement {
                                         geometry={point.coords}
                                         properties={{
                                             hintContent: `БС ${point.bsNumber}`,
+                                            // это и будет контентом слайда в карусели кластера
                                             balloonContent: buildBalloonContent(point),
                                             iconCaption: point.bsNumber,
                                         }}
@@ -614,6 +632,7 @@ export default function TasksLocation(): React.ReactElement {
                             </Clusterer>
                         </Map>
                     </YMaps>
+
                 )}
             </Box>
         </Box>
