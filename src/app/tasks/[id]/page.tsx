@@ -245,6 +245,7 @@ export default function TaskDetailPage() {
     );
 
     const hasAttachments = attachmentLinks.length > 0;
+    const hasAttachmentBlock = hasAttachments || Boolean(task?.reportLink);
     const relatedTasks = React.useMemo(
         () => normalizeRelatedTasks(task?.relatedTasks),
         [task?.relatedTasks]
@@ -823,23 +824,21 @@ export default function TaskDetailPage() {
                         </CardItem>
                     )}
 
-                    <CardItem sx={{ minWidth: 0 }}>
-                        <Typography
-                            variant="body1"
-                            fontWeight={600}
-                            gutterBottom
-                            sx={{ display: 'flex', alignItems: 'center', gap: 1 }}
-                        >
-                            <DescriptionOutlinedIcon fontSize="small" />
-                            Описание
-                        </Typography>
-                        <Divider sx={{ mb: 1.5 }} />
-                        {task.taskDescription ? (
+                    {task.taskDescription && (
+                        <CardItem sx={{ minWidth: 0 }}>
+                            <Typography
+                                variant="body1"
+                                fontWeight={600}
+                                gutterBottom
+                                sx={{ display: 'flex', alignItems: 'center', gap: 1 }}
+                            >
+                                <DescriptionOutlinedIcon fontSize="small" />
+                                Описание
+                            </Typography>
+                            <Divider sx={{ mb: 1.5 }} />
                             <Typography sx={{ whiteSpace: 'pre-wrap' }}>{task.taskDescription}</Typography>
-                        ) : (
-                            <Typography color="text.secondary">Нет описания</Typography>
-                        )}
-                    </CardItem>
+                        </CardItem>
+                    )}
 
                     <CardItem sx={{ minWidth: 0 }}>
                         <TaskGeoLocation locations={task.bsLocation} />
@@ -898,18 +897,18 @@ export default function TaskDetailPage() {
                         </CardItem>
                     )}
 
-                    <CardItem sx={{ minWidth: 0 }}>
-                        <Typography
-                            variant="subtitle1"
-                            fontWeight={600}
-                            gutterBottom
-                            sx={{ display: 'flex', alignItems: 'center', gap: 1 }}
-                        >
-                            <AttachFileOutlinedIcon fontSize="small" />
-                            Вложения
-                        </Typography>
-                        <Divider sx={{ mb: 1.5 }} />
-                        {hasAttachments || task.reportLink ? (
+                    {hasAttachmentBlock && (
+                        <CardItem sx={{ minWidth: 0 }}>
+                            <Typography
+                                variant="subtitle1"
+                                fontWeight={600}
+                                gutterBottom
+                                sx={{ display: 'flex', alignItems: 'center', gap: 1 }}
+                            >
+                                <AttachFileOutlinedIcon fontSize="small" />
+                                Вложения
+                            </Typography>
+                            <Divider sx={{ mb: 1.5 }} />
                             <Stack gap={1}>
                                 {attachmentLinks.map((url, idx) => (
                                     <Link
@@ -934,10 +933,8 @@ export default function TaskDetailPage() {
                                     </Button>
                                 )}
                             </Stack>
-                        ) : (
-                            <Typography color="text.secondary">Нет вложений</Typography>
-                        )}
-                    </CardItem>
+                        </CardItem>
+                    )}
 
                     <CardItem sx={{ minWidth: 0 }}>
                         <Accordion
