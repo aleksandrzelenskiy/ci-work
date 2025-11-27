@@ -1062,22 +1062,13 @@ export default function TaskDetailPage() {
                                                             {detailLabel ? ` · ${detailLabel}` : null}
                                                         </Typography>
                                                     </Box>
-                                                    <Stack direction="row" spacing={0.5} alignItems="center">
-                                                        {statusLabel && (
-                                                            <Chip
-                                                                label={statusLabel}
-                                                                size="small"
-                                                                sx={{ fontWeight: 500 }}
-                                                            />
-                                                        )}
-                                                        {related.priority && (
-                                                            <Chip
-                                                                label={related.priority}
-                                                                size="small"
-                                                                variant="outlined"
-                                                            />
-                                                        )}
-                                                    </Stack>
+                                                    {statusLabel && (
+                                                        <Chip
+                                                            label={statusLabel}
+                                                            size="small"
+                                                            sx={{ fontWeight: 500 }}
+                                                        />
+                                                    )}
                                                 </Stack>
                                             </Link>
                                         );
