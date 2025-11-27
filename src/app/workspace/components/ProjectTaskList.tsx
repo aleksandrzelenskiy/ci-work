@@ -54,6 +54,7 @@ type Task = {
     files?: Array<{ name?: string; url?: string; size?: number }>;
     attachments?: string[];
     bsLocation?: Array<{ name: string; coordinates: string }>;
+    relatedTasks?: string[];
 };
 
 type TaskWithStatus = Task & { _statusTitle: StatusTitle };
@@ -609,6 +610,7 @@ const ProjectTaskListInner = (
                             attachments: selectedTask.attachments,
                             bsLocation: selectedTask.bsLocation,
                             workItems: selectedTask.workItems,
+                            relatedTasks: selectedTask.relatedTasks,
                         } as TaskForEdit}
                         onCloseAction={() => setEditOpen(false)}
                         onCreatedAction={handleEdited}

@@ -389,6 +389,7 @@ export default function TaskDetailsPage() {
                     coordinates: loc.coordinates,
                 }))
                 : undefined,
+            relatedTasks: t.relatedTasks,
         };
     };
 

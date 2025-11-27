@@ -64,6 +64,13 @@ type MembersApi = {
     error?: string;
 };
 
+type RelatedTaskOption = {
+    id: string;
+    taskId?: string;
+    taskName: string;
+    bsNumber?: string;
+};
+
 export type TaskForEdit = {
     _id: string;
     taskId: string;
@@ -84,6 +91,7 @@ export type TaskForEdit = {
     attachments?: string[];
     bsLocation?: Array<{ name: string; coordinates: string; address?: string }>;
     workItems?: ParsedWorkItem[];
+    relatedTasks?: string[];
 };
 
 type Props = {
@@ -245,6 +253,49 @@ function sanitizeWorkItemsInput(value: unknown): ParsedWorkItem[] {
     return parsed;
 }
 
+function formatRelatedTaskLabel(opt: RelatedTaskOption): string {
+    const parts: string[] = [];
+    if (opt.taskId) parts.push(`#${opt.taskId}`);
+    parts.push(opt.taskName);
+    if (opt.bsNumber) parts.push(`BS ${opt.bsNumber}`);
+    return parts.filter(Boolean).join(' · ');
+}
+
+function mapTaskToRelatedOption(raw: unknown): RelatedTaskOption | null {
+    if (!raw || typeof raw !== 'object') return null;
+    const obj = raw as Record<string, unknown>;
+    const idRaw = obj._id ?? obj.id;
+    if (!idRaw) return null;
+    const taskName =
+        typeof obj.taskName === 'string' && obj.taskName.trim()
+            ? obj.taskName.trim()
+            : typeof obj.taskId === 'string'
+                ? obj.taskId
+                : '';
+    if (!taskName) return null;
+    const taskId = typeof obj.taskId === 'string' ? obj.taskId : undefined;
+    const bsNumber = typeof obj.bsNumber === 'string' ? obj.bsNumber : undefined;
+    return {
+        id: String(idRaw),
+        taskId,
+        taskName,
+        bsNumber,
+    };
+}
+
+function dedupeRelatedOptions(list: RelatedTaskOption[], excludeId?: string | null): RelatedTaskOption[] {
+    const seen = new Set<string>();
+    const res: RelatedTaskOption[] = [];
+    list.forEach((opt) => {
+        if (!opt || !opt.id) return;
+        if (excludeId && opt.id === excludeId) return;
+        if (seen.has(opt.id)) return;
+        seen.add(opt.id);
+        res.push(opt);
+    });
+    return res;
+}
+
 
 export default function WorkspaceTaskDialog({
                                                 open,
@@ -259,6 +310,10 @@ export default function WorkspaceTaskDialog({
 
     const orgSlug = React.useMemo(() => org?.trim(), [org]);
     const projectRef = React.useMemo(() => project?.trim(), [project]);
+    const excludeCurrentTaskId = React.useMemo(
+        () => (initialTask?._id ? String(initialTask._id) : null),
+        [initialTask?._id]
+    );
     const apiPath = React.useCallback(
         (path: string) => {
             if (!orgSlug) throw new Error('org is required');
@@ -310,6 +365,12 @@ export default function WorkspaceTaskDialog({
     const [bsOptions, setBsOptions] = React.useState<BsOption[]>([]);
     const [bsOptionsLoading, setBsOptionsLoading] = React.useState(false);
     const [bsOptionsError, setBsOptionsError] = React.useState<string | null>(null);
+
+    const [relatedTasksOptions, setRelatedTasksOptions] = React.useState<RelatedTaskOption[]>([]);
+    const [relatedTasksSelected, setRelatedTasksSelected] = React.useState<RelatedTaskOption[]>([]);
+    const [relatedTasksLoading, setRelatedTasksLoading] = React.useState(false);
+    const [relatedTasksError, setRelatedTasksError] = React.useState<string | null>(null);
+    const [relatedInput, setRelatedInput] = React.useState('');
 
     // диалог удаления существующего файла
     const [deleteDialogOpen, setDeleteDialogOpen] = React.useState(false);
@@ -380,6 +441,48 @@ export default function WorkspaceTaskDialog({
             }
         },
         [projectMeta?.regionCode, projectMeta?.operator]
+    );
+
+    const loadRelatedTasks = React.useCallback(
+        async (term: string) => {
+            if (!orgSlug || !projectRef) return;
+            setRelatedTasksLoading(true);
+            setRelatedTasksError(null);
+            try {
+                const qs = new URLSearchParams();
+                if (term.trim()) qs.set('q', term.trim());
+                qs.set('limit', '20');
+                const query = qs.toString();
+                const res = await fetch(
+                    apiPath(
+                        `/projects/${encodeURIComponent(projectRef)}/tasks${query ? `?${query}` : ''}`
+                    ),
+                    { method: 'GET', cache: 'no-store' }
+                );
+                const body = await res.json().catch(() => ({}));
+                if (!res.ok) {
+                    setRelatedTasksError(extractErrorMessage(body, res.statusText));
+                    setRelatedTasksOptions([]);
+                    return;
+                }
+                const list = Array.isArray((body as { items?: unknown[] }).items)
+                    ? ((body as { items?: unknown[] }).items as unknown[])
+                    : [];
+                const mapped = dedupeRelatedOptions(
+                    list
+                        .map((item) => mapTaskToRelatedOption(item))
+                        .filter(Boolean) as RelatedTaskOption[],
+                    excludeCurrentTaskId
+                );
+                setRelatedTasksOptions(mapped);
+            } catch (e: unknown) {
+                setRelatedTasksError(e instanceof Error ? e.message : 'Не удалось загрузить задачи');
+                setRelatedTasksOptions([]);
+            } finally {
+                setRelatedTasksLoading(false);
+            }
+        },
+        [apiPath, excludeCurrentTaskId, orgSlug, projectRef]
     );
 
     // helper to update one BS entry
@@ -595,6 +698,76 @@ export default function WorkspaceTaskDialog({
         };
     }, [open, orgSlug, apiPath]);
 
+    React.useEffect(() => {
+        if (!open) return;
+        setRelatedInput('');
+        void loadRelatedTasks('');
+    }, [open, loadRelatedTasks]);
+
+    React.useEffect(() => {
+        if (!open) return;
+        if (!isEdit || !initialTask || !projectRef) {
+            setRelatedTasksSelected([]);
+            setRelatedTasksLoading(false);
+            setRelatedTasksError(null);
+            return;
+        }
+
+        const ids = Array.isArray(initialTask.relatedTasks)
+            ? initialTask.relatedTasks.filter((id) => id.trim())
+            : [];
+        if (!ids.length) {
+            setRelatedTasksSelected([]);
+            setRelatedTasksLoading(false);
+            setRelatedTasksError(null);
+            return;
+        }
+
+        let aborted = false;
+        setRelatedTasksLoading(true);
+        setRelatedTasksError(null);
+
+        const load = async () => {
+            const collected: RelatedTaskOption[] = [];
+            for (const id of ids) {
+                try {
+                    const res = await fetch(
+                        apiPath(
+                            `/projects/${encodeURIComponent(projectRef)}/tasks/${encodeURIComponent(id)}`
+                        ),
+                        { method: 'GET', cache: 'no-store' }
+                    );
+                    const body = await res.json().catch(() => ({}));
+                    if (!res.ok) {
+                        console.error('Failed to load related task', id, body);
+                        continue;
+                    }
+                    const taskData = (body as { task?: unknown })?.task ?? body;
+                    const opt = mapTaskToRelatedOption(taskData);
+                    if (opt) collected.push(opt);
+                } catch (e) {
+                    console.error('Failed to fetch related task', e);
+                }
+            }
+
+            if (!aborted) {
+                const deduped = dedupeRelatedOptions(collected, excludeCurrentTaskId);
+                setRelatedTasksSelected(deduped);
+                setRelatedTasksOptions((prev) =>
+                    dedupeRelatedOptions([...deduped, ...prev], excludeCurrentTaskId)
+                );
+            }
+        };
+
+        void load().finally(() => {
+            if (!aborted) setRelatedTasksLoading(false);
+        });
+
+        return () => {
+            aborted = true;
+        };
+    }, [open, isEdit, initialTask, projectRef, apiPath, excludeCurrentTaskId]);
+
     const hasInvalidCoords = React.useMemo(
         () =>
             bsEntries.some(
@@ -604,6 +777,14 @@ export default function WorkspaceTaskDialog({
     );
 
     const bsSearchTimeout = React.useRef<ReturnType<typeof setTimeout> | null>(null);
+    const relatedSearchTimeout = React.useRef<ReturnType<typeof setTimeout> | null>(null);
+
+    React.useEffect(() => {
+        return () => {
+            if (bsSearchTimeout.current) clearTimeout(bsSearchTimeout.current);
+            if (relatedSearchTimeout.current) clearTimeout(relatedSearchTimeout.current);
+        };
+    }, []);
 
     const handleEstimateApply = React.useCallback(
         (data: ParsedEstimateResult) => {
@@ -768,6 +949,10 @@ export default function WorkspaceTaskDialog({
         setUploading(false);
         setTotalCost('');
         setWorkItems([]);
+        setRelatedTasksSelected([]);
+        setRelatedTasksOptions([]);
+        setRelatedTasksError(null);
+        setRelatedInput('');
         setBsEntries([
             {
                 id: 'bs-main',
@@ -919,6 +1104,11 @@ export default function WorkspaceTaskDialog({
         [bsEntries]
     );
 
+    const relatedOptions = React.useMemo(
+        () => dedupeRelatedOptions([...relatedTasksSelected, ...relatedTasksOptions], excludeCurrentTaskId),
+        [relatedTasksOptions, relatedTasksSelected, excludeCurrentTaskId]
+    );
+
     const hasAtLeastOneBsNumber = !!taskBsNumber;
 
     async function handleCreate() {
@@ -950,6 +1140,7 @@ export default function WorkspaceTaskDialog({
                 executorEmail: selectedExecutor ? selectedExecutor.email : null,
                 totalCost: totalCost.trim() ? Number(totalCost.trim()) : undefined,
                 workItems,
+                relatedTasks: relatedTasksSelected.map((t) => t.id),
             };
 
             const res = await fetch(apiPath(`/projects/${encodeURIComponent(projectRef)}/tasks`), {
@@ -1007,6 +1198,7 @@ export default function WorkspaceTaskDialog({
                 executorEmail: selectedExecutor ? selectedExecutor.email : null,
                 totalCost: totalCost.trim() ? Number(totalCost.trim()) : undefined,
                 workItems,
+                relatedTasks: relatedTasksSelected.map((t) => t.id),
             };
 
             const res = await fetch(
@@ -1528,6 +1720,64 @@ export default function WorkspaceTaskDialog({
                                     );
                                 }}
                                 isOptionEqualToValue={(opt, val) => opt.id === val.id}
+                            />
+
+                            <Autocomplete<RelatedTaskOption, true, false, false>
+                                multiple
+                                options={relatedOptions}
+                                value={relatedTasksSelected}
+                                inputValue={relatedInput}
+                                onInputChange={(_e, value) => {
+                                    setRelatedInput(value);
+                                    if (relatedSearchTimeout.current) clearTimeout(relatedSearchTimeout.current);
+                                    relatedSearchTimeout.current = setTimeout(() => {
+                                        void loadRelatedTasks(value);
+                                    }, 300);
+                                }}
+                                onChange={(_e, value) => setRelatedTasksSelected(value)}
+                                loading={relatedTasksLoading}
+                                filterOptions={(opts) => opts}
+                                getOptionLabel={(opt) => formatRelatedTaskLabel(opt)}
+                                isOptionEqualToValue={(opt, val) => opt.id === val.id}
+                                noOptionsText={
+                                    relatedTasksError
+                                        ? `Ошибка: ${relatedTasksError}`
+                                        : 'Задачи не найдены'
+                                }
+                                renderInput={(params) => (
+                                    <TextField
+                                        {...params}
+                                        label="Связанные задачи"
+                                        placeholder="Поиск по названию, ID или BS"
+                                        fullWidth
+                                        sx={glassInputSx}
+                                        helperText="Задачи, связанные по зависимостям или макро-задаче"
+                                        InputProps={{
+                                            ...params.InputProps,
+                                            endAdornment: (
+                                                <>
+                                                    {relatedTasksLoading ? (
+                                                        <CircularProgress size={18} sx={{ mr: 1 }} />
+                                                    ) : null}
+                                                    {params.InputProps.endAdornment}
+                                                </>
+                                            ),
+                                        }}
+                                    />
+                                )}
+                                renderOption={(props, option) => {
+                                    const { key, ...optionProps } = props;
+                                    return (
+                                        <li {...optionProps} key={key}>
+                                            <ListItemText
+                                                primary={formatRelatedTaskLabel(option)}
+                                                secondary={
+                                                    option.bsNumber ? `BS: ${option.bsNumber}` : undefined
+                                                }
+                                            />
+                                        </li>
+                                    );
+                                }}
                             />
 
                             <Stack direction={{ xs: 'column', sm: 'row' }} spacing={2}>

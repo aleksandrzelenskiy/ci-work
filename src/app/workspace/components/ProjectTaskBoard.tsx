@@ -59,6 +59,7 @@ type Task = {
     files?: Array<{ name?: string; url?: string; size?: number }>;
     attachments?: string[];
     bsLocation?: Array<{ name: string; coordinates: string }>;
+    relatedTasks?: string[];
 };
 
 const formatDateRU = (v?: string) => (v ? new Date(v).toLocaleDateString('ru-RU') : '—');
@@ -369,6 +370,7 @@ export default function ProjectTaskBoard({
                         attachments: selectedTask.attachments,
                         bsLocation: selectedTask.bsLocation,
                         workItems: selectedTask.workItems,
+                        relatedTasks: selectedTask.relatedTasks,
                     } as TaskForEdit}
                     onCloseAction={() => setEditOpen(false)}
                     onCreatedAction={handleEdited}

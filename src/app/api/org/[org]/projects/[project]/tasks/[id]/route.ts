@@ -643,6 +643,35 @@ export async function PUT(
             }
         }
 
+        if (Array.isArray(body.relatedTasks)) {
+            const cleanedIds = (body.relatedTasks as unknown[])
+                .map((id) => (typeof id === 'string' ? id.trim() : ''))
+                .filter(Boolean);
+            const prevIds = Array.isArray((currentTask as { relatedTasks?: unknown[] }).relatedTasks)
+                ? ((currentTask as { relatedTasks?: unknown[] }).relatedTasks ?? []).map((id) =>
+                    typeof id === 'string'
+                        ? id
+                        : typeof (id as { toString?: () => string }).toString === 'function'
+                            ? (id as { toString: () => string }).toString()
+                            : String(id)
+                )
+                : [];
+
+            const nextObjectIds: Types.ObjectId[] = [];
+            cleanedIds.forEach((id) => {
+                try {
+                    nextObjectIds.push(toObjectId(id));
+                } catch {
+                    /* ignore invalid id */
+                }
+            });
+
+            if (!isSameValue(prevIds, cleanedIds)) {
+                markChange('relatedTasks', prevIds, cleanedIds);
+                allowedPatch.relatedTasks = nextObjectIds;
+            }
+        }
+
         const hasChanges = Object.keys(changed).length > 0;
 
         const updateQuery: Record<string, unknown> = { $set: allowedPatch };
