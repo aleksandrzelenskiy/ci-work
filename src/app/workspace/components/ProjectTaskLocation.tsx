@@ -582,6 +582,9 @@ export default function ProjectTaskLocation(): React.ReactElement {
 
                                     // Чтобы баллон открывался даже на "крупном" масштабе
                                     clusterBalloonPanelMaxMapArea: 0,
+
+                                    // Не скрывать иконку кластера при открытом балуне
+                                    hideIconOnBalloonOpen: false,
                                 }}
                                 // Включаем поддержку баллонов и подсказок именно для кластера
                                 modules={['clusterer.addon.balloon', 'clusterer.addon.hint']}
