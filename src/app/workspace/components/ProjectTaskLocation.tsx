@@ -21,6 +21,7 @@ import SearchIcon from '@mui/icons-material/Search';
 import TuneRoundedIcon from '@mui/icons-material/TuneRounded';
 import RestartAltRoundedIcon from '@mui/icons-material/RestartAltRounded';
 import CloseRoundedIcon from '@mui/icons-material/CloseRounded';
+import { useParams } from 'next/navigation';
 import { YMaps, Map, Placemark, Clusterer, ZoomControl, FullscreenControl } from '@pbe/react-yandex-maps';
 import type { CurrentStatus, PriorityLevel } from '@/app/types/taskTypes';
 import { getStatusColor } from '@/utils/statusColors';
@@ -146,6 +147,9 @@ export default function ProjectTaskLocation(): React.ReactElement {
     const [filtersOpen, setFiltersOpen] = React.useState(false);
     const theme = useTheme();
     const isDark = theme.palette.mode === 'dark';
+    const params = useParams<{ org?: string; project?: string }>();
+    const orgSlug = params?.org;
+    const projectSlug = params?.project;
 
     React.useEffect(() => {
         let active = true;
@@ -267,26 +271,32 @@ export default function ProjectTaskLocation(): React.ReactElement {
         return true;
     }, [priorityFilter, search, statusFilter]);
 
-    const buildBalloonContent = React.useCallback((point: MapPoint) => {
-        const linkHref = point.slug ? `/tasks/${encodeURIComponent(point.slug)}` : null;
-        const relatedBlock = point.relatedNumbers
-            ? `<div style="margin-bottom:4px;">Связанные БС: ${point.relatedNumbers}</div>`
-            : '';
-        const statusLine = point.status
-            ? `<div style="margin-bottom:4px;">Статус: ${getStatusLabel(point.status)}</div>`
-            : '';
-        const priorityLine = point.priority
-            ? `<div style="margin-bottom:4px;">Приоритет: ${getPriorityLabelRu(point.priority)}</div>`
-            : '';
-        const projectLine =
-            point.projectName || point.projectKey
-                ? `<div style="margin-bottom:4px;">Проект: ${point.projectName ?? point.projectKey}</div>`
+    const buildBalloonContent = React.useCallback(
+        (point: MapPoint) => {
+            const linkHref =
+                point.slug && orgSlug && projectSlug
+                    ? `/org/${encodeURIComponent(orgSlug)}/projects/${encodeURIComponent(
+                          projectSlug
+                      )}/tasks/${encodeURIComponent(point.slug)}`
+                    : null;
+            const relatedBlock = point.relatedNumbers
+                ? `<div style="margin-bottom:4px;">Связанные БС: ${point.relatedNumbers}</div>`
                 : '';
-        const executorLine =
-            point.executorName || point.executorEmail
-                ? `<div style="margin-bottom:4px;">Исполнитель: ${point.executorName ?? point.executorEmail}</div>`
+            const statusLine = point.status
+                ? `<div style="margin-bottom:4px;">Статус: ${getStatusLabel(point.status)}</div>`
                 : '';
-        return `<div style="font-family:Inter,Arial,sans-serif;min-width:240px;">
+            const priorityLine = point.priority
+                ? `<div style="margin-bottom:4px;">Приоритет: ${getPriorityLabelRu(point.priority)}</div>`
+                : '';
+            const projectLine =
+                point.projectName || point.projectKey
+                    ? `<div style="margin-bottom:4px;">Проект: ${point.projectName ?? point.projectKey}</div>`
+                    : '';
+            const executorLine =
+                point.executorName || point.executorEmail
+                    ? `<div style="margin-bottom:4px;">Исполнитель: ${point.executorName ?? point.executorEmail}</div>`
+                    : '';
+            return `<div style="font-family:Inter,Arial,sans-serif;min-width:240px;">
             <div style="font-weight:600;margin-bottom:4px;">БС ${point.bsNumber}</div>
             <div style="margin-bottom:4px;">ID задачи: ${point.taskId || '—'}</div>
             <div style="margin-bottom:4px;">${point.taskName || '—'}</div>
@@ -301,7 +311,9 @@ export default function ProjectTaskLocation(): React.ReactElement {
                     : ''
             }
         </div>`;
-    }, []);
+        },
+        [orgSlug, projectSlug]
+    );
 
     const glassPaperSx = React.useMemo(() => {
         const borderColor = alpha(isDark ? '#ffffff' : '#0f172a', isDark ? 0.12 : 0.08);
