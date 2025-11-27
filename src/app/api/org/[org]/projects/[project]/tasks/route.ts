@@ -72,6 +72,11 @@ function parseCoordinatesPair(value?: string | null): { lat?: number; lon?: numb
     };
 }
 
+function toObjectId(id: unknown): Types.ObjectId {
+    if (id instanceof Types.ObjectId) return id;
+    return new Types.ObjectId(String(id));
+}
+  
 type WorkItemInput = {
     workType: string;
     quantity: number;
@@ -372,7 +377,7 @@ export async function POST(
         }
 
         if (normalizedRelated.length) {
-            await addReverseRelations(created._id, normalizedRelated.map((entry) => entry._id));
+            await addReverseRelations(toObjectId(created._id), normalizedRelated.map((entry) => entry._id));
         }
 
         const coordsSource =
