@@ -210,7 +210,7 @@ export default function TaskDetailsPage() {
     const formatDate = (v?: string | Date) => {
         if (!v) return '—';
         const d = v instanceof Date ? v : new Date(v);
-        if (Number.isNaN(d.getTime())) return v;
+        if (Number.isNaN(d.getTime())) return typeof v === 'string' ? v : '—';
         const dd = String(d.getDate()).padStart(2, '0');
         const mm = String(d.getMonth() + 1).padStart(2, '0');
         const yyyy = d.getFullYear();
