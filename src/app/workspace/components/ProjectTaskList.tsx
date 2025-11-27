@@ -87,6 +87,9 @@ type Task = {
     attachments?: string[];
     bsLocation?: Array<{ name: string; coordinates: string }>;
     relatedTasks?: string[];
+    orderUrl?: string;
+    orderNumber?: string;
+    orderDate?: string;
 };
 
 type TaskWithStatus = Task & { _statusTitle: StatusTitle };
