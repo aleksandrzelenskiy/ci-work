@@ -68,6 +68,15 @@ export interface Comment {
   photoUrl?: string;
 }
 
+export interface RelatedTaskRef {
+  _id: string;
+  taskId?: string;
+  taskName?: string;
+  bsNumber?: string;
+  priority?: PriorityLevel;
+  status?: CurrentStatus;
+}
+
 export interface Task {
   _id?: string;
   orgId?: string;
@@ -104,7 +113,7 @@ export interface Task {
 
   taskType: TaskType; // construction | document
   requiredAttachments?: RequiredAttachmentType[]; // например ['photo'] или ['pdf', 'dwg']
-  relatedTasks?: string[]; // массив ObjectId связанных задач
+  relatedTasks?: (string | RelatedTaskRef)[]; // массив ObjectId связанных задач
   approvedBy?: string; // кто согласовал
   approvedAt?: Date; // когда согласовали
 
@@ -133,4 +142,5 @@ export interface Task {
 export interface CreateTaskPayload extends Omit<Task, '_id' | 'createdAt'> {
   attachments?: string[];
   documents?: string[];
+  relatedTasks?: string[];
 }

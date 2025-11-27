@@ -51,6 +51,7 @@ import {
 import Masonry from '@mui/lab/Masonry';
 import OpenInFullIcon from '@mui/icons-material/OpenInFull';
 import CloseFullscreenIcon from '@mui/icons-material/CloseFullscreen';
+import LinkOutlinedIcon from '@mui/icons-material/LinkOutlined';
 import { FINANCE_CONFIG } from '@/config/finance';
 import { getPriorityIcon, normalizePriority } from '@/utils/priorityIcons';
 import TaskGeoLocation from '@/app/workspace/components/TaskGeoLocation';
@@ -62,6 +63,7 @@ import type { EffectiveOrgRole } from '@/app/types/roles';
 import { isAdminRole, isExecutorRole } from '@/app/utils/roleGuards';
 import type { Task, WorkItem, TaskEvent } from '@/app/types/taskTypes';
 import { extractFileNameFromUrl, isDocumentUrl } from '@/utils/taskFiles';
+import { normalizeRelatedTasks } from '@/app/utils/relatedTasks';
 
 type LoadedRole = EffectiveOrgRole | null;
 
@@ -244,6 +246,10 @@ export default function TaskDetailPage() {
     );
 
     const hasAttachments = attachmentLinks.length > 0;
+    const relatedTasks = React.useMemo(
+        () => normalizeRelatedTasks(task?.relatedTasks),
+        [task?.relatedTasks]
+    );
 
     const sortedEvents = React.useMemo(() => {
         if (!task?.events) return [];
@@ -996,8 +1002,90 @@ export default function TaskDetailPage() {
                                 )}
                             </Stack>
                         </CardItem>
-                    )}
-                </Masonry>
+
+                        )}
+
+                        {relatedTasks.length > 0 && (
+                            <CardItem sx={{ minWidth: 0 }}>
+                                <Typography
+                                    variant="subtitle1"
+                                    fontWeight={600}
+                                    gutterBottom
+                                    sx={{ display: 'flex', alignItems: 'center', gap: 1 }}
+                                >
+                                    <LinkOutlinedIcon fontSize="small" />
+                                    Связанные задачи
+                                </Typography>
+                                <Divider sx={{ mb: 1.5 }} />
+                                <Stack spacing={1}>
+                                    {relatedTasks.map((related) => {
+                                        const detailLabel = related.bsNumber ? `BS ${related.bsNumber}` : null;
+                                        const statusLabel = related.status
+                                            ? getStatusLabel(normalizeStatusTitle(related.status))
+                                            : undefined;
+                                        const href = `/tasks/${encodeURIComponent(related.taskId || related._id)}`;
+                                        return (
+                                            <Link
+                                                key={related._id}
+                                                href={href}
+                                                color="inherit"
+                                                underline="hover"
+                                                sx={{
+                                                    display: 'block',
+                                                    borderRadius: 2,
+                                                    p: 1,
+                                                    '&:hover': {
+                                                        backgroundColor: 'rgba(59,130,246,0.04)',
+                                                    },
+                                                }}
+                                            >
+                                                <Stack
+                                                    direction="row"
+                                                    alignItems="flex-start"
+                                                    justifyContent="space-between"
+                                                    spacing={1}
+                                                >
+                                                    <Box sx={{ minWidth: 0 }}>
+                                                        <Typography
+                                                            variant="body1"
+                                                            fontWeight={600}
+                                                            sx={{ wordBreak: 'break-word' }}
+                                                        >
+                                                            {related.taskName || related.taskId || related._id}
+                                                        </Typography>
+                                                        <Typography
+                                                            variant="caption"
+                                                            color="text.secondary"
+                                                            sx={{ display: 'flex', gap: 0.75, flexWrap: 'wrap' }}
+                                                        >
+                                                            {related.taskId ? `#${related.taskId}` : related._id}
+                                                            {detailLabel ? ` · ${detailLabel}` : null}
+                                                        </Typography>
+                                                    </Box>
+                                                    <Stack direction="row" spacing={0.5} alignItems="center">
+                                                        {statusLabel && (
+                                                            <Chip
+                                                                label={statusLabel}
+                                                                size="small"
+                                                                sx={{ fontWeight: 500 }}
+                                                            />
+                                                        )}
+                                                        {related.priority && (
+                                                            <Chip
+                                                                label={related.priority}
+                                                                size="small"
+                                                                variant="outlined"
+                                                            />
+                                                        )}
+                                                    </Stack>
+                                                </Stack>
+                                            </Link>
+                                        );
+                                    })}
+                                </Stack>
+                            </CardItem>
+                        )}
+                    </Masonry>
             </Box>
 
             <Dialog

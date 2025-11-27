@@ -22,6 +22,7 @@ import {
 import { splitAttachmentsAndDocuments } from '@/utils/taskFiles';
 import { deleteTaskFolder } from '@/utils/s3';
 import TaskDeletionLog from '@/app/models/TaskDeletionLog';
+import { normalizeRelatedTasks } from '@/app/utils/relatedTasks';
 
 
 export const runtime = 'nodejs';
@@ -829,7 +830,9 @@ export async function GET(
 
         const taskQuery = buildTaskQuery(orgId, projectId, id);
 
-        const taskDoc = await TaskModel.findOne(taskQuery, {}, { lean: true });
+        const taskDoc = await TaskModel.findOne(taskQuery)
+            .populate('relatedTasks', 'taskId taskName bsNumber status priority')
+            .lean();
 
         if (!taskDoc) return NextResponse.json({ error: 'Task not found' }, { status: 404 });
 
@@ -838,9 +841,12 @@ export async function GET(
             taskDoc.documents
         );
 
+        const relatedTasks = normalizeRelatedTasks(taskDoc.relatedTasks);
+
         return NextResponse.json({
             task: {
                 ...taskDoc,
+                relatedTasks,
                 attachments,
                 documents,
             },

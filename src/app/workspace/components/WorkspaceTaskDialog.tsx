@@ -46,6 +46,8 @@ import {
     DEFAULT_BS_PREFIXES,
 } from '@/app/workspace/components/T2/t2EstimateHelpers';
 import { isDocumentUrl } from '@/utils/taskFiles';
+import { normalizeRelatedTasks } from '@/app/utils/relatedTasks';
+import type { RelatedTaskRef } from '@/app/types/taskTypes';
 
 
 
@@ -91,7 +93,7 @@ export type TaskForEdit = {
     attachments?: string[];
     bsLocation?: Array<{ name: string; coordinates: string; address?: string }>;
     workItems?: ParsedWorkItem[];
-    relatedTasks?: string[];
+    relatedTasks?: (string | RelatedTaskRef)[];
 };
 
 type Props = {
@@ -713,9 +715,9 @@ export default function WorkspaceTaskDialog({
             return;
         }
 
-        const ids = Array.isArray(initialTask.relatedTasks)
-            ? initialTask.relatedTasks.filter((id) => id.trim())
-            : [];
+        const ids = normalizeRelatedTasks(initialTask.relatedTasks)
+            .map((entry) => entry._id)
+            .filter(Boolean);
         if (!ids.length) {
             setRelatedTasksSelected([]);
             setRelatedTasksLoading(false);

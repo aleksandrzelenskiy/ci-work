@@ -14,6 +14,7 @@ import { generateClosingDocumentsExcel } from '@/utils/generateExcel';
 import { uploadTaskFile, deleteTaskFile } from '@/utils/s3';
 import { notifyTaskAssignment } from '@/app/utils/taskNotifications';
 import { splitAttachmentsAndDocuments } from '@/utils/taskFiles';
+import { normalizeRelatedTasks } from '@/app/utils/relatedTasks';
 import { createNotification } from '@/app/utils/notificationService';
 
 interface UpdateData {
@@ -83,6 +84,11 @@ export async function GET(
     const task = await TaskModel.findOne({ taskId: taskIdUpper });
     if (!task) return NextResponse.json({ error: 'Task not found' }, { status: 404 });
 
+    await task.populate({
+      path: 'relatedTasks',
+      select: 'taskId taskName bsNumber status priority',
+    });
+
     const photoReports = await Report.find({
       reportId: { $regex: `^${taskIdUpper}` },
     });
@@ -93,9 +99,12 @@ export async function GET(
         baseTask.documents
     );
 
+    const normalizedRelatedTasks = normalizeRelatedTasks(task.relatedTasks);
+
     return NextResponse.json({
       task: {
         ...baseTask,
+        relatedTasks: normalizedRelatedTasks,
         attachments,
         documents: undefined,
         photoReports: photoReports || [],
