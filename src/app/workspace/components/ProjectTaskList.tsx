@@ -4,15 +4,47 @@
 import React, { useMemo, useState, useEffect, forwardRef, useImperativeHandle } from 'react';
 import { useRouter } from 'next/navigation';
 import {
-    Box, Table, TableBody, TableCell, TableContainer, TableHead, TableRow, Typography,
-    Tooltip, Chip, Popover, FormControl, InputLabel, Select, MenuItem,
-    Checkbox, List, ListItem, ListItemIcon, ListItemText, Pagination, Alert, Avatar, Stack, Button,
-    Dialog, DialogTitle, DialogContent, DialogContentText, DialogActions, Menu, MenuItem as MMenuItem, Divider,
-    ListItemIcon as MListItemIcon, ListItemText as MListItemText,
+    Box,
+    Table,
+    TableBody,
+    TableCell,
+    TableContainer,
+    TableHead,
+    TableRow,
+    Typography,
+    Tooltip,
+    Chip,
+    Popover,
+    FormControl,
+    InputLabel,
+    Select,
+    MenuItem,
+    Checkbox,
+    List,
+    ListItem,
+    ListItemIcon,
+    ListItemText,
+    Pagination,
+    Alert,
+    Avatar,
+    Stack,
+    Button,
+    Dialog,
+    DialogTitle,
+    DialogContent,
+    DialogContentText,
+    DialogActions,
+    Menu,
+    MenuItem as MMenuItem,
+    Divider,
+    ListItemIcon as MListItemIcon,
+    ListItemText as MListItemText,
+    IconButton,
 } from '@mui/material';
 import OpenInNewIcon from '@mui/icons-material/OpenInNew';
 import EditNoteOutlinedIcon from '@mui/icons-material/EditNoteOutlined';
 import DeleteOutlineIcon from '@mui/icons-material/DeleteOutline';
+import DescriptionIcon from '@mui/icons-material/Description';
 
 import { useTheme } from '@mui/material/styles';
 import { getStatusColor } from '@/utils/statusColors';
@@ -121,6 +153,7 @@ const ProjectTaskListInner = (
         priority: true,
         executor: true,
         due: true,
+        order: true,
     });
     const toggleColumn = (key: string) => setColumnVisibility((v) => ({ ...v, [key]: !v[key] }));
 
@@ -226,6 +259,8 @@ const ProjectTaskListInner = (
         []
     );
 
+    const visibleColumnsCount = Object.values(columnVisibility).filter(Boolean).length;
+
     if (loading) {
         return (
             <Box sx={{ p: 3, textAlign: 'center' }}>
@@ -239,145 +274,195 @@ const ProjectTaskListInner = (
         <Box>
             <TableContainer component={Box}>
                 <Table size="small">
-                        <TableHead>
-                            <TableRow>
-                                {columnVisibility.taskId && (
-                                    <TableCell width={100} align="center">
-                                        <strong>ID</strong>
-                                    </TableCell>
-                                )}
-                                {columnVisibility.task && (
-                                    <TableCell sx={{ minWidth: 280, width: '28%' }}>
-                                        <strong>Задача</strong>
-                                    </TableCell>
-                                )}
-                {columnVisibility.status && (
-                    <TableCell width={200} align="center">
-                        <strong>Статус</strong>
-                    </TableCell>
-                )}
-                {columnVisibility.priority && (
-                    <TableCell width={180} align="center">
-                        <strong>Приоритет</strong>
-                    </TableCell>
-                )}
-                {columnVisibility.executor && (
-                    <TableCell width={320}>
-                        <strong>Исполнитель</strong>
-                    </TableCell>
-                )}
-                {columnVisibility.due && (
-                    <TableCell width={220} align="center">
-                        <strong>Срок</strong>
-                    </TableCell>
-                )}
-                            </TableRow>
-                        </TableHead>
-
-                        <TableBody>
-                            {pageSlice.length === 0 && (
-                                <TableRow>
-                                    <TableCell colSpan={6}>
-                                        <Typography color="text.secondary">Пока нет задач.</Typography>
-                                    </TableCell>
-                                </TableRow>
+                    <TableHead>
+                        <TableRow>
+                            {columnVisibility.taskId && (
+                                <TableCell width={100} align="center">
+                                    <strong>ID</strong>
+                                </TableCell>
                             )}
+                            {columnVisibility.task && (
+                                <TableCell sx={{ minWidth: 280, width: '28%' }}>
+                                    <strong>Задача</strong>
+                                </TableCell>
+                            )}
+                            {columnVisibility.status && (
+                                <TableCell width={200} align="center">
+                                    <strong>Статус</strong>
+                                </TableCell>
+                            )}
+                            {columnVisibility.priority && (
+                                <TableCell width={180} align="center">
+                                    <strong>Приоритет</strong>
+                                </TableCell>
+                            )}
+                            {columnVisibility.executor && (
+                                <TableCell width={320}>
+                                    <strong>Исполнитель</strong>
+                                </TableCell>
+                            )}
+                            {columnVisibility.due && (
+                                <TableCell width={220} align="center">
+                                    <strong>Срок</strong>
+                                </TableCell>
+                            )}
+                            {columnVisibility.order && (
+                                <TableCell width={120} align="center">
+                                    <strong>Заказ</strong>
+                                </TableCell>
+                            )}
+                        </TableRow>
+                    </TableHead>
 
-                            {pageSlice.map((t) => {
-        const statusTitle = t._statusTitle;
-        const safePriority = (normalizePriority(t.priority as string) ?? 'medium') as Pri;
-        const execLabel = t.executorName || t.executorEmail || '';
-        const execSub = t.executorName && t.executorEmail ? t.executorEmail : '';
-        const execEmailKey = (t.executorEmail || '').trim().toLowerCase();
-        const execProfile = execEmailKey ? userProfiles[execEmailKey] : undefined;
+                    <TableBody>
+                        {pageSlice.length === 0 && (
+                            <TableRow>
+                                <TableCell colSpan={visibleColumnsCount}>
+                                    <Typography color="text.secondary">Пока нет задач.</Typography>
+                                </TableCell>
+                            </TableRow>
+                        )}
 
-                                return (
+                        {pageSlice.map((t) => {
+                            const statusTitle = t._statusTitle;
+                            const safePriority = (normalizePriority(t.priority as string) ?? 'medium') as Pri;
+                            const execLabel = t.executorName || t.executorEmail || '';
+                            const execSub = t.executorName && t.executorEmail ? t.executorEmail : '';
+                            const execEmailKey = (t.executorEmail || '').trim().toLowerCase();
+                            const execProfile = execEmailKey ? userProfiles[execEmailKey] : undefined;
 
-                                    <TableRow
-                                        key={t._id}
-                                        data-task-id={t._id}
-                                        onClick={(e) => {
-                                            if (e.button !== 0) return;
-                                            openTaskPage(t);
-                                        }}
-                                        onContextMenuCapture={(e) => handleContextMenu(e, t)}
-                                        sx={{
-                                            transition: 'background-color .15s ease',
-                                            cursor: 'pointer', // теперь логичнее pointer
-                                            '&:hover': { backgroundColor: '#fffde7' },
-                                        }}
-                                    >
+                            return (
+                                <TableRow
+                                    key={t._id}
+                                    data-task-id={t._id}
+                                    onClick={(e) => {
+                                        if (e.button !== 0) return;
+                                        openTaskPage(t);
+                                    }}
+                                    onContextMenuCapture={(e) => handleContextMenu(e, t)}
+                                    sx={{
+                                        transition: 'background-color .15s ease',
+                                        cursor: 'pointer', // теперь логичнее pointer
+                                        '&:hover': { backgroundColor: '#fffde7' },
+                                    }}
+                                >
+                                    {columnVisibility.taskId && (
+                                        <TableCell align="center">{t.taskId}</TableCell>
+                                    )}
 
-                                    {columnVisibility.taskId && <TableCell align="center">{t.taskId}</TableCell>}
+                                    {columnVisibility.task && (
+                                        <TableCell>
+                                            <Stack spacing={0.5}>
+                                                <Typography>
+                                                    {t.taskName}
+                                                    {t.bsNumber ? ` ${t.bsNumber}` : ''}
+                                                </Typography>
+                                                <Typography variant="caption" color="text.secondary">
+                                                    Создана: {formatDate(t.createdAt)}
+                                                </Typography>
+                                            </Stack>
+                                        </TableCell>
+                                    )}
 
-                                        {columnVisibility.task && (
-                                            <TableCell>
-                                                <Stack spacing={0.5}>
-                                                    <Typography>
-                                                        {t.taskName}
-                                                        {t.bsNumber ? ` ${t.bsNumber}` : ''}
-                                                    </Typography>
-                                                    <Typography variant="caption" color="text.secondary">
-                                                        Создана: {formatDate(t.createdAt)}
-                                                    </Typography>
+                                    {columnVisibility.status && (
+                                        <TableCell align="center">
+                                            <Chip
+                                                size="small"
+                                                label={getStatusLabel(statusTitle)}
+                                                variant="outlined"
+                                                sx={{
+                                                    backgroundColor: getStatusColor(statusTitle),
+                                                    color: '#fff',
+                                                    borderColor: 'transparent',
+                                                }}
+                                            />
+                                        </TableCell>
+                                    )}
+
+                                    {columnVisibility.priority && (
+                                        <TableCell align="center">
+                                            {getPriorityIcon(safePriority) ? (
+                                                <Tooltip title={getPriorityLabelRu(safePriority)}>
+                                                    <Box
+                                                        component="span"
+                                                        sx={{ display: 'inline-flex', alignItems: 'center' }}
+                                                    >
+                                                        {getPriorityIcon(safePriority)}
+                                                    </Box>
+                                                </Tooltip>
+                                            ) : (
+                                                <Typography variant="body2" color="text.secondary">
+                                                    —
+                                                </Typography>
+                                            )}
+                                        </TableCell>
+                                    )}
+
+                                    {columnVisibility.executor && (
+                                        <TableCell>
+                                            {execLabel ? (
+                                                <Stack direction="row" spacing={1} alignItems="center">
+                                                    <Avatar
+                                                        src={execProfile?.profilePic}
+                                                        sx={{ width: 32, height: 32 }}
+                                                    >
+                                                        {getInitials(t.executorName || t.executorEmail)}
+                                                    </Avatar>
+                                                    <Box>
+                                                        <Typography variant="body2">{execLabel}</Typography>
+                                                        {execSub && (
+                                                            <Typography variant="caption" color="text.secondary">
+                                                                {execSub}
+                                                            </Typography>
+                                                        )}
+                                                    </Box>
                                                 </Stack>
-                                            </TableCell>
-                                        )}
+                                            ) : (
+                                                <Typography variant="body2" color="text.secondary">
+                                                    —
+                                                </Typography>
+                                            )}
+                                        </TableCell>
+                                    )}
 
-                                        {columnVisibility.status && (
-                                            <TableCell align="center">
-                                                <Chip
-                                                    size="small"
-                                                    label={getStatusLabel(statusTitle)}
-                                                    variant="outlined"
-                                                    sx={{ backgroundColor: getStatusColor(statusTitle), color: '#fff', borderColor: 'transparent' }}
-                                                />
-                                            </TableCell>
-                                        )}
-
-                                        {columnVisibility.priority && (
-                                            <TableCell align="center">
-                                                {getPriorityIcon(safePriority) ? (
-                                                    <Tooltip title={getPriorityLabelRu(safePriority)}>
-                                                        <Box component="span" sx={{ display: 'inline-flex', alignItems: 'center' }}>
-                                                            {getPriorityIcon(safePriority)}
-                                                        </Box>
-                                                    </Tooltip>
-                                                ) : (
-                                                    <Typography variant="body2" color="text.secondary">
-                                                        —
-                                                    </Typography>
-                                                )}
-                                            </TableCell>
-                                        )}
-
-                                        {columnVisibility.executor && (
-                                            <TableCell>
-                                                {execLabel ? (
-                                                    <Stack direction="row" spacing={1} alignItems="center">
-                                                        <Avatar src={execProfile?.profilePic} sx={{ width: 32, height: 32 }}>
-                                                            {getInitials(t.executorName || t.executorEmail)}
-                                                        </Avatar>
-                                                        <Box>
-                                                            <Typography variant="body2">{execLabel}</Typography>
-                                                            {execSub && (
-                                                                <Typography variant="caption" color="text.secondary">
-                                                                    {execSub}
-                                                                </Typography>
-                                                            )}
-                                                        </Box>
-                                                    </Stack>
-                                                ) : (
-                                                    <Typography variant="body2" color="text.secondary">—</Typography>
-                                                )}
-                                            </TableCell>
-                                        )}
-
-                                        {columnVisibility.due && <TableCell align="center">{formatDate(t.dueDate)}</TableCell>}
-                                    </TableRow>
-                                );
-                            })}
-                        </TableBody>
+                                    {columnVisibility.due && (
+                                        <TableCell align="center">{formatDate(t.dueDate)}</TableCell>
+                                    )}
+                                    {columnVisibility.order && (
+                                        <TableCell align="center">
+                                            {t.orderUrl ? (
+                                                <Tooltip
+                                                    title={`Заказ ${t.orderNumber || '—'} от ${formatDate(
+                                                        t.orderDate
+                                                    )}`}
+                                                >
+                                                    <IconButton
+                                                        size="small"
+                                                        onClick={(e) => {
+                                                            e.stopPropagation();
+                                                            if (t.orderUrl && typeof window !== 'undefined') {
+                                                                window.open(
+                                                                    t.orderUrl,
+                                                                    '_blank',
+                                                                    'noopener,noreferrer'
+                                                                );
+                                                            }
+                                                        }}
+                                                    >
+                                                        <DescriptionIcon fontSize="small" />
+                                                    </IconButton>
+                                                </Tooltip>
+                                            ) : (
+                                                <Typography variant="body2" color="text.secondary">
+                                                    —
+                                                </Typography>
+                                            )}
+                                        </TableCell>
+                                    )}
+                                </TableRow>
+                            );
+                        })}
+                    </TableBody>
                 </Table>
             </TableContainer>
 
