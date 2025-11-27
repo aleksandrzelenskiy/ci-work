@@ -49,7 +49,7 @@ type MapPoint = {
     taskId: string;
     taskName: string;
     relatedNumbers: string | null;
-    slug: string | null;
+    taskIdentifier: string | null;
     status?: CurrentStatus;
     priority?: PriorityLevel;
     projectName?: string | null;
@@ -80,16 +80,6 @@ const parseCoords = (raw?: string | null): [number, number] | null => {
         .filter((value) => Number.isFinite(value));
     if (parts.length < 2) return null;
     return [parts[0], parts[1]];
-};
-
-const normalizeSlug = (task: TaskLocation): string | null => {
-    if (typeof task.taskId === 'string' && task.taskId.trim()) {
-        return task.taskId.trim().toLowerCase();
-    }
-    if (typeof task._id === 'string' && task._id.trim()) {
-        return task._id.trim();
-    }
-    return null;
 };
 
 const collectBsNumbers = (task: TaskLocation): string[] => {
@@ -203,7 +193,10 @@ export default function ProjectTaskLocation(): React.ReactElement {
                     taskId: task.taskId ?? task._id ?? '',
                     taskName: task.taskName?.trim() || 'Задача',
                     relatedNumbers,
-                    slug: normalizeSlug(task),
+                    taskIdentifier:
+                        (typeof task.taskId === 'string' && task.taskId.trim()) ||
+                        (typeof task._id === 'string' && task._id.trim()) ||
+                        null,
                     status: task.status,
                     priority: task.priority,
                     projectKey: task.projectKey ?? null,
@@ -274,10 +267,10 @@ export default function ProjectTaskLocation(): React.ReactElement {
     const buildBalloonContent = React.useCallback(
         (point: MapPoint) => {
             const linkHref =
-                point.slug && orgSlug && projectSlug
+                point.taskIdentifier && orgSlug && projectSlug
                     ? `/org/${encodeURIComponent(orgSlug)}/projects/${encodeURIComponent(
                           projectSlug
-                      )}/tasks/${encodeURIComponent(point.slug)}`
+                      )}/tasks/${encodeURIComponent(point.taskIdentifier)}`
                     : null;
             const relatedBlock = point.relatedNumbers
                 ? `<div style="margin-bottom:4px;">Связанные БС: ${point.relatedNumbers}</div>`
