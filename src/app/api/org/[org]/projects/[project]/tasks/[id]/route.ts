@@ -23,6 +23,7 @@ import { splitAttachmentsAndDocuments } from '@/utils/taskFiles';
 import { deleteTaskFolder } from '@/utils/s3';
 import TaskDeletionLog from '@/app/models/TaskDeletionLog';
 import { normalizeRelatedTasks } from '@/app/utils/relatedTasks';
+import { addReverseRelations, removeReverseRelations } from '@/app/utils/relatedTasksSync';
 
 
 export const runtime = 'nodejs';
@@ -381,6 +382,10 @@ export async function PUT(
             return NextResponse.json({ error: 'Task not found' }, { status: 404 });
         }
 
+        const prevRelatedIds = normalizeRelatedTasks(
+            (currentTask as { relatedTasks?: unknown[] }).relatedTasks
+        ).map((entry) => entry._id);
+
         const allowedPatch: Record<string, unknown> = {};
         const unsetPatch: Record<string, 1> = {};
         const changed: Record<string, { from: unknown; to: unknown }> = {};
@@ -645,30 +650,24 @@ export async function PUT(
         }
 
         if (Array.isArray(body.relatedTasks)) {
-            const cleanedIds = (body.relatedTasks as unknown[])
-                .map((id) => (typeof id === 'string' ? id.trim() : ''))
-                .filter(Boolean);
-            const prevIds = Array.isArray((currentTask as { relatedTasks?: unknown[] }).relatedTasks)
-                ? ((currentTask as { relatedTasks?: unknown[] }).relatedTasks ?? []).map((id) =>
-                    typeof id === 'string'
-                        ? id
-                        : typeof (id as { toString?: () => string }).toString === 'function'
-                            ? (id as { toString: () => string }).toString()
-                            : String(id)
+            const normalizedPayloadIds = Array.from(
+                new Set(
+                    normalizeRelatedTasks(body.relatedTasks).map((entry) => entry._id)
                 )
-                : [];
-
+            );
+            const prevSorted = [...prevRelatedIds].sort();
+            const nextSorted = [...normalizedPayloadIds].sort();
             const nextObjectIds: Types.ObjectId[] = [];
-            cleanedIds.forEach((id) => {
+            normalizedPayloadIds.forEach((id) => {
                 try {
                     nextObjectIds.push(toObjectId(id));
                 } catch {
-                    /* ignore invalid id */
+                    /* ignore */
                 }
             });
 
-            if (!isSameValue(prevIds, cleanedIds)) {
-                markChange('relatedTasks', prevIds, cleanedIds);
+            if (!isSameValue(prevSorted, nextSorted)) {
+                markChange('relatedTasks', prevSorted, nextSorted);
                 allowedPatch.relatedTasks = nextObjectIds;
             }
         }
@@ -780,6 +779,21 @@ export async function PUT(
             });
         } catch (err) {
             console.error('Failed to sync bs coords collection:', err);
+        }
+
+        const finalRelatedIds = normalizeRelatedTasks(updated.relatedTasks).map((entry) => entry._id);
+        const uniquePrev = Array.from(new Set(prevRelatedIds));
+        const uniqueFinal = Array.from(new Set(finalRelatedIds));
+        const toAdd = uniqueFinal.filter((id) => !uniquePrev.includes(id));
+        const toRemove = uniquePrev.filter((id) => !uniqueFinal.includes(id));
+        const taskOid = toObjectId(updated._id);
+        try {
+            await Promise.all([
+                addReverseRelations(taskOid, toAdd),
+                removeReverseRelations(taskOid, toRemove),
+            ]);
+        } catch (syncErr) {
+            console.error('Failed to sync related tasks', syncErr);
         }
 
         if (shouldNotifyExecutorAssignment && assignedExecutorClerkId) {

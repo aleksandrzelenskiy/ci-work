@@ -10,6 +10,8 @@ import { notifyTaskAssignment } from '@/app/utils/taskNotifications';
 import { syncBsCoordsForProject } from '@/app/utils/syncBsCoords';
 import { buildBsAddressFromLocations, sanitizeBsLocationAddresses } from '@/utils/bsLocation';
 import { splitAttachmentsAndDocuments } from '@/utils/taskFiles';
+import { normalizeRelatedTasks } from '@/app/utils/relatedTasks';
+import { addReverseRelations } from '@/app/utils/relatedTasksSync';
 
 
 export const runtime = 'nodejs';
@@ -120,6 +122,7 @@ type CreateTaskBody = {
     executorId?: string;
     executorName?: string;
     executorEmail?: string;
+    relatedTasks?: unknown[];
     [extra: string]: unknown;
 };
 
@@ -245,6 +248,7 @@ export async function POST(
             executorId,
             executorName,
             executorEmail,
+            relatedTasks,
             ...rest
         } = body;
 
@@ -300,6 +304,9 @@ export async function POST(
             });
         }
 
+        const normalizedRelated = normalizeRelatedTasks(relatedTasks);
+        const relatedObjectIds = normalizedRelated.map((entry) => new Types.ObjectId(entry._id));
+
         const created = await TaskModel.create({
             orgId: orgObjId,
             projectId: projectObjId,
@@ -337,6 +344,7 @@ export async function POST(
             executorEmail: hasExecutor ? executorEmail : undefined,
 
             events,
+            relatedTasks: relatedObjectIds.length ? relatedObjectIds : undefined,
 
             ...rest,
         });
@@ -361,6 +369,10 @@ export async function POST(
             } catch (notifyErr) {
                 console.error('Failed to send task assignment notification', notifyErr);
             }
+        }
+
+        if (normalizedRelated.length) {
+            await addReverseRelations(created._id, normalizedRelated.map((entry) => entry._id));
         }
 
         const coordsSource =
