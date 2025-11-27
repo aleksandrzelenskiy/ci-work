@@ -1533,6 +1533,52 @@ export default function TaskDetailsPage() {
                             )}
                         </CardItem>
 
+                        {(task.orderNumber ||
+                            task.orderUrl ||
+                            task.orderDate ||
+                            task.orderSignDate) && (
+                            <CardItem sx={{ minWidth: 0 }}>
+                                <Typography
+                                    variant="subtitle1"
+                                    fontWeight={600}
+                                    gutterBottom
+                                >
+                                    Заказ / договор
+                                </Typography>
+                                <Divider sx={{ mb: 1.5 }} />
+                                <Stack gap={0.5}>
+                                    {task.orderNumber && (
+                                        <Typography>
+                                            Номер: {task.orderNumber}
+                                        </Typography>
+                                    )}
+                                    {task.orderDate && (
+                                        <Typography>
+                                            Дата заказа:{' '}
+                                            {formatDate(task.orderDate)}
+                                        </Typography>
+                                    )}
+                                    {task.orderSignDate && (
+                                        <Typography>
+                                            Дата подписания:{' '}
+                                            {formatDate(task.orderSignDate)}
+                                        </Typography>
+                                    )}
+                                    {task.orderUrl && (
+                                        <Button
+                                            href={task.orderUrl}
+                                            target="_blank"
+                                            rel="noreferrer"
+                                            variant="text"
+                                            sx={{ alignSelf: 'flex-start' }}
+                                        >
+                                            Открыть заказ
+                                        </Button>
+                                    )}
+                                </Stack>
+                            </CardItem>
+                        )}
+
                         {/* Комментарии */}
                         <CardItem sx={{ minWidth: 0 }}>
                             <Accordion
@@ -1685,52 +1731,6 @@ export default function TaskDetailsPage() {
                             </Accordion>
                         </CardItem>
 
-                        {/* Заказ / договор — если есть */}
-                        {(task.orderNumber ||
-                            task.orderUrl ||
-                            task.orderDate ||
-                            task.orderSignDate) && (
-                            <CardItem sx={{ minWidth: 0 }}>
-                                <Typography
-                                    variant="subtitle1"
-                                    fontWeight={600}
-                                    gutterBottom
-                                >
-                                    Заказ / договор
-                                </Typography>
-                                <Divider sx={{ mb: 1.5 }} />
-                                <Stack gap={0.5}>
-                                    {task.orderNumber && (
-                                        <Typography>
-                                            Номер: {task.orderNumber}
-                                        </Typography>
-                                    )}
-                                    {task.orderDate && (
-                                        <Typography>
-                                            Дата заказа:{' '}
-                                            {formatDate(task.orderDate)}
-                                        </Typography>
-                                    )}
-                                    {task.orderSignDate && (
-                                        <Typography>
-                                            Дата подписания:{' '}
-                                            {formatDate(task.orderSignDate)}
-                                        </Typography>
-                                    )}
-                                    {task.orderUrl && (
-                                        <Button
-                                            href={task.orderUrl}
-                                            target="_blank"
-                                            rel="noreferrer"
-                                            variant="text"
-                                            sx={{ alignSelf: 'flex-start' }}
-                                        >
-                                            Открыть заказ
-                                        </Button>
-                                    )}
-                                </Stack>
-                            </CardItem>
-                        )}
                     </Masonry>
                 </Box>
             )}
