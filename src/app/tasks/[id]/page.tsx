@@ -48,7 +48,6 @@ import {
     TimelineOppositeContent,
     TimelineSeparator,
 } from '@mui/lab';
-import Masonry from '@mui/lab/Masonry';
 import OpenInFullIcon from '@mui/icons-material/OpenInFull';
 import CloseFullscreenIcon from '@mui/icons-material/CloseFullscreen';
 import LinkOutlinedIcon from '@mui/icons-material/LinkOutlined';
@@ -438,6 +437,38 @@ export default function TaskDetailPage() {
         );
     }
 
+    if (profileType === undefined) {
+        return (
+            <Box sx={{ display: 'flex', justifyContent: 'center', mt: 4 }}>
+                <CircularProgress />
+            </Box>
+        );
+    }
+
+    if (profileType !== 'contractor') {
+        return (
+            <Box
+                sx={{
+                    px: 2,
+                    py: 4,
+                    display: 'flex',
+                    flexDirection: 'column',
+                    gap: 2,
+                    alignItems: 'center',
+                    textAlign: 'center',
+                }}
+            >
+                <Typography variant="h6">Страница доступна только подрядчикам</Typography>
+                <Typography color="text.secondary">
+                    Пожалуйста, используйте соответствующий личный кабинет.
+                </Typography>
+                <Button variant="contained" onClick={() => router.push('/tasks')}>
+                    К списку задач
+                </Button>
+            </Box>
+        );
+    }
+
     const isContractorRestricted = (() => {
         if (profileType !== 'contractor') return false;
         const executorClerkId = (task.executorId || '').trim().toLowerCase();
@@ -553,15 +584,7 @@ export default function TaskDetailPage() {
             </Stack>
 
             <Box sx={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
-                <Masonry
-                    columns={{ xs: 1, sm: 1, md: 2, lg: 3, xl: 4 }}
-                    spacing={{ xs: 1, sm: 1.5, md: 2 }}
-                    sx={{
-                        '& > *': {
-                            boxSizing: 'border-box',
-                        },
-                    }}
-                >
+                <Stack spacing={2}>
                     <CardItem sx={{ minWidth: 0 }}>
                         <Typography
                             variant="subtitle1"
@@ -751,18 +774,7 @@ export default function TaskDetailPage() {
                     </CardItem>
 
                     {(hasWorkItems || Array.isArray(task.workItems)) && (
-                        <CardItem
-                            sx={(theme) => ({
-                                minWidth: 0,
-                                width: {
-                                    xs: `calc(100% - ${theme.spacing(1)})`,
-                                    sm: `calc(100% - ${theme.spacing(1.5)})`,
-                                    md: `calc(100% - ${theme.spacing(2)})`,
-                                    lg: `calc((100% / 3 * 2) - ${theme.spacing(2)})`,
-                                    xl: `calc((100% / 4 * 2) - ${theme.spacing(2)})`,
-                                },
-                            })}
-                        >
+                        <CardItem sx={{ minWidth: 0 }}>
                             <Accordion
                                 defaultExpanded
                                 disableGutters
@@ -977,106 +989,78 @@ export default function TaskDetailPage() {
                         </Accordion>
                     </CardItem>
 
-                    {(task.orderNumber || task.orderUrl || task.orderDate || task.orderSignDate) && (
+                    {relatedTasks.length > 0 && (
                         <CardItem sx={{ minWidth: 0 }}>
-                            <Typography variant="subtitle1" fontWeight={600} gutterBottom>
-                                Заказ / договор
+                            <Typography
+                                variant="subtitle1"
+                                fontWeight={600}
+                                gutterBottom
+                                sx={{ display: 'flex', alignItems: 'center', gap: 1 }}
+                            >
+                                <LinkOutlinedIcon fontSize="small" />
+                                Связанные задачи
                             </Typography>
                             <Divider sx={{ mb: 1.5 }} />
-                            <Stack gap={0.5}>
-                                {task.orderNumber && <Typography>Номер: {task.orderNumber}</Typography>}
-                                {task.orderDate && <Typography>Дата заказа: {formatDate(task.orderDate)}</Typography>}
-                                {task.orderSignDate && (
-                                    <Typography>Дата подписания: {formatDate(task.orderSignDate)}</Typography>
-                                )}
-                                {task.orderUrl && (
-                                    <Button
-                                        href={task.orderUrl}
-                                        target="_blank"
-                                        rel="noreferrer"
-                                        variant="text"
-                                        sx={{ alignSelf: 'flex-start' }}
-                                    >
-                                        Открыть заказ
-                                    </Button>
-                                )}
+                            <Stack spacing={1}>
+                                {relatedTasks.map((related) => {
+                                    const detailLabel = related.bsNumber ? `BS ${related.bsNumber}` : null;
+                                    const statusLabel = related.status
+                                        ? getStatusLabel(normalizeStatusTitle(related.status))
+                                        : undefined;
+                                    const href = `/tasks/${encodeURIComponent(related.taskId || related._id)}`;
+                                    return (
+                                        <Link
+                                            key={related._id}
+                                            href={href}
+                                            color="inherit"
+                                            underline="hover"
+                                            sx={{
+                                                display: 'block',
+                                                borderRadius: 2,
+                                                p: 1,
+                                                '&:hover': {
+                                                    backgroundColor: 'rgba(59,130,246,0.04)',
+                                                },
+                                            }}
+                                        >
+                                            <Stack
+                                                direction="row"
+                                                alignItems="flex-start"
+                                                justifyContent="space-between"
+                                                spacing={1}
+                                            >
+                                                <Box sx={{ minWidth: 0 }}>
+                                                    <Typography
+                                                        variant="body1"
+                                                        fontWeight={600}
+                                                        sx={{ wordBreak: 'break-word' }}
+                                                    >
+                                                        {related.taskName || related.taskId || related._id}
+                                                    </Typography>
+                                                    <Typography
+                                                        variant="caption"
+                                                        color="text.secondary"
+                                                        sx={{ display: 'flex', gap: 0.75, flexWrap: 'wrap' }}
+                                                    >
+                                                        {related.taskId ? `#${related.taskId}` : related._id}
+                                                        {detailLabel ? ` · ${detailLabel}` : null}
+                                                    </Typography>
+                                                </Box>
+                                                {statusLabel && (
+                                                    <Chip
+                                                        label={statusLabel}
+                                                        size="small"
+                                                        sx={{ fontWeight: 500 }}
+                                                    />
+                                                )}
+                                            </Stack>
+                                        </Link>
+                                    );
+                                })}
                             </Stack>
                         </CardItem>
-
-                        )}
-
-                        {relatedTasks.length > 0 && (
-                            <CardItem sx={{ minWidth: 0 }}>
-                                <Typography
-                                    variant="subtitle1"
-                                    fontWeight={600}
-                                    gutterBottom
-                                    sx={{ display: 'flex', alignItems: 'center', gap: 1 }}
-                                >
-                                    <LinkOutlinedIcon fontSize="small" />
-                                    Связанные задачи
-                                </Typography>
-                                <Divider sx={{ mb: 1.5 }} />
-                                <Stack spacing={1}>
-                                    {relatedTasks.map((related) => {
-                                        const detailLabel = related.bsNumber ? `BS ${related.bsNumber}` : null;
-                                        const statusLabel = related.status
-                                            ? getStatusLabel(normalizeStatusTitle(related.status))
-                                            : undefined;
-                                        const href = `/tasks/${encodeURIComponent(related.taskId || related._id)}`;
-                                        return (
-                                            <Link
-                                                key={related._id}
-                                                href={href}
-                                                color="inherit"
-                                                underline="hover"
-                                                sx={{
-                                                    display: 'block',
-                                                    borderRadius: 2,
-                                                    p: 1,
-                                                    '&:hover': {
-                                                        backgroundColor: 'rgba(59,130,246,0.04)',
-                                                    },
-                                                }}
-                                            >
-                                                <Stack
-                                                    direction="row"
-                                                    alignItems="flex-start"
-                                                    justifyContent="space-between"
-                                                    spacing={1}
-                                                >
-                                                    <Box sx={{ minWidth: 0 }}>
-                                                        <Typography
-                                                            variant="body1"
-                                                            fontWeight={600}
-                                                            sx={{ wordBreak: 'break-word' }}
-                                                        >
-                                                            {related.taskName || related.taskId || related._id}
-                                                        </Typography>
-                                                        <Typography
-                                                            variant="caption"
-                                                            color="text.secondary"
-                                                            sx={{ display: 'flex', gap: 0.75, flexWrap: 'wrap' }}
-                                                        >
-                                                            {related.taskId ? `#${related.taskId}` : related._id}
-                                                            {detailLabel ? ` · ${detailLabel}` : null}
-                                                        </Typography>
-                                                    </Box>
-                                                    {statusLabel && (
-                                                        <Chip
-                                                            label={statusLabel}
-                                                            size="small"
-                                                            sx={{ fontWeight: 500 }}
-                                                        />
-                                                    )}
-                                                </Stack>
-                                            </Link>
-                                        );
-                                    })}
-                                </Stack>
-                            </CardItem>
-                        )}
-                    </Masonry>
+                    )}
+                </Stack>
             </Box>
 
             <Dialog
