@@ -572,7 +572,19 @@ export default function ProjectTaskLocation(): React.ReactElement {
                                     preset: 'islands#redClusterIcons',
                                     groupByCoordinates: false,
                                     gridSize: 80,
+
+                                    // Важно: пусть кластер не зумит карту, а открывает баллон
+                                    clusterDisableClickZoom: true,
+                                    clusterOpenBalloonOnClick: true,
+
+                                    // Используем карусель в баллоне кластера: по одному слайду на каждую задачу
+                                    clusterBalloonContentLayout: 'cluster#balloonCarousel',
+
+                                    // Чтобы баллон открывался даже на "крупном" масштабе
+                                    clusterBalloonPanelMaxMapArea: 0,
                                 }}
+                                // Включаем поддержку баллонов и подсказок именно для кластера
+                                modules={['clusterer.addon.balloon', 'clusterer.addon.hint']}
                             >
                                 {filteredPlacemarks.map((point) => (
                                     <Placemark
@@ -580,6 +592,7 @@ export default function ProjectTaskLocation(): React.ReactElement {
                                         geometry={point.coords}
                                         properties={{
                                             hintContent: `БС ${point.bsNumber}`,
+                                            // Это содержимое будет использоваться как слайд в карусели кластера
                                             balloonContent: buildBalloonContent(point),
                                             iconCaption: point.bsNumber,
                                         }}
@@ -592,6 +605,7 @@ export default function ProjectTaskLocation(): React.ReactElement {
                                     />
                                 ))}
                             </Clusterer>
+
                         </Map>
                     </YMaps>
                 )}
