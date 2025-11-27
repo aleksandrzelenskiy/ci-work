@@ -130,6 +130,7 @@ type Task = {
     events?: TaskEvent[];
     workItems?: WorkItem[];
     comments?: TaskComment[];
+    relatedTasks?: string[];
 };
 
 type DocumentItem = {
