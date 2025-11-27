@@ -148,9 +148,12 @@ function Row({
 
       {columnVisibility.task && (
         <TableCell>
-          <Typography variant='subtitle2'>{task.taskName}</Typography>
+          <Typography variant='subtitle2'>
+            {task.taskName}
+            {task.bsNumber ? ` ${task.bsNumber}` : ''}
+          </Typography>
           <Typography variant='body2' color='text.secondary'>
-            {task.bsNumber || '—'}
+            {formatDateRU(task.createdAt)}
           </Typography>
         </TableCell>
       )}

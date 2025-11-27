@@ -313,12 +313,13 @@ const ProjectTaskListInner = (
                                         {columnVisibility.task && (
                                             <TableCell>
                                                 <Stack spacing={0.5}>
-                                                    <Typography>{t.taskName}</Typography>
-                                                    {t.bsNumber && (
-                                                        <Typography variant="caption" color="text.secondary">
-                                                            BS: {t.bsNumber}
-                                                        </Typography>
-                                                    )}
+                                                    <Typography>
+                                                        {t.taskName}
+                                                        {t.bsNumber ? ` ${t.bsNumber}` : ''}
+                                                    </Typography>
+                                                    <Typography variant="caption" color="text.secondary">
+                                                        Создана: {formatDate(t.createdAt)}
+                                                    </Typography>
                                                 </Stack>
                                             </TableCell>
                                         )}
