@@ -15,7 +15,9 @@ import {
 } from '@mui/material';
 import CloudDownloadIcon from '@mui/icons-material/CloudDownload';
 import SaveIcon from '@mui/icons-material/Save';
+import { AdapterDayjs } from '@mui/x-date-pickers/AdapterDayjs';
 import { DatePicker } from '@mui/x-date-pickers/DatePicker';
+import { LocalizationProvider } from '@mui/x-date-pickers/LocalizationProvider';
 import dayjs, { Dayjs } from 'dayjs';
 import 'dayjs/locale/ru';
 import { PdfTemplate } from '@/app/components/PdfTemplate';
@@ -257,7 +259,8 @@ export const T2NcwGenerator = ({
     };
 
     return (
-        <Stack spacing={3} maxWidth={600} mx="auto" mt={open ? 4 : 0}>
+        <LocalizationProvider dateAdapter={AdapterDayjs}>
+            <Stack spacing={3} maxWidth={600} mx="auto" mt={open ? 4 : 0}>
             <Typography variant="h5">Генерация уведомления о завершении работ</Typography>
 
             <TextField
@@ -370,7 +373,8 @@ export const T2NcwGenerator = ({
                 autoHideDuration={4000}
                 anchorOrigin={{ vertical: 'bottom', horizontal: 'center' }}
             />
-        </Stack>
+            </Stack>
+        </LocalizationProvider>
     );
 };
 
