@@ -343,15 +343,12 @@ export default function TaskDetailsPage() {
         const formatNcwFileName = (url: string) => {
             const raw = extractFileNameFromUrl(
                 url,
-                task?.orderNumber ? `УОР_${task.orderNumber}` : 'УОР'
+                task?.orderNumber ? `Уведомление_${task.orderNumber}` : 'Уведомление'
             );
-            if (raw.startsWith('Уведомление_')) {
-                return raw.replace(/^Уведомление_/, 'УОР_');
-            }
-            if (raw.startsWith('УОР_')) {
-                return raw;
-            }
-            return `УОР_${raw}`;
+            return raw
+                .replace(/^Уведомление[_-]?/i, '')
+                .replace(/^У[Оо][Рр][_-]?/u, '')
+                .trim() || raw;
         };
 
         documentLinks.forEach((url, idx) => {
@@ -365,7 +362,7 @@ export default function TaskDetailsPage() {
                     : type === 'order'
                         ? task?.orderNumber || 'Заказ'
                         : type === 'ncw'
-                            ? 'УОР'
+                            ? 'Уведомление'
                             : `Документ ${idx + 1}`;
             items.push({
                 url,
@@ -1561,13 +1558,13 @@ export default function TaskDetailsPage() {
                                             doc.type === 'order'
                                                 ? 'Скачать заказ'
                                                 : doc.type === 'ncw'
-                                                    ? 'Скачать УОР'
+                                                    ? 'Скачать уведомление'
                                                     : 'Скачать смету';
                                         const deleteTitle =
                                             doc.type === 'order'
                                                 ? 'Удалить заказ'
                                                 : doc.type === 'ncw'
-                                                    ? 'Удалить УОР'
+                                                    ? 'Удалить уведомление'
                                                     : 'Удалить смету';
 
                                         return (
@@ -1913,7 +1910,7 @@ export default function TaskDetailsPage() {
                                 startIcon={<DescriptionOutlinedIcon />}
                                 sx={{ alignSelf: 'flex-start' }}
                             >
-                                Создать УОР
+                                Создать уведомление
                             </Button>
                         </Stack>
                     ) : (

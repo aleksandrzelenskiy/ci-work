@@ -276,11 +276,12 @@ export async function PATCH(
 
         const buffer = Buffer.from(await orderFile.arrayBuffer());
         const previousOrderUrl = task.orderUrl;
+        const orderFilename = orderFile.name || 'order';
         const newOrderUrl = await uploadTaskFile(
             buffer,
             taskIdUpper,
             'documents',
-            `${Date.now()}-${orderFile.name}`,
+            orderFilename,
             mime,
             storageScope
         );
