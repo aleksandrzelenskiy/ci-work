@@ -2041,6 +2041,7 @@ export default function TaskDetailsPage() {
                         <T2NcwGenerator
                             taskId={task.taskId}
                             orgSlug={org || undefined}
+                            projectKey={project || undefined}
                             initialOrderNumber={ncwDefaults?.orderNumber ?? task.orderNumber ?? undefined}
                             initialOrderDate={ncwDefaults?.orderDate ?? task.orderDate ?? undefined}
                             initialOrderSignDate={

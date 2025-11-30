@@ -16,6 +16,8 @@ import { notifyTaskAssignment } from '@/app/utils/taskNotifications';
 import { splitAttachmentsAndDocuments } from '@/utils/taskFiles';
 import { normalizeRelatedTasks } from '@/app/utils/relatedTasks';
 import { createNotification } from '@/app/utils/notificationService';
+import OrganizationModel from '@/app/models/OrganizationModel';
+import ProjectModel from '@/app/models/ProjectModel';
 
 interface UpdateData {
   status?: string;
@@ -68,6 +70,42 @@ function buildAuthorName(user: Awaited<ReturnType<typeof currentUser>>, dbName?:
       fallbackEmail ||
       'Unknown'
   );
+}
+
+async function resolveStorageScope(task: { orgId?: unknown; projectId?: unknown }) {
+  const scope: { orgSlug?: string; projectKey?: string } = {};
+
+  const lookups: Promise<void>[] = [];
+
+  if (task?.orgId) {
+    lookups.push(
+        OrganizationModel.findById(task.orgId)
+            .select('orgSlug')
+            .lean()
+            .then((org) => {
+              if (org?.orgSlug) scope.orgSlug = org.orgSlug;
+            })
+            .catch(() => undefined)
+    );
+  }
+
+  if (task?.projectId) {
+    lookups.push(
+        ProjectModel.findById(task.projectId)
+            .select('key')
+            .lean()
+            .then((project) => {
+              if (project?.key) scope.projectKey = project.key;
+            })
+            .catch(() => undefined)
+    );
+  }
+
+  if (lookups.length) {
+    await Promise.all(lookups);
+  }
+
+  return scope;
 }
 
 export async function GET(
@@ -151,6 +189,7 @@ export async function PATCH(
     const splitFiles = splitAttachmentsAndDocuments(task.attachments, task.documents);
     task.attachments = splitFiles.attachments;
     task.documents = splitFiles.documents;
+    const storageScope = await resolveStorageScope(task);
 
     const contentType = request.headers.get('content-type');
     let updateData: UpdateData = {} as UpdateData;
@@ -242,7 +281,8 @@ export async function PATCH(
             taskIdUpper,
             'documents',
             `${Date.now()}-${orderFile.name}`,
-            mime
+            mime,
+            storageScope
         );
         if (previousOrderUrl && previousOrderUrl !== newOrderUrl) {
           try {
@@ -289,7 +329,8 @@ export async function PATCH(
             taskIdUpper,
             'documents',
             `${Date.now()}-${ncwFile.name}`,
-            mime
+            mime,
+            storageScope
         );
         if (previousNcwUrl && previousNcwUrl !== newNcwUrl) {
           try {

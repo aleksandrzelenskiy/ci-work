@@ -104,14 +104,40 @@ export async function uploadBuffer(
 }
 
 /** Сборка ключа вида: uploads/<TASKID>/<TASKID>-<subfolder>/<filename> */
+const sanitizePathSegment = (value: string): string =>
+  value.replace(/[^a-zA-Z0-9_-]/g, '').trim();
+
 function sanitizeTaskId(taskId: string): string {
-  return taskId.replace(/[^a-zA-Z0-9_-]/g, '');
+  return sanitizePathSegment(taskId);
 }
 
-function buildFileKey(taskId: string, subfolder: string, filename: string): string {
+export type TaskFileSubfolder =
+  | 'estimate'
+  | 'attachments'
+  | 'order'
+  | 'comments'
+  | 'ncw'
+  | 'documents';
+
+export function buildTaskFileKey(
+    taskId: string,
+    subfolder: TaskFileSubfolder,
+    filename: string,
+    opts?: { orgSlug?: string; projectKey?: string }
+): string {
   const safeTaskId = sanitizeTaskId(taskId);
   const safeName = normalizeFilename(filename);
-  return path.posix.join('uploads', `${safeTaskId}`, `${safeTaskId}-${subfolder}`, safeName);
+  const parts = ['uploads'];
+
+  const safeOrg = opts?.orgSlug ? sanitizePathSegment(opts.orgSlug) : '';
+  const safeProject = opts?.projectKey ? sanitizePathSegment(opts.projectKey) : '';
+
+  if (safeOrg) parts.push(safeOrg);
+  if (safeProject) parts.push(safeProject);
+
+  parts.push(`${safeTaskId}`, `${safeTaskId}-${subfolder}`, safeName);
+
+  return path.posix.join(...parts);
 }
 
 /**
@@ -122,11 +148,12 @@ function buildFileKey(taskId: string, subfolder: string, filename: string): stri
 export async function uploadTaskFile(
     fileBuffer: Buffer,
     taskId: string,
-    subfolder: 'estimate' | 'attachments' | 'order' | 'comments' | 'ncw' | 'documents',
+    subfolder: TaskFileSubfolder,
     filename: string,
-    contentType: string
+    contentType: string,
+    opts?: { orgSlug?: string; projectKey?: string }
 ): Promise<string> {
-  const key = buildFileKey(taskId, subfolder, filename);
+  const key = buildTaskFileKey(taskId, subfolder, filename, opts);
 
   if (s3 && BUCKET) {
     const command = new PutObjectCommand({
@@ -182,9 +209,14 @@ export async function deleteTaskFile(publicUrl: string): Promise<void> {
 }
 
 /** Полное удаление папки задачи uploads/<TASKID>/ со всеми вложениями (S3 или локально) */
-export async function deleteTaskFolder(taskId: string, orgSlug?: string): Promise<void> {
+export async function deleteTaskFolder(
+    taskId: string,
+    orgSlug?: string,
+    projectKey?: string
+): Promise<void> {
   const safeTaskId = sanitizeTaskId(taskId);
   const safeOrg = orgSlug ? sanitizeTaskId(orgSlug) : '';
+  const safeProject = projectKey ? sanitizeTaskId(projectKey) : '';
   if (!safeTaskId) {
     console.warn('⚠️ Пустой taskId, пропускаем удаление папки');
     return;
@@ -194,6 +226,9 @@ export async function deleteTaskFolder(taskId: string, orgSlug?: string): Promis
     new Set([
       `${path.posix.join('uploads', safeTaskId)}/`,
       safeOrg ? `${path.posix.join('uploads', safeOrg, safeTaskId)}/` : null,
+      safeOrg && safeProject
+        ? `${path.posix.join('uploads', safeOrg, safeProject, safeTaskId)}/`
+        : null,
     ].filter(Boolean) as string[])
   );
 

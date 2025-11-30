@@ -1018,16 +1018,17 @@ export default function WorkspaceTaskDialog({
     async function uploadEstimateDocument(taskShortId: string): Promise<void> {
         if (!estimateFile) return;
         try {
-            const fd = new FormData();
-            fd.append('file', estimateFile, estimateFile.name);
-            fd.append('taskId', taskShortId);
-            fd.append('subfolder', 'documents');
-            fd.append('orgSlug', orgSlug || '');
+        const fd = new FormData();
+        fd.append('file', estimateFile, estimateFile.name);
+        fd.append('taskId', taskShortId);
+        fd.append('subfolder', 'documents');
+        fd.append('orgSlug', orgSlug || '');
+        fd.append('projectKey', projectRef || '');
 
-            const res = await fetch('/api/upload', { method: 'POST', body: fd });
-            if (!res.ok) {
-                let body: unknown = null;
-                try {
+        const res = await fetch('/api/upload', { method: 'POST', body: fd });
+        if (!res.ok) {
+            let body: unknown = null;
+            try {
                     body = await res.json();
                 } catch {
                     /* ignore */
@@ -1048,11 +1049,11 @@ export default function WorkspaceTaskDialog({
 
         for (let i = 0; i < attachments.length; i++) {
             const file = attachments[i];
-            const fd = new FormData();
-            fd.append('file', file, file.name);
-            fd.append('taskId', taskShortId);
-            fd.append('subfolder', 'attachments');
-            fd.append('orgSlug', orgSlug || '');
+        const fd = new FormData();
+        fd.append('file', file, file.name);
+        fd.append('taskId', taskShortId);
+        fd.append('subfolder', 'attachments');
+        fd.append('orgSlug', orgSlug || '');
 
             const res = await fetch('/api/upload', { method: 'POST', body: fd });
 

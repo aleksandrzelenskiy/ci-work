@@ -27,6 +27,7 @@ dayjs.locale('ru');
 type Props = {
     taskId?: string;
     orgSlug?: string;
+    projectKey?: string;
     initialOrderNumber?: string | null;
     initialOrderDate?: string | null;
     initialOrderSignDate?: string | null;
@@ -58,6 +59,7 @@ function toDayjs(value?: string | null): Dayjs | null {
 export const T2NcwGenerator = ({
     taskId: taskIdProp,
     orgSlug,
+    projectKey,
     initialCompletionDate,
     initialOrderNumber,
     initialOrderDate,
@@ -201,6 +203,7 @@ export const T2NcwGenerator = ({
             fd.append('taskId', taskId);
             fd.append('subfolder', 'documents');
             if (orgSlug) fd.append('orgSlug', orgSlug);
+            if (projectKey) fd.append('projectKey', projectKey);
 
             const uploadResponse = await fetch('/api/upload', {
                 method: 'POST',

@@ -8,7 +8,7 @@ import Report from '@/app/models/ReportModel';
 import User from '@/app/models/UserModel';
 import TaskModel from '@/app/models/TaskModel';
 import dbConnect from '@/utils/mongoose';
-import { uploadBuffer, deleteTaskFile } from '@/utils/s3';
+import { uploadBuffer, deleteTaskFile, buildTaskFileKey, TaskFileSubfolder } from '@/utils/s3';
 import { v4 as uuidv4 } from 'uuid';
 import Busboy from 'busboy';
 import type { FileInfo } from 'busboy';
@@ -153,11 +153,24 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
     }
 
     // РЕЖИМ ВЛОЖЕНИЙ К ЗАДАЧЕ / ДОКУМЕНТОВ
-    const subfolder = fields.subfolder?.trim();
+    const rawSubfolder = fields.subfolder?.trim();
     const taskIdForAttachments = fields.taskId?.trim();
     const orgSlug = fields.orgSlug?.trim();
+    const projectKey = fields.projectKey?.trim();
+    const allowedSubfolders: TaskFileSubfolder[] = [
+        'estimate',
+        'attachments',
+        'order',
+        'comments',
+        'ncw',
+        'documents',
+    ];
+    const subfolder: TaskFileSubfolder =
+        allowedSubfolders.includes(rawSubfolder as TaskFileSubfolder)
+            ? (rawSubfolder as TaskFileSubfolder)
+            : 'attachments';
 
-    if (subfolder && taskIdForAttachments) {
+    if (rawSubfolder && taskIdForAttachments) {
         try {
             await dbConnect();
 
@@ -174,20 +187,10 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
             for (const f of files) {
                 const filename = safeBasename(f.filename || 'file');
 
-                const key = orgSlug
-                    ? path.posix.join(
-                        'uploads',
-                        orgSlug,
-                        taskIdForAttachments,
-                        `${taskIdForAttachments}-${subfolder}`,
-                        filename
-                    )
-                    : path.posix.join(
-                        'uploads',
-                        taskIdForAttachments,
-                        `${taskIdForAttachments}-${subfolder}`,
-                        filename
-                    );
+                const key = buildTaskFileKey(taskIdForAttachments, subfolder, filename, {
+                    orgSlug: orgSlug || undefined,
+                    projectKey: projectKey || undefined,
+                });
 
                 const url = await uploadBuffer(
                     f.buffer,

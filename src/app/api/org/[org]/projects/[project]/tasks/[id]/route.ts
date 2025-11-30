@@ -336,7 +336,7 @@ export async function DELETE(
             typeof deletedTask.taskId === 'string' && deletedTask.taskId.trim()
                 ? deletedTask.taskId
                 : id;
-        await deleteTaskFolder(taskIdForCleanup, orgSlug);
+        await deleteTaskFolder(taskIdForCleanup, orgSlug, projectRef);
 
         await TaskDeletionLog.create({
             orgId: deletedTask.orgId,
