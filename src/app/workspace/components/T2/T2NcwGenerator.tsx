@@ -30,6 +30,7 @@ type Props = {
     initialOrderNumber?: string | null;
     initialOrderDate?: string | null;
     initialOrderSignDate?: string | null;
+    initialCompletionDate?: string | null;
     initialBsNumber?: string | null;
     initialAddress?: string | null;
     open?: boolean;
@@ -57,6 +58,7 @@ function toDayjs(value?: string | null): Dayjs | null {
 export const T2NcwGenerator = ({
     taskId: taskIdProp,
     orgSlug,
+    initialCompletionDate,
     initialOrderNumber,
     initialOrderDate,
     initialOrderSignDate,
@@ -87,18 +89,31 @@ export const T2NcwGenerator = ({
     const initialCompletionDateFromParams = params?.get('completionDate')
         ? dayjs(params.get('completionDate') as string)
         : null;
+    const initialOrderSignDateFromParams = params?.get('orderSignDate')
+        ? dayjs(params.get('orderSignDate') as string)
+        : null;
     const initialObjectNumberFromParams = params?.get('objectNumber') ?? '';
     const initialObjectAddressFromParams = params?.get('objectAddress') ?? '';
+    const initialOrderDateFromProps = toDayjs(initialOrderDate);
+    const initialOrderSignDateFromProps = toDayjs(initialOrderSignDate);
+    const initialCompletionDateFromProps = toDayjs(initialCompletionDate);
+    const initialOrderDateFromParamsValue = initialOrderDateFromParams?.valueOf();
+    const initialOrderSignDateFromParamsValue = initialOrderSignDateFromParams?.valueOf();
+    const initialCompletionDateFromParamsValue = initialCompletionDateFromParams?.valueOf();
 
     const [contractNumber, setContractNumber] = useState('27-1/25');
     const [contractDate, setContractDate] = useState<Dayjs | null>(dayjs('2025-04-07'));
 
-    const [orderNumber, setOrderNumber] = useState(initialOrderNumberFromParams);
-    const [objectNumber, setObjectNumber] = useState(initialObjectNumberFromParams);
-    const [objectAddress, setObjectAddress] = useState(initialObjectAddressFromParams);
+    const [orderNumber, setOrderNumber] = useState(initialOrderNumber ?? initialOrderNumberFromParams);
+    const [objectNumber, setObjectNumber] = useState(initialBsNumber ?? initialObjectNumberFromParams);
+    const [objectAddress, setObjectAddress] = useState(initialAddress ?? initialObjectAddressFromParams);
 
-    const [orderDate, setOrderDate] = useState<Dayjs | null>(initialOrderDateFromParams);
-    const [completionDate, setCompletionDate] = useState<Dayjs | null>(initialCompletionDateFromParams);
+    const [orderDate, setOrderDate] = useState<Dayjs | null>(
+        initialOrderDateFromProps ?? initialOrderDateFromParams
+    );
+    const [completionDate, setCompletionDate] = useState<Dayjs | null>(
+        initialCompletionDateFromProps ?? initialCompletionDateFromParams
+    );
 
     const [saving, setSaving] = useState(false);
     const [snack, setSnack] = useState<SnackState>({
@@ -109,13 +124,26 @@ export const T2NcwGenerator = ({
 
     useEffect(() => {
         const nextOrderNumber = initialOrderNumber ?? initialOrderNumberFromParams;
-        const nextOrderDate =
-            toDayjs(initialOrderDate) ??
-            (initialOrderDateFromParams?.isValid() ? initialOrderDateFromParams : null);
+        const orderDateFromParams =
+            Number.isFinite(initialOrderDateFromParamsValue ?? NaN)
+                ? dayjs(initialOrderDateFromParamsValue)
+                : null;
+        const orderSignDateFromParams =
+            Number.isFinite(initialOrderSignDateFromParamsValue ?? NaN)
+                ? dayjs(initialOrderSignDateFromParamsValue)
+                : null;
+        const completionDateFromParams =
+            Number.isFinite(initialCompletionDateFromParamsValue ?? NaN)
+                ? dayjs(initialCompletionDateFromParamsValue)
+                : null;
+        const nextOrderDate = initialOrderDateFromProps ?? orderDateFromParams ?? null;
         const nextCompletion =
-            initialCompletionDateFromParams?.isValid()
-                ? initialCompletionDateFromParams
-                : toDayjs(initialOrderSignDate) ?? nextOrderDate ?? null;
+            initialCompletionDateFromProps ??
+            (completionDateFromParams ??
+                initialOrderSignDateFromProps ??
+                orderSignDateFromParams ??
+                nextOrderDate ??
+                null);
         const nextObjectNumber = initialBsNumber ?? initialObjectNumberFromParams;
         const nextObjectAddress = initialAddress ?? initialObjectAddressFromParams;
 
@@ -124,17 +152,22 @@ export const T2NcwGenerator = ({
         setOrderNumber(nextOrderNumber ?? '');
         setObjectNumber(nextObjectNumber ?? '');
         setObjectAddress(nextObjectAddress ?? '');
-        setOrderDate(nextOrderDate ?? null);
-        setCompletionDate(nextCompletion ?? null);
+        setOrderDate(nextOrderDate);
+        setCompletionDate(nextCompletion);
     }, [
         initialOrderNumber,
         initialOrderDate,
         initialOrderSignDate,
+        initialCompletionDate,
         initialBsNumber,
         initialAddress,
         initialOrderNumberFromParams,
-        initialOrderDateFromParams,
-        initialCompletionDateFromParams,
+        initialOrderDateFromParamsValue,
+        initialOrderSignDateFromParamsValue,
+        initialCompletionDateFromParamsValue,
+        initialOrderDateFromProps,
+        initialOrderSignDateFromProps,
+        initialCompletionDateFromProps,
         initialObjectNumberFromParams,
         initialObjectAddressFromParams,
         open,

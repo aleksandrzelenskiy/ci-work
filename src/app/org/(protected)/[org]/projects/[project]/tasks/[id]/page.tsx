@@ -48,6 +48,7 @@ import HistoryIcon from '@mui/icons-material/History';
 import ArticleOutlinedIcon from '@mui/icons-material/ArticleOutlined';
 import OpenInFullIcon from '@mui/icons-material/OpenInFull';
 import CloseFullscreenIcon from '@mui/icons-material/CloseFullscreen';
+import CloseIcon from '@mui/icons-material/Close';
 import AddIcon from '@mui/icons-material/Add';
 import CloudUploadOutlinedIcon from '@mui/icons-material/CloudUploadOutlined';
 import LinkOutlinedIcon from '@mui/icons-material/LinkOutlined';
@@ -150,6 +151,7 @@ type NcwDefaults = {
     orderNumber?: string | null;
     orderDate?: string | null;
     orderSignDate?: string | null;
+    completionDate?: string | null;
     bsNumber?: string | null;
     address?: string | null;
 };
@@ -338,6 +340,20 @@ export default function TaskDetailsPage() {
         const items: DocumentItem[] = [];
         const seen = new Set<string>();
 
+        const formatNcwFileName = (url: string) => {
+            const raw = extractFileNameFromUrl(
+                url,
+                task?.orderNumber ? `УОР_${task.orderNumber}` : 'УОР'
+            );
+            if (raw.startsWith('Уведомление_')) {
+                return raw.replace(/^Уведомление_/, 'УОР_');
+            }
+            if (raw.startsWith('УОР_')) {
+                return raw;
+            }
+            return `УОР_${raw}`;
+        };
+
         documentLinks.forEach((url, idx) => {
             const isOrder = task?.orderUrl && url === task.orderUrl;
             const isNcw = task?.ncwUrl && url === task.ncwUrl;
@@ -349,7 +365,7 @@ export default function TaskDetailsPage() {
                     : type === 'order'
                         ? task?.orderNumber || 'Заказ'
                         : type === 'ncw'
-                            ? 'Уведомление'
+                            ? 'УОР'
                             : `Документ ${idx + 1}`;
             items.push({
                 url,
@@ -360,10 +376,7 @@ export default function TaskDetailsPage() {
                         : type === 'estimate'
                             ? `Смета — ${extractFileNameFromUrl(url, 'Смета')}`
                             : type === 'ncw'
-                                ? `Уведомление — ${extractFileNameFromUrl(
-                                    url,
-                                    task?.orderNumber || 'УОР'
-                                )}`
+                                ? `Уведомление — ${formatNcwFileName(url)}`
                                 : extractFileNameFromUrl(url, fallback),
             });
             seen.add(url);
@@ -380,7 +393,7 @@ export default function TaskDetailsPage() {
             items.push({
                 url: task.ncwUrl,
                 type: 'ncw',
-                label: `Уведомление — ${extractFileNameFromUrl(task.ncwUrl, 'УОР')}`,
+                label: `Уведомление — ${formatNcwFileName(task.ncwUrl)}`,
             });
         }
 
@@ -578,6 +591,34 @@ export default function TaskDetailsPage() {
         setOrderSignDateInput(toInputDate(task?.orderSignDate));
     }, [task?.orderDate, task?.orderNumber, task?.orderSignDate]);
 
+    const doneStatusChangeDate = React.useMemo(() => {
+        if (!task?.events) return undefined;
+        const chronological = [...task.events].sort(
+            (a, b) => new Date(a.date).getTime() - new Date(b.date).getTime()
+        );
+        for (const ev of chronological) {
+            const statusDetail = ev.details?.status;
+            if (
+                statusDetail &&
+                typeof statusDetail === 'object' &&
+                ('to' in (statusDetail as Record<string, unknown>) ||
+                    'from' in (statusDetail as Record<string, unknown>))
+            ) {
+                const change = statusDetail as Change;
+                if (
+                    typeof change.to === 'string' &&
+                    change.to.trim().toLowerCase() === 'done'
+                ) {
+                    const date = new Date(ev.date);
+                    if (!Number.isNaN(date.getTime())) {
+                        return date.toISOString();
+                    }
+                }
+            }
+        }
+        return undefined;
+    }, [task?.events]);
+
     const openNcwCreator = () => {
         if (!task) return;
         const address =
@@ -589,6 +630,7 @@ export default function TaskDetailsPage() {
             orderNumber: task.orderNumber,
             orderDate: task.orderDate,
             orderSignDate: task.orderSignDate,
+            completionDate: doneStatusChangeDate ?? null,
             bsNumber: task.bsNumber,
             address,
         });
@@ -1975,13 +2017,25 @@ export default function TaskDetailsPage() {
             </Dialog>
 
             <Dialog
+                fullScreen
                 open={ncwDialogOpen}
                 onClose={closeNcwDialog}
-                fullWidth
-                maxWidth="lg"
                 scroll="paper"
             >
-                <DialogTitle>Создание уведомления о завершении работ</DialogTitle>
+                <DialogTitle
+                    sx={{
+                        display: 'flex',
+                        alignItems: 'center',
+                        justifyContent: 'space-between',
+                    }}
+                >
+                    <Typography variant="h6" fontWeight={600}>
+                        Создание уведомления о завершении работ
+                    </Typography>
+                    <IconButton onClick={closeNcwDialog}>
+                        <CloseIcon />
+                    </IconButton>
+                </DialogTitle>
                 <DialogContent sx={{ p: 0 }}>
                     {task && (
                         <T2NcwGenerator
@@ -1991,6 +2045,9 @@ export default function TaskDetailsPage() {
                             initialOrderDate={ncwDefaults?.orderDate ?? task.orderDate ?? undefined}
                             initialOrderSignDate={
                                 ncwDefaults?.orderSignDate ?? task.orderSignDate ?? undefined
+                            }
+                            initialCompletionDate={
+                                ncwDefaults?.completionDate ?? doneStatusChangeDate ?? undefined
                             }
                             initialBsNumber={ncwDefaults?.bsNumber ?? task.bsNumber ?? undefined}
                             initialAddress={ncwDefaults?.address ?? task.bsAddress ?? undefined}
