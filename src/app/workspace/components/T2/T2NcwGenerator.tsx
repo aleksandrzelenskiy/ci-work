@@ -82,38 +82,35 @@ export const T2NcwGenerator = ({
 
     const taskId = (taskIdProp || taskIdFromQuery || taskIdFromPath || '').toUpperCase();
 
-    const initialOrderNumberFromParams = params?.get('orderNumber') ?? '';
-    const initialOrderDateFromParams = params?.get('orderDate')
-        ? dayjs(params.get('orderDate') as string)
-        : null;
-    const initialCompletionDateFromParams = params?.get('completionDate')
-        ? dayjs(params.get('completionDate') as string)
-        : null;
-    const initialOrderSignDateFromParams = params?.get('orderSignDate')
-        ? dayjs(params.get('orderSignDate') as string)
-        : null;
-    const initialObjectNumberFromParams = params?.get('objectNumber') ?? '';
-    const initialObjectAddressFromParams = params?.get('objectAddress') ?? '';
+    const initialOrderNumberParam = params?.get('orderNumber') ?? '';
+    const initialOrderDateParam = params?.get('orderDate') ?? '';
+    const initialOrderSignDateParam = params?.get('orderSignDate') ?? '';
+    const initialCompletionDateParam = params?.get('completionDate') ?? '';
+    const initialObjectNumberParam = params?.get('objectNumber') ?? '';
+    const initialObjectAddressParam = params?.get('objectAddress') ?? '';
     const initialOrderDateFromProps = toDayjs(initialOrderDate);
     const initialOrderSignDateFromProps = toDayjs(initialOrderSignDate);
     const initialCompletionDateFromProps = toDayjs(initialCompletionDate);
-    const initialOrderDateFromParamsValue = initialOrderDateFromParams?.valueOf();
-    const initialOrderSignDateFromParamsValue = initialOrderSignDateFromParams?.valueOf();
-    const initialCompletionDateFromParamsValue = initialCompletionDateFromParams?.valueOf();
 
     const [contractNumber, setContractNumber] = useState('27-1/25');
     const [contractDate, setContractDate] = useState<Dayjs | null>(dayjs('2025-04-07'));
 
-    const [orderNumber, setOrderNumber] = useState(initialOrderNumber ?? initialOrderNumberFromParams);
-    const [objectNumber, setObjectNumber] = useState(initialBsNumber ?? initialObjectNumberFromParams);
-    const [objectAddress, setObjectAddress] = useState(initialAddress ?? initialObjectAddressFromParams);
+    const [orderNumber, setOrderNumber] = useState(initialOrderNumber ?? initialOrderNumberParam);
+    const [objectNumber, setObjectNumber] = useState(initialBsNumber ?? initialObjectNumberParam);
+    const [objectAddress, setObjectAddress] = useState(initialAddress ?? initialObjectAddressParam);
 
-    const [orderDate, setOrderDate] = useState<Dayjs | null>(
-        initialOrderDateFromProps ?? initialOrderDateFromParams
-    );
-    const [completionDate, setCompletionDate] = useState<Dayjs | null>(
-        initialCompletionDateFromProps ?? initialCompletionDateFromParams
-    );
+    const [orderDate, setOrderDate] = useState<Dayjs | null>(() => {
+        if (initialOrderDate) return toDayjs(initialOrderDate);
+        if (initialOrderDateParam) return dayjs(initialOrderDateParam);
+        return null;
+    });
+    const [completionDate, setCompletionDate] = useState<Dayjs | null>(() => {
+        if (initialCompletionDate) return toDayjs(initialCompletionDate);
+        if (initialCompletionDateParam) return dayjs(initialCompletionDateParam);
+        if (initialOrderSignDate) return toDayjs(initialOrderSignDate);
+        if (initialOrderSignDateParam) return dayjs(initialOrderSignDateParam);
+        return null;
+    });
 
     const [saving, setSaving] = useState(false);
     const [snack, setSnack] = useState<SnackState>({
@@ -123,36 +120,27 @@ export const T2NcwGenerator = ({
     });
 
     useEffect(() => {
-        const nextOrderNumber = initialOrderNumber ?? initialOrderNumberFromParams;
-        const orderDateFromParams =
-            Number.isFinite(initialOrderDateFromParamsValue ?? NaN)
-                ? dayjs(initialOrderDateFromParamsValue)
-                : null;
-        const orderSignDateFromParams =
-            Number.isFinite(initialOrderSignDateFromParamsValue ?? NaN)
-                ? dayjs(initialOrderSignDateFromParamsValue)
-                : null;
-        const completionDateFromParams =
-            Number.isFinite(initialCompletionDateFromParamsValue ?? NaN)
-                ? dayjs(initialCompletionDateFromParamsValue)
-                : null;
+        const nextOrderNumber = initialOrderNumber ?? initialOrderNumberParam;
+        const orderDateFromParams = initialOrderDateParam ? dayjs(initialOrderDateParam) : null;
+        const completionDateFromParams = initialCompletionDateParam
+            ? dayjs(initialCompletionDateParam)
+            : null;
         const nextOrderDate = initialOrderDateFromProps ?? orderDateFromParams ?? null;
         const nextCompletion =
             initialCompletionDateFromProps ??
-            (completionDateFromParams ??
-                initialOrderSignDateFromProps ??
-                orderSignDateFromParams ??
-                nextOrderDate ??
-                null);
-        const nextObjectNumber = initialBsNumber ?? initialObjectNumberFromParams;
-        const nextObjectAddress = initialAddress ?? initialObjectAddressFromParams;
+            completionDateFromParams ??
+            initialOrderSignDateFromProps ??
+            nextOrderDate ??
+            null;
+        const nextObjectNumber = initialBsNumber ?? initialObjectNumberParam;
+        const nextObjectAddress = initialAddress ?? initialObjectAddressParam;
 
         setContractNumber('27-1/25');
         setContractDate(dayjs('2025-04-07'));
         setOrderNumber(nextOrderNumber ?? '');
         setObjectNumber(nextObjectNumber ?? '');
         setObjectAddress(nextObjectAddress ?? '');
-        setOrderDate(nextOrderDate);
+        setOrderDate(nextOrderDate ?? null);
         setCompletionDate(nextCompletion);
     }, [
         initialOrderNumber,
@@ -161,15 +149,14 @@ export const T2NcwGenerator = ({
         initialCompletionDate,
         initialBsNumber,
         initialAddress,
-        initialOrderNumberFromParams,
-        initialOrderDateFromParamsValue,
-        initialOrderSignDateFromParamsValue,
-        initialCompletionDateFromParamsValue,
+        initialOrderNumberParam,
+        initialOrderDateParam,
+        initialCompletionDateParam,
         initialOrderDateFromProps,
         initialOrderSignDateFromProps,
         initialCompletionDateFromProps,
-        initialObjectNumberFromParams,
-        initialObjectAddressFromParams,
+        initialObjectNumberParam,
+        initialObjectAddressParam,
         open,
     ]);
 
@@ -293,80 +280,110 @@ export const T2NcwGenerator = ({
 
     return (
         <LocalizationProvider dateAdapter={AdapterDayjs}>
-            <Stack spacing={3} maxWidth={600} mx="auto" mt={open ? 4 : 0}>
-            <Typography variant="h5">Генерация уведомления о завершении работ</Typography>
+            <Box
+                mt={open ? 4 : 0}
+                display="flex"
+                flexDirection={{ xs: 'column', md: 'row' }}
+                gap={{ xs: 3, md: 4 }}
+                sx={{ width: '100%' }}
+            >
+                <Stack spacing={3} flex={1}>
+                    <Typography variant="h5">Генерация уведомления о завершении работ</Typography>
 
-            <TextField
-                label="Номер договора"
-                value={contractNumber}
-                onChange={(e) => setContractNumber(e.target.value)}
-                fullWidth
-            />
+                    <TextField
+                        label="Номер договора"
+                        value={contractNumber}
+                        onChange={(e) => setContractNumber(e.target.value)}
+                        fullWidth
+                    />
 
-            <DatePicker
-                label="Дата договора"
-                format="DD.MM.YYYY"
-                value={contractDate}
-                onChange={setContractDate}
-                slotProps={{ textField: { fullWidth: true } }}
-            />
+                    <DatePicker
+                        label="Дата договора"
+                        format="DD.MM.YYYY"
+                        value={contractDate}
+                        onChange={setContractDate}
+                        slotProps={{ textField: { fullWidth: true } }}
+                    />
 
-            <TextField
-                label="Номер заказа"
-                value={orderNumber}
-                onChange={(e) => setOrderNumber(e.target.value)}
-                fullWidth
-            />
+                    <TextField
+                        label="Номер заказа"
+                        value={orderNumber}
+                        onChange={(e) => setOrderNumber(e.target.value)}
+                        fullWidth
+                    />
 
-            <DatePicker
-                label="Дата заказа"
-                format="DD.MM.YYYY"
-                value={orderDate}
-                onChange={setOrderDate}
-                slotProps={{ textField: { fullWidth: true } }}
-            />
+                    <DatePicker
+                        label="Дата заказа"
+                        format="DD.MM.YYYY"
+                        value={orderDate}
+                        onChange={setOrderDate}
+                        slotProps={{ textField: { fullWidth: true } }}
+                    />
 
-            <DatePicker
-                label="Дата окончания работ"
-                format="DD.MM.YYYY"
-                value={completionDate}
-                onChange={setCompletionDate}
-                slotProps={{ textField: { fullWidth: true } }}
-            />
+                    <DatePicker
+                        label="Дата окончания работ"
+                        format="DD.MM.YYYY"
+                        value={completionDate}
+                        onChange={setCompletionDate}
+                        slotProps={{ textField: { fullWidth: true } }}
+                    />
 
-            {orderDate && completionDate && completionDate.isBefore(orderDate) && (
-                <Alert severity="error">Дата окончания работ не может быть раньше даты заказа.</Alert>
-            )}
+                    <TextField
+                        label="Номер объекта"
+                        value={objectNumber}
+                        onChange={(e) => setObjectNumber(e.target.value)}
+                        fullWidth
+                    />
 
-            <TextField
-                label="Номер объекта"
-                value={objectNumber}
-                onChange={(e) => setObjectNumber(e.target.value)}
-                fullWidth
-            />
+                    <TextField
+                        label="Адрес объекта"
+                        value={objectAddress}
+                        onChange={(e) => setObjectAddress(e.target.value)}
+                        fullWidth
+                        multiline
+                        rows={3}
+                    />
+                </Stack>
 
-            <TextField
-                label="Адрес объекта"
-                value={objectAddress}
-                onChange={(e) => setObjectAddress(e.target.value)}
-                fullWidth
-                multiline
-                rows={3}
-            />
-
-            {isValid && (
-                <>
-                    <Typography variant="h6">Предпросмотр:</Typography>
-                    <Box height={600}>
+                <Stack
+                    spacing={2}
+                    flex={{ xs: 'none', md: 1 }}
+                    sx={{
+                        flexBasis: { xs: '100%', md: '55%' },
+                    }}
+                >
+                    <Typography variant="h5">Предпросмотр</Typography>
+                    <Box
+                        sx={{
+                            borderRadius: 2,
+                            border: 1,
+                            borderColor: 'divider',
+                            overflow: 'hidden',
+                            height: { xs: 380, md: 560 },
+                        }}
+                    >
                         <PDFViewer width="100%" height="100%">
                             <PdfTemplate {...formData} />
                         </PDFViewer>
                     </Box>
 
-                    <Box display="flex" gap={2} justifyContent="center" mt={2} flexWrap="wrap">
-                        <PDFDownloadLink document={<PdfTemplate {...formData} />} fileName={`Уведомление_${orderNumber}.pdf`}>
+                    {orderDate && completionDate && completionDate.isBefore(orderDate) && (
+                        <Alert severity="error">
+                            Дата окончания работ не может быть раньше даты заказа.
+                        </Alert>
+                    )}
+
+                    <Box display="flex" justifyContent="center" flexWrap="wrap" gap={2}>
+                        <PDFDownloadLink
+                            document={<PdfTemplate {...formData} />}
+                            fileName={`Уведомление_${orderNumber || 'UOR'}.pdf`}
+                        >
                             {({ loading }) => (
-                                <Button variant="contained" color="primary" startIcon={<CloudDownloadIcon />}>
+                                <Button
+                                    variant="contained"
+                                    color="primary"
+                                    startIcon={<CloudDownloadIcon />}
+                                >
                                     {loading ? (
                                         <>
                                             <CircularProgress size={18} sx={{ mr: 1, color: 'inherit' }} />
@@ -382,7 +399,7 @@ export const T2NcwGenerator = ({
                         <Button
                             variant="outlined"
                             startIcon={<SaveIcon />}
-                            disabled={saving}
+                            disabled={saving || !isValid}
                             onClick={handleSaveToTask}
                             title={taskId ? `Сохранить в задачу ${taskId}` : 'taskId не определён'}
                         >
@@ -396,8 +413,8 @@ export const T2NcwGenerator = ({
                             )}
                         </Button>
                     </Box>
-                </>
-            )}
+                </Stack>
+            </Box>
 
             <Snackbar
                 open={snack.open}
@@ -406,7 +423,6 @@ export const T2NcwGenerator = ({
                 autoHideDuration={4000}
                 anchorOrigin={{ vertical: 'bottom', horizontal: 'center' }}
             />
-            </Stack>
         </LocalizationProvider>
     );
 };
