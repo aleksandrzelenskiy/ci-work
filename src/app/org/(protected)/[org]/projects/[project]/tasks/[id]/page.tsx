@@ -195,6 +195,7 @@ export default function TaskDetailsPage() {
     const [documentDeleting, setDocumentDeleting] = React.useState(false);
 
     const [orgName, setOrgName] = React.useState<string | null>(null);
+    const [projectOperator, setProjectOperator] = React.useState<string | null>(null);
     const [workItemsFullScreen, setWorkItemsFullScreen] = React.useState(false);
     const [commentsFullScreen, setCommentsFullScreen] = React.useState(false);
     const [documentDialogOpen, setDocumentDialogOpen] = React.useState(false);
@@ -305,6 +306,24 @@ export default function TaskDetailsPage() {
         }
     }, [org]);
 
+    const loadProjectOperator = React.useCallback(async () => {
+        if (!org || !project) return;
+        try {
+            const res = await fetch(
+                `/api/org/${encodeURIComponent(org)}/projects/${encodeURIComponent(project)}`,
+                { cache: 'no-store' }
+            );
+            if (!res.ok) {
+                setProjectOperator(null);
+                return;
+            }
+            const data = (await res.json()) as { project?: { operator?: string } };
+            setProjectOperator(data.project?.operator ?? null);
+        } catch {
+            setProjectOperator(null);
+        }
+    }, [org, project]);
+
     React.useEffect(() => {
         void load();
     }, [load]);
@@ -312,6 +331,10 @@ export default function TaskDetailsPage() {
     React.useEffect(() => {
         void loadOrg();
     }, [loadOrg]);
+
+    React.useEffect(() => {
+        void loadProjectOperator();
+    }, [loadProjectOperator]);
 
     const attachmentLinks = React.useMemo(
         () =>
@@ -616,8 +639,10 @@ export default function TaskDetailsPage() {
         return undefined;
     }, [task?.events]);
 
+    const canCreateNcw = projectOperator === '250020';
+
     const openNcwCreator = () => {
-        if (!task) return;
+        if (!task || !canCreateNcw) return;
         const address =
             buildBsAddressFromLocations(
                 task.bsLocation as Array<{ address?: string | null }> | null,
@@ -1904,14 +1929,16 @@ export default function TaskDetailsPage() {
                             >
                                 Заказ на выполнение работ
                             </Button>
-                            <Button
-                                variant="outlined"
-                                onClick={openNcwCreator}
-                                startIcon={<DescriptionOutlinedIcon />}
-                                sx={{ alignSelf: 'flex-start' }}
-                            >
-                                Создать уведомление
-                            </Button>
+                            {canCreateNcw && (
+                                <Button
+                                    variant="outlined"
+                                    onClick={openNcwCreator}
+                                    startIcon={<DescriptionOutlinedIcon />}
+                                    sx={{ alignSelf: 'flex-start' }}
+                                >
+                                    Создать уведомление
+                                </Button>
+                            )}
                         </Stack>
                     ) : (
                         <Stack spacing={2}>
