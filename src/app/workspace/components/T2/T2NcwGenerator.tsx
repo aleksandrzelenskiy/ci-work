@@ -1,32 +1,38 @@
-// app/components/NcwGenerator.tsx
 'use client';
 
-import { useMemo, useState } from 'react';
-import { usePathname, useSearchParams } from 'next/navigation';
-import { useRouter } from 'next/navigation';
-import { PdfTemplate } from './PdfTemplate';
-import { PDFViewer, PDFDownloadLink, pdf } from '@react-pdf/renderer';
+import { useEffect, useMemo, useState } from 'react';
+import { usePathname, useSearchParams, useRouter } from 'next/navigation';
+import { PDFDownloadLink, PDFViewer, pdf } from '@react-pdf/renderer';
 import {
-    TextField,
-    Button,
-    Stack,
-    Typography,
-    Box,
     Alert,
+    Box,
+    Button,
     CircularProgress,
     Snackbar,
+    Stack,
+    TextField,
+    Typography,
 } from '@mui/material';
-import { DatePicker } from '@mui/x-date-pickers/DatePicker';
 import CloudDownloadIcon from '@mui/icons-material/CloudDownload';
 import SaveIcon from '@mui/icons-material/Save';
+import { DatePicker } from '@mui/x-date-pickers/DatePicker';
 import dayjs, { Dayjs } from 'dayjs';
 import 'dayjs/locale/ru';
+import { PdfTemplate } from '@/app/components/PdfTemplate';
 
 dayjs.locale('ru');
 
 type Props = {
-    /** Можно пробросить taskId пропсом из страницы задачи */
     taskId?: string;
+    orgSlug?: string;
+    initialOrderNumber?: string | null;
+    initialOrderDate?: string | null;
+    initialOrderSignDate?: string | null;
+    initialBsNumber?: string | null;
+    initialAddress?: string | null;
+    open?: boolean;
+    onSaved?: (url?: string) => void;
+    onClose?: () => void;
 };
 
 type SnackState = { open: boolean; msg: string; severity: 'success' | 'error' };
@@ -40,16 +46,30 @@ function errorMessage(err: unknown): string {
     }
 }
 
-export const NcwGenerator = ({ taskId: taskIdProp }: Props) => {
-    /* ─────────────── безопасно читаем query-параметры ─────────────── */
+function toDayjs(value?: string | null): Dayjs | null {
+    if (!value) return null;
+    const d = dayjs(value);
+    return d.isValid() ? d : null;
+}
+
+export const T2NcwGenerator = ({
+    taskId: taskIdProp,
+    orgSlug,
+    initialOrderNumber,
+    initialOrderDate,
+    initialOrderSignDate,
+    initialBsNumber,
+    initialAddress,
+    open = true,
+    onSaved,
+    onClose,
+}: Props) => {
     const params = useSearchParams();
     const pathname = usePathname();
     const router = useRouter();
 
-    // Попытка вытащить taskId: приоритет пропса, затем query, затем из URL /tasks/[id]
     const taskIdFromQuery = params?.get('taskId') ?? '';
     const taskIdFromPath = useMemo(() => {
-        // ожидаем путь типа /tasks/E404Q или /app/org/.../tasks/E404Q
         const parts = (pathname || '').split('/').filter(Boolean);
         const ix = parts.lastIndexOf('tasks');
         if (ix >= 0 && parts[ix + 1]) return parts[ix + 1];
@@ -58,24 +78,25 @@ export const NcwGenerator = ({ taskId: taskIdProp }: Props) => {
 
     const taskId = (taskIdProp || taskIdFromQuery || taskIdFromPath || '').toUpperCase();
 
-    const initialOrderNumber = params?.get('orderNumber') ?? '';
-    const initialOrderDate = params?.get('orderDate') ? dayjs(params.get('orderDate') as string) : null;
-    const initialCompletionDate = params?.get('completionDate')
+    const initialOrderNumberFromParams = params?.get('orderNumber') ?? '';
+    const initialOrderDateFromParams = params?.get('orderDate')
+        ? dayjs(params.get('orderDate') as string)
+        : null;
+    const initialCompletionDateFromParams = params?.get('completionDate')
         ? dayjs(params.get('completionDate') as string)
         : null;
-    const initialObjectNumber = params?.get('objectNumber') ?? '';
-    const initialObjectAddress = params?.get('objectAddress') ?? '';
+    const initialObjectNumberFromParams = params?.get('objectNumber') ?? '';
+    const initialObjectAddressFromParams = params?.get('objectAddress') ?? '';
 
-    /* ─────────────── состояния ─────────────── */
     const [contractNumber, setContractNumber] = useState('27-1/25');
     const [contractDate, setContractDate] = useState<Dayjs | null>(dayjs('2025-04-07'));
 
-    const [orderNumber, setOrderNumber] = useState(initialOrderNumber);
-    const [objectNumber, setObjectNumber] = useState(initialObjectNumber);
-    const [objectAddress, setObjectAddress] = useState(initialObjectAddress);
+    const [orderNumber, setOrderNumber] = useState(initialOrderNumberFromParams);
+    const [objectNumber, setObjectNumber] = useState(initialObjectNumberFromParams);
+    const [objectAddress, setObjectAddress] = useState(initialObjectAddressFromParams);
 
-    const [orderDate, setOrderDate] = useState<Dayjs | null>(initialOrderDate);
-    const [completionDate, setCompletionDate] = useState<Dayjs | null>(initialCompletionDate);
+    const [orderDate, setOrderDate] = useState<Dayjs | null>(initialOrderDateFromParams);
+    const [completionDate, setCompletionDate] = useState<Dayjs | null>(initialCompletionDateFromParams);
 
     const [saving, setSaving] = useState(false);
     const [snack, setSnack] = useState<SnackState>({
@@ -84,7 +105,39 @@ export const NcwGenerator = ({ taskId: taskIdProp }: Props) => {
         severity: 'success',
     });
 
-    /* ─────────────── валидация ─────────────── */
+    useEffect(() => {
+        const nextOrderNumber = initialOrderNumber ?? initialOrderNumberFromParams;
+        const nextOrderDate =
+            toDayjs(initialOrderDate) ??
+            (initialOrderDateFromParams?.isValid() ? initialOrderDateFromParams : null);
+        const nextCompletion =
+            initialCompletionDateFromParams?.isValid()
+                ? initialCompletionDateFromParams
+                : toDayjs(initialOrderSignDate) ?? nextOrderDate ?? null;
+        const nextObjectNumber = initialBsNumber ?? initialObjectNumberFromParams;
+        const nextObjectAddress = initialAddress ?? initialObjectAddressFromParams;
+
+        setContractNumber('27-1/25');
+        setContractDate(dayjs('2025-04-07'));
+        setOrderNumber(nextOrderNumber ?? '');
+        setObjectNumber(nextObjectNumber ?? '');
+        setObjectAddress(nextObjectAddress ?? '');
+        setOrderDate(nextOrderDate ?? null);
+        setCompletionDate(nextCompletion ?? null);
+    }, [
+        initialOrderNumber,
+        initialOrderDate,
+        initialOrderSignDate,
+        initialBsNumber,
+        initialAddress,
+        initialOrderNumberFromParams,
+        initialOrderDateFromParams,
+        initialCompletionDateFromParams,
+        initialObjectNumberFromParams,
+        initialObjectAddressFromParams,
+        open,
+    ]);
+
     const isValid =
         !!contractNumber &&
         !!contractDate &&
@@ -95,7 +148,6 @@ export const NcwGenerator = ({ taskId: taskIdProp }: Props) => {
         !!completionDate &&
         completionDate.isAfter(orderDate);
 
-    /* ─────────────── данные для PDF ─────────────── */
     const formData = {
         orderNumber,
         objectNumber,
@@ -106,7 +158,6 @@ export const NcwGenerator = ({ taskId: taskIdProp }: Props) => {
         completionDate: completionDate?.format('DD.MM.YYYY') || '',
     };
 
-    /** Служебное: генерация Blob из React-PDF и загрузка в задачу */
     const handleSaveToTask = async () => {
         setSaving(true);
         try {
@@ -119,36 +170,85 @@ export const NcwGenerator = ({ taskId: taskIdProp }: Props) => {
                 return;
             }
 
-            // 1) генерим PDF как Blob
             const instance = pdf(<PdfTemplate {...formData} />);
             const blob = await instance.toBlob();
 
-            // 2) собираем FormData для PATCH /api/tasks/[id]
             const fd = new FormData();
-            fd.append('workCompletionDate', completionDate.toDate().toISOString());
-            // имя файла — как при скачивании
             const filename = `Уведомление_${orderNumber || taskId}.pdf`;
-            fd.append('ncwFile', blob, filename);
+            fd.append('file', blob, filename);
+            fd.append('taskId', taskId);
+            fd.append('subfolder', 'documents');
+            if (orgSlug) fd.append('orgSlug', orgSlug);
 
-// 3) отправляем
-            const response = await fetch(`/api/tasks/${encodeURIComponent(taskId)}`, {
-                method: 'PATCH',
+            const uploadResponse = await fetch('/api/upload', {
+                method: 'POST',
                 body: fd,
             });
 
-            if (!response.ok) {
-                const data = (await response.json().catch(() => null)) as { error?: string } | null;
-                const msg = data?.error ?? `HTTP ${response.status}`;
+            let uploadBody: unknown = null;
+            try {
+                uploadBody = await uploadResponse.json();
+            } catch {
+                /* ignore */
+            }
+
+            if (!uploadResponse.ok) {
+                const msg =
+                    uploadBody &&
+                    typeof uploadBody === 'object' &&
+                    'error' in uploadBody &&
+                    typeof (uploadBody as { error?: unknown }).error === 'string'
+                        ? (uploadBody as { error?: string }).error
+                        : `HTTP ${uploadResponse.status}`;
                 setSnack({ open: true, msg: `Ошибка сохранения: ${msg}`, severity: 'error' });
                 return;
             }
 
-// успех - переходим на страницу задачи
-            router.push(`/tasks/${encodeURIComponent(taskId)}`);
-            return; // чтобы не продолжать выполнение функции
+            const uploadedUrl =
+                uploadBody &&
+                typeof uploadBody === 'object' &&
+                'urls' in uploadBody &&
+                Array.isArray((uploadBody as { urls?: unknown }).urls) &&
+                (uploadBody as { urls: unknown[] }).urls.length > 0
+                    ? String((uploadBody as { urls: unknown[] }).urls[0])
+                    : undefined;
 
+            if (completionDate) {
+                const metaResponse = await fetch(`/api/tasks/${encodeURIComponent(taskId)}`, {
+                    method: 'PATCH',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        workCompletionDate: completionDate.toDate().toISOString(),
+                        ncwUrl: uploadedUrl,
+                    }),
+                });
 
-            setSnack({ open: true, msg: 'Уведомление сохранено в задачу', severity: 'success' });
+                if (!metaResponse.ok) {
+                    const metaBody = await metaResponse.json().catch(() => null);
+                    const msg =
+                        metaBody &&
+                        typeof metaBody === 'object' &&
+                        'error' in metaBody &&
+                        typeof (metaBody as { error?: unknown }).error === 'string'
+                            ? (metaBody as { error?: string }).error
+                            : `HTTP ${metaResponse.status}`;
+                    setSnack({
+                        open: true,
+                        msg: `Ошибка сохранения данных задачи: ${msg}`,
+                        severity: 'error',
+                    });
+                    return;
+                }
+            }
+
+            setSnack({ open: true, msg: 'Уведомление сохранено', severity: 'success' });
+
+            if (onSaved) {
+                onSaved(uploadedUrl);
+            } else {
+                onClose?.();
+                router.push(`/tasks/${encodeURIComponent(taskId)}`);
+            }
         } catch (e: unknown) {
             setSnack({ open: true, msg: `Ошибка сохранения: ${errorMessage(e)}`, severity: 'error' });
         } finally {
@@ -156,9 +256,8 @@ export const NcwGenerator = ({ taskId: taskIdProp }: Props) => {
         }
     };
 
-    /* ─────────────── UI ─────────────── */
     return (
-        <Stack spacing={3} maxWidth={600} mx="auto" mt={4}>
+        <Stack spacing={3} maxWidth={600} mx="auto" mt={open ? 4 : 0}>
             <Typography variant="h5">Генерация уведомления о завершении работ</Typography>
 
             <TextField
@@ -274,3 +373,5 @@ export const NcwGenerator = ({ taskId: taskIdProp }: Props) => {
         </Stack>
     );
 };
+
+export const NcwGenerator = T2NcwGenerator;

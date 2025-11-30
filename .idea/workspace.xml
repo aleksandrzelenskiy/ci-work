@@ -4,7 +4,7 @@
     <option name="autoReloadType" value="SELECTIVE" />
   </component>
   <component name="ChangeListManager">
-    <list default="true" id="bd80d4b0-b8c7-4fda-9fdc-9fe8b04a544f" name="Changes" comment="src/app/org/(protected)/[org]/projects/[project]/tasks/[id]/page.tsx добавлен разворот комментариев в fullscreen dialog">
+    <list default="true" id="bd80d4b0-b8c7-4fda-9fdc-9fe8b04a544f" name="Changes" comment="fix build app error">
       <change beforePath="$PROJECT_DIR$/.idea/workspace.xml" beforeDir="false" afterPath="$PROJECT_DIR$/.idea/workspace.xml" afterDir="false" />
     </list>
     <option name="SHOW_DIALOG" value="false" />
@@ -15,24 +15,24 @@
   <component name="Git.Settings">
     <option name="RECENT_GIT_ROOT_PATH" value="$PROJECT_DIR$" />
   </component>
-  <component name="GitHubPullRequestSearchHistory"><![CDATA[{
-  "lastFilter": {
-    "state": "OPEN",
-    "assignee": "aleksandrzelenskiy"
+  <component name="GitHubPullRequestSearchHistory">{
+  &quot;lastFilter&quot;: {
+    &quot;state&quot;: &quot;OPEN&quot;,
+    &quot;assignee&quot;: &quot;aleksandrzelenskiy&quot;
   }
-}]]></component>
-  <component name="GithubPullRequestsUISettings"><![CDATA[{
-  "selectedUrlAndAccountId": {
-    "url": "https://github.com/aleksandrzelenskiy/ci-work.git",
-    "accountId": "e4c68a97-7c3f-4277-a7cb-c73d6616c35a"
+}</component>
+  <component name="GithubPullRequestsUISettings">{
+  &quot;selectedUrlAndAccountId&quot;: {
+    &quot;url&quot;: &quot;https://github.com/aleksandrzelenskiy/ci-work.git&quot;,
+    &quot;accountId&quot;: &quot;e4c68a97-7c3f-4277-a7cb-c73d6616c35a&quot;
   }
-}]]></component>
+}</component>
   <component name="ProblemsViewState">
     <option name="selectedTabId" value="CurrentFile" />
   </component>
-  <component name="ProjectColorInfo"><![CDATA[{
-  "associatedIndex": 5
-}]]></component>
+  <component name="ProjectColorInfo">{
+  &quot;associatedIndex&quot;: 5
+}</component>
   <component name="ProjectId" id="35usn05qw1usDH2cxnAaAsifZ7x" />
   <component name="ProjectLevelVcsManager">
     <ConfirmationsSetting value="2" id="Add" />
@@ -41,19 +41,19 @@
     <option name="hideEmptyMiddlePackages" value="true" />
     <option name="showLibraryContents" value="true" />
   </component>
-  <component name="PropertiesComponent"><![CDATA[{
-  "keyToString": {
-    "RunOnceActivity.ShowReadmeOnStart": "true",
-    "RunOnceActivity.git.unshallow": "true",
-    "git-widget-placeholder": "main",
-    "node.js.detected.package.eslint": "true",
-    "node.js.selected.package.eslint": "(autodetect)",
-    "node.js.selected.package.tslint": "(autodetect)",
-    "nodejs_package_manager_path": "npm",
-    "ts.external.directory.path": "/Users/macbook/Desktop/Projects/ci-work/node_modules/typescript/lib",
-    "vue.rearranger.settings.migration": "true"
+  <component name="PropertiesComponent">{
+  &quot;keyToString&quot;: {
+    &quot;RunOnceActivity.ShowReadmeOnStart&quot;: &quot;true&quot;,
+    &quot;RunOnceActivity.git.unshallow&quot;: &quot;true&quot;,
+    &quot;git-widget-placeholder&quot;: &quot;main&quot;,
+    &quot;node.js.detected.package.eslint&quot;: &quot;true&quot;,
+    &quot;node.js.selected.package.eslint&quot;: &quot;(autodetect)&quot;,
+    &quot;node.js.selected.package.tslint&quot;: &quot;(autodetect)&quot;,
+    &quot;nodejs_package_manager_path&quot;: &quot;npm&quot;,
+    &quot;ts.external.directory.path&quot;: &quot;/Users/macbook/Desktop/Projects/ci-work/node_modules/typescript/lib&quot;,
+    &quot;vue.rearranger.settings.migration&quot;: &quot;true&quot;
   }
-}]]></component>
+}</component>
   <component name="SharedIndexes">
     <attachedChunks>
       <set>
@@ -63,221 +63,16 @@
   </component>
   <component name="SpellCheckerSettings" RuntimeDictionaries="0" Folders="0" CustomDictionaries="0" DefaultDictionary="application-level" UseSingleDictionary="true" transferred="true" />
   <component name="TaskManager">
-    <task id="LOCAL-00001" summary="fix build app error">
-      <option name="closed" value="true" />
-      <created>1763905666960</created>
-      <option name="number" value="00001" />
-      <option name="presentableId" value="LOCAL-00001" />
-      <option name="project" value="LOCAL" />
-      <updated>1763905666960</updated>
-    </task>
-    <task id="LOCAL-00002" summary="fix build app error #2">
-      <option name="closed" value="true" />
-      <created>1763905985386</created>
-      <option name="number" value="00002" />
-      <option name="presentableId" value="LOCAL-00002" />
-      <option name="project" value="LOCAL" />
-      <updated>1763905985386</updated>
-    </task>
-    <task id="LOCAL-00003" summary="Реализовано добавление Work Items в задачу по результату парсинга estimates">
-      <option name="closed" value="true" />
-      <created>1763910858848</created>
-      <option name="number" value="00003" />
-      <option name="presentableId" value="LOCAL-00003" />
-      <option name="project" value="LOCAL" />
-      <updated>1763910858848</updated>
-    </task>
-    <task id="LOCAL-00004" summary="Work Items добавлены на страницу задачи org/(protected)/ и исправлена верстка">
-      <option name="closed" value="true" />
-      <created>1763912801062</created>
-      <option name="number" value="00004" />
-      <option name="presentableId" value="LOCAL-00004" />
-      <option name="project" value="LOCAL" />
-      <updated>1763912801062</updated>
-    </task>
-    <task id="LOCAL-00005" summary="fix build app error">
-      <option name="closed" value="true" />
-      <created>1763913297763</created>
-      <option name="number" value="00005" />
-      <option name="presentableId" value="LOCAL-00005" />
-      <option name="project" value="LOCAL" />
-      <updated>1763913297763</updated>
-    </task>
-    <task id="LOCAL-00006" summary="fix build app error #2">
-      <option name="closed" value="true" />
-      <created>1763913603354</created>
-      <option name="number" value="00006" />
-      <option name="presentableId" value="LOCAL-00006" />
-      <option name="project" value="LOCAL" />
-      <updated>1763913603354</updated>
-    </task>
-    <task id="LOCAL-00007" summary="изенена верстка карточек для // app/org/[org]/projects/[project]/tasks/[id]/page.tsx добавлена логика комментариев с отправкой уведомлений через createNotification для исполнителя">
-      <option name="closed" value="true" />
-      <created>1763958604870</created>
-      <option name="number" value="00007" />
-      <option name="presentableId" value="LOCAL-00007" />
-      <option name="project" value="LOCAL" />
-      <updated>1763958604870</updated>
-    </task>
-    <task id="LOCAL-00008" summary="Исправлена ошибка добавления Имени автора комментария (собираем имя из Clerk (first/last), потом из профиля в БД (name), затем username или email, и только если ничего нет — Unknown). Изменен UI TaskComments.tsx">
-      <option name="closed" value="true" />
-      <created>1763959426534</created>
-      <option name="number" value="00008" />
-      <option name="presentableId" value="LOCAL-00008" />
-      <option name="project" value="LOCAL" />
-      <updated>1763959426534</updated>
-    </task>
-    <task id="LOCAL-00009" summary="Изменен UI страницы задачи исполнителя tasks/[id]/">
-      <option name="closed" value="true" />
-      <created>1763963639403</created>
-      <option name="number" value="00009" />
-      <option name="presentableId" value="LOCAL-00009" />
-      <option name="project" value="LOCAL" />
-      <updated>1763963639403</updated>
-    </task>
-    <task id="LOCAL-00010" summary="Подправлена верстка на страницах задач. Добавлено уведомление о комментарии исполнителя.">
-      <option name="closed" value="true" />
-      <created>1763965757391</created>
-      <option name="number" value="00010" />
-      <option name="presentableId" value="LOCAL-00010" />
-      <option name="project" value="LOCAL" />
-      <updated>1763965757391</updated>
-    </task>
-    <task id="LOCAL-00011" summary="изменено отображение маркера на карте страниц задачи, добавлен плэйсхолдер с данными по БС">
-      <option name="closed" value="true" />
-      <created>1763968059728</created>
-      <option name="number" value="00011" />
-      <option name="presentableId" value="LOCAL-00011" />
-      <option name="project" value="LOCAL" />
-      <updated>1763968059728</updated>
-    </task>
-    <task id="LOCAL-00012" summary="В плэйсхолдеры меток на карте в задаче добавлена кастомная кнопка &quot;Маршрут&quot; для вызова навигации">
-      <option name="closed" value="true" />
-      <created>1763968693078</created>
-      <option name="number" value="00012" />
-      <option name="presentableId" value="LOCAL-00012" />
-      <option name="project" value="LOCAL" />
-      <updated>1763968693078</updated>
-    </task>
-    <task id="LOCAL-00013" summary="fix build app error">
-      <option name="closed" value="true" />
-      <created>1763970049733</created>
-      <option name="number" value="00013" />
-      <option name="presentableId" value="LOCAL-00013" />
-      <option name="project" value="LOCAL" />
-      <updated>1763970049733</updated>
-    </task>
-    <task id="LOCAL-00014" summary="fix build app error #2">
-      <option name="closed" value="true" />
-      <created>1763970356732</created>
-      <option name="number" value="00014" />
-      <option name="presentableId" value="LOCAL-00014" />
-      <option name="project" value="LOCAL" />
-      <updated>1763970356732</updated>
-    </task>
     <task active="true" id="Default" summary="Default task">
       <changelist id="bd80d4b0-b8c7-4fda-9fdc-9fe8b04a544f" name="Changes" comment="fix build app error #2" />
       <created>1763971465214</created>
       <option name="number" value="Default" />
       <option name="presentableId" value="Default" />
       <updated>1763971465214</updated>
-      <workItem from="1763971468682" duration="12010000" />
-    </task>
-    <task id="LOCAL-00015" summary="TaskGeoLocation - кнопка &quot;Маршрут&quot; перенесена в плэйсхолдер">
-      <option name="closed" value="true" />
-      <created>1763971564323</created>
-      <option name="number" value="00015" />
-      <option name="presentableId" value="LOCAL-00015" />
-      <option name="project" value="LOCAL" />
-      <updated>1763971564323</updated>
-    </task>
-    <task id="LOCAL-00016" summary="Estimates перенесена из attachments в documents и скрыта от исполнителя. Нормализовано название файла при загрузке.">
-      <option name="closed" value="true" />
-      <created>1763974059387</created>
-      <option name="number" value="00016" />
-      <option name="presentableId" value="LOCAL-00016" />
-      <option name="project" value="LOCAL" />
-      <updated>1763974059387</updated>
-    </task>
-    <task id="LOCAL-00017" summary="fix build app error">
-      <option name="closed" value="true" />
-      <created>1763975282631</created>
-      <option name="number" value="00017" />
-      <option name="presentableId" value="LOCAL-00017" />
-      <option name="project" value="LOCAL" />
-      <updated>1763975282631</updated>
-    </task>
-    <task id="LOCAL-00018" summary="Изменены определения документов.">
-      <option name="closed" value="true" />
-      <created>1763977828066</created>
-      <option name="number" value="00018" />
-      <option name="presentableId" value="LOCAL-00018" />
-      <option name="project" value="LOCAL" />
-      <updated>1763977828066</updated>
-    </task>
-    <task id="LOCAL-00019" summary="Добавлено логика task-folder cleanup при удалении задачи">
-      <option name="closed" value="true" />
-      <created>1763980841838</created>
-      <option name="number" value="00019" />
-      <option name="presentableId" value="LOCAL-00019" />
-      <option name="project" value="LOCAL" />
-      <updated>1763980841838</updated>
-    </task>
-    <task id="LOCAL-00020" summary="Смета исключена из вложений. Создано новое состояние estimateFile смета загружается в subfolder documents при создании/сохранении задачи.">
-      <option name="closed" value="true" />
-      <created>1764030576422</created>
-      <option name="number" value="00020" />
-      <option name="presentableId" value="LOCAL-00020" />
-      <option name="project" value="LOCAL" />
-      <updated>1764030576422</updated>
-    </task>
-    <task id="LOCAL-00021" summary="fix - восстановление кодировки имен загружаемых файлов.">
-      <option name="closed" value="true" />
-      <created>1764031370202</created>
-      <option name="number" value="00021" />
-      <option name="presentableId" value="LOCAL-00021" />
-      <option name="project" value="LOCAL" />
-      <updated>1764031370202</updated>
-    </task>
-    <task id="LOCAL-00022" summary="fix - deleteTaskFolder теперь принимает org slug и выполняет итерацию по обоим возможным префиксам (uploads/&lt;TaskId&gt;/ и uploads/&lt;org&gt;/&lt;TaskId&gt;/)">
-      <option name="closed" value="true" />
-      <created>1764032604369</created>
-      <option name="number" value="00022" />
-      <option name="presentableId" value="LOCAL-00022" />
-      <option name="project" value="LOCAL" />
-      <updated>1764032604369</updated>
-    </task>
-    <task id="LOCAL-00023" summary="Добавлено логирование удаления задач">
-      <option name="closed" value="true" />
-      <created>1764033333652</created>
-      <option name="number" value="00023" />
-      <option name="presentableId" value="LOCAL-00023" />
-      <option name="project" value="LOCAL" />
-      <updated>1764033333652</updated>
-    </task>
-    <task id="LOCAL-00024" summary="CSS-grid изменен на masonry-layout. Реализоавна адаптивная верска // app/org/[org]/projects/[project]/tasks/[id]/page.tsx">
-      <option name="closed" value="true" />
-      <created>1764036304296</created>
-      <option name="number" value="00024" />
-      <option name="presentableId" value="LOCAL-00024" />
-      <option name="project" value="LOCAL" />
-      <updated>1764036304296</updated>
-    </task>
-    <task id="LOCAL-00025" summary="Обновлен конфиг Masonry в src/app/org/(protecte)/[org]/projects/[project]/tasks/[id]/page.tsx: колонки xs:1, sm:1, md:2, lg:3, xl:4">
-      <option name="closed" value="true" />
-      <created>1764037673995</created>
-      <option name="number" value="00025" />
-      <option name="presentableId" value="LOCAL-00025" />
-      <option name="project" value="LOCAL" />
-      <updated>1764037673995</updated>
-    </task>
-    <task id="LOCAL-00026" summary="src/app/org/(protected)/[org]/projects/[project]/tasks/[id]/page.tsx расширил плитку «Состав работ» на два столбца при многоколоночном режиме">
-      <option name="closed" value="true" />
-      <created>1764039131113</created>
-      <option name="number" value="00026" />
-      <option name="presentableId" value="LOCAL-00026" />
-      <option name="project" value="LOCAL" />
-      <updated>1764039131113</updated>
+      <workItem from="1763971468682" duration="35126000" />
+      <workItem from="1764160739903" duration="677000" />
+      <workItem from="1764200635192" duration="11796000" />
+      <workItem from="1764253799097" duration="6000" />
     </task>
     <task id="LOCAL-00027" summary="src/app/org/(protected)/[org]/projects/[project]/tasks/[id]/page.tsx добавлен разворот состава работ в fullscreen dialog">
       <option name="closed" value="true" />
@@ -295,36 +90,414 @@
       <option name="project" value="LOCAL" />
       <updated>1764045963810</updated>
     </task>
-    <option name="localTasksCounter" value="29" />
+    <task id="LOCAL-00029" summary="src/app/org/(protected)/[org]/projects/[project]/tasks/[id]/page.tsx дублирующий заголовок у плитки «Комментарии» удален">
+      <option name="closed" value="true" />
+      <created>1764046744121</created>
+      <option name="number" value="00029" />
+      <option name="presentableId" value="LOCAL-00029" />
+      <option name="project" value="LOCAL" />
+      <updated>1764046744121</updated>
+    </task>
+    <task id="LOCAL-00030" summary="src/app/org/(protected)/[org]/projects/[project]/tasks/[id]/page.tsx стиль текста в плитке &quot;Геолокация&quot; изменен на body1">
+      <option name="closed" value="true" />
+      <created>1764047518817</created>
+      <option name="number" value="00030" />
+      <option name="presentableId" value="LOCAL-00030" />
+      <option name="project" value="LOCAL" />
+      <updated>1764047518817</updated>
+    </task>
+    <task id="LOCAL-00031" summary="/[org]/projects/[project]/tasks/[id]/&#10;добавлена возможность скачивания и удаления сметы">
+      <option name="closed" value="true" />
+      <created>1764047997669</created>
+      <option name="number" value="00031" />
+      <option name="presentableId" value="LOCAL-00031" />
+      <option name="project" value="LOCAL" />
+      <updated>1764047997669</updated>
+    </task>
+    <task id="LOCAL-00032" summary="// app/tasks/[id]/page.tsx&#10;верска переделана на masonry с адаптивом">
+      <option name="closed" value="true" />
+      <created>1764050393183</created>
+      <option name="number" value="00032" />
+      <option name="presentableId" value="LOCAL-00032" />
+      <option name="project" value="LOCAL" />
+      <updated>1764050393183</updated>
+    </task>
+    <task id="LOCAL-00033" summary="Уменьшен горизонтальный отступ дял Mobile отображения. &#10;// app/tasks/[id]/page.tsx&#10;// app/org/[org]/projects/[project]/tasks/[id]/page.tsx">
+      <option name="closed" value="true" />
+      <created>1764052520403</created>
+      <option name="number" value="00033" />
+      <option name="presentableId" value="LOCAL-00033" />
+      <option name="project" value="LOCAL" />
+      <updated>1764052520403</updated>
+    </task>
+    <task id="LOCAL-00034" summary="Chip Status перенесен к Chip taskId &#10;// app/tasks/[id]/page.tsx&#10;// app/org/[org]/projects/[project]/tasks/[id]/page.tsx">
+      <option name="closed" value="true" />
+      <created>1764053082870</created>
+      <option name="number" value="00034" />
+      <option name="presentableId" value="LOCAL-00034" />
+      <option name="project" value="LOCAL" />
+      <updated>1764053082870</updated>
+    </task>
+    <task id="LOCAL-00035" summary="Добавлен компонент TasksLocation.tsx - карта задач для исполнителя">
+      <option name="closed" value="true" />
+      <created>1764054750398</created>
+      <option name="number" value="00035" />
+      <option name="presentableId" value="LOCAL-00035" />
+      <option name="project" value="LOCAL" />
+      <updated>1764054750398</updated>
+    </task>
+    <task id="LOCAL-00036" summary="Добавлен поиск и фильтрация по задачам в TasksLocation.tsx">
+      <option name="closed" value="true" />
+      <created>1764069453464</created>
+      <option name="number" value="00036" />
+      <option name="presentableId" value="LOCAL-00036" />
+      <option name="project" value="LOCAL" />
+      <updated>1764069453464</updated>
+    </task>
+    <task id="LOCAL-00037" summary="TasksLocation.tsx - изменен UI фильтрации и поиска">
+      <option name="closed" value="true" />
+      <created>1764070622886</created>
+      <option name="number" value="00037" />
+      <option name="presentableId" value="LOCAL-00037" />
+      <option name="project" value="LOCAL" />
+      <updated>1764070622886</updated>
+    </task>
+    <task id="LOCAL-00038" summary="TasksLocation.tsx - блок фильтров под мобильный уменьшен: ширина 88vw">
+      <option name="closed" value="true" />
+      <created>1764071165912</created>
+      <option name="number" value="00038" />
+      <option name="presentableId" value="LOCAL-00038" />
+      <option name="project" value="LOCAL" />
+      <updated>1764071165912</updated>
+    </task>
+    <task id="LOCAL-00039" summary="Добавлен переиспользуемый клиент сокетов с ленивой инициализацией и авторизацией в src/app/lib/socketClient.ts чтобы UI-компоненты могли использовать единое подключение Socket.IO.">
+      <option name="closed" value="true" />
+      <created>1764073268939</created>
+      <option name="number" value="00039" />
+      <option name="presentableId" value="LOCAL-00039" />
+      <option name="project" value="LOCAL" />
+      <updated>1764073268939</updated>
+    </task>
+    <task id="LOCAL-00040" summary="Task comments now compress images client-side before upload. images are read into a canvas, resized down to max ~1600px with 0.75 JPEG quality">
+      <option name="closed" value="true" />
+      <created>1764074183577</created>
+      <option name="number" value="00040" />
+      <option name="presentableId" value="LOCAL-00040" />
+      <option name="project" value="LOCAL" />
+      <updated>1764074183577</updated>
+    </task>
+    <task id="LOCAL-00041" summary="Comment thread now behaves like a messenger">
+      <option name="closed" value="true" />
+      <created>1764075309599</created>
+      <option name="number" value="00041" />
+      <option name="presentableId" value="LOCAL-00041" />
+      <option name="project" value="LOCAL" />
+      <updated>1764075309599</updated>
+    </task>
+    <task id="LOCAL-00042" summary="Added server-side socket support for task comment rooms">
+      <option name="closed" value="true" />
+      <created>1764076290115</created>
+      <option name="number" value="00042" />
+      <option name="presentableId" value="LOCAL-00042" />
+      <option name="project" value="LOCAL" />
+      <updated>1764076290116</updated>
+    </task>
+    <task id="LOCAL-00043" summary="fix build app error">
+      <option name="closed" value="true" />
+      <created>1764076666927</created>
+      <option name="number" value="00043" />
+      <option name="presentableId" value="LOCAL-00043" />
+      <option name="project" value="LOCAL" />
+      <updated>1764076666927</updated>
+    </task>
+    <task id="LOCAL-00044" summary="Новая страница src/app/org/(protected)/[org]/projects/[project]/tasks/locations/page.tsx рендерит ProjectTaskLocation&#10;NavigationMenu теперь подбирает ссылку “ГЕОЛОКАЦИИ” по роли: исполнители остаются на /tasks/locations, остальные роли идут на маршрут проекта">
+      <option name="closed" value="true" />
+      <created>1764079782840</created>
+      <option name="number" value="00044" />
+      <option name="presentableId" value="LOCAL-00044" />
+      <option name="project" value="LOCAL" />
+      <updated>1764079782840</updated>
+    </task>
+    <task id="LOCAL-00045" summary="Added src/utils/statusLabels.ts with normalized status mapping, Russian labels, and shared order for consistent rendering.">
+      <option name="closed" value="true" />
+      <created>1764081570640</created>
+      <option name="number" value="00045" />
+      <option name="presentableId" value="LOCAL-00045" />
+      <option name="project" value="LOCAL" />
+      <updated>1764081570640</updated>
+    </task>
+    <task id="LOCAL-00046" summary="fix build app error">
+      <option name="closed" value="true" />
+      <created>1764081909909</created>
+      <option name="number" value="00046" />
+      <option name="presentableId" value="LOCAL-00046" />
+      <option name="project" value="LOCAL" />
+      <updated>1764081909909</updated>
+    </task>
+    <task id="LOCAL-00047" summary="Navigation now looks at profileType and loads managed projects for employers via /api/org + project lists; “Мои задачи” and “Геолокации” link to the selected managed project with a dropdown of project slugs when more than one is available (src/app/components/NavigationMenu.tsx)">
+      <option name="closed" value="true" />
+      <created>1764085754890</created>
+      <option name="number" value="00047" />
+      <option name="presentableId" value="LOCAL-00047" />
+      <option name="project" value="LOCAL" />
+      <updated>1764085754890</updated>
+    </task>
+    <task id="LOCAL-00048" summary="fix build app error">
+      <option name="closed" value="true" />
+      <created>1764086081598</created>
+      <option name="number" value="00048" />
+      <option name="presentableId" value="LOCAL-00048" />
+      <option name="project" value="LOCAL" />
+      <updated>1764086081598</updated>
+    </task>
+    <task id="LOCAL-00049" summary="fix build app error #2">
+      <option name="closed" value="true" />
+      <created>1764086253700</created>
+      <option name="number" value="00049" />
+      <option name="presentableId" value="LOCAL-00049" />
+      <option name="project" value="LOCAL" />
+      <updated>1764086253700</updated>
+    </task>
+    <task id="LOCAL-00050" summary="Updated src/app/components/NavigationMenu.tsx to detect employers managing at least one project and replace the &quot;МОИ ЗАДАЧИ&quot; item with &quot;МОИ ПРОЕКТЫ&quot; for them; other users keep the existing tasks entry and ordering.">
+      <option name="closed" value="true" />
+      <created>1764087068613</created>
+      <option name="number" value="00050" />
+      <option name="presentableId" value="LOCAL-00050" />
+      <option name="project" value="LOCAL" />
+      <updated>1764087068614</updated>
+    </task>
+    <task id="LOCAL-00051" summary="Task comments now respect dark mode: message bubbles,  attachments, previews, and the input field pick dark-friendly backgrounds/borders via theme-aware styles in src/app/component /TaskComments.tsx">
+      <option name="closed" value="true" />
+      <created>1764088293267</created>
+      <option name="number" value="00051" />
+      <option name="presentableId" value="LOCAL-00051" />
+      <option name="project" value="LOCAL" />
+      <updated>1764088293267</updated>
+    </task>
+    <task id="LOCAL-00052" summary="Added accept/reject controls with Apple-style styling to the info card and&#10;  wired them to status updates via the task API. confirmation dialog now shows&#10;  task name/BS/срок and applies. At work or To do after confirmation, with error handling. Path: src/app/tasks/[id]/page.tsx.">
+      <option name="closed" value="true" />
+      <created>1764114284626</created>
+      <option name="number" value="00052" />
+      <option name="presentableId" value="LOCAL-00052" />
+      <option name="project" value="LOCAL" />
+      <updated>1764114284626</updated>
+    </task>
+    <task id="LOCAL-00053" summary="Buttons now show only for Assigned tasks and keep the Apple-style dialog;&#10;  accept/reject still drive status changes via the dialog. Acceptance/&#10;  rejection events now record the real user name (not “Unknown”), and&#10;  manager notifications are emitted through NotificationBell using a new&#10;  task_status_change notification type (model and link mapping updated).&#10;  Rejection continues to clear the executor; manager notifications include task&#10;  info and status/decision.">
+      <option name="closed" value="true" />
+      <created>1764117297291</created>
+      <option name="number" value="00053" />
+      <option name="presentableId" value="LOCAL-00053" />
+      <option name="project" value="LOCAL" />
+      <updated>1764117297291</updated>
+    </task>
+    <task id="LOCAL-00054" summary=" Restricted task visibility for contractors: if the current user isn’t the assigned executor, the page now shows a warning and link back to the task list. Fetching user context now captures clerkUserId and profile type to enforce this. File: src/app/tasks/[id]/page.tsx">
+      <option name="closed" value="true" />
+      <created>1764117519960</created>
+      <option name="number" value="00054" />
+      <option name="presentableId" value="LOCAL-00054" />
+      <option name="project" value="LOCAL" />
+      <updated>1764117519961</updated>
+    </task>
+    <task id="LOCAL-00055" summary="Strengthened contractor access control: we now normalize the current user ID from context (including fallback to user.id), and contractors are blocked if no executor is assigned or the executor ID doesn’t match them—showing the&#10;  warning view instead of task details. File: src/app/tasks/[id]/page.tsx.">
+      <option name="closed" value="true" />
+      <created>1764118103713</created>
+      <option name="number" value="00055" />
+      <option name="presentableId" value="LOCAL-00055" />
+      <option name="project" value="LOCAL" />
+      <updated>1764118103713</updated>
+    </task>
+    <task id="LOCAL-00056" summary="Added an At work-only “Завершено” placeholder button at the bottom of the info card (src/app/tasks/[id]/page.tsx) to surface the completion control even before it’s wired up.">
+      <option name="closed" value="true" />
+      <created>1764118813849</created>
+      <option name="number" value="00056" />
+      <option name="presentableId" value="LOCAL-00056" />
+      <option name="project" value="LOCAL" />
+      <updated>1764118813849</updated>
+    </task>
+    <task id="LOCAL-00057" summary="Added a “Добавить” flow in src/app/org/(protected)/[org]/projects/[project]/tasks/[id]/page.tsx: documents list now shows orders with download/delete icons, includes an Add button, opens a type-selection dialog (order for now), shows an order form with drag-and-drop upload, and surfaces a 3s MUI alert on success/error.&#10;Wired order upload/delete logic to PATCH/DELETE /api/tasks/[id], updating task metadata immediately and handling confirmation messages dynamically.&#10; Updated src/app/api/tasks/[id]/route.ts so order files upload to taskId-documents, old order files/links are cleaned up, order URLs get stored in documents, and responses return normalized attachments/documents; deletes now also pull the order link from documents/attachments.">
+      <option name="closed" value="true" />
+      <created>1764145320495</created>
+      <option name="number" value="00057" />
+      <option name="presentableId" value="LOCAL-00057" />
+      <option name="project" value="LOCAL" />
+      <updated>1764145320495</updated>
+    </task>
+    <task id="LOCAL-00058" summary="fix build app error">
+      <option name="closed" value="true" />
+      <created>1764145833559</created>
+      <option name="number" value="00058" />
+      <option name="presentableId" value="LOCAL-00058" />
+      <option name="project" value="LOCAL" />
+      <updated>1764145833559</updated>
+    </task>
+    <task id="LOCAL-00059" summary="fix build app error#2">
+      <option name="closed" value="true" />
+      <created>1764146054610</created>
+      <option name="number" value="00059" />
+      <option name="presentableId" value="LOCAL-00059" />
+      <option name="project" value="LOCAL" />
+      <updated>1764146054610</updated>
+    </task>
+    <task id="LOCAL-00060" summary="fix build app error#3">
+      <option name="closed" value="true" />
+      <created>1764146234666</created>
+      <option name="number" value="00060" />
+      <option name="presentableId" value="LOCAL-00060" />
+      <option name="project" value="LOCAL" />
+      <updated>1764146234666</updated>
+    </task>
+    <task id="LOCAL-00061" summary="fix build app error#4">
+      <option name="closed" value="true" />
+      <created>1764146552688</created>
+      <option name="number" value="00061" />
+      <option name="presentableId" value="LOCAL-00061" />
+      <option name="project" value="LOCAL" />
+      <updated>1764146552688</updated>
+    </task>
+    <task id="LOCAL-00062" summary="fix build app error#5">
+      <option name="closed" value="true" />
+      <created>1764147123208</created>
+      <option name="number" value="00062" />
+      <option name="presentableId" value="LOCAL-00062" />
+      <option name="project" value="LOCAL" />
+      <updated>1764147123208</updated>
+    </task>
+    <task id="LOCAL-00063" summary="Added a multi-select for related tasks with async search, debounced lookups, and selection prefill in src/app/workspace/components/WorkspaceTaskDialog.tsx">
+      <option name="closed" value="true" />
+      <created>1764202055675</created>
+      <option name="number" value="00063" />
+      <option name="presentableId" value="LOCAL-00063" />
+      <option name="project" value="LOCAL" />
+      <updated>1764202055677</updated>
+    </task>
+    <task id="LOCAL-00064" summary="Added relatedTasks to the local Task type in src/app/org/(protected)/[org]/projects/[project]/tasks/[id]/page.tsx">
+      <option name="closed" value="true" />
+      <created>1764202410485</created>
+      <option name="number" value="00064" />
+      <option name="presentableId" value="LOCAL-00064" />
+      <option name="project" value="LOCAL" />
+      <updated>1764202410486</updated>
+    </task>
+    <task id="LOCAL-00065" summary="Populated and normalized relatedTasks data all the way through the APIs and UI so both task-detail views show actual related-task metadata, and the workspace dialog now understands those normalized references.">
+      <option name="closed" value="true" />
+      <created>1764206566866</created>
+      <option name="number" value="00065" />
+      <option name="presentableId" value="LOCAL-00065" />
+      <option name="project" value="LOCAL" />
+      <updated>1764206566866</updated>
+    </task>
+    <task id="LOCAL-00066" summary="Replaced the inline list of related tasks on the protected task page with an Accordion that sits directly below the info card and stays open by default, and dropped the priority chips so only status badges remain (src/app/org/&#10;    (protected)/[org]/projects/[project]/tasks/[id]/page.tsx">
+      <option name="closed" value="true" />
+      <created>1764207524290</created>
+      <option name="number" value="00066" />
+      <option name="presentableId" value="LOCAL-00066" />
+      <option name="project" value="LOCAL" />
+      <updated>1764207524290</updated>
+    </task>
+    <task id="LOCAL-00067" summary="Added normalizeRelatedTasks/relatedTasksSync helpers so we can treat related-task refs consistently and mutate the inverse relations (src/app/utils/relatedTasks.ts, src/app/utils/relatedTasksSync.ts)">
+      <option name="closed" value="true" />
+      <created>1764209742428</created>
+      <option name="number" value="00067" />
+      <option name="presentableId" value="LOCAL-00067" />
+      <option name="project" value="LOCAL" />
+      <updated>1764209742428</updated>
+    </task>
+    <task id="LOCAL-00068" summary="fix build app error">
+      <option name="closed" value="true" />
+      <created>1764210613692</created>
+      <option name="number" value="00068" />
+      <option name="presentableId" value="LOCAL-00068" />
+      <option name="project" value="LOCAL" />
+      <updated>1764210613692</updated>
+    </task>
+    <task id="LOCAL-00069" summary="src/app/tasks/[id]/page.tsx:Заказ / договор card was removed entirely so contractors can’t view sensitive order/contract data">
+      <option name="closed" value="true" />
+      <created>1764217469952</created>
+      <option name="number" value="00069" />
+      <option name="presentableId" value="LOCAL-00069" />
+      <option name="project" value="LOCAL" />
+      <updated>1764217469953</updated>
+    </task>
+    <task id="LOCAL-00070" summary="src/app/tasks/[id]/page.tsx:блок &quot;Звязанные задачи&quot; размещен после блока &quot;Информация&quot;">
+      <option name="closed" value="true" />
+      <created>1764218031336</created>
+      <option name="number" value="00070" />
+      <option name="presentableId" value="LOCAL-00070" />
+      <option name="project" value="LOCAL" />
+      <updated>1764218031336</updated>
+    </task>
+    <task id="LOCAL-00071" summary="src/app/tasks/[id]/page.tsx:блок &quot;Звязанные задачи&quot; размещен после блока &quot;Информация&quot;. src/app/tasks/[id]/page и src/app/org/(protected)/[org]/projects/[project]/tasks/[id]/page.tsx не рендерят Описание и Вложения,если нет данных">
+      <option name="closed" value="true" />
+      <created>1764218334831</created>
+      <option name="number" value="00071" />
+      <option name="presentableId" value="LOCAL-00071" />
+      <option name="project" value="LOCAL" />
+      <updated>1764218334831</updated>
+    </task>
+    <task id="LOCAL-00072" summary="src/app/tasks/[id]/page и src/app/org/(protected)/[org]/projects/[project]/tasks/[id]/page.tsx блок &quot;заказ/договор&quot; после блока &quot;документы&quot;">
+      <option name="closed" value="true" />
+      <created>1764219266385</created>
+      <option name="number" value="00072" />
+      <option name="presentableId" value="LOCAL-00072" />
+      <option name="project" value="LOCAL" />
+      <updated>1764219266385</updated>
+    </task>
+    <task id="LOCAL-00073" summary="Updated the project task table’s">
+      <option name="closed" value="true" />
+      <created>1764223273937</created>
+      <option name="number" value="00073" />
+      <option name="presentableId" value="LOCAL-00073" />
+      <option name="project" value="LOCAL" />
+      <updated>1764223273938</updated>
+    </task>
+    <task id="LOCAL-00074" summary="Added a Заказ column to the project task table header so users can toggle visibility just like the other columns (src/app/workspace/components/ProjectTaskList.tsx">
+      <option name="closed" value="true" />
+      <created>1764247273800</created>
+      <option name="number" value="00074" />
+      <option name="presentableId" value="LOCAL-00074" />
+      <option name="project" value="LOCAL" />
+      <updated>1764247273801</updated>
+    </task>
+    <task id="LOCAL-00075" summary="fix build app error">
+      <option name="closed" value="true" />
+      <created>1764248023021</created>
+      <option name="number" value="00075" />
+      <option name="presentableId" value="LOCAL-00075" />
+      <option name="project" value="LOCAL" />
+      <updated>1764248023021</updated>
+    </task>
+    <option name="localTasksCounter" value="76" />
     <servers />
   </component>
   <component name="TypeScriptGeneratedFilesManager">
     <option name="version" value="3" />
   </component>
   <component name="VcsManagerConfiguration">
-    <MESSAGE value="Реализовано добавление Work Items в задачу по результату парсинга estimates" />
-    <MESSAGE value="Work Items добавлены на страницу задачи org/(protected)/ и исправлена верстка" />
-    <MESSAGE value="изенена верстка карточек для // app/org/[org]/projects/[project]/tasks/[id]/page.tsx добавлена логика комментариев с отправкой уведомлений через createNotification для исполнителя" />
-    <MESSAGE value="Исправлена ошибка добавления Имени автора комментария (собираем имя из Clerk (first/last), потом из профиля в БД (name), затем username или email, и только если ничего нет — Unknown). Изменен UI TaskComments.tsx" />
-    <MESSAGE value="Изменен UI страницы задачи исполнителя tasks/[id]/" />
-    <MESSAGE value="Подправлена верстка на страницах задач. Добавлено уведомление о комментарии исполнителя." />
-    <MESSAGE value="изменено отображение маркера на карте страниц задачи, добавлен плэйсхолдер с данными по БС" />
-    <MESSAGE value="В плэйсхолдеры меток на карте в задаче добавлена кастомная кнопка &quot;Маршрут&quot; для вызова навигации" />
-    <MESSAGE value="fix build app error #2" />
-    <MESSAGE value="TaskGeoLocation - кнопка &quot;Маршрут&quot; перенесена в плэйсхолдер" />
-    <MESSAGE value="Estimates перенесена из attachments в documents и скрыта от исполнителя. Нормализовано название файла при загрузке." />
+    <MESSAGE value="Updated src/app/components/NavigationMenu.tsx to detect employers managing at least one project and replace the &quot;МОИ ЗАДАЧИ&quot; item with &quot;МОИ ПРОЕКТЫ&quot; for them; other users keep the existing tasks entry and ordering." />
+    <MESSAGE value="Task comments now respect dark mode: message bubbles, attachments, previews,&#10;    and the input field pick dark-friendly backgrounds/borders via theme-aware&#10;    styles in src/app/components/TaskComments.tsx" />
+    <MESSAGE value="Task comments now respect dark mode: message bubbles,  attachments, previews, and the input field pick dark-friendly backgrounds/borders via theme-aware styles in src/app/component /TaskComments.tsx" />
+    <MESSAGE value="Added accept/reject controls with Apple-style styling to the info card and&#10;  wired them to status updates via the task API. confirmation dialog now shows&#10;  task name/BS/срок and applies. At work or To do after confirmation, with error handling. Path: src/app/tasks/[id]/page.tsx." />
+    <MESSAGE value="Buttons now show only for Assigned tasks and keep the Apple-style dialog;&#10;  accept/reject still drive status changes via the dialog. Acceptance/&#10;  rejection events now record the real user name (not “Unknown”), and&#10;  manager notifications are emitted through NotificationBell using a new&#10;  task_status_change notification type (model and link mapping updated).&#10;  Rejection continues to clear the executor; manager notifications include task&#10;  info and status/decision." />
+    <MESSAGE value=" Restricted task visibility for contractors: if the current user isn’t the assigned executor, the page now shows a warning and link back to the task list. Fetching user context now captures clerkUserId and profile type to enforce this. File: src/app/tasks/[id]/page.tsx" />
+    <MESSAGE value="Strengthened contractor access control: we now normalize the current user ID from context (including fallback to user.id), and contractors are blocked if no executor is assigned or the executor ID doesn’t match them—showing the&#10;  warning view instead of task details. File: src/app/tasks/[id]/page.tsx." />
+    <MESSAGE value="Added an At work-only “Завершено” placeholder button at the bottom of the info card (src/app/tasks/[id]/page.tsx) to surface the completion control even before it’s wired up." />
+    <MESSAGE value="Added a “Добавить” flow in src/app/org/(protected)/[org]/projects/[project]/tasks/[id]/page.tsx: documents list now shows orders with download/delete icons, includes an Add button, opens a type-selection dialog (order for now), shows an order form with drag-and-drop upload, and surfaces a 3s MUI alert on success/error.&#10;Wired order upload/delete logic to PATCH/DELETE /api/tasks/[id], updating task metadata immediately and handling confirmation messages dynamically.&#10; Updated src/app/api/tasks/[id]/route.ts so order files upload to taskId-documents, old order files/links are cleaned up, order URLs get stored in documents, and responses return normalized attachments/documents; deletes now also pull the order link from documents/attachments." />
+    <MESSAGE value="fix build app error#2" />
+    <MESSAGE value="fix build app error#3" />
+    <MESSAGE value="fix build app error#4" />
+    <MESSAGE value="fix build app error#5" />
+    <MESSAGE value="Added a multi-select for related tasks with async search, debounced lookups, and selection prefill in src/app/workspace/components/WorkspaceTaskDialog.tsx" />
+    <MESSAGE value="Added relatedTasks to the local Task type in src/app/org/(protected)/[org]/projects/[project]/tasks/[id]/page.tsx" />
+    <MESSAGE value="Populated and normalized relatedTasks data all the way through the APIs and UI so both task-detail views show actual related-task metadata, and the workspace dialog now understands those normalized references." />
+    <MESSAGE value="Replaced the inline list of related tasks on the protected task page with an Accordion that sits directly below the info card and stays open by default, and dropped the priority chips so only status badges remain (src/app/org/&#10;    (protected)/[org]/projects/[project]/tasks/[id]/page.tsx" />
+    <MESSAGE value="Added normalizeRelatedTasks/relatedTasksSync helpers so we can treat related-task refs consistently and mutate the inverse relations (src/app/utils/relatedTasks.ts, src/app/utils/relatedTasksSync.ts)" />
+    <MESSAGE value="src/app/tasks/[id]/page.tsx:Заказ / договор card was removed entirely so contractors can’t view sensitive order/contract data" />
+    <MESSAGE value="src/app/tasks/[id]/page.tsx:блок &quot;Звязанные задачи&quot; размещен после блока &quot;Информация&quot;" />
+    <MESSAGE value="src/app/tasks/[id]/page.tsx:блок &quot;Звязанные задачи&quot; размещен после блока &quot;Информация&quot;. src/app/tasks/[id]/page и src/app/org/(protected)/[org]/projects/[project]/tasks/[id]/page.tsx не рендерят Описание и Вложения,если нет данных" />
+    <MESSAGE value="src/app/tasks/[id]/page и src/app/org/(protected)/[org]/projects/[project]/tasks/[id]/page.tsx блок &quot;заказ/договор&quot; после блока &quot;документы&quot;" />
+    <MESSAGE value="Updated the project task table’s" />
+    <MESSAGE value="Added a Заказ column to the project task table header so users can toggle visibility just like the other columns (src/app/workspace/components/ProjectTaskList.tsx" />
     <MESSAGE value="fix build app error" />
-    <MESSAGE value="Изменены определения документов." />
-    <MESSAGE value="Добавлено логика task-folder cleanup при удалении задачи" />
-    <MESSAGE value="Смета исключена из вложений. Создано новое состояние estimateFile смета загружается в subfolder documents при создании/сохранении задачи." />
-    <MESSAGE value="fix - восстановление кодировки имен загружаемых файлов." />
-    <MESSAGE value="fix - deleteTaskFolder теперь принимает org slug и выполняет итерацию по обоим возможным префиксам (uploads/&lt;TaskId&gt;/ и uploads/&lt;org&gt;/&lt;TaskId&gt;/)" />
-    <MESSAGE value="Добавлено логирование удаления задач" />
-    <MESSAGE value="CSS-grid изменен на masonry-layout. Реализоавна адаптивная верска // app/org/[org]/projects/[project]/tasks/[id]/page.tsx" />
-    <MESSAGE value="Обновлен конфиг Masonry в src/app/org/(protecte)/[org]/projects/[project]/tasks/[id]/page.tsx: колонки xs:1, sm:1, md:2, lg:3, xl:4" />
-    <MESSAGE value="src/app/org/(protected)/[org]/projects/[project]/tasks/[id]/page.tsx расширил плитку «Состав работ» на два столбца при многоколоночном режиме" />
-    <MESSAGE value="src/app/org/(protected)/[org]/projects/[project]/tasks/[id]/page.tsx добавлен разворот состава работ в fullscreen dialog" />
-    <MESSAGE value="src/app/org/(protected)/[org]/projects/[project]/tasks/[id]/page.tsx добавлен разворот комментариев в fullscreen dialog" />
-    <option name="LAST_COMMIT_MESSAGE" value="src/app/org/(protected)/[org]/projects/[project]/tasks/[id]/page.tsx добавлен разворот комментариев в fullscreen dialog" />
+    <option name="LAST_COMMIT_MESSAGE" value="fix build app error" />
   </component>
 </project>

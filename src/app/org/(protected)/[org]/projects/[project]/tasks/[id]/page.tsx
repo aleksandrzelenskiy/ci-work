@@ -55,6 +55,7 @@ import WorkspaceTaskDialog, {
     type TaskForEdit,
 } from '@/app/workspace/components/WorkspaceTaskDialog';
 import type { ParsedWorkItem } from '@/app/workspace/components/T2/T2EstimateParser';
+import { T2NcwGenerator } from '@/app/workspace/components/T2/T2NcwGenerator';
 import { getPriorityIcon, normalizePriority } from '@/utils/priorityIcons';
 import TaskGeoLocation from '@/app/workspace/components/TaskGeoLocation';
 import { getStatusColor } from '@/utils/statusColors';
@@ -73,6 +74,7 @@ import Masonry from '@mui/lab/Masonry';
 import { extractFileNameFromUrl, isDocumentUrl } from '@/utils/taskFiles';
 import { normalizeRelatedTasks } from '@/app/utils/relatedTasks';
 import type { RelatedTaskRef } from '@/app/types/taskTypes';
+import { buildBsAddressFromLocations } from '@/utils/bsLocation';
 
 type TaskFile = {
     url: string;
@@ -112,7 +114,7 @@ type Task = {
     status?: string;
     bsNumber?: string;
     bsAddress?: string;
-    bsLocation?: Array<{ name?: string; coordinates: string }>;
+    bsLocation?: Array<{ name?: string; coordinates: string; address?: string | null }>;
     totalCost?: number;
     priority?: 'urgent' | 'high' | 'medium' | 'low';
     dueDate?: string;
@@ -130,6 +132,8 @@ type Task = {
     files?: TaskFile[];
     attachments?: string[];
     documents?: string[];
+    ncwUrl?: string;
+    workCompletionDate?: string;
     events?: TaskEvent[];
     workItems?: WorkItem[];
     comments?: TaskComment[];
@@ -138,8 +142,16 @@ type Task = {
 
 type DocumentItem = {
     url: string;
-    type: 'estimate' | 'order' | 'other';
+    type: 'estimate' | 'order' | 'other' | 'ncw';
     label: string;
+};
+
+type NcwDefaults = {
+    orderNumber?: string | null;
+    orderDate?: string | null;
+    orderSignDate?: string | null;
+    bsNumber?: string | null;
+    address?: string | null;
 };
 
 // карточка с тенью как в примере MUI
@@ -176,7 +188,7 @@ export default function TaskDetailsPage() {
     const [deleteDocumentOpen, setDeleteDocumentOpen] = React.useState(false);
     const [documentToDelete, setDocumentToDelete] = React.useState<string | null>(null);
     const [documentToDeleteType, setDocumentToDeleteType] = React.useState<
-        'estimate' | 'order' | 'other' | null
+        'estimate' | 'order' | 'other' | 'ncw' | null
     >(null);
     const [documentDeleting, setDocumentDeleting] = React.useState(false);
 
@@ -192,6 +204,8 @@ export default function TaskDetailsPage() {
     const [orderDragActive, setOrderDragActive] = React.useState(false);
     const [orderUploading, setOrderUploading] = React.useState(false);
     const [orderFormError, setOrderFormError] = React.useState<string | null>(null);
+    const [ncwDialogOpen, setNcwDialogOpen] = React.useState(false);
+    const [ncwDefaults, setNcwDefaults] = React.useState<NcwDefaults | null>(null);
     const [documentSnackbar, setDocumentSnackbar] = React.useState<{
         type: 'success' | 'error';
         message: string;
@@ -311,7 +325,11 @@ export default function TaskDetailsPage() {
             const docsFromAttachments = Array.isArray(task?.attachments)
                 ? task.attachments.filter((url) => isDocumentUrl(url))
                 : [];
-            return Array.from(new Set([...docs, ...docsFromAttachments]));
+            const urls: string[] = [...docs, ...docsFromAttachments];
+            if (task?.ncwUrl) {
+                urls.push(task.ncwUrl);
+            }
+            return Array.from(new Set(urls));
         },
         [task]
     );
@@ -322,13 +340,17 @@ export default function TaskDetailsPage() {
 
         documentLinks.forEach((url, idx) => {
             const isOrder = task?.orderUrl && url === task.orderUrl;
-            const type: DocumentItem['type'] = isOrder ? 'order' : idx === 0 ? 'estimate' : 'other';
+            const isNcw = task?.ncwUrl && url === task.ncwUrl;
+            const type: DocumentItem['type'] =
+                isOrder ? 'order' : isNcw ? 'ncw' : idx === 0 ? 'estimate' : 'other';
             const fallback =
                 type === 'estimate'
                     ? 'Смета'
                     : type === 'order'
                         ? task?.orderNumber || 'Заказ'
-                        : `Документ ${idx + 1}`;
+                        : type === 'ncw'
+                            ? 'Уведомление'
+                            : `Документ ${idx + 1}`;
             items.push({
                 url,
                 type,
@@ -337,7 +359,12 @@ export default function TaskDetailsPage() {
                         ? `Заказ — ${task?.orderNumber || extractFileNameFromUrl(url, fallback)}`
                         : type === 'estimate'
                             ? `Смета — ${extractFileNameFromUrl(url, 'Смета')}`
-                            : extractFileNameFromUrl(url, fallback),
+                            : type === 'ncw'
+                                ? `Уведомление — ${extractFileNameFromUrl(
+                                    url,
+                                    task?.orderNumber || 'УОР'
+                                )}`
+                                : extractFileNameFromUrl(url, fallback),
             });
             seen.add(url);
         });
@@ -349,9 +376,16 @@ export default function TaskDetailsPage() {
                 label: `Заказ — ${task.orderNumber || 'файл заказа'}`,
             });
         }
+        if (task?.ncwUrl && !seen.has(task.ncwUrl)) {
+            items.push({
+                url: task.ncwUrl,
+                type: 'ncw',
+                label: `Уведомление — ${extractFileNameFromUrl(task.ncwUrl, 'УОР')}`,
+            });
+        }
 
         return items;
-    }, [documentLinks, task?.orderNumber, task?.orderUrl]);
+    }, [documentLinks, task?.ncwUrl, task?.orderNumber, task?.orderUrl]);
 
     const hasWorkItems = Array.isArray(task?.workItems) && task.workItems.length > 0;
     const hasDocuments = documentItems.length > 0;
@@ -459,7 +493,7 @@ export default function TaskDetailsPage() {
         }
     };
 
-    const openDeleteDocumentDialog = (url: string, type: 'estimate' | 'order' | 'other') => {
+    const openDeleteDocumentDialog = (url: string, type: 'estimate' | 'order' | 'other' | 'ncw') => {
         setDocumentToDelete(url);
         setDocumentToDeleteType(type);
         setDeleteDocumentOpen(true);
@@ -476,13 +510,17 @@ export default function TaskDetailsPage() {
         if (!task?.taskId || !documentToDelete || !documentToDeleteType) return;
         setDocumentDeleting(true);
         try {
-            if (documentToDeleteType === 'order') {
-                const res = await fetch(
-                    `/api/tasks/${encodeURIComponent(task.taskId)}`,
-                    {
-                        method: 'DELETE',
-                    }
-                );
+            if (documentToDeleteType === 'order' || documentToDeleteType === 'ncw') {
+                const query = new URLSearchParams();
+                if (documentToDeleteType === 'ncw') {
+                    query.set('file', 'ncw');
+                }
+                const endpoint = `/api/tasks/${encodeURIComponent(task.taskId)}${
+                    query.toString() ? `?${query.toString()}` : ''
+                }`;
+                const res = await fetch(endpoint, {
+                    method: 'DELETE',
+                });
                 let body: unknown = null;
                 try {
                     body = await res.json();
@@ -539,6 +577,36 @@ export default function TaskDetailsPage() {
         setOrderDateInput(toInputDate(task?.orderDate));
         setOrderSignDateInput(toInputDate(task?.orderSignDate));
     }, [task?.orderDate, task?.orderNumber, task?.orderSignDate]);
+
+    const openNcwCreator = () => {
+        if (!task) return;
+        const address =
+            buildBsAddressFromLocations(
+                task.bsLocation as Array<{ address?: string | null }> | null,
+                task.bsAddress
+            ) || task.bsAddress || '';
+        setNcwDefaults({
+            orderNumber: task.orderNumber,
+            orderDate: task.orderDate,
+            orderSignDate: task.orderSignDate,
+            bsNumber: task.bsNumber,
+            address,
+        });
+        closeAddDocumentDialog();
+        setNcwDialogOpen(true);
+    };
+
+    const closeNcwDialog = () => {
+        setNcwDialogOpen(false);
+        setNcwDefaults(null);
+    };
+
+    const handleNcwSaved = (_url?: string) => {
+        void _url;
+        setNcwDialogOpen(false);
+        setNcwDefaults(null);
+        void load();
+    };
 
     const openAddDocumentDialog = () => {
         prefillOrderFields();
@@ -1442,17 +1510,23 @@ export default function TaskDetailsPage() {
                                 <Stack gap={1}>
                                     {documentItems.map((doc) => {
                                         const isSpecial =
-                                            doc.type === 'estimate' || doc.type === 'order';
+                                            doc.type === 'estimate' ||
+                                            doc.type === 'order' ||
+                                            doc.type === 'ncw';
                                         const isCurrentDeleting =
                                             documentDeleting && documentToDelete === doc.url;
                                         const downloadTitle =
                                             doc.type === 'order'
                                                 ? 'Скачать заказ'
-                                                : 'Скачать смету';
+                                                : doc.type === 'ncw'
+                                                    ? 'Скачать УОР'
+                                                    : 'Скачать смету';
                                         const deleteTitle =
                                             doc.type === 'order'
                                                 ? 'Удалить заказ'
-                                                : 'Удалить смету';
+                                                : doc.type === 'ncw'
+                                                    ? 'Удалить УОР'
+                                                    : 'Удалить смету';
 
                                         return (
                                             <Box
@@ -1580,7 +1654,7 @@ export default function TaskDetailsPage() {
                                     {orderCompletionDate && (
                                         <Typography>
                                             Срок выполнения:{' '}
-                                            {formatDate(orderCompletionDate)} (от даты подписания + 60 календарных дней)
+                                            {formatDate(orderCompletionDate)}
                                         </Typography>
                                     )}
                                     {task.orderUrl && (
@@ -1791,6 +1865,14 @@ export default function TaskDetailsPage() {
                             >
                                 Заказ на выполнение работ
                             </Button>
+                            <Button
+                                variant="outlined"
+                                onClick={openNcwCreator}
+                                startIcon={<DescriptionOutlinedIcon />}
+                                sx={{ alignSelf: 'flex-start' }}
+                            >
+                                Создать УОР
+                            </Button>
                         </Stack>
                     ) : (
                         <Stack spacing={2}>
@@ -1890,6 +1972,34 @@ export default function TaskDetailsPage() {
                         </Button>
                     </DialogActions>
                 )}
+            </Dialog>
+
+            <Dialog
+                open={ncwDialogOpen}
+                onClose={closeNcwDialog}
+                fullWidth
+                maxWidth="lg"
+                scroll="paper"
+            >
+                <DialogTitle>Создание уведомления о завершении работ</DialogTitle>
+                <DialogContent sx={{ p: 0 }}>
+                    {task && (
+                        <T2NcwGenerator
+                            taskId={task.taskId}
+                            orgSlug={org || undefined}
+                            initialOrderNumber={ncwDefaults?.orderNumber ?? task.orderNumber ?? undefined}
+                            initialOrderDate={ncwDefaults?.orderDate ?? task.orderDate ?? undefined}
+                            initialOrderSignDate={
+                                ncwDefaults?.orderSignDate ?? task.orderSignDate ?? undefined
+                            }
+                            initialBsNumber={ncwDefaults?.bsNumber ?? task.bsNumber ?? undefined}
+                            initialAddress={ncwDefaults?.address ?? task.bsAddress ?? undefined}
+                            open={ncwDialogOpen}
+                            onSaved={handleNcwSaved}
+                            onClose={closeNcwDialog}
+                        />
+                    )}
+                </DialogContent>
             </Dialog>
 
             <Dialog

@@ -642,12 +642,15 @@ export async function PUT(
 
         const newWorkItems = sanitizeWorkItems(body.workItems);
         if (newWorkItems !== null) {
-            const prevWorkItems = Array.isArray(currentTask.workItems) ? currentTask.workItems : [];
-            if (!isSameValue(prevWorkItems, newWorkItems)) {
-                markChange('workItems', prevWorkItems, newWorkItems);
+            const prevWorkItemsNormalized =
+                sanitizeWorkItems(currentTask.workItems as unknown) ?? [];
+
+            if (!isSameValue(prevWorkItemsNormalized, newWorkItems)) {
+                markChange('workItems', prevWorkItemsNormalized, newWorkItems);
                 allowedPatch.workItems = newWorkItems;
             }
         }
+
 
         if (Array.isArray(body.relatedTasks)) {
             const normalizedPayloadIds = Array.from(

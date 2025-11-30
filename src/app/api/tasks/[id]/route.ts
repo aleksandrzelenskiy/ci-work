@@ -30,6 +30,7 @@ interface UpdateData {
   orderDate?: string; // ISO
   orderSignDate?: string; // ISO
   orderUrl?: string;
+  ncwUrl?: string;
   workCompletionDate?: string; // ISO
   reportLink?: string;
   event?: { details?: { comment?: string } };
@@ -282,13 +283,34 @@ export async function PATCH(
         }
 
         const buffer = Buffer.from(await ncwFile.arrayBuffer());
-        task.ncwUrl = await uploadTaskFile(
+        const previousNcwUrl = task.ncwUrl;
+        const newNcwUrl = await uploadTaskFile(
             buffer,
             taskIdUpper,
-            'ncw',
+            'documents',
             `${Date.now()}-${ncwFile.name}`,
             mime
         );
+        if (previousNcwUrl && previousNcwUrl !== newNcwUrl) {
+          try {
+            await deleteTaskFile(previousNcwUrl);
+          } catch (err) {
+            console.error('Failed to remove previous ncw file', err);
+          }
+          if (Array.isArray(task.documents)) {
+            task.documents = task.documents.filter((d: string) => d !== previousNcwUrl);
+          }
+          if (Array.isArray(task.attachments)) {
+            task.attachments = task.attachments.filter((a: string) => a !== previousNcwUrl);
+          }
+        }
+        task.ncwUrl = newNcwUrl;
+        if (!Array.isArray(task.documents)) {
+          task.documents = [];
+        }
+        if (!task.documents.includes(newNcwUrl)) {
+          task.documents.push(newNcwUrl);
+        }
       }
     } else if (contentType?.includes('application/json')) {
       updateData = (await request.json()) as UpdateData;
@@ -547,6 +569,27 @@ export async function PATCH(
         task.documents.push(updateData.orderUrl);
       }
     }
+    if (updateData.ncwUrl) {
+      const prevNcwUrl = task.ncwUrl;
+      if (prevNcwUrl && prevNcwUrl !== updateData.ncwUrl) {
+        try {
+          await deleteTaskFile(prevNcwUrl);
+        } catch (err) {
+          console.error('Failed to remove previous ncw file', err);
+        }
+        if (Array.isArray(task.documents)) {
+          task.documents = task.documents.filter((d: string) => d !== prevNcwUrl);
+        }
+        if (Array.isArray(task.attachments)) {
+          task.attachments = task.attachments.filter((a: string) => a !== prevNcwUrl);
+        }
+      }
+      task.ncwUrl = updateData.ncwUrl;
+      if (!Array.isArray(task.documents)) task.documents = [];
+      if (!task.documents.includes(updateData.ncwUrl)) {
+        task.documents.push(updateData.ncwUrl);
+      }
+    }
 
     // === дата окончания работ ===
     if (updateData.workCompletionDate) {
@@ -661,9 +704,23 @@ export async function DELETE(
         await deleteTaskFile(task.ncwUrl);
       }
 
+      const pullQuery: Record<string, string> = {};
+      if (task.ncwUrl) {
+        pullQuery.attachments = task.ncwUrl;
+        pullQuery.documents = task.ncwUrl;
+      }
+
+      const update: Record<string, unknown> = {
+        $unset: { ncwUrl: '', workCompletionDate: '' },
+      };
+
+      if (Object.keys(pullQuery).length > 0) {
+        update.$pull = pullQuery;
+      }
+
       const updatedTask = await TaskModel.findOneAndUpdate(
           { taskId: taskIdUpper },
-          { $unset: { ncwUrl: '', workCompletionDate: '' } },
+          update,
           { new: true, runValidators: false }
       );
 
