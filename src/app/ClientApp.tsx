@@ -4,8 +4,6 @@
 import React, {
   useState,
   useMemo,
-  createContext,
-  useContext,
   useEffect,
 } from 'react';
 import { useUser } from '@clerk/nextjs';
@@ -29,13 +27,7 @@ import { useRouter, usePathname } from 'next/navigation';
 import { fetchUserContext } from '@/app/utils/userContext';
 import NavigationMenu from '@/app/components/NavigationMenu';
 import NotificationBell from '@/app/components/NotificationBell';
-
-const ThemeContext = createContext({
-  toggleTheme: () => {},
-  mode: 'light',
-});
-
-export const useThemeContext = () => useContext(ThemeContext);
+import MessengerTrigger from '@/app/components/MessengerTrigger';
 
 export default function ClientApp({ children }: { children: React.ReactNode }) {
   const [mode, setMode] = useState<'light' | 'dark'>('light');
@@ -73,7 +65,7 @@ export default function ClientApp({ children }: { children: React.ReactNode }) {
       }
     };
 
-    fetchUserRole();
+    void fetchUserRole();
   }, [router, pathname]);
 
   // Инициализация темы из localStorage
@@ -205,136 +197,133 @@ export default function ClientApp({ children }: { children: React.ReactNode }) {
   );
 
   return (
-    <ThemeContext.Provider value={{ toggleTheme, mode }}>
-      <ThemeProvider theme={theme}>
+    <ThemeProvider theme={theme}>
+      <Box
+        sx={{
+          position: 'relative',
+          minHeight: '100vh',
+          backgroundImage: backgroundGradient,
+          backgroundAttachment: 'fixed',
+          backgroundSize: 'cover',
+          overflow: 'hidden',
+        }}
+      >
+        <Box
+          sx={{
+            position: 'absolute',
+            top: -80,
+            right: -60,
+            width: 240,
+            height: 240,
+            bgcolor: (theme) => theme.palette.primary.main,
+            opacity: 0.25,
+            filter: 'blur(120px)',
+            zIndex: 0,
+          }}
+        />
+        <Box
+          sx={{
+            position: 'absolute',
+            bottom: -120,
+            left: -40,
+            width: 260,
+            height: 260,
+            bgcolor: (theme) => theme.palette.secondary.main,
+            opacity: 0.18,
+            filter: 'blur(130px)',
+            zIndex: 0,
+          }}
+        />
         <Box
           sx={{
             position: 'relative',
+            zIndex: 1,
+            display: 'flex',
             minHeight: '100vh',
-            backgroundImage: backgroundGradient,
-            backgroundAttachment: 'fixed',
-            backgroundSize: 'cover',
-            overflow: 'hidden',
+            flexDirection: 'column',
+            backgroundColor: 'transparent',
           }}
         >
-          <Box
-            sx={{
-              position: 'absolute',
-              top: -80,
-              right: -60,
-              width: 240,
-              height: 240,
-              bgcolor: (theme) => theme.palette.primary.main,
-              opacity: 0.25,
-              filter: 'blur(120px)',
-              zIndex: 0,
-            }}
-          />
-          <Box
-            sx={{
-              position: 'absolute',
-              bottom: -120,
-              left: -40,
-              width: 260,
-              height: 260,
-              bgcolor: (theme) => theme.palette.secondary.main,
-              opacity: 0.18,
-              filter: 'blur(130px)',
-              zIndex: 0,
-            }}
-          />
-          <Box
-            sx={{
-              position: 'relative',
-              zIndex: 1,
-              display: 'flex',
-              minHeight: '100vh',
-              flexDirection: 'column',
-              backgroundColor: 'transparent',
-            }}
-          >
-            <CssBaseline />
-          {isSignedIn ? (
-            isOnboardingRoute
-              ? onboardingContent
-              : profileSetupCompleted
-              ? (
-                <>
-                  {/* AppBar */}
-                  <AppBar
-                    position='fixed'
-                    elevation={0}
-                    color='transparent'
-                    sx={{
-                      backgroundColor: appBarBg,
-                      backdropFilter: 'blur(24px)',
-                      borderBottom: `1px solid ${appBarBorder}`,
-                      boxShadow: appBarShadow,
-                      color: appBarText,
-                    }}
-                  >
-                    <Toolbar>
+          <CssBaseline />
+        {isSignedIn ? (
+          isOnboardingRoute
+            ? onboardingContent
+            : profileSetupCompleted
+            ? (
+              <>
+                {/* AppBar */}
+                <AppBar
+                  position='fixed'
+                  elevation={0}
+                  color='transparent'
+                  sx={{
+                    backgroundColor: appBarBg,
+                    backdropFilter: 'blur(24px)',
+                    borderBottom: `1px solid ${appBarBorder}`,
+                    boxShadow: appBarShadow,
+                    color: appBarText,
+                  }}
+                >
+                  <Toolbar>
+                    <IconButton
+                      onClick={handleToggleDrawer}
+                      edge='start'
+                      color='inherit'
+                      sx={{
+                        mr: 1,
+                        borderRadius: '16px',
+                        border: `1px solid ${appBarBorder}`,
+                        backdropFilter: 'blur(6px)',
+                      }}
+                    >
+                      <Menu />
+                    </IconButton>
+                    <Box
+                      sx={{ flexGrow: 1, display: 'flex', alignItems: 'center' }}
+                    >
+                      <Badge
+                        badgeContent={`Pro`}
+                        color='primary'
+                        anchorOrigin={{
+                          vertical: 'top',
+                          horizontal: 'right',
+                        }}
+                      >
+                        <Typography variant='h6'>CI Work</Typography>
+                      </Badge>
+                    </Box>
+                    <Box
+                      sx={{
+                        display: 'flex',
+                        alignItems: 'center',
+                        marginRight: '5px',
+                      }}
+                    >
                       <IconButton
-                        onClick={handleToggleDrawer}
-                        edge='start'
+                        onClick={toggleTheme}
                         color='inherit'
-                        sx={{
-                          mr: 1,
-                          borderRadius: '16px',
-                          border: `1px solid ${appBarBorder}`,
-                          backdropFilter: 'blur(6px)',
-                        }}
+                        sx={toolbarIconButtonSx}
+                        aria-label='Переключить тему'
                       >
-                        <Menu />
+                        {mode === 'dark' ? (
+                          <WbSunnyIcon fontSize='small' />
+                        ) : (
+                          <DarkModeIcon fontSize='small' />
+                        )}
                       </IconButton>
-                      <Box
-                        sx={{ flexGrow: 1, display: 'flex', alignItems: 'center' }}
-                      >
-                        <Badge
-                          badgeContent={`Pro`}
-                          color='primary'
-                          anchorOrigin={{
-                            vertical: 'top',
-                            horizontal: 'right',
-                          }}
-                        >
-                          <Typography variant='h6'>CI Work</Typography>
-                        </Badge>
-                      </Box>
-                      <Box
-                        sx={{
-                          display: 'flex',
-                          alignItems: 'center',
-                          marginRight: '5px',
-                        }}
-                      >
-                        <IconButton
-                          onClick={toggleTheme}
-                          color='inherit'
-                          sx={toolbarIconButtonSx}
-                          aria-label='Переключить тему'
-                        >
-                          {mode === 'dark' ? (
-                            <WbSunnyIcon fontSize='small' />
-                          ) : (
-                            <DarkModeIcon fontSize='small' />
-                          )}
-                        </IconButton>
-                      </Box>
-                      <Box
-                        sx={{
-                          marginRight: '12px',
-                        }}
-                      >
-                        <NotificationBell buttonSx={toolbarIconButtonSx} />
-                      </Box>
-                    </Toolbar>
-                  </AppBar>
-                  {/* Sidebar Drawer */}
-                  <Drawer
-                    open={open}
-                    onClose={handleToggleDrawer}
-                    PaperProps={{
+                    </Box>
+                    <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.5 }}>
+                      <MessengerTrigger buttonSx={toolbarIconButtonSx} />
+                      <NotificationBell buttonSx={toolbarIconButtonSx} />
+                    </Box>
+                  </Toolbar>
+                </AppBar>
+                {/* Sidebar Drawer */}
+                <Drawer
+                  open={open}
+                  onClose={handleToggleDrawer}
+                  slotProps={{
+                    paper: {
                       sx: {
                         width: 260,
                         height: '100vh',
@@ -343,63 +332,63 @@ export default function ClientApp({ children }: { children: React.ReactNode }) {
                         backdropFilter: 'blur(28px)',
                         boxShadow: appBarShadow,
                       },
-                    }}
-                  >
-                    {DrawerList}
-                  </Drawer>
-                  {/* Основное содержимое */}
+                    },
+                  }}
+                >
+                  {DrawerList}
+                </Drawer>
+                {/* Основное содержимое */}
+                <Box
+                  component='main'
+                  sx={{
+                    flexGrow: 1,
+                    bgcolor: 'transparent',
+                    color: 'text.primary',
+                    p: 2,
+                    display: 'flex',
+                    flexDirection: 'column',
+                    overflow: 'auto',
+                  }}
+                >
+                  <Toolbar />
+                  <Box sx={{ flexGrow: 1 }}>{children}</Box>
+                  {/* Футер */}
                   <Box
-                    component='main'
+                    component='footer'
                     sx={{
-                      flexGrow: 1,
-                      bgcolor: 'transparent',
-                      color: 'text.primary',
                       p: 2,
-                      display: 'flex',
-                      flexDirection: 'column',
-                      overflow: 'auto',
+                      textAlign: 'center',
+                      borderTop: `1px solid ${theme.palette.divider}`,
+                      mt: 2,
                     }}
                   >
-                    <Toolbar />
-                    <Box sx={{ flexGrow: 1 }}>{children}</Box>
-                    {/* Футер */}
-                    <Box
-                      component='footer'
-                      sx={{
-                        p: 2,
-                        textAlign: 'center',
-                        borderTop: `1px solid ${theme.palette.divider}`,
-                        mt: 2,
-                      }}
-                    >
-                      © CI Work {currentYear}
-                    </Box>
+                    © CI Work {currentYear}
                   </Box>
-                </>
-                )
-              : blockingScreen
-          ) : (
-            <Box
-              component='main'
-              sx={{
-                flexGrow: 1,
-                bgcolor: 'transparent',
-                color: 'text.primary',
-                display: 'flex',
-                flexDirection: 'column',
-                justifyContent: 'center',
-                alignItems: 'center',
-                height: '100vh',
-                width: '100vw',
-                padding: 0,
-              }}
-            >
-              {children}
-            </Box>
-          )}
-        </Box>
+                </Box>
+              </>
+              )
+            : blockingScreen
+        ) : (
+          <Box
+            component='main'
+            sx={{
+              flexGrow: 1,
+              bgcolor: 'transparent',
+              color: 'text.primary',
+              display: 'flex',
+              flexDirection: 'column',
+              justifyContent: 'center',
+              alignItems: 'center',
+              height: '100vh',
+              width: '100vw',
+              padding: 0,
+            }}
+          >
+            {children}
+          </Box>
+        )}
       </Box>
-      </ThemeProvider>
-    </ThemeContext.Provider>
+    </Box>
+    </ThemeProvider>
   );
 }

@@ -6,7 +6,7 @@ import { io, type Socket } from 'socket.io-client';
 let socketInstance: Socket | null = null;
 let socketPromise: Promise<Socket> | null = null;
 
-const fetchSocketToken = async (): Promise<string | null> => {
+export const fetchSocketToken = async (): Promise<string | null> => {
     try {
         const res = await fetch('/api/notifications/socket-auth', { cache: 'no-store' });
         const payload = (await res.json().catch(() => ({}))) as {
@@ -30,12 +30,15 @@ const createSocketClient = async (): Promise<Socket> => {
         console.error('socketClient: failed to warm up socket API', error);
     }
     const token = await fetchSocketToken();
+    if (!token) {
+        throw new Error('socketClient: socket token is missing');
+    }
 
     const socket = io({
         path: NOTIFICATIONS_SOCKET_PATH,
         transports: ['websocket', 'polling'],
         withCredentials: true,
-        auth: token ? { token } : undefined,
+        auth: { token },
     });
 
     socketInstance = socket;

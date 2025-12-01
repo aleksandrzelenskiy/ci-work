@@ -15,6 +15,7 @@ import { verifySocketToken } from '@/server/socket/token';
 
 const USER_ROOM_PREFIX = 'notification:user:';
 const TASK_ROOM_PREFIX = 'task:';
+const CHAT_ROOM_PREFIX = 'chat:conversation:';
 
 type TaskCommentPayload = {
     _id: string;
@@ -85,6 +86,16 @@ export class NotificationSocketGateway {
                 const normalized = this.taskRoomName(taskId);
                 if (normalized) socket.leave(normalized);
             });
+
+            socket.on('chat:join', ({ conversationId }: { conversationId?: string }) => {
+                const room = this.chatRoomName(conversationId);
+                if (room) socket.join(room);
+            });
+
+            socket.on('chat:leave', ({ conversationId }: { conversationId?: string }) => {
+                const room = this.chatRoomName(conversationId);
+                if (room) socket.leave(room);
+            });
         });
     }
 
@@ -136,15 +147,76 @@ export class NotificationSocketGateway {
         if (!room) return;
         this.io.to(room).emit('task:comment:new', payload);
     }
+
+    private chatRoomName(conversationIdInput?: unknown) {
+        if (typeof conversationIdInput !== 'string') return '';
+        const cleaned = conversationIdInput.trim();
+        if (!cleaned) return '';
+        return `${CHAT_ROOM_PREFIX}${cleaned}`;
+    }
+
+    public emitChatMessage(
+        conversationId: string,
+        payload: unknown,
+        recipientUserIds: string[]
+    ) {
+        if (!this.io) return;
+        const room = this.chatRoomName(conversationId);
+        if (room) {
+            this.io.to(room).emit('chat:message:new', payload);
+        }
+        recipientUserIds.forEach((userId) => {
+            this.io?.to(this.roomName(userId)).emit('chat:message:new', payload);
+        });
+    }
+
+    public emitChatRead(
+        conversationId: string,
+        payload: { conversationId: string; userEmail: string; messageIds: string[] },
+        recipientUserIds: string[]
+    ) {
+        if (!this.io) return;
+        const room = this.chatRoomName(conversationId);
+        if (room) {
+            this.io.to(room).emit('chat:read', payload);
+        }
+        recipientUserIds.forEach((userId) => {
+            this.io?.to(this.roomName(userId)).emit('chat:read', payload);
+        });
+    }
+
+    public emitChatUnread(
+        conversationId: string,
+        payload: { conversationId: string; unreadCount: number; userEmail?: string },
+        recipientUserIds: string[]
+    ) {
+        if (!this.io) return;
+        const room = this.chatRoomName(conversationId);
+        if (room) {
+            this.io.to(room).emit('chat:unread', payload);
+        }
+        recipientUserIds.forEach((userId) => {
+            this.io?.to(this.roomName(userId)).emit('chat:unread', payload);
+        });
+    }
 }
 
 const globalForSocket = globalThis as typeof globalThis & {
     notificationSocketGateway?: NotificationSocketGateway;
 };
 
-export const notificationSocketGateway =
-    globalForSocket.notificationSocketGateway ?? new NotificationSocketGateway();
+const createGateway = () => new NotificationSocketGateway();
+const existingGateway = globalForSocket.notificationSocketGateway;
+const isGatewayCompatible =
+    existingGateway &&
+    typeof existingGateway.emitChatMessage === 'function' &&
+    typeof existingGateway.emitChatRead === 'function' &&
+    typeof existingGateway.emitChatUnread === 'function';
 
-if (!globalForSocket.notificationSocketGateway) {
+export const notificationSocketGateway = isGatewayCompatible
+    ? existingGateway
+    : createGateway();
+
+if (!globalForSocket.notificationSocketGateway || !isGatewayCompatible) {
     globalForSocket.notificationSocketGateway = notificationSocketGateway;
 }

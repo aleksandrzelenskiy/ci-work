@@ -1,0 +1,1102 @@
+'use client';
+
+import React from 'react';
+import {
+    Avatar,
+    Box,
+    Button,
+    Chip,
+    CircularProgress,
+    Dialog,
+    DialogContent,
+    DialogTitle,
+    Divider,
+    IconButton,
+    InputAdornment,
+    List,
+    ListItem,
+    ListItemButton,
+    ListItemAvatar,
+    ListItemText,
+    OutlinedInput,
+    Paper,
+    Stack,
+    TextField,
+    Tooltip,
+    Typography,
+    Fab,
+    useMediaQuery,
+    useTheme,
+} from '@mui/material';
+import SendIcon from '@mui/icons-material/Send';
+import BusinessIcon from '@mui/icons-material/Business';
+import FolderIcon from '@mui/icons-material/Folder';
+import ChatBubbleIcon from '@mui/icons-material/ChatBubble';
+import SearchIcon from '@mui/icons-material/Search';
+import AddCommentIcon from '@mui/icons-material/AddComment';
+import GroupAddIcon from '@mui/icons-material/GroupAdd';
+import ArrowBackIosNewIcon from '@mui/icons-material/ArrowBackIosNew';
+import type { MessengerConversationDTO, MessengerMessageDTO } from '@/app/types/messenger';
+import getSocketClient from '@/app/lib/socketClient';
+
+type MessengerInterfaceProps = {
+    onUnreadChangeAction?: (count: number, unreadMap?: Record<string, number>) => void;
+    defaultConversationId?: string;
+    isOpen?: boolean;
+};
+
+const scopeIconMap: Record<'org' | 'project' | 'direct', React.ReactNode> = {
+    org: <BusinessIcon fontSize='small' />,
+    project: <FolderIcon fontSize='small' />,
+    direct: <ChatBubbleIcon fontSize='small' />,
+};
+
+const formatTime = (iso: string) => {
+    const date = new Date(iso);
+    const hours = date.getHours().toString().padStart(2, '0');
+    const minutes = date.getMinutes().toString().padStart(2, '0');
+    return `${hours}:${minutes}`;
+};
+
+const normalizeEmail = (value?: string | null) =>
+    typeof value === 'string' ? value.trim().toLowerCase() : '';
+
+const formatNameFromEmail = (value: string) => {
+    if (!value.includes('@')) return value;
+    const local = value.split('@')[0] || value;
+    const parts = local.split(/[._-]+/).filter(Boolean);
+    if (!parts.length) return value;
+    return parts
+        .map((part) => part.charAt(0).toUpperCase() + part.slice(1))
+        .join(' ');
+};
+
+const truncatePreview = (value?: string | null, maxLength = 70) => {
+    if (!value) return '';
+    const normalized = value.replace(/\s+/g, ' ').trim();
+    if (!normalized) return '';
+    if (normalized.length <= maxLength) return normalized;
+    return `${normalized.slice(0, maxLength).trimEnd()}...`;
+};
+
+type ParticipantOption = {
+    email: string;
+    name?: string;
+    role?: string;
+};
+
+export default function MessengerInterface({
+    onUnreadChangeAction,
+    defaultConversationId,
+    isOpen = false,
+}: MessengerInterfaceProps) {
+    const theme = useTheme();
+    const isMobile = useMediaQuery(theme.breakpoints.down('sm'));
+    const [conversations, setConversations] = React.useState<MessengerConversationDTO[]>([]);
+    const [messagesByConversation, setMessagesByConversation] = React.useState<
+        Record<string, MessengerMessageDTO[]>
+    >({});
+    const [activeConversationId, setActiveConversationId] = React.useState<string>('');
+    const [draftMessage, setDraftMessage] = React.useState('');
+    const [userEmail, setUserEmail] = React.useState('');
+    const [loadingConversations, setLoadingConversations] = React.useState(true);
+    const [loadingMessages, setLoadingMessages] = React.useState(false);
+    const [socketReady, setSocketReady] = React.useState(false);
+    const [conversationSearch, setConversationSearch] = React.useState('');
+    const [contactSearch, setContactSearch] = React.useState('');
+    const [participants, setParticipants] = React.useState<ParticipantOption[]>([]);
+    const [loadingParticipants, setLoadingParticipants] = React.useState(false);
+    const [contactPickerOpen, setContactPickerOpen] = React.useState(false);
+    const [participantsError, setParticipantsError] = React.useState<string | null>(null);
+    const [creatingChatWith, setCreatingChatWith] = React.useState<string | null>(null);
+    const [mobileView, setMobileView] = React.useState<'list' | 'chat'>('list');
+    const socketRef = React.useRef<Awaited<ReturnType<typeof getSocketClient>> | null>(null);
+    const chatContainerRef = React.useRef<HTMLDivElement | null>(null);
+    const prevConversationRef = React.useRef<string | null>(null);
+    const seenMessageIdsRef = React.useRef<Set<string>>(new Set());
+    const showListPane = !isMobile || mobileView === 'list';
+    const showChatPane = !isMobile || mobileView === 'chat';
+
+    const activeConversation = React.useMemo(
+        () => conversations.find((c) => c.id === activeConversationId),
+        [conversations, activeConversationId]
+    );
+
+    const activeMessages = React.useMemo(
+        () => messagesByConversation[activeConversationId] ?? [],
+        [messagesByConversation, activeConversationId]
+    );
+
+    const totalUnread = React.useMemo(
+        () => conversations.reduce((acc, item) => acc + item.unreadCount, 0),
+        [conversations]
+    );
+
+    const unreadMap = React.useMemo(() => {
+        const map: Record<string, number> = {};
+        conversations.forEach((c) => {
+            map[c.id] = c.unreadCount ?? 0;
+        });
+        return map;
+    }, [conversations]);
+
+    const filteredConversations = React.useMemo(() => {
+        const query = conversationSearch.trim().toLowerCase();
+        if (!query) return conversations;
+        return conversations.filter((conversation) => {
+            const titleMatch = conversation.title.toLowerCase().includes(query);
+            const projectMatch = conversation.projectKey
+                ? conversation.projectKey.toLowerCase().includes(query)
+                : false;
+            const participantsMatch = conversation.participants.some((participant) =>
+                participant.toLowerCase().includes(query)
+            );
+            return titleMatch || projectMatch || participantsMatch;
+        });
+    }, [conversationSearch, conversations]);
+
+    const filteredContacts = React.useMemo(() => {
+        const query = contactSearch.trim().toLowerCase();
+        return participants
+            .filter((participant) => normalizeEmail(participant.email) !== userEmail)
+            .filter((participant) => {
+                if (!query) return true;
+                const emailMatch = participant.email.toLowerCase().includes(query);
+                const nameMatch = participant.name?.toLowerCase().includes(query);
+                const roleMatch = participant.role?.toLowerCase().includes(query);
+                return Boolean(emailMatch || nameMatch || roleMatch);
+            });
+    }, [participants, contactSearch, userEmail]);
+
+    const isConversationVisible = React.useCallback(
+        (conversationId: string) => {
+            if (!isOpen || !conversationId) return false;
+            if (conversationId !== activeConversationId) return false;
+            if (!isMobile) return true;
+            return mobileView === 'chat';
+        },
+        [isOpen, activeConversationId, isMobile, mobileView]
+    );
+
+    const activeConversationVisible = React.useMemo(
+        () => isConversationVisible(activeConversationId),
+        [activeConversationId, isConversationVisible]
+    );
+
+    React.useEffect(() => {
+        if (!isOpen) return;
+        onUnreadChangeAction?.(totalUnread, unreadMap);
+    }, [isOpen, totalUnread, unreadMap, onUnreadChangeAction]);
+
+    const attachSocket = React.useCallback(async () => {
+        try {
+            socketRef.current = await getSocketClient();
+            setSocketReady(true);
+        } catch (error) {
+            console.error('messenger: socket init failed', error);
+        }
+    }, []);
+
+    React.useEffect(() => {
+        let cancelled = false;
+        void attachSocket();
+        const retryTimer = setTimeout(() => {
+            if (!cancelled && !socketRef.current) {
+                void attachSocket();
+            }
+        }, 5000);
+        return () => {
+            cancelled = true;
+            clearTimeout(retryTimer);
+        };
+    }, [attachSocket]);
+
+    const loadConversations = React.useCallback(
+        async (forceActiveId?: string) => {
+            setLoadingConversations(true);
+            try {
+                const res = await fetch('/api/messenger/conversations', { cache: 'no-store' });
+                const payload = (await res.json().catch(() => ({}))) as {
+                    ok?: boolean;
+                    conversations?: MessengerConversationDTO[];
+                    userEmail?: string;
+                    error?: string;
+                };
+                if (!res.ok || payload.ok !== true || !payload.conversations) {
+                    console.error('messenger: load conversations failed', payload.error);
+                    return;
+                }
+                setUserEmail(normalizeEmail(payload.userEmail));
+                setConversations(payload.conversations);
+                const initialActive =
+                    forceActiveId && payload.conversations.some((c) => c.id === forceActiveId)
+                        ? forceActiveId
+                        : defaultConversationId && payload.conversations.some((c) => c.id === defaultConversationId)
+                            ? defaultConversationId
+                            : payload.conversations[0]?.id ?? '';
+                setActiveConversationId(initialActive);
+            } catch (error) {
+                console.error('messenger: load conversations failed', error);
+            } finally {
+                setLoadingConversations(false);
+            }
+        },
+        [defaultConversationId]
+    );
+
+    React.useEffect(() => {
+        void loadConversations();
+    }, [loadConversations]);
+
+    React.useEffect(() => {
+        if (!isMobile) {
+            setMobileView('list');
+            return;
+        }
+        if (isMobile && activeConversationId) {
+            setMobileView('chat');
+        }
+    }, [isMobile, activeConversationId]);
+
+    const loadParticipants = React.useCallback(async () => {
+        setParticipantsError(null);
+        setLoadingParticipants(true);
+        try {
+            const res = await fetch('/api/messenger/participants', { cache: 'no-store' });
+            const payload = (await res.json().catch(() => ({}))) as {
+                ok?: boolean;
+                participants?: ParticipantOption[];
+                userEmail?: string;
+                error?: string;
+            };
+            if (!res.ok || payload.ok !== true || !payload.participants) {
+                console.error('messenger: load participants failed', payload.error);
+                setParticipantsError('Не удалось загрузить участников');
+                return;
+            }
+            setParticipants(payload.participants);
+            if (payload.userEmail) {
+                setUserEmail((prev) => prev || normalizeEmail(payload.userEmail));
+            }
+        } catch (error) {
+            console.error('messenger: load participants failed', error);
+            setParticipantsError('Не удалось загрузить участников');
+        } finally {
+            setLoadingParticipants(false);
+        }
+    }, []);
+
+    const markConversationAsRead = React.useCallback(
+        async (conversationId: string) => {
+            if (!conversationId) return;
+            if (!isConversationVisible(conversationId)) return;
+            setConversations((prev) =>
+                prev.map((item) =>
+                    item.id === conversationId ? { ...item, unreadCount: 0 } : item
+                )
+            );
+            setMessagesByConversation((prev) => {
+                const messages = prev[conversationId] ?? [];
+                const next = messages.map((m) =>
+                    m.readBy.includes(userEmail) ? m : { ...m, readBy: [...m.readBy, userEmail] }
+                );
+                return { ...prev, [conversationId]: next };
+            });
+            try {
+                await fetch('/api/messenger/messages/read', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ conversationId }),
+                });
+            } catch (error) {
+                console.error('messenger: mark read failed', error);
+            }
+        },
+        [isConversationVisible, userEmail]
+    );
+
+    const loadMessages = React.useCallback(
+        async (conversationId: string) => {
+            if (!conversationId) return;
+            setLoadingMessages(true);
+            try {
+                const res = await fetch(`/api/messenger/conversations/${conversationId}/messages`, {
+                    cache: 'no-store',
+                });
+                const payload = (await res.json().catch(() => ({}))) as {
+                    ok?: boolean;
+                    messages?: MessengerMessageDTO[];
+                    error?: string;
+                };
+                if (!res.ok || payload.ok !== true || !payload.messages) {
+                    console.error('messenger: load messages failed', payload.error);
+                } else {
+                    setMessagesByConversation((prev) => ({ ...prev, [conversationId]: payload.messages ?? [] }));
+                    await markConversationAsRead(conversationId);
+                }
+            } catch (error) {
+                console.error('messenger: load messages failed', error);
+            } finally {
+                setLoadingMessages(false);
+            }
+        },
+        [markConversationAsRead]
+    );
+
+    React.useEffect(() => {
+        if (!activeConversationId) return;
+        void loadMessages(activeConversationId);
+    }, [activeConversationId, loadMessages]);
+
+    React.useEffect(() => {
+        if (!activeConversationId) return;
+        if (!activeConversationVisible) return;
+        void markConversationAsRead(activeConversationId);
+    }, [activeConversationId, activeConversationVisible, markConversationAsRead]);
+
+    const scrollMessagesToBottom = React.useCallback((behavior: ScrollBehavior = 'smooth') => {
+        const container = chatContainerRef.current;
+        if (!container) return;
+        const scroll = () => {
+            try {
+                container.scrollTo({ top: container.scrollHeight, behavior });
+            } catch {
+                container.scrollTop = container.scrollHeight;
+            }
+        };
+        requestAnimationFrame(scroll);
+    }, []);
+
+    React.useEffect(() => {
+        if (!activeConversationVisible) return;
+        scrollMessagesToBottom(activeMessages.length > 1 ? 'smooth' : 'auto');
+    }, [activeConversationVisible, activeConversationId, activeMessages.length, scrollMessagesToBottom]);
+
+    React.useEffect(() => {
+        if (!contactPickerOpen) return;
+        if (participants.length) return;
+        void loadParticipants();
+    }, [contactPickerOpen, loadParticipants, participants.length]);
+
+    React.useEffect(() => {
+        if (!socketReady || !socketRef.current || !activeConversationId) return;
+        const socket = socketRef.current;
+        const prev = prevConversationRef.current;
+        if (prev && prev !== activeConversationId) {
+            socket.emit('chat:leave', { conversationId: prev });
+        }
+        socket.emit('chat:join', { conversationId: activeConversationId });
+        prevConversationRef.current = activeConversationId;
+    }, [socketReady, activeConversationId]);
+
+    const upsertConversation = React.useCallback((conversation: MessengerConversationDTO) => {
+        setConversations((prev) => {
+            const idx = prev.findIndex((c) => c.id === conversation.id);
+            if (idx === -1) return [...prev, conversation];
+            const next = [...prev];
+            next[idx] = { ...next[idx], ...conversation };
+            return next;
+        });
+    }, []);
+
+    React.useEffect(() => {
+        if (!socketReady || !socketRef.current) return;
+        const socket = socketRef.current;
+
+        const handleNewMessage = (message: MessengerMessageDTO) => {
+            if (message.id && seenMessageIdsRef.current.has(message.id)) return;
+            if (message.id) {
+                seenMessageIdsRef.current.add(message.id);
+            }
+            const knownConversation = conversations.some((c) => c.id === message.conversationId);
+            if (!knownConversation) {
+                void loadConversations(message.conversationId);
+            }
+            const isOwnMessage = message.senderEmail === userEmail;
+            const isViewed = isConversationVisible(message.conversationId);
+            let added = false;
+            setMessagesByConversation((prev) => {
+                const prevMessages = prev[message.conversationId] ?? [];
+                if (prevMessages.some((m) => m.id === message.id)) return prev;
+                added = true;
+                return {
+                    ...prev,
+                    [message.conversationId]: [...prevMessages, message],
+                };
+            });
+            if (added) {
+                setConversations((prev) =>
+                    prev.map((c) =>
+                        c.id === message.conversationId
+                            ? {
+                                  ...c,
+                                  unreadCount: isOwnMessage || isViewed ? 0 : (c.unreadCount ?? 0) + 1,
+                              }
+                            : c
+                    )
+                );
+            }
+
+            if (added && isViewed) {
+                scrollMessagesToBottom();
+            }
+            if (isViewed && added) {
+                void markConversationAsRead(message.conversationId);
+            }
+        };
+
+        const handleRead = (payload: { conversationId: string; userEmail: string; messageIds: string[] }) => {
+            setMessagesByConversation((prev) => {
+                const existing = prev[payload.conversationId] ?? [];
+                if (!existing.length) return prev;
+                const next = existing.map((msg) =>
+                    payload.messageIds.includes(msg.id) && !msg.readBy.includes(payload.userEmail)
+                        ? { ...msg, readBy: [...msg.readBy, payload.userEmail] }
+                        : msg
+                );
+                return { ...prev, [payload.conversationId]: next };
+            });
+        };
+
+        const handleUnread = (payload: { conversationId: string; unreadCount: number; userEmail?: string }) => {
+            const targetEmail = normalizeEmail(payload.userEmail);
+            if (targetEmail && userEmail && targetEmail !== userEmail) return;
+            setConversations((prev) =>
+                prev.map((c) =>
+                    c.id === payload.conversationId
+                        ? { ...c, unreadCount: payload.unreadCount }
+                        : c
+                )
+            );
+        };
+
+        socket.on('chat:message:new', handleNewMessage);
+        socket.on('chat:read', handleRead);
+        socket.on('chat:unread', handleUnread);
+
+        return () => {
+            socket.off('chat:message:new', handleNewMessage);
+            socket.off('chat:read', handleRead);
+            socket.off('chat:unread', handleUnread);
+        };
+    }, [
+        socketReady,
+        activeConversationId,
+        userEmail,
+        markConversationAsRead,
+        conversations,
+        loadConversations,
+        isConversationVisible,
+        scrollMessagesToBottom,
+    ]);
+
+    const handleSelectConversation = (conversationId: string) => {
+        setActiveConversationId(conversationId);
+        if (isMobile) {
+            setMobileView('chat');
+        }
+    };
+
+    const handleSendMessage = async () => {
+        if (!draftMessage.trim() || !activeConversationId) return;
+        const text = draftMessage.trim();
+        setDraftMessage('');
+        try {
+            const res = await fetch('/api/messenger/messages', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ conversationId: activeConversationId, text }),
+            });
+            const payload = (await res.json().catch(() => ({}))) as {
+                ok?: boolean;
+                message?: MessengerMessageDTO;
+            };
+            if (res.ok && payload.ok && payload.message) {
+                setMessagesByConversation((prev) => {
+                    const prevMessages = prev[activeConversationId] ?? [];
+                    const exists = prevMessages.some((m) => m.id === payload.message?.id);
+                    if (exists) return prev;
+                    return {
+                        ...prev,
+                        [activeConversationId]: [...prevMessages, payload.message as MessengerMessageDTO],
+                    };
+                });
+                setConversations((prev) =>
+                    prev.map((item) =>
+                        item.id === activeConversationId ? { ...item, unreadCount: 0 } : item
+                    )
+                );
+                if (isConversationVisible(activeConversationId)) {
+                    scrollMessagesToBottom();
+                }
+            }
+        } catch (error) {
+            console.error('messenger: send failed', error);
+        }
+    };
+
+    const createProjectChat = async () => {
+        const projectKey = prompt('Введите ключ проекта (например, ALPHA):')?.trim();
+        if (!projectKey) return;
+        try {
+            const res = await fetch('/api/messenger/conversations', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ type: 'project', projectKey }),
+            });
+            const payload = (await res.json().catch(() => ({}))) as { ok?: boolean; conversation?: MessengerConversationDTO };
+            if (res.ok && payload.ok && payload.conversation) {
+                upsertConversation(payload.conversation);
+                setActiveConversationId(payload.conversation.id);
+            }
+        } catch (error) {
+            console.error('messenger: create project chat failed', error);
+        }
+    };
+
+    const handleCreateProjectFromPicker = async () => {
+        await createProjectChat();
+        setContactPickerOpen(false);
+    };
+
+    const createDirectChat = React.useCallback(
+        async (targetEmail: string) => {
+            if (!targetEmail) return;
+            setCreatingChatWith(targetEmail);
+            try {
+                const res = await fetch('/api/messenger/conversations', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ type: 'direct', targetEmail }),
+                });
+                const payload = (await res.json().catch(() => ({}))) as { ok?: boolean; conversation?: MessengerConversationDTO };
+                if (res.ok && payload.ok && payload.conversation) {
+                    upsertConversation(payload.conversation);
+                    setActiveConversationId(payload.conversation.id);
+                    setContactPickerOpen(false);
+                } else {
+                    setParticipantsError('Не удалось создать чат');
+                }
+            } catch (error) {
+                console.error('messenger: create direct chat failed', error);
+                setParticipantsError('Не удалось создать чат');
+            } finally {
+                setCreatingChatWith(null);
+            }
+        },
+        [upsertConversation]
+    );
+
+    const handleOpenContactPicker = () => {
+        setContactPickerOpen(true);
+        setContactSearch('');
+        setParticipantsError(null);
+        if (!participants.length && !loadingParticipants) {
+            void loadParticipants();
+        }
+    };
+
+    const handleCloseContactPicker = () => {
+        setContactPickerOpen(false);
+        setParticipantsError(null);
+        setCreatingChatWith(null);
+    };
+
+    const handleBackToList = () => {
+        setMobileView('list');
+    };
+
+    const getDirectDisplayName = React.useCallback(
+        (conversation: MessengerConversationDTO) => {
+            if (conversation.type !== 'direct') return conversation.title;
+            const counterpartName = conversation.counterpartName?.trim();
+            const normalizedTitle = conversation.title?.trim();
+            const isPlaceholder =
+                normalizedTitle?.toLowerCase() === 'личный чат' || normalizedTitle?.toLowerCase() === 'personal chat';
+            if (counterpartName) {
+                return counterpartName;
+            }
+            if (normalizedTitle && !isPlaceholder) {
+                return normalizedTitle.includes('@')
+                    ? formatNameFromEmail(normalizedTitle)
+                    : normalizedTitle;
+            }
+            const counterpart = conversation.participants.find(
+                (participant) => normalizeEmail(participant) !== userEmail
+            );
+            const fallbackCounterpart = conversation.counterpartEmail || counterpart;
+            if (fallbackCounterpart) {
+                const normalizedCounterpart = fallbackCounterpart.trim();
+                return normalizedCounterpart.includes('@')
+                    ? formatNameFromEmail(normalizedCounterpart)
+                    : normalizedCounterpart;
+            }
+            return normalizedTitle || conversation.title;
+        },
+        [userEmail]
+    );
+
+    const renderConversationTitle = (conversation: MessengerConversationDTO) => {
+        const displayTitle = conversation.type === 'direct' ? getDirectDisplayName(conversation) : conversation.title;
+        return (
+            <Stack direction='row' spacing={1} alignItems='center'>
+                {conversation.type !== 'direct' ? scopeIconMap[conversation.type] : null}
+                <Typography variant='subtitle2' noWrap>
+                    {displayTitle}
+                </Typography>
+            </Stack>
+        );
+    };
+
+    const renderConversationSecondary = (conversation: MessengerConversationDTO) => {
+        if (conversation.type === 'direct') {
+            const lastText = truncatePreview(conversation.lastMessagePreview);
+            return (
+                <Stack spacing={0.25}>
+                    {lastText ? (
+                        <Typography variant='body2' color='text.secondary' noWrap>
+                            {lastText}
+                        </Typography>
+                    ) : null}
+                </Stack>
+            );
+        }
+
+        const lastText = truncatePreview(conversation.lastMessagePreview);
+
+        return (
+            <Stack spacing={0.5}>
+                {conversation.projectKey ? (
+                    <Typography
+                        variant='body2'
+                        color='text.secondary'
+                    >
+                        Проект: {conversation.projectKey}
+                    </Typography>
+                ) : null}
+                <Typography
+                    variant='caption'
+                    color='text.secondary'
+                >
+                    {conversation.participants.join(', ') || 'все в организации'}
+                </Typography>
+                {lastText ? (
+                    <Typography
+                        variant='body2'
+                        color='text.secondary'
+                        noWrap
+                    >
+                        {lastText}
+                    </Typography>
+                ) : null}
+            </Stack>
+        );
+    };
+
+    return (
+        <>
+            <Paper
+                variant='outlined'
+                sx={{
+                    display: 'grid',
+                    gridTemplateColumns:
+                        showListPane && showChatPane ? { xs: '1fr', sm: '320px 1fr' } : '1fr',
+                    gap: { xs: 0, sm: 1 },
+                    borderRadius: { xs: 0, sm: 4 },
+                    overflow: 'hidden',
+                    borderColor: 'divider',
+                    minHeight: isMobile ? '100vh' : 360,
+                    width: '100%',
+                    height: isMobile ? '100vh' : 'auto',
+                    background: 'rgba(255,255,255,0.86)',
+                    backdropFilter: 'blur(18px)',
+                    boxShadow: isMobile
+                        ? 'none'
+                        : '0 18px 45px rgba(15,23,42,0.08), inset 0 1px 0 rgba(255,255,255,0.45)',
+                }}
+            >
+                <Box
+                    sx={{
+                        display: showListPane ? 'block' : 'none',
+                        borderRight: {
+                            xs: 'none',
+                            sm: (theme) => `1px solid ${theme.palette.divider}`,
+                        },
+                        background:
+                            'linear-gradient(180deg, rgba(255,255,255,0.58), rgba(238,244,255,0.92))',
+                        maxHeight: { xs: 'calc(100vh - 130px)', sm: 'none' },
+                    }}
+                >
+                    <Stack spacing={1.5} p={2}>
+                        <OutlinedInput
+                            fullWidth
+                            size='small'
+                            placeholder='Поиск по участникам и чатам'
+                            value={conversationSearch}
+                            onChange={(event) => setConversationSearch(event.target.value)}
+                            startAdornment={
+                                <InputAdornment position='start'>
+                                    <SearchIcon fontSize='small' />
+                                </InputAdornment>
+                            }
+                        />
+                    </Stack>
+                    <Divider />
+                    {loadingConversations ? (
+                        <Box sx={{ display: 'flex', justifyContent: 'center', py: 3 }}>
+                            <CircularProgress size={24} />
+                        </Box>
+                    ) : filteredConversations.length === 0 ? (
+                        <Box
+                            sx={{
+                                py: 4,
+                                px: 2,
+                                textAlign: 'center',
+                                color: 'text.secondary',
+                            }}
+                        >
+                            Нет чатов по запросу. Создайте новый диалог.
+                        </Box>
+                    ) : (
+                        <List
+                            sx={{
+                                py: 0,
+                                maxHeight: { xs: 'calc(100vh - 240px)', sm: 'auto' },
+                                overflowY: 'auto',
+                            }}
+                        >
+                            {filteredConversations.map((conversation) => {
+                                const isActive = conversation.id === activeConversationId;
+                                const displayTitle =
+                                    conversation.type === 'direct'
+                                        ? getDirectDisplayName(conversation)
+                                        : conversation.title;
+                                const avatarLetter =
+                                    conversation.type === 'direct'
+                                        ? displayTitle?.[0]?.toUpperCase() || 'U'
+                                        : conversation.type === 'project'
+                                            ? 'P'
+                                            : 'O';
+                                const avatarSrc =
+                                    conversation.type === 'direct'
+                                        ? conversation.counterpartAvatar || undefined
+                                        : undefined;
+                                return (
+                                    <ListItem
+                                        key={conversation.id}
+                                        alignItems='flex-start'
+                                        disablePadding
+                                        sx={{
+                                            borderLeft: isActive
+                                                ? (theme) => `4px solid ${theme.palette.primary.main}`
+                                                : '4px solid transparent',
+                                        }}
+                                    >
+                                        <ListItemButton
+                                            onClick={() => handleSelectConversation(conversation.id)}
+                                            sx={{
+                                                alignItems: 'flex-start',
+                                                gap: 1,
+                                                backgroundColor: isActive
+                                                    ? 'rgba(255,255,255,0.7)'
+                                                    : 'transparent',
+                                                transition: 'background-color 0.2s ease, transform 0.15s ease',
+                                                py: 1.25,
+                                                '&:hover': {
+                                                    backgroundColor: 'rgba(255,255,255,0.85)',
+                                                    transform: 'translateX(2px)',
+                                                },
+                                            }}
+                                        >
+                                            <ListItemAvatar>
+                                                <Avatar
+                                                    src={avatarSrc}
+                                                    sx={{
+                                                        bgcolor:
+                                                            conversation.type === 'project'
+                                                                ? 'secondary.main'
+                                                                : conversation.type === 'direct'
+                                                                    ? 'info.main'
+                                                                : 'primary.main',
+                                                        boxShadow: '0 8px 20px rgba(0,0,0,0.08)',
+                                                    }}
+                                                >
+                                                    {avatarLetter}
+                                                </Avatar>
+                                            </ListItemAvatar>
+                                            <ListItemText
+                                                primary={renderConversationTitle(conversation)}
+                                                secondary={renderConversationSecondary(conversation)}
+                                            />
+                                            {conversation.unreadCount > 0 ? (
+                                                <Chip
+                                                    label={conversation.unreadCount}
+                                                    size='small'
+                                                    color='secondary'
+                                                />
+                                            ) : null}
+                                        </ListItemButton>
+                                    </ListItem>
+                                );
+                            })}
+                        </List>
+                    )}
+                </Box>
+                <Stack
+                    spacing={1.25}
+                    p={2}
+                    sx={{
+                        display: showChatPane ? 'flex' : 'none',
+                        background: 'linear-gradient(145deg, rgba(255,255,255,0.94), rgba(236,244,255,0.88))',
+                        minHeight: { xs: 'calc(100vh - 140px)', sm: 'auto' },
+                    }}
+                >
+                    <Stack direction='row' alignItems='center' justifyContent='space-between'>
+                        <Stack spacing={0.25}>
+                            <Stack direction='row' spacing={1} alignItems='center'>
+                                {isMobile && showChatPane ? (
+                                    <IconButton size='small' onClick={handleBackToList}>
+                                        <ArrowBackIosNewIcon fontSize='small' />
+                                    </IconButton>
+                                ) : null}
+                                <Typography variant='subtitle1' fontWeight={700}>
+                                    {activeConversation
+                                        ? activeConversation.type === 'direct'
+                                            ? getDirectDisplayName(activeConversation)
+                                            : activeConversation.title
+                                        : 'Выберите чат'}
+                                </Typography>
+                            </Stack>
+                            <Typography variant='caption' color='text.secondary'>
+                                {activeConversation
+                                    ? activeConversation.projectKey
+                                        ? `Проектный чат · ${activeConversation.projectKey}`
+                                        : activeConversation.type === 'direct'
+                                            ? 'Личные сообщения внутри организации'
+                                            : 'Организационный чат'
+                                    : 'Выберите или создайте чат, чтобы начать переписку.'}
+                            </Typography>
+                        </Stack>
+                        <Stack direction='row' spacing={1}>
+                            {!isMobile ? (
+                                <Tooltip title='Новое сообщение'>
+                                    <IconButton color='primary' onClick={handleOpenContactPicker}>
+                                        <AddCommentIcon />
+                                    </IconButton>
+                                </Tooltip>
+                            ) : null}
+                        </Stack>
+                    </Stack>
+                    <Divider />
+                    <Box
+                        sx={{
+                            flexGrow: 1,
+                            minHeight: 240,
+                            maxHeight: { xs: 'calc(100vh - 220px)', sm: 440 },
+                            overflowY: 'auto',
+                            pr: { xs: 0, sm: 1 },
+                            py: 1,
+                            borderRadius: 3,
+                            background:
+                                'linear-gradient(180deg, rgba(255,255,255,0.9), rgba(237,243,255,0.88))',
+                            boxShadow: 'inset 0 1px 0 rgba(255,255,255,0.75)',
+                        }}
+                        ref={chatContainerRef}
+                    >
+                        {loadingMessages && !activeMessages.length ? (
+                            <Box sx={{ display: 'flex', justifyContent: 'center', alignItems: 'center', height: '100%' }}>
+                                <CircularProgress size={22} />
+                            </Box>
+                        ) : activeMessages.length === 0 ? (
+                            <Box
+                                sx={{
+                                    flexGrow: 1,
+                                    display: 'flex',
+                                    alignItems: 'center',
+                                    justifyContent: 'center',
+                                    color: 'text.secondary',
+                                    py: 4,
+                                }}
+                            >
+                                {activeConversation ? 'Нет сообщений. Напишите первое!' : 'Чаты появятся здесь.'}
+                            </Box>
+                        ) : (
+                            <Stack spacing={1.25}>
+                                {activeMessages.map((message) => {
+                                    const isOwn = message.senderEmail === userEmail;
+                                    const align = isOwn ? 'flex-end' : 'flex-start';
+                                    const bg = isOwn
+                                        ? 'linear-gradient(135deg, #0f8cff 0%, #4dabff 100%)'
+                                        : 'linear-gradient(135deg, rgba(255,255,255,0.82), rgba(236,242,255,0.85))';
+                                    const isRead = message.readBy?.includes(userEmail);
+                                    return (
+                                        <Stack
+                                            key={message.id}
+                                            alignItems={align}
+                                            spacing={0.5}
+                                            sx={{ width: '100%' }}
+                                        >
+                                            <Typography
+                                                variant='caption'
+                                                color='text.secondary'
+                                                sx={{ pr: isOwn ? 1 : 0 }}
+                                            >
+                                                {message.senderName || message.senderEmail} · {formatTime(message.createdAt)}
+                                            </Typography>
+                                            <Box
+                                                sx={{
+                                                    maxWidth: { xs: '92%', sm: '80%' },
+                                                    background: bg,
+                                                    color: isOwn ? '#fff' : 'text.primary',
+                                                    px: 1.6,
+                                                    py: 1.1,
+                                                    borderRadius: 3,
+                                                    boxShadow: isOwn
+                                                        ? '0 18px 38px rgba(15,23,42,0.18)'
+                                                        : '0 6px 18px rgba(15,23,42,0.08)',
+                                                    border: !isRead ? '1px solid rgba(99,102,241,0.25)' : '1px solid transparent',
+                                                    backdropFilter: isOwn ? 'blur(0px)' : 'blur(6px)',
+                                                }}
+                                            >
+                                                <Typography variant='body2'>{message.text}</Typography>
+                                            </Box>
+                                            {isOwn ? (
+                                                <Typography variant='caption' color='text.secondary'>
+                                                    {message.readBy.length > 1 ? 'Прочитано' : 'Отправлено'}
+                                                </Typography>
+                                            ) : null}
+                                        </Stack>
+                                    );
+                                })}
+                            </Stack>
+                        )}
+                    </Box>
+                    <Stack
+                        direction='row'
+                        spacing={1}
+                        alignItems='center'
+                        sx={{
+                            borderRadius: 999,
+                            backgroundColor: 'rgba(244,246,249,0.92)',
+                            px: 1,
+                            py: 0.75,
+                            boxShadow: 'inset 0 1px 0 rgba(255,255,255,0.8)',
+                        }}
+                    >
+                        <TextField
+                            fullWidth
+                            size='small'
+                            placeholder='Напишите сообщение для коллег или проектной команды...'
+                            value={draftMessage}
+                            onChange={(event) => setDraftMessage(event.target.value)}
+                            onKeyDown={(event) => {
+                                if (event.key === 'Enter' && !event.shiftKey) {
+                                    event.preventDefault();
+                                    void handleSendMessage();
+                                }
+                            }}
+                        />
+                        <IconButton
+                            color='primary'
+                            onClick={handleSendMessage}
+                            aria-label='Отправить сообщение'
+                            disabled={!draftMessage.trim()}
+                        >
+                            <SendIcon />
+                        </IconButton>
+                    </Stack>
+                </Stack>
+            </Paper>
+            <Dialog open={contactPickerOpen} onClose={handleCloseContactPicker} fullWidth maxWidth='xs'>
+                <DialogTitle>Новое сообщение</DialogTitle>
+                <DialogContent dividers>
+                    <Stack spacing={1.5}>
+                        <OutlinedInput
+                            fullWidth
+                            size='small'
+                            placeholder='Найдите коллегу по имени, роли или email'
+                            value={contactSearch}
+                            onChange={(event) => setContactSearch(event.target.value)}
+                            startAdornment={
+                                <InputAdornment position='start'>
+                                    <SearchIcon fontSize='small' />
+                                </InputAdornment>
+                            }
+                        />
+                        <Button
+                            variant='text'
+                            onClick={handleCreateProjectFromPicker}
+                            startIcon={<GroupAddIcon />}
+                            sx={{ justifyContent: 'flex-start' }}
+                        >
+                            Создать группу
+                        </Button>
+                        <Divider />
+                        {loadingParticipants ? (
+                            <Box sx={{ display: 'flex', justifyContent: 'center', py: 2 }}>
+                                <CircularProgress size={22} />
+                            </Box>
+                        ) : participantsError ? (
+                            <Typography color='error' variant='body2'>
+                                {participantsError}
+                            </Typography>
+                        ) : filteredContacts.length === 0 ? (
+                            <Typography variant='body2' color='text.secondary'>
+                                Коллеги не найдены.
+                            </Typography>
+                        ) : (
+                            <List dense sx={{ maxHeight: 360, overflowY: 'auto', px: 0 }}>
+                                {filteredContacts.map((participant) => {
+                                    const isLoading = creatingChatWith === participant.email;
+                                    return (
+                                        <ListItem
+                                            key={participant.email}
+                                            disablePadding
+                                            secondaryAction={
+                                                isLoading ? <CircularProgress size={14} /> : null
+                                            }
+                                        >
+                                            <ListItemButton
+                                                onClick={() => createDirectChat(participant.email)}
+                                                disabled={isLoading}
+                                            >
+                                                <ListItemAvatar>
+                                                    <Avatar>
+                                                        {(participant.name || participant.email)[0]?.toUpperCase()}
+                                                    </Avatar>
+                                                </ListItemAvatar>
+                                                <ListItemText
+                                                    primary={participant.name || participant.email}
+                                                    secondary={
+                                                        participant.role
+                                                            ? `${participant.email} • ${participant.role}`
+                                                            : participant.email
+                                                    }
+                                                />
+                                            </ListItemButton>
+                                        </ListItem>
+                                    );
+                                })}
+                            </List>
+                        )}
+                    </Stack>
+                </DialogContent>
+            </Dialog>
+            {isMobile && mobileView === 'list' ? (
+                <Fab
+                    color='primary'
+                    aria-label='Новое сообщение'
+                    onClick={handleOpenContactPicker}
+                    sx={{
+                        position: 'fixed',
+                        bottom: 20,
+                        right: 20,
+                        boxShadow: '0 10px 24px rgba(15,23,42,0.2)',
+                    }}
+                >
+                    <AddCommentIcon />
+                </Fab>
+            ) : null}
+        </>
+    );
+}
