@@ -47,9 +47,10 @@ type Props = {
     open: boolean;
     onClose: () => void;
     onApply: (data: ParsedEstimateResult) => void;
+    operatorLabel?: string;
 };
 
-const T2EstimateParser: React.FC<Props> = ({ open, onClose, onApply }) => {
+const T2EstimateParser: React.FC<Props> = ({ open, onClose, onApply, operatorLabel }) => {
     const [file, setFile] = useState<File | null>(null);
     const [uploading, setUploading] = useState(false);
     const [uploadProgress, setUploadProgress] = useState(0);
@@ -201,7 +202,8 @@ const T2EstimateParser: React.FC<Props> = ({ open, onClose, onApply }) => {
 
             if (!response.ok) {
                 const result = await response.json().catch(() => ({}));
-                throw new Error(result.error || 'Ошибка разбора файла');
+                setError((result as { error?: string }).error || 'Ошибка разбора файла');
+                return;
             }
 
             setUploadProgress(70);
@@ -228,8 +230,8 @@ const T2EstimateParser: React.FC<Props> = ({ open, onClose, onApply }) => {
             bsAddress: bsAddress || undefined,
             totalCost: typeof total === 'number' ? total : undefined,
             workItems,
-        sourceFile: file || undefined,
-    });
+            sourceFile: file || undefined,
+        });
 
         resetState();
         onClose();
@@ -238,9 +240,11 @@ const T2EstimateParser: React.FC<Props> = ({ open, onClose, onApply }) => {
     const canApply = !!excelData;
     const hasParsedPreview = !!excelData || !!bsNumber || !!bsAddress || typeof total === 'number';
 
+    const title = operatorLabel ? `Заполнить по смете (${operatorLabel})` : 'Заполнить по смете';
+
     return (
         <Dialog open={open} onClose={handleClose} maxWidth="lg" fullWidth>
-            <DialogTitle>Заполнить по смете (T2)</DialogTitle>
+            <DialogTitle>{title}</DialogTitle>
             <DialogContent dividers>
                 <Box sx={{ display: 'flex', flexDirection: 'column', gap: 2, mt: 1 }}>
                     <Box

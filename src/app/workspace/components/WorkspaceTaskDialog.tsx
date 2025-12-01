@@ -349,6 +349,7 @@ export default function WorkspaceTaskDialog({
     const [workItems, setWorkItems] = React.useState<ParsedWorkItem[]>([]);
 
     const [projectMeta, setProjectMeta] = React.useState<{ regionCode?: string; operator?: string } | null>(null);
+    const isT2Operator = React.useMemo(() => projectMeta?.operator === '250020', [projectMeta?.operator]);
 
     const [members, setMembers] = React.useState<MemberOption[]>([]);
     const [membersLoading, setMembersLoading] = React.useState(false);
@@ -414,6 +415,12 @@ export default function WorkspaceTaskDialog({
         if (!projectRef) return;
         void loadProjectMeta();
     }, [projectRef, loadProjectMeta]);
+
+    React.useEffect(() => {
+        if (!isT2Operator && estimateDialogOpen) {
+            setEstimateDialogOpen(false);
+        }
+    }, [isT2Operator, estimateDialogOpen]);
 
     const loadBsOptions = React.useCallback(
         async (term: string) => {
@@ -787,6 +794,11 @@ export default function WorkspaceTaskDialog({
             if (relatedSearchTimeout.current) clearTimeout(relatedSearchTimeout.current);
         };
     }, []);
+
+    const handleOpenEstimateDialog = React.useCallback(() => {
+        if (!isT2Operator) return;
+        setEstimateDialogOpen(true);
+    }, [isT2Operator]);
 
     const handleEstimateApply = React.useCallback(
         (data: ParsedEstimateResult) => {
@@ -1376,14 +1388,16 @@ export default function WorkspaceTaskDialog({
                             <Stack spacing={1.5}>
                                 <Stack direction="row" alignItems="center" justifyContent="space-between">
                                     <Typography variant="subtitle2">Основная информация</Typography>
-                                    <Button
-                                        size="small"
-                                        variant="outlined"
-                                        onClick={() => setEstimateDialogOpen(true)}
-                                        disabled={saving || uploading}
-                                    >
-                                        Заполнить по смете
-                                    </Button>
+                                    {isT2Operator && (
+                                        <Button
+                                            size="small"
+                                            variant="outlined"
+                                            onClick={handleOpenEstimateDialog}
+                                            disabled={saving || uploading}
+                                        >
+                                            Заполнить по смете
+                                        </Button>
+                                    )}
                                 </Stack>
 
                                 <TextField
@@ -2049,11 +2063,14 @@ export default function WorkspaceTaskDialog({
                     </Alert>
                 </Snackbar>
 
-                <T2EstimateParser
-                    open={estimateDialogOpen}
-                    onClose={() => setEstimateDialogOpen(false)}
-                    onApply={handleEstimateApply}
-                />
+                {isT2Operator && (
+                    <T2EstimateParser
+                        open={estimateDialogOpen}
+                        onClose={() => setEstimateDialogOpen(false)}
+                        onApply={handleEstimateApply}
+                        operatorLabel="Т2"
+                    />
+                )}
 
 
             </Drawer>
