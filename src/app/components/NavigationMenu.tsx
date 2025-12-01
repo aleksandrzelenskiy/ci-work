@@ -85,6 +85,7 @@ export default function NavigationMenu({ onNavigateAction }: NavigationMenuProps
     const theme = useTheme();
     const isDarkMode = theme.palette.mode === 'dark';
     const [userContextLoading, setUserContextLoading] = useState(true);
+    const [managerNavLoading, setManagerNavLoading] = useState(false);
     const [userContext, setUserContext] = useState<UserContextResponse | null>(
         null
     );
@@ -132,8 +133,13 @@ export default function NavigationMenu({ onNavigateAction }: NavigationMenuProps
                     setManagerProjects([]);
                     setManagerOrgs([]);
                     setManagerOrgSlug(null);
+                    setManagerNavLoading(false);
                 }
                 return;
+            }
+
+            if (isMounted) {
+                setManagerNavLoading(true);
             }
 
             const userEmail =
@@ -146,6 +152,7 @@ export default function NavigationMenu({ onNavigateAction }: NavigationMenuProps
                     setManagerProjects([]);
                     setManagerOrgs([]);
                     setManagerOrgSlug(null);
+                    setManagerNavLoading(false);
                 }
                 return;
             }
@@ -174,6 +181,7 @@ export default function NavigationMenu({ onNavigateAction }: NavigationMenuProps
                         setManagerProjects([]);
                         setManagerOrgs([]);
                         setManagerOrgSlug(null);
+                        setManagerNavLoading(false);
                     }
                     return;
                 }
@@ -252,12 +260,14 @@ export default function NavigationMenu({ onNavigateAction }: NavigationMenuProps
                         orgPayload.orgs[0]?.orgSlug ??
                         null;
                     setManagerOrgSlug(resolvedOrgSlug ?? null);
+                    setManagerNavLoading(false);
                 }
             } catch {
                 if (isMounted) {
                     setManagerProjects([]);
                     setManagerOrgs([]);
                     setManagerOrgSlug(null);
+                    setManagerNavLoading(false);
                 }
             }
         };
@@ -286,6 +296,7 @@ export default function NavigationMenu({ onNavigateAction }: NavigationMenuProps
         (contextUser?.profileType as string | undefined) ||
         null;
     const isEmployer = profileType === 'employer';
+    const navLoading = userContextLoading || managerNavLoading;
     const managerOrgPath =
         isManagerRole && managerOrgSlug
             ? `/org/${encodeURIComponent(managerOrgSlug)}`
@@ -524,7 +535,7 @@ export default function NavigationMenu({ onNavigateAction }: NavigationMenuProps
                 disablePadding
                 sx={{ display: 'flex', flexDirection: 'column', gap: 1 }}
             >
-                {userContextLoading ? (
+                {navLoading ? (
                     <Box
                         sx={{
                             display: 'flex',
