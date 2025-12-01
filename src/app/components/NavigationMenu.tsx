@@ -20,6 +20,7 @@ import TaskIcon from '@mui/icons-material/Task';
 import PlaceIcon from '@mui/icons-material/Place';
 import LogoutIcon from '@mui/icons-material/Logout';
 import FolderIcon from '@mui/icons-material/Folder';
+import BusinessIcon from '@mui/icons-material/Business';
 import KeyboardArrowRightIcon from '@mui/icons-material/KeyboardArrowRight';
 import { useClerk, useUser } from '@clerk/nextjs';
 import type { UserResource } from '@clerk/types';
@@ -28,6 +29,7 @@ import {
     type UserContextResponse,
     resolveRoleFromContext,
 } from '@/app/utils/userContext';
+import { MANAGER_ROLES } from '@/app/types/roles';
 
 type NavigationMenuProps = {
     onNavigateAction: (path: string) => void;
@@ -88,6 +90,7 @@ export default function NavigationMenu({ onNavigateAction }: NavigationMenuProps
         []
     );
     const [managerOrgs, setManagerOrgs] = useState<ManagerOrgLink[]>([]);
+    const [managerOrgSlug, setManagerOrgSlug] = useState<string | null>(null);
     const [expandedItems, setExpandedItems] = useState<Record<string, boolean>>(
         {}
     );
@@ -123,6 +126,7 @@ export default function NavigationMenu({ onNavigateAction }: NavigationMenuProps
                 if (isMounted) {
                     setManagerProjects([]);
                     setManagerOrgs([]);
+                    setManagerOrgSlug(null);
                 }
                 return;
             }
@@ -136,6 +140,7 @@ export default function NavigationMenu({ onNavigateAction }: NavigationMenuProps
                 if (isMounted) {
                     setManagerProjects([]);
                     setManagerOrgs([]);
+                    setManagerOrgSlug(null);
                 }
                 return;
             }
@@ -163,6 +168,7 @@ export default function NavigationMenu({ onNavigateAction }: NavigationMenuProps
                     if (isMounted) {
                         setManagerProjects([]);
                         setManagerOrgs([]);
+                        setManagerOrgSlug(null);
                     }
                     return;
                 }
@@ -228,11 +234,25 @@ export default function NavigationMenu({ onNavigateAction }: NavigationMenuProps
 
                     setManagerOrgs(Array.from(uniqueOrgs.values()));
                     setManagerProjects(projectResults);
+                    const activeOrgId =
+                        userContext?.activeOrgId ??
+                        userContext?.activeMembership?.orgId ??
+                        null;
+                    const resolvedOrgSlug =
+                        (activeOrgId
+                            ? orgPayload.orgs.find((org) => String(org._id) === String(activeOrgId))
+                                  ?.orgSlug
+                            : null) ??
+                        orgResults[0]?.orgSlug ??
+                        orgPayload.orgs[0]?.orgSlug ??
+                        null;
+                    setManagerOrgSlug(resolvedOrgSlug ?? null);
                 }
             } catch {
                 if (isMounted) {
                     setManagerProjects([]);
                     setManagerOrgs([]);
+                    setManagerOrgSlug(null);
                 }
             }
         };
@@ -246,6 +266,7 @@ export default function NavigationMenu({ onNavigateAction }: NavigationMenuProps
 
     const contextUser = userContext?.user as DbUserPayload | undefined;
     const effectiveRole = resolveRoleFromContext(userContext);
+    const isManagerRole = effectiveRole ? MANAGER_ROLES.includes(effectiveRole) : false;
     const isExecutor = effectiveRole === 'executor';
     const projectMatch = pathname.match(/^\/org\/([^/]+)\/projects\/([^/]+)/);
     const orgSlug = projectMatch?.[1];
@@ -260,6 +281,10 @@ export default function NavigationMenu({ onNavigateAction }: NavigationMenuProps
         (contextUser?.profileType as string | undefined) ||
         null;
     const isEmployer = profileType === 'employer';
+    const managerOrgPath =
+        isManagerRole && managerOrgSlug
+            ? `/org/${encodeURIComponent(managerOrgSlug)}`
+            : null;
     const managerProjectPaths = React.useMemo(
         () =>
             managerProjects.map((project) => ({
@@ -313,6 +338,13 @@ export default function NavigationMenu({ onNavigateAction }: NavigationMenuProps
     const isEmployerManager = isEmployer && managerProjects.length > 0;
     const navItems = React.useMemo<NavItem[]>(() => {
         const items: NavItem[] = [...BASE_NAV_ITEMS];
+        if (isManagerRole && managerOrgPath) {
+            items.push({
+                label: 'ОРГАНИЗАЦИЯ',
+                path: managerOrgPath,
+                icon: <BusinessIcon sx={{ fontSize: 20 }} />,
+            });
+        }
         const projectNavItem =
             isEmployer && projectsPath
                 ? {
@@ -343,6 +375,8 @@ export default function NavigationMenu({ onNavigateAction }: NavigationMenuProps
         }
         return items;
     }, [
+        isManagerRole,
+        managerOrgPath,
         isEmployer,
         isEmployerManager,
         locationsChildren,
