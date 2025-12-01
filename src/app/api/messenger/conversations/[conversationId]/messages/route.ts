@@ -3,7 +3,11 @@
 import { NextResponse, type NextRequest } from 'next/server';
 import ChatMessageModel from '@/app/models/ChatMessageModel';
 import { GetCurrentUserFromMongoDB } from '@/server-actions/users';
-import { chatMessageToDTO, requireConversationAccess } from '@/app/api/messenger/_helpers';
+import {
+    chatMessageToDTO,
+    requireConversationAccess,
+    type ChatMessageLike,
+} from '@/app/api/messenger/_helpers';
 
 export async function GET(
     _request: NextRequest,
@@ -36,6 +40,6 @@ export async function GET(
 
     return NextResponse.json({
         ok: true,
-        messages: messages.map(chatMessageToDTO),
+        messages: messages.map((message) => chatMessageToDTO(message as ChatMessageLike)),
     });
 }

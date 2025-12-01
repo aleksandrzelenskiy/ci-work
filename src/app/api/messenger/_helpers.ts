@@ -20,22 +20,22 @@ export type AccessContext = {
 export const normalizeEmail = (value?: string | null) =>
     typeof value === 'string' ? value.trim().toLowerCase() : '';
 
-type ChatMessageLike = Partial<
+export type ChatMessageLike = Partial<
     Pick<ChatMessage, 'conversationId' | 'orgId' | 'senderEmail' | 'senderName' | 'text' | 'readBy'>
 > & {
-    _id?: Types.ObjectId | string;
-    createdAt?: Date | string;
+    _id?: unknown;
+    createdAt?: unknown;
 };
 
 export const chatMessageToDTO = (message: ChatMessageLike): MessengerMessageDTO => ({
-    id: message._id?.toString?.() ?? '',
+    id: (typeof message._id === 'string' ? message._id : (message._id as Types.ObjectId | undefined)?.toString?.()) ?? '',
     conversationId: message.conversationId?.toString?.() ?? '',
     orgId: message.orgId?.toString?.() ?? '',
     senderEmail: message.senderEmail ?? '',
     senderName: message.senderName,
     text: message.text ?? '',
     readBy: Array.isArray(message.readBy) ? message.readBy : [],
-    createdAt: message.createdAt ? new Date(message.createdAt).toISOString() : new Date().toISOString(),
+    createdAt: message.createdAt ? new Date(message.createdAt as string | number | Date).toISOString() : new Date().toISOString(),
 });
 
 export async function requireConversationAccess(
