@@ -6,6 +6,7 @@ import {
     Box,
     Button,
     Collapse,
+    CircularProgress,
     List,
     ListItemButton,
     ListItemIcon,
@@ -83,6 +84,7 @@ export default function NavigationMenu({ onNavigateAction }: NavigationMenuProps
     const pathname = usePathname() ?? '';
     const theme = useTheme();
     const isDarkMode = theme.palette.mode === 'dark';
+    const [userContextLoading, setUserContextLoading] = useState(true);
     const [userContext, setUserContext] = useState<UserContextResponse | null>(
         null
     );
@@ -98,9 +100,11 @@ export default function NavigationMenu({ onNavigateAction }: NavigationMenuProps
     useEffect(() => {
         let isMounted = true;
         const loadUserContext = async () => {
+            setUserContextLoading(true);
             const context = await fetchUserContext();
             if (isMounted) {
                 setUserContext(context);
+                setUserContextLoading(false);
             }
         };
 
@@ -117,6 +121,7 @@ export default function NavigationMenu({ onNavigateAction }: NavigationMenuProps
         let isMounted = true;
 
         const loadManagerProjects = async () => {
+            if (userContextLoading) return;
             const profileType =
                 (userContext?.profileType ??
                     (userContext?.user as { profileType?: string })?.profileType) ||
@@ -262,7 +267,7 @@ export default function NavigationMenu({ onNavigateAction }: NavigationMenuProps
         return () => {
             isMounted = false;
         };
-    }, [user, userContext]);
+    }, [user, userContext, userContextLoading]);
 
     const contextUser = userContext?.user as DbUserPayload | undefined;
     const effectiveRole = resolveRoleFromContext(userContext);
@@ -519,7 +524,19 @@ export default function NavigationMenu({ onNavigateAction }: NavigationMenuProps
                 disablePadding
                 sx={{ display: 'flex', flexDirection: 'column', gap: 1 }}
             >
-                {navItems.map((item) => {
+                {userContextLoading ? (
+                    <Box
+                        sx={{
+                            display: 'flex',
+                            justifyContent: 'center',
+                            alignItems: 'center',
+                            py: 3,
+                        }}
+                    >
+                        <CircularProgress size={28} />
+                    </Box>
+                ) : (
+                    navItems.map((item) => {
                     const hasChildren =
                         Array.isArray(item.children) && item.children.length > 0;
                     const children: NavChildItem[] = hasChildren
@@ -697,8 +714,9 @@ export default function NavigationMenu({ onNavigateAction }: NavigationMenuProps
                                 </Collapse>
                             )}
                         </React.Fragment>
-                    );
-                })}
+                        );
+                    })
+                )}
             </List>
         </Box>
     );
