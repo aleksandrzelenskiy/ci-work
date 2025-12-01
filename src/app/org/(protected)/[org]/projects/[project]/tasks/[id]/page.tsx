@@ -38,7 +38,6 @@ import ExpandMoreIcon from '@mui/icons-material/ExpandMore';
 import RefreshIcon from '@mui/icons-material/Refresh';
 import EditNoteIcon from '@mui/icons-material/EditNote';
 import DeleteOutlineIcon from '@mui/icons-material/DeleteOutline';
-import DownloadOutlinedIcon from '@mui/icons-material/DownloadOutlined';
 import InfoOutlinedIcon from '@mui/icons-material/InfoOutlined';
 import DescriptionOutlinedIcon from '@mui/icons-material/DescriptionOutlined';
 import CommentOutlinedIcon from '@mui/icons-material/CommentOutlined';
@@ -505,26 +504,6 @@ export default function TaskDetailsPage() {
         }
     };
 
-    const handleDownloadDocument = async (url: string) => {
-        try {
-            const res = await fetch(url);
-            if (!res.ok) {
-                console.error('Не удалось скачать документ');
-                return;
-            }
-            const blob = await res.blob();
-            const blobUrl = URL.createObjectURL(blob);
-            const link = document.createElement('a');
-            link.href = blobUrl;
-            link.download = extractFileNameFromUrl(url, 'document');
-            document.body.appendChild(link);
-            link.click();
-            document.body.removeChild(link);
-            URL.revokeObjectURL(blobUrl);
-        } catch (e) {
-            console.error(e);
-        }
-    };
 
     const openDeleteDocumentDialog = (url: string, type: 'estimate' | 'order' | 'other' | 'ncw') => {
         setDocumentToDelete(url);
@@ -1579,12 +1558,6 @@ export default function TaskDetailsPage() {
                                             doc.type === 'ncw';
                                         const isCurrentDeleting =
                                             documentDeleting && documentToDelete === doc.url;
-                                        const downloadTitle =
-                                            doc.type === 'order'
-                                                ? 'Скачать заказ'
-                                                : doc.type === 'ncw'
-                                                    ? 'Скачать уведомление'
-                                                    : 'Скачать смету';
                                         const deleteTitle =
                                             doc.type === 'order'
                                                 ? 'Удалить заказ'
@@ -1603,39 +1576,26 @@ export default function TaskDetailsPage() {
                                                 }}
                                             >
                                                 {isSpecial && (
-                                                    <>
-                                                        <Tooltip title={downloadTitle}>
-                                                            <span>
-                                                                <IconButton
-                                                                    size="small"
-                                                                    onClick={() => void handleDownloadDocument(doc.url)}
-                                                                    disabled={isCurrentDeleting}
-                                                                >
-                                                                    <DownloadOutlinedIcon fontSize="small" />
-                                                                </IconButton>
-                                                            </span>
-                                                        </Tooltip>
-                                                        <Tooltip title={deleteTitle}>
-                                                            <span>
-                                                                <IconButton
-                                                                    size="small"
-                                                                    onClick={() =>
-                                                                        openDeleteDocumentDialog(
-                                                                            doc.url,
-                                                                            doc.type
-                                                                        )
-                                                                    }
-                                                                    disabled={isCurrentDeleting}
-                                                                >
-                                                                    {isCurrentDeleting ? (
-                                                                        <CircularProgress size={18} />
-                                                                    ) : (
-                                                                        <DeleteOutlineIcon fontSize="small" />
-                                                                    )}
-                                                                </IconButton>
-                                                            </span>
-                                                        </Tooltip>
-                                                    </>
+                                                    <Tooltip title={deleteTitle}>
+                                                        <span>
+                                                            <IconButton
+                                                                size="small"
+                                                                onClick={() =>
+                                                                    openDeleteDocumentDialog(
+                                                                        doc.url,
+                                                                        doc.type
+                                                                    )
+                                                                }
+                                                                disabled={isCurrentDeleting}
+                                                            >
+                                                                {isCurrentDeleting ? (
+                                                                    <CircularProgress size={18} />
+                                                                ) : (
+                                                                    <DeleteOutlineIcon fontSize="small" />
+                                                                )}
+                                                            </IconButton>
+                                                        </span>
+                                                    </Tooltip>
                                                 )}
                                                 <Link
                                                     href={doc.url}
