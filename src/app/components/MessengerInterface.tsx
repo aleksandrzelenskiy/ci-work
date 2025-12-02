@@ -5,7 +5,7 @@ import {
     Avatar,
     Box,
     Button,
-    Chip,
+    Badge,
     CircularProgress,
     Dialog,
     DialogContent,
@@ -131,6 +131,7 @@ export default function MessengerInterface({
     const typingActiveRef = React.useRef(false);
     const typingConversationRef = React.useRef<string>('');
     const joinedConversationsRef = React.useRef<Set<string>>(new Set());
+    const activeConversationIdRef = React.useRef<string>('');
     const showListPane = !isMobile || mobileView === 'list';
     const showChatPane = !isMobile || mobileView === 'chat';
 
@@ -250,9 +251,11 @@ export default function MessengerInterface({
     }, [attachSocket]);
 
     const loadConversations = React.useCallback(
-        async (forceActiveId?: string) => {
+        async (options?: { preferActiveId?: string; preserveActive?: boolean }) => {
             setLoadingConversations(true);
             try {
+                const preferActiveId = options?.preferActiveId;
+                const preserveActive = options?.preserveActive ?? false;
                 const res = await fetch('/api/messenger/conversations', { cache: 'no-store' });
                 const payload = (await res.json().catch(() => ({}))) as {
                     ok?: boolean;
@@ -266,12 +269,21 @@ export default function MessengerInterface({
                 }
                 setUserEmail(normalizeEmail(payload.userEmail));
                 setConversations(payload.conversations);
+                const currentActiveId = activeConversationIdRef.current;
+                const preserveCurrentActive =
+                    preserveActive &&
+                    currentActiveId &&
+                    payload.conversations.some((c) => c.id === currentActiveId)
+                        ? currentActiveId
+                        : '';
                 const initialActive =
-                    forceActiveId && payload.conversations.some((c) => c.id === forceActiveId)
-                        ? forceActiveId
-                        : defaultConversationId && payload.conversations.some((c) => c.id === defaultConversationId)
+                    preserveCurrentActive ||
+                    (preferActiveId && payload.conversations.some((c) => c.id === preferActiveId)
+                        ? preferActiveId
+                        : defaultConversationId &&
+                            payload.conversations.some((c) => c.id === defaultConversationId)
                             ? defaultConversationId
-                            : payload.conversations[0]?.id ?? '';
+                            : payload.conversations[0]?.id ?? '');
                 setActiveConversationId(initialActive);
             } catch (error) {
                 console.error('messenger: load conversations failed', error);
@@ -306,6 +318,10 @@ export default function MessengerInterface({
             setMobileView('chat');
         }
     }, [isMobile, activeConversationId]);
+
+    React.useEffect(() => {
+        activeConversationIdRef.current = activeConversationId;
+    }, [activeConversationId]);
 
     const loadParticipants = React.useCallback(async () => {
         setParticipantsError(null);
@@ -613,7 +629,7 @@ export default function MessengerInterface({
             removeTypingUser(message.conversationId, message.senderEmail);
             const knownConversation = conversations.some((c) => c.id === message.conversationId);
             if (!knownConversation) {
-                void loadConversations(message.conversationId);
+                void loadConversations({ preferActiveId: message.conversationId, preserveActive: true });
             }
             const isOwnMessage = message.senderEmail === userEmail;
             const isViewed = isConversationVisible(message.conversationId);
@@ -1000,6 +1016,9 @@ export default function MessengerInterface({
         return 'Организационный чат';
     }, [activeConversation, activeLastActivity]);
 
+    const isActiveCounterpartOnline =
+        activeConversation?.type === 'direct' && activeConversation.counterpartIsOnline;
+
     return (
         <>
             <Paper
@@ -1014,7 +1033,7 @@ export default function MessengerInterface({
                     borderColor: 'divider',
                     minHeight: isMobile ? '100vh' : 360,
                     width: '100%',
-                    maxWidth: { xs: '100vw', sm: '100%' },
+                    maxWidth: '100%',
                     overflowX: 'hidden',
                     height: isMobile ? '100vh' : 'auto',
                     background: 'rgba(255,255,255,0.86)',
@@ -1022,6 +1041,7 @@ export default function MessengerInterface({
                     boxShadow: isMobile
                         ? 'none'
                         : '0 18px 45px rgba(15,23,42,0.08), inset 0 1px 0 rgba(255,255,255,0.45)',
+                    boxSizing: 'border-box',
                 }}
             >
                 <Box
@@ -1090,6 +1110,14 @@ export default function MessengerInterface({
                                     conversation.type === 'direct'
                                         ? conversation.counterpartAvatar || undefined
                                         : undefined;
+                                const conversationMessages = messagesByConversation[conversation.id];
+                                const derivedUnread =
+                                    userEmail &&
+                                    conversationMessages &&
+                                    conversationMessages.length
+                                        ? conversationMessages.filter((msg) => !msg.readBy.includes(userEmail)).length
+                                        : conversation.unreadCount ?? 0;
+                                const unreadCount = Math.max(0, Math.floor(derivedUnread));
                                 return (
                                     <ListItem
                                         key={conversation.id}
@@ -1117,33 +1145,58 @@ export default function MessengerInterface({
                                                 },
                                             }}
                                         >
-                                            <ListItemAvatar>
-                                                <Avatar
-                                                    src={avatarSrc}
-                                                    sx={{
-                                                        bgcolor:
-                                                            conversation.type === 'project'
-                                                                ? 'secondary.main'
-                                                                : conversation.type === 'direct'
-                                                                    ? 'info.main'
-                                                                : 'primary.main',
-                                                        boxShadow: '0 8px 20px rgba(0,0,0,0.08)',
-                                                    }}
-                                                >
-                                                    {avatarLetter}
-                                                </Avatar>
-                                            </ListItemAvatar>
-                                            <ListItemText
-                                                primary={renderConversationTitle(conversation)}
-                                                secondary={renderConversationSecondary(conversation)}
+                                <ListItemAvatar>
+                                    <Box sx={{ position: 'relative', display: 'inline-block' }}>
+                                        <Avatar
+                                            src={avatarSrc}
+                                            sx={{
+                                                bgcolor:
+                                                    conversation.type === 'project'
+                                                        ? 'secondary.main'
+                                                        : conversation.type === 'direct'
+                                                            ? 'info.main'
+                                                            : 'primary.main',
+                                                boxShadow: '0 8px 20px rgba(0,0,0,0.08)',
+                                            }}
+                                        >
+                                            {avatarLetter}
+                                        </Avatar>
+                                        {conversation.type === 'direct' && conversation.counterpartIsOnline ? (
+                                            <Box
+                                                sx={{
+                                                    position: 'absolute',
+                                                    right: -2,
+                                                    bottom: -2,
+                                                    width: 12,
+                                                    height: 12,
+                                                    borderRadius: '50%',
+                                                    backgroundColor: 'success.main',
+                                                    border: '2px solid #fff',
+                                                }}
                                             />
-                                            {conversation.unreadCount > 0 ? (
-                                                <Chip
-                                                    label={conversation.unreadCount}
-                                                    size='small'
-                                                    color='secondary'
-                                                />
-                                            ) : null}
+                                        ) : null}
+                                    </Box>
+                                </ListItemAvatar>
+                                <ListItemText
+                                    primary={renderConversationTitle(conversation)}
+                                    secondary={renderConversationSecondary(conversation)}
+                                />
+                                <Badge
+                                    color='secondary'
+                                    badgeContent={unreadCount}
+                                    invisible={unreadCount <= 0}
+                                    sx={{
+                                        alignSelf: 'center',
+                                        ml: 1,
+                                        '& .MuiBadge-badge': {
+                                            fontSize: 12,
+                                            height: 20,
+                                            minWidth: 20,
+                                            right: 4,
+                                            top: 6,
+                                        },
+                                    }}
+                                />
                                         </ListItemButton>
                                     </ListItem>
                                 );
@@ -1153,16 +1206,19 @@ export default function MessengerInterface({
                 </Box>
                 <Stack
                     spacing={1.25}
-                    p={2}
+                    p={{ xs: 1.5, sm: 2 }}
                     sx={{
                         display: showChatPane ? 'flex' : 'none',
                         background: 'linear-gradient(145deg, rgba(255,255,255,0.94), rgba(236,244,255,0.88))',
                         minHeight: { xs: 'calc(100vh - 140px)', sm: 'auto' },
+                        width: '100%',
+                        boxSizing: 'border-box',
+                        overflowX: 'hidden',
                     }}
                 >
                     <Box
                         sx={{
-                            position: { xs: 'sticky', sm: 'static' },
+                            position: 'sticky',
                             top: 0,
                             zIndex: 2,
                             background:
@@ -1170,25 +1226,42 @@ export default function MessengerInterface({
                             pb: 1,
                         }}
                     >
-                        <Stack direction='row' alignItems='center' justifyContent='space-between'>
-                            <Stack spacing={0.25}>
-                                <Stack direction='row' spacing={1} alignItems='center'>
-                                    {isMobile && showChatPane ? (
-                                        <IconButton size='small' onClick={handleBackToList}>
-                                            <ArrowBackIosNewIcon fontSize='small' />
-                                        </IconButton>
-                                    ) : null}
-                                    <Typography variant='subtitle1' fontWeight={700}>
-                                        {activeConversation
-                                            ? activeConversation.type === 'direct'
-                                                ? getDirectDisplayName(activeConversation)
-                                                : activeConversation.title
-                                            : 'Выберите чат'}
+                        <Stack direction='row' alignItems='center' justifyContent='space-between' spacing={1}>
+                            <Stack direction='row' alignItems='center' spacing={1.25} flex={1} minWidth={0}>
+                                {isMobile && showChatPane ? (
+                                    <IconButton size='small' onClick={handleBackToList}>
+                                        <ArrowBackIosNewIcon fontSize='small' />
+                                    </IconButton>
+                                ) : null}
+                                <Stack spacing={0.25} minWidth={0}>
+                                    <Stack direction='row' spacing={0.75} alignItems='center' minWidth={0}>
+                                        {isActiveCounterpartOnline ? (
+                                            <Box
+                                                sx={{
+                                                    width: 10,
+                                                    height: 10,
+                                                    borderRadius: '50%',
+                                                    backgroundColor: 'success.main',
+                                                    boxShadow: '0 0 0 2px #fff',
+                                                }}
+                                            />
+                                        ) : null}
+                                        <Typography variant='subtitle1' fontWeight={700} noWrap>
+                                            {activeConversation
+                                                ? activeConversation.type === 'direct'
+                                                    ? getDirectDisplayName(activeConversation)
+                                                    : activeConversation.title
+                                                : 'Выберите чат'}
+                                        </Typography>
+                                    </Stack>
+                                    <Typography
+                                        variant='caption'
+                                        color='text.secondary'
+                                        sx={{ pl: isActiveCounterpartOnline ? 2 : 0 }}
+                                    >
+                                        {activeConversationSubtitle}
                                     </Typography>
                                 </Stack>
-                                <Typography variant='caption' color='text.secondary'>
-                                    {activeConversationSubtitle}
-                                </Typography>
                             </Stack>
                             <Stack direction='row' spacing={1}>
                                 {!isMobile ? (
@@ -1208,8 +1281,10 @@ export default function MessengerInterface({
                             minHeight: 240,
                             maxHeight: { xs: 'calc(100vh - 220px)', sm: 440 },
                             overflowY: 'auto',
-                            pr: { xs: 0, sm: 1 },
-                            py: 1,
+                            overflowX: 'hidden',
+                            px: { xs: 1, sm: 1.5 },
+                            py: 1.25,
+                            width: '100%',
                             borderRadius: 3,
                             background:
                                 'linear-gradient(180deg, rgba(255,255,255,0.9), rgba(237,243,255,0.88))',
