@@ -197,12 +197,34 @@ export default function MessengerInterface({
             const projectMatch = conversation.projectKey
                 ? conversation.projectKey.toLowerCase().includes(query)
                 : false;
-            const participantsMatch = conversation.participants.some((participant) =>
-                participant.toLowerCase().includes(query)
+            const participantsMatch = conversation.participants.some((participant) => {
+                const normalized = participant.toLowerCase();
+                const nameLike = formatNameFromEmail(participant).toLowerCase();
+                return normalized.includes(query) || nameLike.includes(query);
+            });
+            const counterpartNameMatch = conversation.counterpartName
+                ? conversation.counterpartName.toLowerCase().includes(query)
+                : false;
+            const counterpartEmailMatch = conversation.counterpartEmail
+                ? conversation.counterpartEmail.toLowerCase().includes(query)
+                : false;
+            const lastPreviewMatch = conversation.lastMessagePreview
+                ? conversation.lastMessagePreview.toLowerCase().includes(query)
+                : false;
+            const messageTextMatch = (messagesByConversation[conversation.id] ?? []).some((message) =>
+                message.text.toLowerCase().includes(query)
             );
-            return titleMatch || projectMatch || participantsMatch;
+            return (
+                titleMatch ||
+                projectMatch ||
+                participantsMatch ||
+                counterpartNameMatch ||
+                counterpartEmailMatch ||
+                lastPreviewMatch ||
+                messageTextMatch
+            );
         });
-    }, [conversationSearch, conversations]);
+    }, [conversationSearch, conversations, messagesByConversation]);
 
     const filteredContacts = React.useMemo(() => {
         const query = contactSearch.trim().toLowerCase();

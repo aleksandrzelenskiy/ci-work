@@ -23,7 +23,6 @@ import LogoutIcon from '@mui/icons-material/Logout';
 import FolderIcon from '@mui/icons-material/Folder';
 import BusinessIcon from '@mui/icons-material/Business';
 import KeyboardArrowRightIcon from '@mui/icons-material/KeyboardArrowRight';
-import EmailIcon from '@mui/icons-material/Email';
 import { useClerk, useUser } from '@clerk/nextjs';
 import type { UserResource } from '@clerk/types';
 import {
@@ -297,7 +296,6 @@ export default function NavigationMenu({ onNavigateAction }: NavigationMenuProps
         (contextUser?.profileType as string | undefined) ||
         null;
     const isEmployer = profileType === 'employer';
-    const isContractor = profileType === 'contractor';
     const navLoading = userContextLoading || managerNavLoading;
     const managerOrgPath =
         isManagerRole && managerOrgSlug
@@ -388,13 +386,6 @@ export default function NavigationMenu({ onNavigateAction }: NavigationMenuProps
             icon: <PlaceIcon sx={{ fontSize: 20 }} />,
             children: locationsChildren,
         });
-        if (isEmployer || isContractor) {
-            items.push({
-                label: 'MESSAGER',
-                path: '/messager',
-                icon: <EmailIcon sx={{ fontSize: 20 }} />,
-            });
-        }
         if (!isEmployerManager && projectNavItem) {
             items.push(projectNavItem);
         }
@@ -410,7 +401,6 @@ export default function NavigationMenu({ onNavigateAction }: NavigationMenuProps
         projectsPath,
         tasksChildren,
         tasksPath,
-        isContractor,
     ]);
 
     const normalizeValue = (value?: string | null) => {
