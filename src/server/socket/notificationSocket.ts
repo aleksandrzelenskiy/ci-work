@@ -96,6 +96,26 @@ export class NotificationSocketGateway {
                 const room = this.chatRoomName(conversationId);
                 if (room) socket.leave(room);
             });
+
+            socket.on(
+                'chat:typing',
+                ({
+                    conversationId,
+                    userEmail,
+                    userName,
+                    isTyping,
+                }: { conversationId?: string; userEmail?: string; userName?: string; isTyping?: boolean }) => {
+                    const room = this.chatRoomName(conversationId);
+                    if (!room) return;
+                    socket.join(room);
+                    socket.to(room).emit('chat:typing', {
+                        conversationId,
+                        userEmail,
+                        userName,
+                        isTyping: isTyping ?? true,
+                    });
+                }
+            );
         });
     }
 

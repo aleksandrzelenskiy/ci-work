@@ -9,6 +9,10 @@ export const runtime = 'nodejs';
 export async function GET() {
     const currentUserResponse = await GetCurrentUserFromMongoDB();
     if (!currentUserResponse.success) {
+        if (process.env.NODE_ENV === 'development') {
+            const devToken = signSocketToken('dev-guest');
+            return NextResponse.json({ ok: true, token: devToken, fallback: true });
+        }
         return NextResponse.json(
             { ok: false, error: currentUserResponse.message },
             { status: 401 }

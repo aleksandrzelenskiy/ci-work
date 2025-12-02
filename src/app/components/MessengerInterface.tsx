@@ -110,10 +110,17 @@ export default function MessengerInterface({
     const [participantsError, setParticipantsError] = React.useState<string | null>(null);
     const [creatingChatWith, setCreatingChatWith] = React.useState<string | null>(null);
     const [mobileView, setMobileView] = React.useState<'list' | 'chat'>('list');
+    const [typingByConversation, setTypingByConversation] = React.useState<
+        Record<string, { userEmail: string; userName?: string }[]>
+    >({});
     const socketRef = React.useRef<Awaited<ReturnType<typeof getSocketClient>> | null>(null);
     const chatContainerRef = React.useRef<HTMLDivElement | null>(null);
-    const prevConversationRef = React.useRef<string | null>(null);
     const seenMessageIdsRef = React.useRef<Set<string>>(new Set());
+    const typingTimeoutsRef = React.useRef<Record<string, ReturnType<typeof setTimeout>>>({});
+    const typingStopTimeoutRef = React.useRef<ReturnType<typeof setTimeout> | null>(null);
+    const typingActiveRef = React.useRef(false);
+    const typingConversationRef = React.useRef<string>('');
+    const joinedConversationsRef = React.useRef<Set<string>>(new Set());
     const showListPane = !isMobile || mobileView === 'list';
     const showChatPane = !isMobile || mobileView === 'chat';
 
@@ -125,6 +132,14 @@ export default function MessengerInterface({
     const activeMessages = React.useMemo(
         () => messagesByConversation[activeConversationId] ?? [],
         [messagesByConversation, activeConversationId]
+    );
+
+    const activeTypingUsers = React.useMemo(
+        () =>
+            (typingByConversation[activeConversationId] ?? []).filter(
+                (item) => normalizeEmail(item.userEmail) && normalizeEmail(item.userEmail) !== userEmail
+            ),
+        [activeConversationId, typingByConversation, userEmail]
     );
 
     const totalUnread = React.useMemo(
@@ -249,6 +264,17 @@ export default function MessengerInterface({
     }, [loadConversations]);
 
     React.useEffect(() => {
+        if (!socketReady || !socketRef.current) return;
+        if (!conversations.length) return;
+        const socket = socketRef.current;
+        conversations.forEach((conversation) => {
+            if (joinedConversationsRef.current.has(conversation.id)) return;
+            socket.emit('chat:join', { conversationId: conversation.id });
+            joinedConversationsRef.current.add(conversation.id);
+        });
+    }, [socketReady, conversations]);
+
+    React.useEffect(() => {
         if (!isMobile) {
             setMobileView('list');
             return;
@@ -367,6 +393,164 @@ export default function MessengerInterface({
         requestAnimationFrame(scroll);
     }, []);
 
+    const removeTypingUser = React.useCallback((conversationId: string, email?: string) => {
+        if (!conversationId) return;
+        const normalizedEmail = normalizeEmail(email);
+        if (!normalizedEmail) {
+            // no email provided — clear all typing indicators for the conversation
+            Object.keys(typingTimeoutsRef.current).forEach((key) => {
+                if (key.startsWith(`${conversationId}:`)) {
+                    clearTimeout(typingTimeoutsRef.current[key]);
+                    delete typingTimeoutsRef.current[key];
+                }
+            });
+            setTypingByConversation((prev) => {
+                if (!prev[conversationId]) return prev;
+                const next = { ...prev };
+                delete next[conversationId];
+                return next;
+            });
+            return;
+        }
+        const timeoutKey = `${conversationId}:${normalizedEmail}`;
+        const existingTimer = typingTimeoutsRef.current[timeoutKey];
+        if (existingTimer) {
+            clearTimeout(existingTimer);
+            delete typingTimeoutsRef.current[timeoutKey];
+        }
+        setTypingByConversation((prev) => {
+            const existing = prev[conversationId] ?? [];
+            const next = existing.filter((item) => normalizeEmail(item.userEmail) !== normalizedEmail);
+            if (next.length === existing.length) return prev;
+            return { ...prev, [conversationId]: next };
+        });
+    }, []);
+
+    const scheduleTypingCleanup = React.useCallback(
+        (conversationId: string, email?: string) => {
+            const normalizedEmail = normalizeEmail(email) || `unknown-${conversationId}`;
+            if (!conversationId) return;
+            const timeoutKey = `${conversationId}:${normalizedEmail}`;
+            const existingTimer = typingTimeoutsRef.current[timeoutKey];
+            if (existingTimer) {
+                clearTimeout(existingTimer);
+            }
+            typingTimeoutsRef.current[timeoutKey] = setTimeout(() => {
+                removeTypingUser(conversationId, normalizedEmail);
+            }, 3500);
+        },
+        [removeTypingUser]
+    );
+
+    const emitTypingStatus = React.useCallback(
+        (isTyping: boolean, conversationId?: string) => {
+            const targetConversationId = conversationId ?? activeConversationId;
+            if (!socketReady || !socketRef.current || !targetConversationId) return;
+            const email = userEmail || 'unknown';
+            // ensure we are in the room before broadcasting typing
+            socketRef.current.emit('chat:join', { conversationId: targetConversationId });
+            socketRef.current.emit('chat:typing', {
+                conversationId: targetConversationId,
+                userEmail: email,
+                isTyping,
+            });
+        },
+        [activeConversationId, socketReady, userEmail]
+    );
+
+    const notifyTyping = React.useCallback(() => {
+        if (!activeConversationId) return;
+        if (!typingActiveRef.current || typingConversationRef.current !== activeConversationId) {
+            emitTypingStatus(true, activeConversationId);
+        }
+        typingActiveRef.current = true;
+        typingConversationRef.current = activeConversationId;
+        if (typingStopTimeoutRef.current) {
+            clearTimeout(typingStopTimeoutRef.current);
+        }
+        typingStopTimeoutRef.current = setTimeout(() => {
+            typingActiveRef.current = false;
+            emitTypingStatus(false, activeConversationId);
+        }, 3200);
+    }, [activeConversationId, emitTypingStatus]);
+
+    const stopTyping = React.useCallback(() => {
+        if (typingStopTimeoutRef.current) {
+            clearTimeout(typingStopTimeoutRef.current);
+            typingStopTimeoutRef.current = null;
+        }
+        if (typingActiveRef.current && typingConversationRef.current) {
+            emitTypingStatus(false, typingConversationRef.current);
+        }
+        typingActiveRef.current = false;
+    }, [emitTypingStatus]);
+
+    const handleTypingEvent = React.useCallback(
+        (payload: { conversationId?: string; userEmail?: string; userName?: string; isTyping?: boolean }) => {
+            const conversationId = payload.conversationId ?? '';
+            if (!conversationId) return;
+            const normalizedEmail = normalizeEmail(payload.userEmail) || `unknown-${conversationId}`;
+            if (normalizedEmail === userEmail) return;
+            if (payload.isTyping === false) {
+                removeTypingUser(conversationId, normalizedEmail);
+                return;
+            }
+            setTypingByConversation((prev) => {
+                const existing = prev[conversationId] ?? [];
+                const alreadyPresent = existing.some(
+                    (item) => normalizeEmail(item.userEmail) === normalizedEmail
+                );
+                const next = alreadyPresent
+                    ? existing
+                    : [...existing, { userEmail: normalizedEmail, userName: payload.userName }];
+                if (next === existing) return prev;
+                return { ...prev, [conversationId]: next };
+            });
+            scheduleTypingCleanup(conversationId, normalizedEmail);
+        },
+        [removeTypingUser, scheduleTypingCleanup, userEmail]
+    );
+
+    React.useEffect(() => {
+        const prevConversation = typingConversationRef.current;
+        if (prevConversation && prevConversation !== activeConversationId) {
+            stopTyping();
+        }
+        typingConversationRef.current = activeConversationId;
+    }, [activeConversationId, stopTyping]);
+
+    React.useEffect(() => {
+        const timers = typingTimeoutsRef.current;
+        return () => {
+            stopTyping();
+            Object.values(timers).forEach((timer) => clearTimeout(timer));
+        };
+    }, [stopTyping]);
+
+    React.useEffect(() => {
+        if (!socketReady || !socketRef.current) return;
+        const socket = socketRef.current;
+        const joinAll = () => {
+            conversations.forEach((conversation) => {
+                if (joinedConversationsRef.current.has(conversation.id)) return;
+                socket.emit('chat:join', { conversationId: conversation.id });
+                joinedConversationsRef.current.add(conversation.id);
+            });
+        };
+        const handleConnect = () => {
+            joinAll();
+        };
+        socket.on('connect', handleConnect);
+        socket.io.on('reconnect', handleConnect);
+        if (socket.connected) {
+            joinAll();
+        }
+        return () => {
+            socket.off('connect', handleConnect);
+            socket.io.off('reconnect', handleConnect);
+        };
+    }, [socketReady, conversations]);
+
     React.useEffect(() => {
         if (!activeConversationVisible) return;
         scrollMessagesToBottom(activeMessages.length > 1 ? 'smooth' : 'auto');
@@ -381,12 +565,7 @@ export default function MessengerInterface({
     React.useEffect(() => {
         if (!socketReady || !socketRef.current || !activeConversationId) return;
         const socket = socketRef.current;
-        const prev = prevConversationRef.current;
-        if (prev && prev !== activeConversationId) {
-            socket.emit('chat:leave', { conversationId: prev });
-        }
         socket.emit('chat:join', { conversationId: activeConversationId });
-        prevConversationRef.current = activeConversationId;
     }, [socketReady, activeConversationId]);
 
     const upsertConversation = React.useCallback((conversation: MessengerConversationDTO) => {
@@ -408,6 +587,7 @@ export default function MessengerInterface({
             if (message.id) {
                 seenMessageIdsRef.current.add(message.id);
             }
+            removeTypingUser(message.conversationId, message.senderEmail);
             const knownConversation = conversations.some((c) => c.id === message.conversationId);
             if (!knownConversation) {
                 void loadConversations(message.conversationId);
@@ -473,11 +653,13 @@ export default function MessengerInterface({
         socket.on('chat:message:new', handleNewMessage);
         socket.on('chat:read', handleRead);
         socket.on('chat:unread', handleUnread);
+        socket.on('chat:typing', handleTypingEvent);
 
         return () => {
             socket.off('chat:message:new', handleNewMessage);
             socket.off('chat:read', handleRead);
             socket.off('chat:unread', handleUnread);
+            socket.off('chat:typing', handleTypingEvent);
         };
     }, [
         socketReady,
@@ -488,6 +670,8 @@ export default function MessengerInterface({
         loadConversations,
         isConversationVisible,
         scrollMessagesToBottom,
+        removeTypingUser,
+        handleTypingEvent,
     ]);
 
     const handleSelectConversation = (conversationId: string) => {
@@ -501,6 +685,7 @@ export default function MessengerInterface({
         if (!draftMessage.trim() || !activeConversationId) return;
         const text = draftMessage.trim();
         setDraftMessage('');
+        stopTyping();
         try {
             const res = await fetch('/api/messenger/messages', {
                 method: 'POST',
@@ -649,11 +834,20 @@ export default function MessengerInterface({
     };
 
     const renderConversationSecondary = (conversation: MessengerConversationDTO) => {
+        const typingUsers =
+            (typingByConversation[conversation.id] ?? []).filter(
+                (item) => normalizeEmail(item.userEmail) && normalizeEmail(item.userEmail) !== userEmail
+            );
+        const isTyping = typingUsers.length > 0;
         if (conversation.type === 'direct') {
             const lastText = truncatePreview(conversation.lastMessagePreview);
             return (
                 <Stack spacing={0.25}>
-                    {lastText ? (
+                    {isTyping ? (
+                        <Typography variant='body2' color='primary.main' noWrap>
+                            Печатает...
+                        </Typography>
+                    ) : lastText ? (
                         <Typography variant='body2' color='text.secondary' noWrap>
                             {lastText}
                         </Typography>
@@ -680,7 +874,11 @@ export default function MessengerInterface({
                 >
                     {conversation.participants.join(', ') || 'все в организации'}
                 </Typography>
-                {lastText ? (
+                {isTyping ? (
+                    <Typography variant='body2' color='primary.main' noWrap>
+                        Печатает...
+                    </Typography>
+                ) : lastText ? (
                     <Typography
                         variant='body2'
                         color='text.secondary'
@@ -971,6 +1169,27 @@ export default function MessengerInterface({
                             </Stack>
                         )}
                     </Box>
+                    {activeTypingUsers.length ? (
+                        <Stack direction='row' spacing={1} alignItems='center' sx={{ px: 1, pt: 0.5 }}>
+                            <Box
+                                sx={{
+                                    width: 10,
+                                    height: 10,
+                                    borderRadius: '50%',
+                                    backgroundColor: 'success.main',
+                                    animation: 'pulseDot 1.3s ease-in-out infinite',
+                                    '@keyframes pulseDot': {
+                                        '0%': { transform: 'scale(0.9)', opacity: 0.6 },
+                                        '50%': { transform: 'scale(1.1)', opacity: 1 },
+                                        '100%': { transform: 'scale(0.9)', opacity: 0.6 },
+                                    },
+                                }}
+                            />
+                            <Typography variant='caption' color='text.secondary'>
+                                Печатает...
+                            </Typography>
+                        </Stack>
+                    ) : null}
                     <Stack
                         direction='row'
                         spacing={1}
@@ -988,7 +1207,11 @@ export default function MessengerInterface({
                             size='small'
                             placeholder='Напишите сообщение для коллег или проектной команды...'
                             value={draftMessage}
-                            onChange={(event) => setDraftMessage(event.target.value)}
+                            onChange={(event) => {
+                                setDraftMessage(event.target.value);
+                                notifyTyping();
+                            }}
+                            onBlur={stopTyping}
                             onKeyDown={(event) => {
                                 if (event.key === 'Enter' && !event.shiftKey) {
                                     event.preventDefault();

@@ -8,7 +8,10 @@ let socketPromise: Promise<Socket> | null = null;
 
 export const fetchSocketToken = async (): Promise<string | null> => {
     try {
-        const res = await fetch('/api/notifications/socket-auth', { cache: 'no-store' });
+        const res = await fetch('/api/notifications/socket-auth', {
+            cache: 'no-store',
+            credentials: 'include',
+        });
         const payload = (await res.json().catch(() => ({}))) as {
             ok?: boolean;
             token?: string;
@@ -25,7 +28,7 @@ export const fetchSocketToken = async (): Promise<string | null> => {
 
 const createSocketClient = async (): Promise<Socket> => {
     try {
-        await fetch('/api/socket', { cache: 'no-store' });
+        await fetch('/api/socket', { cache: 'no-store', credentials: 'include' });
     } catch (error) {
         console.error('socketClient: failed to warm up socket API', error);
     }
