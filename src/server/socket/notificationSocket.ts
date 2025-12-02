@@ -147,7 +147,8 @@ export class NotificationSocketGateway {
             );
 
             socket.on('chat:presence', ({ email, isOnline }: { email?: string; isOnline?: boolean }) => {
-                if (isOnline !== false) {
+                const shouldBeOnline = isOnline ?? true;
+                if (shouldBeOnline) {
                     void this.markOnline(userId, email);
                     return;
                 }
