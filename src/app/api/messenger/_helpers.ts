@@ -1,5 +1,5 @@
 import dbConnect from '@/utils/mongoose';
-import ChatConversationModel from '@/app/models/ChatConversationModel';
+import ChatConversationModel, { type ChatConversation } from '@/app/models/ChatConversationModel';
 import MembershipModel, { type OrgRole } from '@/app/models/MembershipModel';
 import UserModel from '@/app/models/UserModel';
 import type { ChatMessage } from '@/app/models/ChatMessageModel';
@@ -8,9 +8,7 @@ import { Types } from 'mongoose';
 
 export type AccessContext = {
     conversationId: string;
-    conversation: Awaited<ReturnType<typeof ChatConversationModel.findById>> & {
-        orgId: Types.ObjectId;
-    };
+    conversation: ChatConversation;
     orgId: string;
     userEmail: string;
     userId: string;

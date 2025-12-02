@@ -249,7 +249,7 @@ export async function POST(request: Request) {
 
     if (type === 'org') {
         const conversation = await ensureOrgConversation(activeOrgId, email);
-        const unreadCount = await getUnreadCount(conversation._id.toString(), email);
+        const unreadCount = await getUnreadCount(String(conversation._id), email);
         return NextResponse.json({
             ok: true,
             conversation: toDTO(conversation.toObject(), unreadCount),
@@ -293,7 +293,7 @@ export async function POST(request: Request) {
                 participants: [],
             }));
 
-        const unreadCount = await getUnreadCount(conversation._id.toString(), email);
+        const unreadCount = await getUnreadCount(String(conversation._id), email);
         return NextResponse.json({
             ok: true,
             conversation: toDTO(conversation.toObject(), unreadCount),
@@ -339,7 +339,7 @@ export async function POST(request: Request) {
                 createdByEmail: email,
             }));
 
-        const unreadCount = await getUnreadCount(conversation._id.toString(), email);
+        const unreadCount = await getUnreadCount(String(conversation._id), email);
         const targetUser = await UserModel.findOne(
             { email: targetEmail },
             { email: 1, name: 1, profilePic: 1 }
