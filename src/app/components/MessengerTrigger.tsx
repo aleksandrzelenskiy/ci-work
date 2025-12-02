@@ -6,19 +6,13 @@ import {
     Box,
     Dialog,
     DialogContent,
-    DialogTitle,
     IconButton,
     SxProps,
-    Tooltip,
-    Typography,
     useMediaQuery,
     useTheme,
 } from '@mui/material';
 import type { Theme } from '@mui/material/styles';
 import EmailIcon from '@mui/icons-material/Email';
-import CloseIcon from '@mui/icons-material/Close';
-import FullscreenIcon from '@mui/icons-material/Fullscreen';
-import FullscreenExitIcon from '@mui/icons-material/FullscreenExit';
 import MessengerInterface from '@/app/components/MessengerInterface';
 import { fetchSocketToken } from '@/app/lib/socketClient';
 import { NOTIFICATIONS_SOCKET_PATH } from '@/config/socket';
@@ -248,7 +242,7 @@ export default function MessengerTrigger({ buttonSx }: MessengerTriggerProps) {
             >
                 <Badge
                     badgeContent={unreadCount}
-                    color={unreadCount > 0 ? 'primary' : 'default'}
+                    color={unreadCount > 0 ? 'secondary' : 'default'}
                     overlap='circular'
                 >
                     <EmailIcon fontSize='small' />
@@ -261,58 +255,36 @@ export default function MessengerTrigger({ buttonSx }: MessengerTriggerProps) {
                 fullScreen={fullScreen}
                 keepMounted
                 maxWidth={fullScreen ? false : 'lg'}
-                aria-labelledby='messenger-dialog-title'
                 slotProps={{
                     paper: {
                         sx: {
                             borderRadius: fullScreen ? 0 : undefined,
                             m: isMobile ? 0 : undefined,
+                            height: fullScreen ? '100%' : undefined,
                         },
                     },
                 }}
             >
-                {!isMobile ? (
-                    <DialogTitle
-                        id='messenger-dialog-title'
-                        sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}
-                    >
-                        <Typography variant='h6' fontWeight={700}>
-                            Messager
-                        </Typography>
-                        <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
-                            <Tooltip title={fullScreen ? 'Свернуть' : 'На весь экран'}>
-                                <IconButton onClick={toggleFullScreen} aria-label='Переключить полноэкранный режим'>
-                                    {fullScreen ? <FullscreenExitIcon /> : <FullscreenIcon />}
-                                </IconButton>
-                            </Tooltip>
-                            <IconButton onClick={handleClose} aria-label='Закрыть мессенджер'>
-                                <CloseIcon />
-                            </IconButton>
-                        </Box>
-                    </DialogTitle>
-                ) : (
-                    <Box sx={{ position: 'absolute', top: 8, right: 8, zIndex: 2 }}>
-                        <IconButton
-                            onClick={handleClose}
-                            aria-label='Закрыть мессенджер'
-                            size='small'
-                            sx={{ bgcolor: 'rgba(0,0,0,0.05)' }}
-                        >
-                            <CloseIcon fontSize='small' />
-                        </IconButton>
-                    </Box>
-                )}
                 <DialogContent
-                    dividers={!isMobile && !fullScreen}
+                    dividers={false}
                     sx={{
-                        p: isMobile ? 0 : 2,
+                        p: 0,
                         bgcolor: 'transparent',
+                        height: fullScreen ? '100vh' : '80vh',
+                        maxHeight: fullScreen ? '100vh' : '80vh',
+                        overflow: 'hidden',
+                        display: 'flex',
                     }}
                 >
-                    <MessengerInterface
-                        onUnreadChangeAction={handleUnreadChange}
-                        isOpen={open}
-                    />
+                    <Box sx={{ flex: 1, minHeight: 0 }}>
+                        <MessengerInterface
+                            onUnreadChangeAction={handleUnreadChange}
+                            isOpen={open}
+                            onClose={handleClose}
+                            onToggleFullScreen={toggleFullScreen}
+                            isFullScreen={fullScreen}
+                        />
+                    </Box>
                 </DialogContent>
             </Dialog>
         </>

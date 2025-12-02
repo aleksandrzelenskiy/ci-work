@@ -36,6 +36,10 @@ import SearchIcon from '@mui/icons-material/Search';
 import AddCommentIcon from '@mui/icons-material/AddComment';
 import GroupAddIcon from '@mui/icons-material/GroupAdd';
 import ArrowBackIosNewIcon from '@mui/icons-material/ArrowBackIosNew';
+import CloseIcon from '@mui/icons-material/Close';
+import ClearIcon from '@mui/icons-material/Clear';
+import FullscreenIcon from '@mui/icons-material/Fullscreen';
+import FullscreenExitIcon from '@mui/icons-material/FullscreenExit';
 import type { MessengerConversationDTO, MessengerMessageDTO } from '@/app/types/messenger';
 import getSocketClient from '@/app/lib/socketClient';
 
@@ -43,6 +47,9 @@ type MessengerInterfaceProps = {
     onUnreadChangeAction?: (count: number, unreadMap?: Record<string, number>) => void;
     defaultConversationId?: string;
     isOpen?: boolean;
+    onClose?: () => void;
+    onToggleFullScreen?: () => void;
+    isFullScreen?: boolean;
 };
 
 const scopeIconMap: Record<'org' | 'project' | 'direct', React.ReactNode> = {
@@ -99,6 +106,9 @@ export default function MessengerInterface({
     onUnreadChangeAction,
     defaultConversationId,
     isOpen = false,
+    onClose,
+    onToggleFullScreen,
+    isFullScreen,
 }: MessengerInterfaceProps) {
     const theme = useTheme();
     const isMobile = useMediaQuery(theme.breakpoints.down('sm'));
@@ -276,14 +286,19 @@ export default function MessengerInterface({
                     payload.conversations.some((c) => c.id === currentActiveId)
                         ? currentActiveId
                         : '';
-                const initialActive =
-                    preserveCurrentActive ||
-                    (preferActiveId && payload.conversations.some((c) => c.id === preferActiveId)
-                        ? preferActiveId
-                        : defaultConversationId &&
-                            payload.conversations.some((c) => c.id === defaultConversationId)
-                            ? defaultConversationId
-                            : payload.conversations[0]?.id ?? '');
+                const initialActive = (() => {
+                    if (preserveCurrentActive) return preserveCurrentActive;
+                    if (preferActiveId && payload.conversations.some((c) => c.id === preferActiveId)) {
+                        return preferActiveId;
+                    }
+                    if (
+                        defaultConversationId &&
+                        payload.conversations.some((c) => c.id === defaultConversationId)
+                    ) {
+                        return defaultConversationId;
+                    }
+                    return isMobile ? '' : payload.conversations[0]?.id ?? '';
+                })();
                 setActiveConversationId(initialActive);
             } catch (error) {
                 console.error('messenger: load conversations failed', error);
@@ -291,7 +306,7 @@ export default function MessengerInterface({
                 setLoadingConversations(false);
             }
         },
-        [defaultConversationId]
+        [defaultConversationId, isMobile]
     );
 
     React.useEffect(() => {
@@ -1019,6 +1034,23 @@ export default function MessengerInterface({
     const isActiveCounterpartOnline =
         activeConversation?.type === 'direct' && activeConversation.counterpartIsOnline;
 
+    const showWindowActions = !isMobile && (onClose || onToggleFullScreen);
+
+    const activeConversationAvatar = React.useMemo(() => {
+        if (!activeConversation) return null;
+        if (activeConversation.type === 'direct') {
+            const name = getDirectDisplayName(activeConversation);
+            return {
+                src: activeConversation.counterpartAvatar || undefined,
+                label: name?.[0]?.toUpperCase() || 'U',
+                color: 'info.main' as const,
+            };
+        }
+        const label = activeConversation.title?.[0]?.toUpperCase() || 'C';
+        const color = activeConversation.type === 'project' ? 'secondary.main' : 'primary.main';
+        return { src: undefined, label, color };
+    }, [activeConversation, getDirectDisplayName]);
+
     return (
         <>
             <Paper
@@ -1028,14 +1060,14 @@ export default function MessengerInterface({
                     gridTemplateColumns:
                         showListPane && showChatPane ? { xs: '1fr', sm: '320px 1fr' } : '1fr',
                     gap: { xs: 0, sm: 1 },
-                    borderRadius: { xs: 0, sm: 4 },
+                    borderRadius: 0,
                     overflow: 'hidden',
                     borderColor: 'divider',
-                    minHeight: isMobile ? '100vh' : 360,
+                    minHeight: isMobile ? '100vh' : 420,
                     width: '100%',
                     maxWidth: '100%',
-                    overflowX: 'hidden',
-                    height: isMobile ? '100vh' : 'auto',
+                    height: '100%',
+                    maxHeight: '100%',
                     background: 'rgba(255,255,255,0.86)',
                     backdropFilter: 'blur(18px)',
                     boxShadow: isMobile
@@ -1046,29 +1078,72 @@ export default function MessengerInterface({
             >
                 <Box
                     sx={{
-                        display: showListPane ? 'block' : 'none',
+                        display: showListPane ? 'flex' : 'none',
+                        flexDirection: 'column',
                         borderRight: {
                             xs: 'none',
                             sm: (theme) => `1px solid ${theme.palette.divider}`,
                         },
                         background:
                             'linear-gradient(180deg, rgba(255,255,255,0.58), rgba(238,244,255,0.92))',
-                        maxHeight: { xs: 'calc(100vh - 130px)', sm: 'none' },
+                        height: '100%',
+                        maxHeight: '100%',
+                        minHeight: 0,
                     }}
                 >
                     <Stack spacing={1.5} p={2}>
-                        <OutlinedInput
-                            fullWidth
-                            size='small'
-                            placeholder='Поиск по участникам и чатам'
-                            value={conversationSearch}
-                            onChange={(event) => setConversationSearch(event.target.value)}
-                            startAdornment={
-                                <InputAdornment position='start'>
-                                    <SearchIcon fontSize='small' />
-                                </InputAdornment>
-                            }
-                        />
+                        <Stack direction='row' spacing={1} alignItems='center'>
+                            <OutlinedInput
+                                fullWidth
+                                sx={{ flex: 1 }}
+                                size='small'
+                                placeholder='Поиск по участникам и чатам'
+                                value={conversationSearch}
+                                onChange={(event) => setConversationSearch(event.target.value)}
+                                startAdornment={
+                                    <InputAdornment position='start'>
+                                        <SearchIcon fontSize='small' />
+                                    </InputAdornment>
+                                }
+                                endAdornment={
+                                    conversationSearch ? (
+                                        <InputAdornment position='end'>
+                                            <IconButton
+                                                size='small'
+                                                edge='end'
+                                                onClick={() => setConversationSearch('')}
+                                                aria-label='Очистить поиск'
+                                            >
+                                                <ClearIcon fontSize='small' />
+                                            </IconButton>
+                                        </InputAdornment>
+                                    ) : null
+                                }
+                            />
+                            {!isMobile ? (
+                                <Tooltip title='Новое сообщение'>
+                                    <IconButton
+                                        color='primary'
+                                        onClick={handleOpenContactPicker}
+                                        sx={{ flexShrink: 0 }}
+                                    >
+                                        <AddCommentIcon />
+                                    </IconButton>
+                                </Tooltip>
+                            ) : null}
+                            {isMobile && onClose ? (
+                                <Tooltip title='Закрыть'>
+                                    <IconButton
+                                        color='default'
+                                        onClick={onClose}
+                                        sx={{ flexShrink: 0 }}
+                                        aria-label='Закрыть мессенджер'
+                                    >
+                                        <CloseIcon />
+                                    </IconButton>
+                                </Tooltip>
+                            ) : null}
+                        </Stack>
                     </Stack>
                     <Divider />
                     {loadingConversations ? (
@@ -1090,7 +1165,8 @@ export default function MessengerInterface({
                         <List
                             sx={{
                                 py: 0,
-                                maxHeight: { xs: 'calc(100vh - 240px)', sm: 'auto' },
+                                flex: 1,
+                                minHeight: 0,
                                 overflowY: 'auto',
                             }}
                         >
@@ -1135,68 +1211,70 @@ export default function MessengerInterface({
                                                 alignItems: 'flex-start',
                                                 gap: 1,
                                                 backgroundColor: isActive
-                                                    ? 'rgba(255,255,255,0.7)'
+                                                    ? 'rgba(232,240,255,0.9)'
                                                     : 'transparent',
                                                 transition: 'background-color 0.2s ease, transform 0.15s ease',
                                                 py: 1.25,
                                                 '&:hover': {
-                                                    backgroundColor: 'rgba(255,255,255,0.85)',
+                                                    backgroundColor: isActive
+                                                        ? 'rgba(232,240,255,0.95)'
+                                                        : 'rgba(255,255,255,0.85)',
                                                     transform: 'translateX(2px)',
                                                 },
                                             }}
                                         >
-                                <ListItemAvatar>
-                                    <Box sx={{ position: 'relative', display: 'inline-block' }}>
-                                        <Avatar
-                                            src={avatarSrc}
-                                            sx={{
-                                                bgcolor:
-                                                    conversation.type === 'project'
-                                                        ? 'secondary.main'
-                                                        : conversation.type === 'direct'
-                                                            ? 'info.main'
-                                                            : 'primary.main',
-                                                boxShadow: '0 8px 20px rgba(0,0,0,0.08)',
-                                            }}
-                                        >
-                                            {avatarLetter}
-                                        </Avatar>
-                                        {conversation.type === 'direct' && conversation.counterpartIsOnline ? (
-                                            <Box
+                                            <ListItemAvatar>
+                                                <Box sx={{ position: 'relative', display: 'inline-block' }}>
+                                                    <Avatar
+                                                        src={avatarSrc}
+                                                        sx={{
+                                                            bgcolor:
+                                                                conversation.type === 'project'
+                                                                    ? 'secondary.main'
+                                                                    : conversation.type === 'direct'
+                                                                        ? 'info.main'
+                                                                        : 'primary.main',
+                                                            boxShadow: '0 8px 20px rgba(0,0,0,0.08)',
+                                                        }}
+                                                    >
+                                                        {avatarLetter}
+                                                    </Avatar>
+                                                    {conversation.type === 'direct' && conversation.counterpartIsOnline ? (
+                                                        <Box
+                                                            sx={{
+                                                                position: 'absolute',
+                                                                right: -2,
+                                                                bottom: -2,
+                                                                width: 12,
+                                                                height: 12,
+                                                                borderRadius: '50%',
+                                                                backgroundColor: 'success.main',
+                                                                border: '2px solid #fff',
+                                                            }}
+                                                        />
+                                                    ) : null}
+                                                </Box>
+                                            </ListItemAvatar>
+                                            <ListItemText
+                                                primary={renderConversationTitle(conversation)}
+                                                secondary={renderConversationSecondary(conversation)}
+                                            />
+                                            <Badge
+                                                color='secondary'
+                                                badgeContent={unreadCount}
+                                                invisible={unreadCount <= 0}
                                                 sx={{
-                                                    position: 'absolute',
-                                                    right: -2,
-                                                    bottom: -2,
-                                                    width: 12,
-                                                    height: 12,
-                                                    borderRadius: '50%',
-                                                    backgroundColor: 'success.main',
-                                                    border: '2px solid #fff',
+                                                    alignSelf: 'center',
+                                                    ml: 1,
+                                                    '& .MuiBadge-badge': {
+                                                        fontSize: 12,
+                                                        height: 20,
+                                                        minWidth: 20,
+                                                        right: 4,
+                                                        top: 6,
+                                                    },
                                                 }}
                                             />
-                                        ) : null}
-                                    </Box>
-                                </ListItemAvatar>
-                                <ListItemText
-                                    primary={renderConversationTitle(conversation)}
-                                    secondary={renderConversationSecondary(conversation)}
-                                />
-                                <Badge
-                                    color='secondary'
-                                    badgeContent={unreadCount}
-                                    invisible={unreadCount <= 0}
-                                    sx={{
-                                        alignSelf: 'center',
-                                        ml: 1,
-                                        '& .MuiBadge-badge': {
-                                            fontSize: 12,
-                                            height: 20,
-                                            minWidth: 20,
-                                            right: 4,
-                                            top: 6,
-                                        },
-                                    }}
-                                />
                                         </ListItemButton>
                                     </ListItem>
                                 );
@@ -1204,16 +1282,20 @@ export default function MessengerInterface({
                         </List>
                     )}
                 </Box>
-                <Stack
-                    spacing={1.25}
+                <Box
                     p={{ xs: 1.5, sm: 2 }}
                     sx={{
-                        display: showChatPane ? 'flex' : 'none',
+                        display: showChatPane ? 'grid' : 'none',
+                        gridTemplateRows: 'auto 1fr auto',
+                        rowGap: 1.25,
                         background: 'linear-gradient(145deg, rgba(255,255,255,0.94), rgba(236,244,255,0.88))',
-                        minHeight: { xs: 'calc(100vh - 140px)', sm: 'auto' },
                         width: '100%',
                         boxSizing: 'border-box',
-                        overflowX: 'hidden',
+                        overflow: 'hidden',
+                        height: '100%',
+                        minHeight: { xs: 'calc(100vh - 140px)', sm: 420 },
+                        maxHeight: '100%',
+                        minWidth: 0,
                     }}
                 >
                     <Box
@@ -1263,13 +1345,51 @@ export default function MessengerInterface({
                                     </Typography>
                                 </Stack>
                             </Stack>
-                            <Stack direction='row' spacing={1}>
-                                {!isMobile ? (
-                                    <Tooltip title='Новое сообщение'>
-                                        <IconButton color='primary' onClick={handleOpenContactPicker}>
-                                            <AddCommentIcon />
-                                        </IconButton>
-                                    </Tooltip>
+                            <Stack direction='row' alignItems='center' spacing={0.75} flexShrink={0}>
+                                {activeConversationAvatar ? (
+                                    <Avatar
+                                        src={activeConversationAvatar.src}
+                                        sx={{
+                                            bgcolor: activeConversationAvatar.color,
+                                            boxShadow: '0 10px 26px rgba(15,23,42,0.18)',
+                                            width: 40,
+                                            height: 40,
+                                        }}
+                                    >
+                                        {activeConversationAvatar.label}
+                                    </Avatar>
+                                ) : null}
+                                {showWindowActions ? (
+                                    <Stack direction='row' spacing={0.5} alignItems='center'>
+                                        {onToggleFullScreen ? (
+                                            <Tooltip
+                                                title={isFullScreen ? 'Свернуть' : 'На весь экран'}
+                                            >
+                                                <IconButton
+                                                    onClick={onToggleFullScreen}
+                                                    size='small'
+                                                    aria-label='Переключить полноэкранный режим'
+                                                >
+                                                    {isFullScreen ? (
+                                                        <FullscreenExitIcon fontSize='small' />
+                                                    ) : (
+                                                        <FullscreenIcon fontSize='small' />
+                                                    )}
+                                                </IconButton>
+                                            </Tooltip>
+                                        ) : null}
+                                        {onClose ? (
+                                            <Tooltip title='Закрыть'>
+                                                <IconButton
+                                                    onClick={onClose}
+                                                    size='small'
+                                                    aria-label='Закрыть мессенджер'
+                                                >
+                                                    <CloseIcon fontSize='small' />
+                                                </IconButton>
+                                            </Tooltip>
+                                        ) : null}
+                                    </Stack>
                                 ) : null}
                             </Stack>
                         </Stack>
@@ -1277,9 +1397,10 @@ export default function MessengerInterface({
                     </Box>
                     <Box
                         sx={{
-                            flexGrow: 1,
                             minHeight: 240,
-                            maxHeight: { xs: 'calc(100vh - 220px)', sm: 440 },
+                            height: '100%',
+                            maxHeight: '100%',
+                            minWidth: 0,
                             overflowY: 'auto',
                             overflowX: 'hidden',
                             px: { xs: 1, sm: 1.5 },
@@ -1360,66 +1481,68 @@ export default function MessengerInterface({
                             </Stack>
                         )}
                     </Box>
-                    {activeTypingUsers.length ? (
-                        <Stack direction='row' spacing={1} alignItems='center' sx={{ px: 1, pt: 0.5 }}>
-                            <Box
-                                sx={{
-                                    width: 10,
-                                    height: 10,
-                                    borderRadius: '50%',
-                                    backgroundColor: 'success.main',
-                                    animation: 'pulseDot 1.3s ease-in-out infinite',
-                                    '@keyframes pulseDot': {
-                                        '0%': { transform: 'scale(0.9)', opacity: 0.6 },
-                                        '50%': { transform: 'scale(1.1)', opacity: 1 },
-                                        '100%': { transform: 'scale(0.9)', opacity: 0.6 },
-                                    },
+                    <Stack spacing={0.75}>
+                        {activeTypingUsers.length ? (
+                            <Stack direction='row' spacing={1} alignItems='center' sx={{ px: 1 }}>
+                                <Box
+                                    sx={{
+                                        width: 10,
+                                        height: 10,
+                                        borderRadius: '50%',
+                                        backgroundColor: 'success.main',
+                                        animation: 'pulseDot 1.3s ease-in-out infinite',
+                                        '@keyframes pulseDot': {
+                                            '0%': { transform: 'scale(0.9)', opacity: 0.6 },
+                                            '50%': { transform: 'scale(1.1)', opacity: 1 },
+                                            '100%': { transform: 'scale(0.9)', opacity: 0.6 },
+                                        },
+                                    }}
+                                />
+                                <Typography variant='caption' color='text.secondary'>
+                                    Печатает...
+                                </Typography>
+                            </Stack>
+                        ) : null}
+                        <Stack
+                            direction='row'
+                            spacing={1}
+                            alignItems='center'
+                            sx={{
+                                borderRadius: 999,
+                                backgroundColor: 'rgba(244,246,249,0.92)',
+                                px: 1,
+                                py: 0.75,
+                                boxShadow: 'inset 0 1px 0 rgba(255,255,255,0.8)',
+                            }}
+                        >
+                            <TextField
+                                fullWidth
+                                size='small'
+                                placeholder='Напишите сообщение для коллег или проектной команды...'
+                                value={draftMessage}
+                                onChange={(event) => {
+                                    setDraftMessage(event.target.value);
+                                    notifyTyping();
+                                }}
+                                onBlur={stopTyping}
+                                onKeyDown={(event) => {
+                                    if (event.key === 'Enter' && !event.shiftKey) {
+                                        event.preventDefault();
+                                        void handleSendMessage();
+                                    }
                                 }}
                             />
-                            <Typography variant='caption' color='text.secondary'>
-                                Печатает...
-                            </Typography>
+                            <IconButton
+                                color='primary'
+                                onClick={handleSendMessage}
+                                aria-label='Отправить сообщение'
+                                disabled={!draftMessage.trim()}
+                            >
+                                <SendIcon />
+                            </IconButton>
                         </Stack>
-                    ) : null}
-                    <Stack
-                        direction='row'
-                        spacing={1}
-                        alignItems='center'
-                        sx={{
-                            borderRadius: 999,
-                            backgroundColor: 'rgba(244,246,249,0.92)',
-                            px: 1,
-                            py: 0.75,
-                            boxShadow: 'inset 0 1px 0 rgba(255,255,255,0.8)',
-                        }}
-                    >
-                        <TextField
-                            fullWidth
-                            size='small'
-                            placeholder='Напишите сообщение для коллег или проектной команды...'
-                            value={draftMessage}
-                            onChange={(event) => {
-                                setDraftMessage(event.target.value);
-                                notifyTyping();
-                            }}
-                            onBlur={stopTyping}
-                            onKeyDown={(event) => {
-                                if (event.key === 'Enter' && !event.shiftKey) {
-                                    event.preventDefault();
-                                    void handleSendMessage();
-                                }
-                            }}
-                        />
-                        <IconButton
-                            color='primary'
-                            onClick={handleSendMessage}
-                            aria-label='Отправить сообщение'
-                            disabled={!draftMessage.trim()}
-                        >
-                            <SendIcon />
-                        </IconButton>
                     </Stack>
-                </Stack>
+                </Box>
             </Paper>
             <Dialog open={contactPickerOpen} onClose={handleCloseContactPicker} fullWidth maxWidth='xs'>
                 <DialogTitle>Новое сообщение</DialogTitle>
