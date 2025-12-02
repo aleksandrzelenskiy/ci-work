@@ -13,6 +13,8 @@ export type MessengerConversationDTO = {
     counterpartName?: string;
     counterpartAvatar?: string;
     counterpartEmail?: string;
+    counterpartIsOnline?: boolean;
+    counterpartLastActive?: string;
 };
 
 export type MessengerMessageDTO = {
@@ -31,10 +33,12 @@ export type ChatServerToClientEvents = {
     'chat:read': (payload: { conversationId: string; userEmail: string; messageIds: string[] }) => void;
     'chat:unread': (payload: { conversationId: string; unreadCount: number; userEmail?: string }) => void;
     'chat:typing': (payload: { conversationId: string; userEmail?: string; userName?: string; isTyping?: boolean }) => void;
+    'chat:presence': (payload: { userId: string; email?: string; isOnline: boolean; lastActive?: string }) => void;
 };
 
 export type ChatClientToServerEvents = {
     'chat:join': (payload: { conversationId: string }) => void;
     'chat:leave': (payload: { conversationId: string }) => void;
     'chat:typing': (payload: { conversationId: string; userEmail?: string; userName?: string; isTyping?: boolean }) => void;
+    'chat:presence': (payload: { email?: string; isOnline?: boolean }) => void;
 };

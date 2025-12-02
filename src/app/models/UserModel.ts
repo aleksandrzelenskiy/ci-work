@@ -20,6 +20,7 @@ export interface IUser extends Document {
     billingStatus: BillingStatus;
     activeOrgId?: Types.ObjectId | null;
     regionCode?: string;
+    lastActive?: Date | null;
 }
 
 const UserSchema = new Schema<IUser>(
@@ -66,6 +67,10 @@ const UserSchema = new Schema<IUser>(
         regionCode: {
             type: String,
             default: '',
+        },
+        lastActive: {
+            type: Date,
+            default: null,
         },
     },
     { timestamps: true, collection: 'users' }

@@ -58,6 +58,16 @@ const formatTime = (iso: string) => {
     return `${hours}:${minutes}`;
 };
 
+const formatDateWithTime = (iso: string) => {
+    const date = new Date(iso);
+    const datePart = date.toLocaleDateString('ru-RU', {
+        day: '2-digit',
+        month: '2-digit',
+        year: 'numeric',
+    });
+    return `${datePart} ${formatTime(iso)}`;
+};
+
 const normalizeEmail = (value?: string | null) =>
     typeof value === 'string' ? value.trim().toLowerCase() : '';
 
@@ -133,6 +143,19 @@ export default function MessengerInterface({
         () => messagesByConversation[activeConversationId] ?? [],
         [messagesByConversation, activeConversationId]
     );
+
+    const activeLastActivity = React.useMemo(() => {
+        if (!activeConversation) return null;
+        if (activeConversation.type === 'direct' && activeConversation.counterpartLastActive) {
+            return activeConversation.counterpartLastActive;
+        }
+        const conversationMessages = messagesByConversation[activeConversation.id] ?? [];
+        const lastMessage = conversationMessages[conversationMessages.length - 1];
+        if (lastMessage?.createdAt) {
+            return lastMessage.createdAt;
+        }
+        return activeConversation.updatedAt ?? null;
+    }, [activeConversation, messagesByConversation]);
 
     const activeTypingUsers = React.useMemo(
         () =>
@@ -604,6 +627,19 @@ export default function MessengerInterface({
                     [message.conversationId]: [...prevMessages, message],
                 };
             });
+            if (!isOwnMessage) {
+                setConversations((prev) =>
+                    prev.map((c) =>
+                        c.id === message.conversationId && c.type === 'direct'
+                            ? {
+                                  ...c,
+                                  counterpartIsOnline: true,
+                                  counterpartLastActive: message.createdAt,
+                              }
+                            : c
+                    )
+                );
+            }
             if (added) {
                 setConversations((prev) =>
                     prev.map((c) =>
@@ -673,6 +709,46 @@ export default function MessengerInterface({
         removeTypingUser,
         handleTypingEvent,
     ]);
+
+    React.useEffect(() => {
+        if (!socketReady || !socketRef.current || !userEmail) return;
+        const socket = socketRef.current;
+        const sendHeartbeat = () => {
+            socket.emit('chat:presence', { email: userEmail, isOnline: true });
+        };
+        sendHeartbeat();
+        const intervalId = setInterval(sendHeartbeat, 25_000);
+
+        const handlePresenceEvent = (payload: { userId: string; email?: string; isOnline: boolean; lastActive?: string }) => {
+            const normalizedEmail = normalizeEmail(payload.email);
+            if (!normalizedEmail) return;
+            setConversations((prev) =>
+                prev.map((conversation) => {
+                    if (conversation.type !== 'direct') return conversation;
+                    const counterpartEmail =
+                        normalizeEmail(conversation.counterpartEmail) ||
+                        normalizeEmail(
+                            conversation.participants.find((participant) => normalizeEmail(participant) !== userEmail)
+                        );
+                    if (counterpartEmail && counterpartEmail === normalizedEmail) {
+                        return {
+                            ...conversation,
+                            counterpartIsOnline: payload.isOnline,
+                            counterpartLastActive: payload.lastActive ?? conversation.counterpartLastActive,
+                        };
+                    }
+                    return conversation;
+                })
+            );
+        };
+
+        socket.on('chat:presence', handlePresenceEvent);
+
+        return () => {
+            clearInterval(intervalId);
+            socket.off('chat:presence', handlePresenceEvent);
+        };
+    }, [socketReady, userEmail]);
 
     const handleSelectConversation = (conversationId: string) => {
         setActiveConversationId(conversationId);
@@ -791,6 +867,17 @@ export default function MessengerInterface({
         setMobileView('list');
     };
 
+    const getLastMessagePreview = React.useCallback(
+        (conversation: MessengerConversationDTO) => {
+            const conversationMessages = messagesByConversation[conversation.id];
+            const latestMessageText =
+                conversation.lastMessagePreview ??
+                conversationMessages?.[conversationMessages.length - 1]?.text;
+            return truncatePreview(latestMessageText);
+        },
+        [messagesByConversation]
+    );
+
     const getDirectDisplayName = React.useCallback(
         (conversation: MessengerConversationDTO) => {
             if (conversation.type !== 'direct') return conversation.title;
@@ -839,8 +926,8 @@ export default function MessengerInterface({
                 (item) => normalizeEmail(item.userEmail) && normalizeEmail(item.userEmail) !== userEmail
             );
         const isTyping = typingUsers.length > 0;
+        const lastText = getLastMessagePreview(conversation);
         if (conversation.type === 'direct') {
-            const lastText = truncatePreview(conversation.lastMessagePreview);
             return (
                 <Stack spacing={0.25}>
                     {isTyping ? (
@@ -856,10 +943,21 @@ export default function MessengerInterface({
             );
         }
 
-        const lastText = truncatePreview(conversation.lastMessagePreview);
-
         return (
             <Stack spacing={0.5}>
+                {isTyping ? (
+                    <Typography variant='body2' color='primary.main' noWrap>
+                        Печатает...
+                    </Typography>
+                ) : lastText ? (
+                    <Typography
+                        variant='body2'
+                        color='text.secondary'
+                        noWrap
+                    >
+                        {lastText}
+                    </Typography>
+                ) : null}
                 {conversation.projectKey ? (
                     <Typography
                         variant='body2'
@@ -874,22 +972,33 @@ export default function MessengerInterface({
                 >
                     {conversation.participants.join(', ') || 'все в организации'}
                 </Typography>
-                {isTyping ? (
-                    <Typography variant='body2' color='primary.main' noWrap>
-                        Печатает...
-                    </Typography>
-                ) : lastText ? (
-                    <Typography
-                        variant='body2'
-                        color='text.secondary'
-                        noWrap
-                    >
-                        {lastText}
-                    </Typography>
-                ) : null}
             </Stack>
         );
     };
+
+    const activeConversationSubtitle = React.useMemo(() => {
+        if (!activeConversation) {
+            return 'Выберите или создайте чат, чтобы начать переписку.';
+        }
+        if (activeConversation.projectKey) {
+            return `Проектный чат · ${activeConversation.projectKey}`;
+        }
+        if (activeConversation.type === 'direct') {
+            const isOnline = activeConversation.counterpartIsOnline;
+            const lastSeen = activeConversation.counterpartLastActive ?? activeLastActivity;
+            if (isOnline === true) {
+                return 'Online';
+            }
+            if (isOnline === false && lastSeen) {
+                return `Был(а) в сети ${formatDateWithTime(lastSeen)}`;
+            }
+            if (lastSeen) {
+                return `Был(а) в сети ${formatDateWithTime(lastSeen)}`;
+            }
+            return 'Статус недоступен';
+        }
+        return 'Организационный чат';
+    }, [activeConversation, activeLastActivity]);
 
     return (
         <>
@@ -905,6 +1014,8 @@ export default function MessengerInterface({
                     borderColor: 'divider',
                     minHeight: isMobile ? '100vh' : 360,
                     width: '100%',
+                    maxWidth: { xs: '100vw', sm: '100%' },
+                    overflowX: 'hidden',
                     height: isMobile ? '100vh' : 'auto',
                     background: 'rgba(255,255,255,0.86)',
                     backdropFilter: 'blur(18px)',
@@ -1049,43 +1160,48 @@ export default function MessengerInterface({
                         minHeight: { xs: 'calc(100vh - 140px)', sm: 'auto' },
                     }}
                 >
-                    <Stack direction='row' alignItems='center' justifyContent='space-between'>
-                        <Stack spacing={0.25}>
-                            <Stack direction='row' spacing={1} alignItems='center'>
-                                {isMobile && showChatPane ? (
-                                    <IconButton size='small' onClick={handleBackToList}>
-                                        <ArrowBackIosNewIcon fontSize='small' />
-                                    </IconButton>
-                                ) : null}
-                                <Typography variant='subtitle1' fontWeight={700}>
-                                    {activeConversation
-                                        ? activeConversation.type === 'direct'
-                                            ? getDirectDisplayName(activeConversation)
-                                            : activeConversation.title
-                                        : 'Выберите чат'}
+                    <Box
+                        sx={{
+                            position: { xs: 'sticky', sm: 'static' },
+                            top: 0,
+                            zIndex: 2,
+                            background:
+                                'linear-gradient(145deg, rgba(255,255,255,0.98), rgba(236,244,255,0.94))',
+                            pb: 1,
+                        }}
+                    >
+                        <Stack direction='row' alignItems='center' justifyContent='space-between'>
+                            <Stack spacing={0.25}>
+                                <Stack direction='row' spacing={1} alignItems='center'>
+                                    {isMobile && showChatPane ? (
+                                        <IconButton size='small' onClick={handleBackToList}>
+                                            <ArrowBackIosNewIcon fontSize='small' />
+                                        </IconButton>
+                                    ) : null}
+                                    <Typography variant='subtitle1' fontWeight={700}>
+                                        {activeConversation
+                                            ? activeConversation.type === 'direct'
+                                                ? getDirectDisplayName(activeConversation)
+                                                : activeConversation.title
+                                            : 'Выберите чат'}
+                                    </Typography>
+                                </Stack>
+                                <Typography variant='caption' color='text.secondary'>
+                                    {activeConversationSubtitle}
                                 </Typography>
                             </Stack>
-                            <Typography variant='caption' color='text.secondary'>
-                                {activeConversation
-                                    ? activeConversation.projectKey
-                                        ? `Проектный чат · ${activeConversation.projectKey}`
-                                        : activeConversation.type === 'direct'
-                                            ? 'Личные сообщения внутри организации'
-                                            : 'Организационный чат'
-                                    : 'Выберите или создайте чат, чтобы начать переписку.'}
-                            </Typography>
+                            <Stack direction='row' spacing={1}>
+                                {!isMobile ? (
+                                    <Tooltip title='Новое сообщение'>
+                                        <IconButton color='primary' onClick={handleOpenContactPicker}>
+                                            <AddCommentIcon />
+                                        </IconButton>
+                                    </Tooltip>
+                                ) : null}
+                            </Stack>
                         </Stack>
-                        <Stack direction='row' spacing={1}>
-                            {!isMobile ? (
-                                <Tooltip title='Новое сообщение'>
-                                    <IconButton color='primary' onClick={handleOpenContactPicker}>
-                                        <AddCommentIcon />
-                                    </IconButton>
-                                </Tooltip>
-                            ) : null}
-                        </Stack>
-                    </Stack>
-                    <Divider />
+                        <Divider />
+                    </Box>
                     <Box
                         sx={{
                             flexGrow: 1,

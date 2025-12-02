@@ -10,6 +10,7 @@ import UserModel from '@/app/models/UserModel';
 import { GetCurrentUserFromMongoDB } from '@/server-actions/users';
 import type { MessengerConversationDTO, ConversationType } from '@/app/types/messenger';
 import type { OrgRole } from '@/app/models/MembershipModel';
+import { notificationSocketGateway } from '@/server/socket/notificationSocket';
 
 type UserContext = {
     userId: string;
@@ -112,6 +113,8 @@ const toDTO = (
         counterpartEmail?: string;
         counterpartName?: string;
         counterpartAvatar?: string;
+        counterpartIsOnline?: boolean;
+        counterpartLastActive?: Date | null;
     }
 ): MessengerConversationDTO => ({
     id: doc._id?.toString?.() ?? '',
@@ -127,6 +130,10 @@ const toDTO = (
     counterpartEmail: extras?.counterpartEmail,
     counterpartName: extras?.counterpartName,
     counterpartAvatar: extras?.counterpartAvatar,
+    counterpartIsOnline: extras?.counterpartIsOnline,
+    counterpartLastActive: extras?.counterpartLastActive
+        ? extras.counterpartLastActive.toISOString()
+        : undefined,
 });
 
 async function ensureOrgConversation(orgId: string, creatorEmail: string) {
@@ -178,7 +185,7 @@ export async function GET() {
     const directUsers = directCounterparts.length
         ? await UserModel.find(
               { email: { $in: directCounterparts } },
-              { email: 1, name: 1, profilePic: 1 }
+              { email: 1, name: 1, profilePic: 1, lastActive: 1 }
           )
               .lean()
               .exec()
@@ -198,14 +205,19 @@ export async function GET() {
                       )
                     : undefined;
             const counterpartEmail = counterpartRaw ? normalizeEmail(counterpartRaw) : undefined;
-            const counterpartUser = counterpartEmail ? directUserMap.get(counterpartEmail) : null;
-            return toDTO(conversation, unreadCount, {
-                counterpartEmail,
-                counterpartName:
-                    counterpartUser?.name ||
-                    (counterpartEmail ? formatNameFromEmail(counterpartEmail) : undefined),
-                counterpartAvatar: counterpartUser?.profilePic || undefined,
-            });
+        const counterpartUser = counterpartEmail ? directUserMap.get(counterpartEmail) : null;
+        const presence = counterpartUser?._id
+            ? await notificationSocketGateway.getPresence(counterpartUser._id.toString())
+            : null;
+        return toDTO(conversation, unreadCount, {
+            counterpartEmail,
+            counterpartName:
+                counterpartUser?.name ||
+                (counterpartEmail ? formatNameFromEmail(counterpartEmail) : undefined),
+            counterpartAvatar: counterpartUser?.profilePic || undefined,
+            counterpartIsOnline: presence?.isOnline ?? undefined,
+            counterpartLastActive: presence?.lastActive ?? (counterpartUser?.lastActive ?? null),
+        });
         })
     );
 

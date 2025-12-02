@@ -12,10 +12,14 @@ import type {
     NotificationUnreadEventPayload,
 } from '@/app/types/notifications';
 import { verifySocketToken } from '@/server/socket/token';
+import UserModel from '@/app/models/UserModel';
+import dbConnect from '@/utils/mongoose';
 
 const USER_ROOM_PREFIX = 'notification:user:';
 const TASK_ROOM_PREFIX = 'task:';
 const CHAT_ROOM_PREFIX = 'chat:conversation:';
+const PRESENCE_SWEEP_INTERVAL_MS = 20_000;
+const PRESENCE_OFFLINE_THRESHOLD_MS = 60_000;
 
 type TaskCommentPayload = {
     _id: string;
@@ -30,6 +34,12 @@ type TaskCommentPayload = {
 export class NotificationSocketGateway {
     private io?: SocketIOServer;
     private configured = false;
+    private presenceSweepTimer?: ReturnType<typeof setInterval>;
+    private presenceByUser = new Map<
+        string,
+        { lastHeartbeat: number; email?: string; isOnline: boolean; lastActive?: Date | null }
+    >();
+    private userEmailCache = new Map<string, { email?: string; lastActive?: Date | null }>();
 
     public get path() {
         return NOTIFICATIONS_SOCKET_PATH;
@@ -42,8 +52,26 @@ export class NotificationSocketGateway {
         this.io = io;
         this.attachAuth(io);
         this.registerConnectionHandler(io);
+        this.startPresenceSweep();
         this.configured = true;
         return io;
+    }
+
+    public async getPresence(userId: string) {
+        const record = this.presenceByUser.get(userId);
+        if (record) {
+            return {
+                isOnline: record.isOnline,
+                lastActive: record.lastActive ?? (record.lastHeartbeat ? new Date(record.lastHeartbeat) : undefined),
+                email: record.email,
+            };
+        }
+        const cached = this.userEmailCache.get(userId) ?? (await this.hydrateUserMeta(userId));
+        return {
+            isOnline: false,
+            lastActive: cached?.lastActive,
+            email: cached?.email,
+        };
     }
 
     private attachAuth(io: SocketIOServer) {
@@ -76,6 +104,7 @@ export class NotificationSocketGateway {
                 return;
             }
             socket.join(this.roomName(userId));
+            void this.markOnline(userId);
 
             socket.on('task:join', ({ taskId }: { taskId?: string }) => {
                 const normalized = this.taskRoomName(taskId);
@@ -116,7 +145,31 @@ export class NotificationSocketGateway {
                     });
                 }
             );
+
+            socket.on('chat:presence', ({ email, isOnline }: { email?: string; isOnline?: boolean }) => {
+                if (isOnline !== false) {
+                    void this.markOnline(userId, email);
+                    return;
+                }
+                void this.markOffline(userId, new Date());
+            });
+
+            socket.on('disconnect', () => {
+                void this.markOffline(userId, new Date());
+            });
         });
+    }
+
+    private startPresenceSweep() {
+        if (this.presenceSweepTimer) return;
+        this.presenceSweepTimer = setInterval(() => {
+            const now = Date.now();
+            this.presenceByUser.forEach((info, userId) => {
+                if (info.isOnline && now - info.lastHeartbeat > PRESENCE_OFFLINE_THRESHOLD_MS) {
+                    void this.markOffline(userId, new Date(info.lastHeartbeat || now));
+                }
+            });
+        }, PRESENCE_SWEEP_INTERVAL_MS);
     }
 
     private roomName(userId: string) {
@@ -173,6 +226,84 @@ export class NotificationSocketGateway {
         const cleaned = conversationIdInput.trim();
         if (!cleaned) return '';
         return `${CHAT_ROOM_PREFIX}${cleaned}`;
+    }
+
+    private emitPresenceEvent(userId: string, email: string | undefined, isOnline: boolean, lastActive?: Date) {
+        if (!this.io) return;
+        this.io.emit('chat:presence', {
+            userId,
+            email,
+            isOnline,
+            lastActive: lastActive?.toISOString(),
+        });
+    }
+
+    private async hydrateUserMeta(userId: string) {
+        if (this.userEmailCache.has(userId)) {
+            return this.userEmailCache.get(userId);
+        }
+        try {
+            await dbConnect();
+            const user = await UserModel.findById(userId, { email: 1, lastActive: 1 }).lean().exec();
+            const meta = { email: user?.email, lastActive: user?.lastActive ?? null };
+            this.userEmailCache.set(userId, meta);
+            return meta;
+        } catch (error) {
+            console.error('[notifications socket] hydrateUserMeta failed', error);
+            return { email: undefined, lastActive: null };
+        }
+    }
+
+    private async markOnline(userId: string, emailFromEvent?: string) {
+        const now = Date.now();
+        const existing = this.presenceByUser.get(userId);
+        const cachedMeta = await this.hydrateUserMeta(userId);
+        const email = emailFromEvent || existing?.email || cachedMeta?.email;
+
+        this.presenceByUser.set(userId, {
+            lastHeartbeat: now,
+            email,
+            isOnline: true,
+            lastActive: existing?.lastActive ?? cachedMeta?.lastActive ?? null,
+        });
+
+        if (!existing?.isOnline) {
+            this.emitPresenceEvent(userId, email, true);
+        }
+    }
+
+    private async markOffline(userId: string, lastActiveDate?: Date) {
+        const existing = this.presenceByUser.get(userId);
+        if (!existing?.isOnline) {
+            return;
+        }
+        const effectiveLastActive = lastActiveDate || new Date(existing.lastHeartbeat || Date.now());
+        const next = {
+            ...existing,
+            isOnline: false,
+            lastHeartbeat: effectiveLastActive.getTime(),
+            lastActive: effectiveLastActive,
+        };
+        this.presenceByUser.set(userId, next);
+        this.emitPresenceEvent(userId, next.email, false, effectiveLastActive);
+        await this.persistLastActive(userId, effectiveLastActive);
+    }
+
+    private async persistLastActive(userId: string, lastActive: Date) {
+        try {
+            await dbConnect();
+            await UserModel.findByIdAndUpdate(
+                userId,
+                { lastActive },
+                { new: false, upsert: false }
+            )
+                .lean()
+                .exec();
+            const cached = this.userEmailCache.get(userId) ?? {};
+            this.userEmailCache.set(userId, { ...cached, lastActive });
+        } catch (error) {
+            console.error('[notifications socket] persistLastActive failed', error);
+        }
     }
 
     public emitChatMessage(
