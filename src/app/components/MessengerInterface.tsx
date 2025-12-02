@@ -1085,13 +1085,15 @@ export default function MessengerInterface({
                     borderRadius: 0,
                     overflow: 'hidden',
                     borderColor: 'divider',
-                    minHeight: isMobile ? '100vh' : 420,
+                    minHeight: isMobile ? '100dvh' : 420,
                     width: '100%',
                     maxWidth: '100%',
-                    height: '100%',
-                    maxHeight: '100%',
+                    height: isMobile ? '100dvh' : '100%',
+                    maxHeight: isMobile ? '100dvh' : '100%',
                     background: 'rgba(255,255,255,0.86)',
                     backdropFilter: 'blur(18px)',
+                    overflowY: isMobile ? 'auto' : 'hidden',
+                    overflowX: 'hidden',
                     boxShadow: isMobile
                         ? 'none'
                         : '0 18px 45px rgba(15,23,42,0.08), inset 0 1px 0 rgba(255,255,255,0.45)',
@@ -1315,7 +1317,7 @@ export default function MessengerInterface({
                         boxSizing: 'border-box',
                         overflow: 'hidden',
                         height: '100%',
-                        minHeight: { xs: 'calc(100vh - 140px)', sm: 420 },
+                        minHeight: { xs: 'calc(100dvh - 140px)', sm: 420 },
                         maxHeight: '100%',
                         minWidth: 0,
                     }}
@@ -1503,7 +1505,7 @@ export default function MessengerInterface({
                             </Stack>
                         )}
                     </Box>
-                    <Stack spacing={0.75}>
+                    <Stack spacing={0.75} sx={{ pb: { xs: 'max(env(safe-area-inset-bottom, 0px), 10px)', sm: 0 } }}>
                         {activeTypingUsers.length ? (
                             <Stack direction='row' spacing={1} alignItems='center' sx={{ px: 1 }}>
                                 <Box
