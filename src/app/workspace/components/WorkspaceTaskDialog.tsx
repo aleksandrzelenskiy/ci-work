@@ -1753,7 +1753,11 @@ export default function WorkspaceTaskDialog({
                                 }}
                                 onChange={(_e, value) => setRelatedTasksSelected(value)}
                                 loading={relatedTasksLoading}
-                                filterOptions={(opts) => opts}
+                                filterOptions={(opts) => {
+                                    if (!relatedTasksSelected.length) return opts;
+                                    const selectedIds = new Set(relatedTasksSelected.map((t) => t.id));
+                                    return opts.filter((opt) => !selectedIds.has(opt.id));
+                                }}
                                 getOptionLabel={(opt) => formatRelatedTaskLabel(opt)}
                                 isOptionEqualToValue={(opt, val) => opt.id === val.id}
                                 noOptionsText={

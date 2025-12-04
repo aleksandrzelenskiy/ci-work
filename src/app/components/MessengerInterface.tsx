@@ -42,13 +42,14 @@ import FullscreenIcon from '@mui/icons-material/Fullscreen';
 import FullscreenExitIcon from '@mui/icons-material/FullscreenExit';
 import type { MessengerConversationDTO, MessengerMessageDTO } from '@/app/types/messenger';
 import getSocketClient from '@/app/lib/socketClient';
+import { formatNameFromEmail, normalizeEmail } from '@/utils/email';
 
 type MessengerInterfaceProps = {
     onUnreadChangeAction?: (count: number, unreadMap?: Record<string, number>) => void;
     defaultConversationId?: string;
     isOpen?: boolean;
-    onClose?: () => void;
-    onToggleFullScreen?: () => void;
+    onCloseAction?: () => void;
+    onToggleFullScreenAction?: () => void;
     isFullScreen?: boolean;
 };
 
@@ -75,19 +76,6 @@ const formatDateWithTime = (iso: string) => {
     return `${datePart} ${formatTime(iso)}`;
 };
 
-const normalizeEmail = (value?: string | null) =>
-    typeof value === 'string' ? value.trim().toLowerCase() : '';
-
-const formatNameFromEmail = (value: string) => {
-    if (!value.includes('@')) return value;
-    const local = value.split('@')[0] || value;
-    const parts = local.split(/[._-]+/).filter(Boolean);
-    if (!parts.length) return value;
-    return parts
-        .map((part) => part.charAt(0).toUpperCase() + part.slice(1))
-        .join(' ');
-};
-
 const truncatePreview = (value?: string | null, maxLength = 70) => {
     if (!value) return '';
     const normalized = value.replace(/\s+/g, ' ').trim();
@@ -106,8 +94,8 @@ export default function MessengerInterface({
     onUnreadChangeAction,
     defaultConversationId,
     isOpen = false,
-    onClose,
-    onToggleFullScreen,
+    onCloseAction,
+    onToggleFullScreenAction,
     isFullScreen,
 }: MessengerInterfaceProps) {
     const theme = useTheme();
@@ -1056,7 +1044,7 @@ export default function MessengerInterface({
     const isActiveCounterpartOnline =
         activeConversation?.type === 'direct' && activeConversation.counterpartIsOnline;
 
-    const showWindowActions = !isMobile && (onClose || onToggleFullScreen);
+    const showWindowActions = !isMobile && (onCloseAction || onToggleFullScreenAction);
 
     const activeConversationAvatar = React.useMemo(() => {
         if (!activeConversation) return null;
@@ -1155,11 +1143,11 @@ export default function MessengerInterface({
                                     </IconButton>
                                 </Tooltip>
                             ) : null}
-                            {isMobile && onClose ? (
+                            {isMobile && onCloseAction ? (
                                 <Tooltip title='Закрыть'>
                                     <IconButton
                                         color='default'
-                                        onClick={onClose}
+                                        onClick={onCloseAction}
                                         sx={{ flexShrink: 0 }}
                                         aria-label='Закрыть мессенджер'
                                     >
@@ -1385,12 +1373,12 @@ export default function MessengerInterface({
                                 ) : null}
                                 {showWindowActions ? (
                                     <Stack direction='row' spacing={0.5} alignItems='center'>
-                                        {onToggleFullScreen ? (
+                                        {onToggleFullScreenAction ? (
                                             <Tooltip
                                                 title={isFullScreen ? 'Свернуть' : 'На весь экран'}
                                             >
                                                 <IconButton
-                                                    onClick={onToggleFullScreen}
+                                                    onClick={onToggleFullScreenAction}
                                                     size='small'
                                                     aria-label='Переключить полноэкранный режим'
                                                 >
@@ -1402,10 +1390,10 @@ export default function MessengerInterface({
                                                 </IconButton>
                                             </Tooltip>
                                         ) : null}
-                                        {onClose ? (
+                                        {onCloseAction ? (
                                             <Tooltip title='Закрыть'>
                                                 <IconButton
-                                                    onClick={onClose}
+                                                    onClick={onCloseAction}
                                                     size='small'
                                                     aria-label='Закрыть мессенджер'
                                                 >

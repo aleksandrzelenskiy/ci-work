@@ -1435,18 +1435,7 @@ export default function TaskDetailsPage() {
 
                         {/* Состав работ */}
                         {(hasWorkItems || Array.isArray(task.workItems)) && (
-                            <CardItem
-                                sx={(theme) => ({
-                                    minWidth: 0,
-                                    width: {
-                                        xs: `calc(100% - ${theme.spacing(1)})`,
-                                        sm: `calc(100% - ${theme.spacing(1.5)})`,
-                                        md: `calc(100% - ${theme.spacing(2)})`,
-                                        lg: `calc((100% / 3 * 2) - ${theme.spacing(2)})`,
-                                        xl: `calc((100% / 4 * 2) - ${theme.spacing(2)})`,
-                                    },
-                                })}
-                            >
+                            <CardItem sx={{ minWidth: 0 }}>
                                 <Accordion
                                     defaultExpanded
                                     disableGutters

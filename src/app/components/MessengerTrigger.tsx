@@ -280,8 +280,8 @@ export default function MessengerTrigger({ buttonSx }: MessengerTriggerProps) {
                         <MessengerInterface
                             onUnreadChangeAction={handleUnreadChange}
                             isOpen={open}
-                            onClose={handleClose}
-                            onToggleFullScreen={toggleFullScreen}
+                            onCloseAction={handleClose}
+                            onToggleFullScreenAction={toggleFullScreen}
                             isFullScreen={fullScreen}
                         />
                     </Box>

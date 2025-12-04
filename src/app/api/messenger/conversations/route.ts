@@ -11,6 +11,7 @@ import { GetCurrentUserFromMongoDB } from '@/server-actions/users';
 import type { MessengerConversationDTO, ConversationType } from '@/app/types/messenger';
 import type { OrgRole } from '@/app/models/MembershipModel';
 import { notificationSocketGateway } from '@/server/socket/notificationSocket';
+import { formatNameFromEmail, normalizeEmail } from '@/utils/email';
 
 type UserContext = {
     userId: string;
@@ -20,19 +21,6 @@ type UserContext = {
 };
 
 const MANAGE_PROJECT_ROLES: OrgRole[] = ['owner', 'org_admin', 'manager'];
-
-const normalizeEmail = (value?: string | null) =>
-    typeof value === 'string' ? value.trim().toLowerCase() : '';
-
-const formatNameFromEmail = (value: string) => {
-    if (!value.includes('@')) return value;
-    const local = value.split('@')[0] || value;
-    const parts = local.split(/[._-]+/).filter(Boolean);
-    if (!parts.length) return value;
-    return parts
-        .map((part) => part.charAt(0).toUpperCase() + part.slice(1))
-        .join(' ');
-};
 
 async function resolveUserContext(): Promise<
     | { ok: true; context: UserContext }
