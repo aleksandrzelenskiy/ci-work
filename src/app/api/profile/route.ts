@@ -72,12 +72,10 @@ export async function PATCH(request: Request) {
       typeof body.phone === 'string' ? sanitizeString(body.phone) : undefined;
     const nextRegion =
       typeof body.regionCode === 'string' ? sanitizeString(body.regionCode) : undefined;
-    const skills: string[] | undefined =
-      Array.isArray(body.skills) && body.skills.length
-        ? body.skills.map((s) => sanitizeString(s)).filter(Boolean)
-        : Array.isArray(body.skills)
-            ? []
-            : undefined;
+    const skillsProvided = Array.isArray(body.skills);
+    const skills: string[] | undefined = skillsProvided
+      ? body.skills.map((s) => sanitizeString(s)).filter(Boolean)
+      : undefined;
     const desiredRate =
       typeof body.desiredRate === 'number' && Number.isFinite(body.desiredRate) && body.desiredRate > 0
         ? body.desiredRate
@@ -122,12 +120,10 @@ export async function PATCH(request: Request) {
     if (typeof nextRegion !== 'undefined') {
       updatePayload.regionCode = nextRegion;
     }
-    if (skills) {
-      updatePayload.skills = skills;
+    if (skillsProvided) {
+      updatePayload.skills = skills ?? [];
       updatePayload.portfolioStatus = 'pending';
       updatePayload.moderationComment = '';
-    } else if (skills?.length === 0) {
-      updatePayload.skills = [];
     }
     if (typeof desiredRate !== 'undefined') {
       updatePayload.desiredRate = desiredRate === null ? undefined : desiredRate;
