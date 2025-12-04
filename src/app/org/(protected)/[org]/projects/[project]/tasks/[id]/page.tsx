@@ -51,16 +51,16 @@ import CloseIcon from '@mui/icons-material/Close';
 import AddIcon from '@mui/icons-material/Add';
 import CloudUploadOutlinedIcon from '@mui/icons-material/CloudUploadOutlined';
 import LinkOutlinedIcon from '@mui/icons-material/LinkOutlined';
-import WorkspaceTaskDialog, {
-    type TaskForEdit,
-} from '@/app/workspace/components/WorkspaceTaskDialog';
+import WorkspaceTaskDialog from '@/app/workspace/components/WorkspaceTaskDialog';
+import type { TaskForEdit } from '@/app/workspace/components/WorkspaceTaskDialog';
+import TaskComments from '@/app/components/TaskComments';
+import type { TaskComment } from '@/app/components/TaskComments';
 import type { ParsedWorkItem } from '@/app/workspace/components/T2/T2EstimateParser';
 import { T2NcwGenerator } from '@/app/workspace/components/T2/T2NcwGenerator';
 import { getPriorityIcon, normalizePriority } from '@/utils/priorityIcons';
 import TaskGeoLocation from '@/app/workspace/components/TaskGeoLocation';
 import { getStatusColor } from '@/utils/statusColors';
 import { getStatusLabel, normalizeStatusTitle } from '@/utils/statusLabels';
-import TaskComments, { type TaskComment } from '@/app/components/TaskComments';
 import {
     Timeline,
     TimelineItem,
@@ -112,10 +112,13 @@ type Task = {
     taskId: string;
     taskName: string;
     status?: string;
+    visibility?: 'public' | 'private';
+    publicStatus?: 'open' | 'in_review' | 'assigned' | 'closed';
     bsNumber?: string;
     bsAddress?: string;
     bsLocation?: Array<{ name?: string; coordinates: string; address?: string | null }>;
     totalCost?: number;
+    contractorPayment?: number;
     priority?: 'urgent' | 'high' | 'medium' | 'low';
     dueDate?: string;
     taskType?: string;
@@ -615,10 +618,10 @@ export default function TaskDetailsPage() {
                     setTask((prev) =>
                         prev
                             ? {
-                                  ...prev,
-                                  documents: prev.documents?.filter((d) => d !== documentToDelete),
-                                  attachments: prev.attachments?.filter((a) => a !== documentToDelete),
-                              }
+                                ...prev,
+                                documents: prev.documents?.filter((d) => d !== documentToDelete),
+                                attachments: prev.attachments?.filter((a) => a !== documentToDelete),
+                            }
                             : prev
                     );
                 }

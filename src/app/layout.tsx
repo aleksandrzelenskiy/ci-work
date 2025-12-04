@@ -3,26 +3,31 @@
 import './globals.css';
 import { ClerkProvider } from '@clerk/nextjs';
 import ClientApp from './ClientApp';
-import { Inter } from 'next/font/google';
+import localFont from 'next/font/local';
 import { ThemeProvider, createTheme, CssBaseline } from '@mui/material';
 
-// Подключаем Inter с кириллицей
-const inter = Inter({
-    subsets: ['latin', 'cyrillic'],
-    weight: ['400', '500', '600', '700'],
+// Локальный шрифт, чтобы не тянуть Google Fonts при сборке без сети
+const primaryFont = localFont({
+    src: [
+        {
+            path: '../../public/fonts/Roboto-Regular.ttf',
+            weight: '400',
+            style: 'normal',
+        },
+    ],
     display: 'swap',
 });
 
 // Создаём тему MUI, где переопределяем основной шрифт
 const theme = createTheme({
     typography: {
-        fontFamily: `${inter.style.fontFamily}, sans-serif`,
+        fontFamily: `${primaryFont.style.fontFamily}, 'Open Sans', sans-serif`,
     },
 });
 
 export default function RootLayout({
-                                       children,
-                                   }: {
+    children,
+}: {
     children: React.ReactNode;
 }) {
     const publishableKey = process.env.NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY;
@@ -34,12 +39,12 @@ export default function RootLayout({
     return (
         <ClerkProvider publishableKey={publishableKey} dynamic>
             <html lang="ru">
-            <body className={inter.className}>
-            <ThemeProvider theme={theme}>
-                <CssBaseline />
-                <ClientApp>{children}</ClientApp>
-            </ThemeProvider>
-            </body>
+                <body className={primaryFont.className}>
+                    <ThemeProvider theme={theme}>
+                        <CssBaseline />
+                        <ClientApp>{children}</ClientApp>
+                    </ThemeProvider>
+                </body>
             </html>
         </ClerkProvider>
     );
