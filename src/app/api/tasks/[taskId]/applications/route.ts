@@ -31,9 +31,9 @@ async function loadTask(taskId: string) {
 
 export async function GET(
     _request: NextRequest,
-    { params }: { params: { taskId: string } }
+    { params }: { params: Promise<{ taskId: string }> }
 ) {
-    const { taskId } = params;
+    const { taskId } = await params;
     try {
         await dbConnect();
     } catch (error) {
@@ -68,9 +68,9 @@ export async function GET(
 
 export async function POST(
     request: NextRequest,
-    { params }: { params: { taskId: string } }
+    { params }: { params: Promise<{ taskId: string }> }
 ) {
-    const { taskId } = params;
+    const { taskId } = await params;
     const body = (await request.json()) as CreateApplicationBody;
 
     try {
@@ -140,9 +140,9 @@ export async function POST(
 
 export async function PATCH(
     request: NextRequest,
-    { params }: { params: { taskId: string } }
+    { params }: { params: Promise<{ taskId: string }> }
 ) {
-    const { taskId } = params;
+    const { taskId } = await params;
     const body = (await request.json()) as UpdateApplicationBody;
 
     if (!body.applicationId || !mongoose.Types.ObjectId.isValid(body.applicationId)) {
