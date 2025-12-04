@@ -31,6 +31,13 @@ export async function GET() {
       phone: user.phone ?? '',
       regionCode: user.regionCode ?? '',
       profilePic: user.profilePic || clerkUser.imageUrl || '',
+      profileType: user.profileType,
+      skills: user.skills ?? [],
+      desiredRate: user.desiredRate ?? null,
+      bio: user.bio ?? '',
+      portfolioLinks: user.portfolioLinks ?? [],
+      portfolioStatus: user.portfolioStatus ?? 'pending',
+      moderationComment: user.moderationComment ?? '',
     });
   } catch (error) {
     console.error('GET /api/profile error:', error);
@@ -45,6 +52,10 @@ type ProfilePatchPayload = {
   name?: string;
   phone?: string;
   regionCode?: string;
+  skills?: string[];
+  desiredRate?: number | null;
+  bio?: string;
+  portfolioLinks?: string[];
 };
 
 export async function PATCH(request: Request) {
@@ -61,6 +72,29 @@ export async function PATCH(request: Request) {
       typeof body.phone === 'string' ? sanitizeString(body.phone) : undefined;
     const nextRegion =
       typeof body.regionCode === 'string' ? sanitizeString(body.regionCode) : undefined;
+    const skills =
+      Array.isArray(body.skills) && body.skills.length
+        ? body.skills.map((s) => sanitizeString(s)).filter(Boolean)
+        : Array.isArray(body.skills)
+            ? []
+            : undefined;
+    const desiredRate =
+      typeof body.desiredRate === 'number' && Number.isFinite(body.desiredRate) && body.desiredRate > 0
+        ? body.desiredRate
+        : body.desiredRate === null
+            ? null
+            : undefined;
+    const bio =
+      typeof body.bio === 'string'
+        ? body.bio.trim().slice(0, 2000)
+        : undefined;
+    const portfolioLinks =
+      Array.isArray(body.portfolioLinks)
+        ? body.portfolioLinks
+            .map((link) => sanitizeString(link))
+            .filter(Boolean)
+            .slice(0, 20)
+        : undefined;
 
     if (typeof body.name !== 'undefined' && !nextName) {
       return NextResponse.json(
@@ -78,7 +112,7 @@ export async function PATCH(request: Request) {
 
     await dbConnect();
 
-    const updatePayload: Record<string, string> = {};
+    const updatePayload: Record<string, unknown> = {};
     if (typeof nextName !== 'undefined') {
       updatePayload.name = nextName;
     }
@@ -87,6 +121,28 @@ export async function PATCH(request: Request) {
     }
     if (typeof nextRegion !== 'undefined') {
       updatePayload.regionCode = nextRegion;
+    }
+    if (skills) {
+      updatePayload.skills = skills;
+      updatePayload.portfolioStatus = 'pending';
+      updatePayload.moderationComment = '';
+    } else if (skills?.length === 0) {
+      updatePayload.skills = [];
+    }
+    if (typeof desiredRate !== 'undefined') {
+      updatePayload.desiredRate = desiredRate === null ? undefined : desiredRate;
+      updatePayload.portfolioStatus = 'pending';
+      updatePayload.moderationComment = '';
+    }
+    if (typeof bio !== 'undefined') {
+      updatePayload.bio = bio;
+      updatePayload.portfolioStatus = 'pending';
+      updatePayload.moderationComment = '';
+    }
+    if (typeof portfolioLinks !== 'undefined') {
+      updatePayload.portfolioLinks = portfolioLinks;
+      updatePayload.portfolioStatus = 'pending';
+      updatePayload.moderationComment = '';
     }
     if (!Object.keys(updatePayload).length) {
       return NextResponse.json(
@@ -116,6 +172,13 @@ export async function PATCH(request: Request) {
         email: updatedUser.email,
         regionCode: updatedUser.regionCode ?? '',
         profilePic: updatedUser.profilePic || clerkUser.imageUrl || '',
+        profileType: updatedUser.profileType,
+        skills: updatedUser.skills ?? [],
+        desiredRate: updatedUser.desiredRate ?? null,
+        bio: updatedUser.bio ?? '',
+        portfolioLinks: updatedUser.portfolioLinks ?? [],
+        portfolioStatus: updatedUser.portfolioStatus ?? 'pending',
+        moderationComment: updatedUser.moderationComment ?? '',
       },
     });
   } catch (error) {

@@ -22,7 +22,9 @@ import {
     Stack,
     TextField,
     Typography,
+    Chip,
 } from '@mui/material';
+import Autocomplete from '@mui/material/Autocomplete';
 import { RUSSIAN_REGIONS } from '@/app/utils/regions';
 
 type ProfileResponse = {
@@ -31,6 +33,13 @@ type ProfileResponse = {
     phone: string;
     profilePic: string;
     regionCode: string;
+    profileType?: 'employer' | 'contractor';
+    skills?: string[];
+    desiredRate?: number | null;
+    bio?: string;
+    portfolioLinks?: string[];
+    portfolioStatus?: 'pending' | 'approved' | 'rejected';
+    moderationComment?: string;
     error?: string;
 };
 
@@ -46,6 +55,11 @@ export default function ProfilePage() {
     const fileInputRef = useRef<HTMLInputElement | null>(null);
     const [firstName, setFirstName] = useState('');
     const [lastName, setLastName] = useState('');
+    const [skills, setSkills] = useState<string[]>([]);
+    const [skillsInput, setSkillsInput] = useState('');
+    const [desiredRate, setDesiredRate] = useState<string>('');
+    const [bio, setBio] = useState('');
+    const [portfolioLinks, setPortfolioLinks] = useState<string>('');
 
     const deriveNames = useCallback((fullName?: string) => {
         const parts = (fullName ?? '')
@@ -75,10 +89,23 @@ export default function ProfilePage() {
             const res = await fetch('/api/profile', { cache: 'no-store' });
             const data: ProfileResponse = await res.json();
             if (!res.ok) {
-                throw new Error(data.error || 'Не удалось загрузить профиль');
+                setError(data.error || 'Не удалось загрузить профиль');
+                return;
             }
             setProfile(data);
             deriveNames(data.name);
+            setSkills(Array.isArray(data.skills) ? data.skills : []);
+            setDesiredRate(
+                typeof data.desiredRate === 'number'
+                    ? String(data.desiredRate)
+                    : ''
+            );
+            setBio(data.bio || '');
+            setPortfolioLinks(
+                Array.isArray(data.portfolioLinks)
+                    ? data.portfolioLinks.join('\n')
+                    : ''
+            );
         } catch (err) {
             setError(err instanceof Error ? err.message : 'Неизвестная ошибка');
         } finally {
@@ -104,17 +131,40 @@ export default function ProfilePage() {
                     name: buildFullName(firstName, lastName),
                     phone: profile.phone,
                     regionCode: profile.regionCode,
+                    skills,
+                    desiredRate: desiredRate.trim() ? Number(desiredRate.trim()) : null,
+                    bio,
+                    portfolioLinks: portfolioLinks
+                        .split('\n')
+                        .map((s) => s.trim())
+                        .filter(Boolean),
                 }),
             });
             const data = await res.json();
             if (!res.ok) {
-                throw new Error(data.error || 'Не удалось обновить профиль');
+                setMessage({
+                    type: 'error',
+                    text: data.error || 'Не удалось обновить профиль',
+                });
+                return;
             }
             if (data.profile) {
                 setProfile((prev) =>
                     prev ? { ...prev, ...data.profile } : data.profile
                 );
                 deriveNames(data.profile.name);
+                setSkills(Array.isArray(data.profile.skills) ? data.profile.skills : []);
+                setDesiredRate(
+                    typeof data.profile.desiredRate === 'number'
+                        ? String(data.profile.desiredRate)
+                        : ''
+                );
+                setBio(data.profile.bio || '');
+                setPortfolioLinks(
+                    Array.isArray(data.profile.portfolioLinks)
+                        ? data.profile.portfolioLinks.join('\n')
+                        : ''
+                );
             }
             setMessage({ type: 'success', text: 'Профиль обновлён' });
         } catch (err) {
@@ -142,7 +192,11 @@ export default function ProfilePage() {
             });
             const data = await res.json();
             if (!res.ok) {
-                throw new Error(data.error || 'Не удалось загрузить аватар');
+                setMessage({
+                    type: 'error',
+                    text: data.error || 'Не удалось загрузить аватар',
+                });
+                return;
             }
             setProfile((prev) =>
                 prev ? { ...prev, profilePic: data.imageUrl } : prev
@@ -292,6 +346,85 @@ export default function ProfilePage() {
                 </FormControl>
 
                 <TextField label="Email" value={profile.email} disabled />
+
+                {profile.profileType === 'contractor' && (
+                    <Stack spacing={2}>
+                        <Typography variant="h6" fontWeight={600}>
+                            Профиль подрядчика
+                        </Typography>
+                        <Autocomplete<string, true, false, true>
+                            multiple
+                            freeSolo
+                            options={[]}
+                            value={skills}
+                            inputValue={skillsInput}
+                            onInputChange={(_e, val) => setSkillsInput(val)}
+                            onChange={(_e, val) =>
+                                setSkills(
+                                    (val as string[]).map((v) => v.trim()).filter(Boolean)
+                                )
+                            }
+                            renderTags={(value, getTagProps) =>
+                                value.map((option, index) => (
+                                    <Chip
+                                        label={option}
+                                        {...getTagProps({ index })}
+                                        key={`${option}-${index}`}
+                                        sx={{ borderRadius: 2 }}
+                                    />
+                                ))
+                            }
+                            renderInput={(params) => (
+                                <TextField
+                                    {...params}
+                                    label="Навыки"
+                                    placeholder="Оптика, электрика, сварка"
+                                    helperText="Используется в выдаче публичных задач"
+                                />
+                            )}
+                        />
+
+                        <TextField
+                            label="Ставка за задачу, ₽"
+                            type="number"
+                            value={desiredRate}
+                            onChange={(e) => setDesiredRate(e.target.value)}
+                            inputProps={{ min: 0 }}
+                            helperText="Фиксированная ставка для типовых задач"
+                        />
+
+                        <TextField
+                            label="О себе"
+                            multiline
+                            minRows={3}
+                            value={bio}
+                            onChange={(e) => setBio(e.target.value)}
+                            placeholder="Кратко опишите опыт и специализацию"
+                        />
+
+                        <TextField
+                            label="Портфолио/ссылки (по строке на ссылку)"
+                            multiline
+                            minRows={3}
+                            value={portfolioLinks}
+                            onChange={(e) => setPortfolioLinks(e.target.value)}
+                            placeholder="https://site.com/example"
+                        />
+
+                        <Alert
+                            severity={
+                                profile.portfolioStatus === 'approved'
+                                    ? 'success'
+                                    : profile.portfolioStatus === 'rejected'
+                                        ? 'error'
+                                        : 'info'
+                            }
+                        >
+                            Статус модерации: {profile.portfolioStatus || 'pending'}
+                            {profile.moderationComment ? ` — ${profile.moderationComment}` : ''}
+                        </Alert>
+                    </Stack>
+                )}
 
                 <Box sx={{ display: 'flex', gap: 2, flexWrap: 'wrap' }}>
                     <Button

@@ -192,6 +192,12 @@ export default function TaskDetailsPage() {
         'estimate' | 'order' | 'other' | 'ncw' | null
     >(null);
     const [documentDeleting, setDocumentDeleting] = React.useState(false);
+    const [publishLoading, setPublishLoading] = React.useState(false);
+    const [publishSnack, setPublishSnack] = React.useState<{
+        open: boolean;
+        message: string;
+        sev: 'success' | 'error';
+    }>({ open: false, message: '', sev: 'success' });
 
     const [orgName, setOrgName] = React.useState<string | null>(null);
     const [projectOperator, setProjectOperator] = React.useState<string | null>(null);
@@ -322,6 +328,48 @@ export default function TaskDetailsPage() {
             setProjectOperator(null);
         }
     }, [org, project]);
+
+    const handlePublishToggle = React.useCallback(
+        async (makePublic: boolean) => {
+            if (!id) return;
+            setPublishLoading(true);
+            try {
+                const res = await fetch(`/api/tasks/${encodeURIComponent(id)}/publish`, {
+                    method: 'PATCH',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(
+                        makePublic
+                            ? { visibility: 'public', publicStatus: 'open' }
+                            : { visibility: 'private', publicStatus: 'closed' }
+                    ),
+                });
+                const data = await res.json().catch(() => ({}));
+                if (!res.ok || data.error) {
+                    setPublishSnack({
+                        open: true,
+                        sev: 'error',
+                        message: data.error || 'Не удалось обновить публикацию',
+                    });
+                } else {
+                    setPublishSnack({
+                        open: true,
+                        sev: 'success',
+                        message: makePublic ? 'Задача опубликована' : 'Публикация снята',
+                    });
+                    await load();
+                }
+            } catch (e) {
+                setPublishSnack({
+                    open: true,
+                    sev: 'error',
+                    message: e instanceof Error ? e.message : 'Ошибка сети',
+                });
+            } finally {
+                setPublishLoading(false);
+            }
+        },
+        [id, load]
+    );
 
     React.useEffect(() => {
         void load();
@@ -1178,6 +1226,21 @@ export default function TaskDetailsPage() {
                     </Box>
                 </Stack>
                 <Stack direction="row" spacing={1}>
+                    {task && (
+                        <Button
+                            variant={task.visibility === 'public' ? 'outlined' : 'contained'}
+                            color={task.visibility === 'public' ? 'inherit' : 'primary'}
+                            size="small"
+                            onClick={() => void handlePublishToggle(task.visibility !== 'public')}
+                            disabled={publishLoading}
+                        >
+                            {publishLoading
+                                ? 'Сохраняем…'
+                                : task.visibility === 'public'
+                                    ? 'Снять с публикации'
+                                    : 'Опубликовать'}
+                        </Button>
+                    )}
                     <Tooltip title="Обновить">
                         <span>
                             <IconButton onClick={() => void load()} disabled={loading}>
@@ -2170,6 +2233,21 @@ export default function TaskDetailsPage() {
                         placeholder
                     </Alert>
                 )}
+            </Snackbar>
+            <Snackbar
+                open={publishSnack.open}
+                autoHideDuration={3000}
+                onClose={() => setPublishSnack((prev) => ({ ...prev, open: false }))}
+                anchorOrigin={{ vertical: 'bottom', horizontal: 'center' }}
+            >
+                <Alert
+                    onClose={() => setPublishSnack((prev) => ({ ...prev, open: false }))}
+                    severity={publishSnack.sev}
+                    variant="filled"
+                    sx={{ width: '100%' }}
+                >
+                    {publishSnack.message}
+                </Alert>
             </Snackbar>
         </Box>
     );

@@ -69,6 +69,7 @@ type SubscriptionInfo = {
     status: SubscriptionStatus;
     seats?: number;
     projectsLimit?: number;
+    publicTasksLimit?: number;
     periodStart?: string | null;
     periodEnd?: string | null;
     note?: string;
@@ -78,6 +79,19 @@ type SubscriptionInfo = {
 
 type GetSubscriptionResponse = { subscription: SubscriptionInfo };
 type PatchSubscriptionResponse = { ok: true; subscription: SubscriptionInfo };
+
+type ApplicationRow = {
+    _id: string;
+    taskId: string;
+    taskName: string;
+    publicStatus?: string;
+    visibility?: string;
+    proposedBudget: number;
+    contractorName?: string;
+    contractorEmail?: string;
+    status: string;
+    createdAt?: string;
+};
 
 const DAY_MS = 24 * 60 * 60 * 1000;
 const TRIAL_DURATION_DAYS = 10;
@@ -184,6 +198,9 @@ export default function OrgSettingsPage() {
     const [projectDialogMode, setProjectDialogMode] = React.useState<'create' | 'edit'>('create');
     const [projectDialogLoading, setProjectDialogLoading] = React.useState(false);
     const [projectToEdit, setProjectToEdit] = React.useState<ProjectDTO | null>(null);
+    const [applications, setApplications] = React.useState<ApplicationRow[]>([]);
+    const [applicationsLoading, setApplicationsLoading] = React.useState(false);
+    const [applicationsError, setApplicationsError] = React.useState<string | null>(null);
     const resolveRegionCode = React.useCallback((code?: string | null) => {
         if (!code) return '';
         if (REGION_MAP.has(code)) return code;
@@ -377,6 +394,27 @@ export default function OrgSettingsPage() {
         }
     }, [org, canManage]);
 
+    const fetchApplications = React.useCallback(async () => {
+        if (!org || !canManage) return;
+        setApplicationsLoading(true);
+        setApplicationsError(null);
+        try {
+            const res = await fetch(`/api/org/${encodeURIComponent(org)}/applications`, { cache: 'no-store' });
+            const data = (await res.json().catch(() => ({}))) as { applications?: ApplicationRow[]; error?: string };
+            if (!res.ok || data.error) {
+                setApplications([]);
+                setApplicationsError(data.error || res.statusText);
+                return;
+            }
+            setApplications(Array.isArray(data.applications) ? data.applications : []);
+        } catch (e: unknown) {
+            setApplicationsError(e instanceof Error ? e.message : 'Ошибка загрузки откликов');
+            setApplications([]);
+        } finally {
+            setApplicationsLoading(false);
+        }
+    }, [org, canManage]);
+
     const loadSubscription = React.useCallback(async () => {
         if (!org || !canManage) return;
         setSubscriptionLoading(true);
@@ -429,13 +467,15 @@ export default function OrgSettingsPage() {
             void fetchProjects();
             void fetchOrgSettings();
             void loadSubscription();
+            void fetchApplications();
         }
-    }, [canManage, fetchMembers, fetchProjects, fetchOrgSettings, loadSubscription]);
+    }, [canManage, fetchMembers, fetchProjects, fetchOrgSettings, loadSubscription, fetchApplications]);
 
     const handleRefreshClick = () => {
         void fetchMembers();
         void fetchProjects();
         void loadSubscription();
+        void fetchApplications();
     };
 
     // удаление участника
@@ -923,6 +963,116 @@ export default function OrgSettingsPage() {
                                                 </TableCell>
                                             </TableRow>
                                         )}
+                                    </TableBody>
+                                </Table>
+                            )}
+                        </CardContent>
+                    </Card>
+                </Grid>
+
+                {/* ОТКЛИКИ */}
+                <Grid item xs={12}>
+                    <Card
+                        variant="outlined"
+                        sx={{
+                            backdropFilter: 'blur(24px)',
+                            background: 'linear-gradient(135deg, rgba(255,255,255,0.92), rgba(240,244,255,0.8))',
+                            border: '1px solid rgba(255,255,255,0.5)',
+                            boxShadow: '0 30px 60px rgba(15,23,42,0.12)',
+                            borderRadius: 4,
+                        }}
+                    >
+                        <CardHeader
+                            title="Отклики на публичные задачи"
+                            subheader="Последние 50 заявок подрядчиков"
+                            action={
+                                <Tooltip title="Обновить">
+                                    <span>
+                                        <IconButton onClick={() => void fetchApplications()} disabled={applicationsLoading}>
+                                            <RefreshIcon />
+                                        </IconButton>
+                                    </span>
+                                </Tooltip>
+                            }
+                        />
+                        <CardContent>
+                            {applicationsError ? (
+                                <Alert severity="warning" sx={{ mb: 2 }}>
+                                    {applicationsError}
+                                </Alert>
+                            ) : null}
+                            {applicationsLoading ? (
+                                <Stack direction="row" spacing={1} alignItems="center">
+                                    <CircularProgress size={20} />
+                                    <Typography>Загружаем отклики…</Typography>
+                                </Stack>
+                            ) : applications.length === 0 ? (
+                                <Typography color="text.secondary">
+                                    Откликов пока нет.
+                                </Typography>
+                            ) : (
+                                <Table size="small">
+                                    <TableHead>
+                                        <TableRow>
+                                            <TableCell>Задача</TableCell>
+                                            <TableCell>Исполнитель</TableCell>
+                                            <TableCell>Ставка</TableCell>
+                                            <TableCell>Статус</TableCell>
+                                            <TableCell>Создано</TableCell>
+                                        </TableRow>
+                                    </TableHead>
+                                    <TableBody>
+                                        {applications.map((app) => (
+                                            <TableRow key={app._id} hover>
+                                                <TableCell sx={{ maxWidth: 220 }}>
+                                                    <Typography variant="body2" fontWeight={600} noWrap>
+                                                        {app.taskName}
+                                                    </Typography>
+                                                    <Typography variant="caption" color="text.secondary">
+                                                        {app.publicStatus === 'assigned'
+                                                            ? 'Назначена'
+                                                            : app.publicStatus === 'open'
+                                                                ? 'Открыта'
+                                                                : app.publicStatus || '—'}
+                                                    </Typography>
+                                                </TableCell>
+                                                <TableCell>
+                                                    <Typography variant="body2">{app.contractorName || '—'}</Typography>
+                                                    <Typography variant="caption" color="text.secondary">
+                                                        {app.contractorEmail || '—'}
+                                                    </Typography>
+                                                </TableCell>
+                                                <TableCell>
+                                                    {Number.isFinite(app.proposedBudget)
+                                                        ? `${new Intl.NumberFormat('ru-RU').format(app.proposedBudget)} ₽`
+                                                        : '—'}
+                                                </TableCell>
+                                                <TableCell>
+                                                    <Chip
+                                                        size="small"
+                                                        label={app.status}
+                                                        color={
+                                                            app.status === 'accepted'
+                                                                ? 'success'
+                                                                : app.status === 'rejected'
+                                                                    ? 'error'
+                                                                    : app.status === 'submitted'
+                                                                        ? 'info'
+                                                                        : 'default'
+                                                        }
+                                                        variant="outlined"
+                                                        sx={{ borderRadius: 2 }}
+                                                    />
+                                                </TableCell>
+                                                <TableCell>
+                                                    <Typography variant="body2" color="text.secondary">
+                                                        {app.createdAt
+                                                            ? new Date(app.createdAt).toLocaleString('ru-RU')
+                                                            : '—'}
+                                                    </Typography>
+                                                </TableCell>
+                                            </TableRow>
+                                        ))}
                                     </TableBody>
                                 </Table>
                             )}
