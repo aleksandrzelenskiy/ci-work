@@ -22,9 +22,9 @@ type Payload = {
 
 export async function PATCH(
     request: NextRequest,
-    { params }: { params: { taskId: string } }
+    { params }: { params: Promise<{ taskId: string }> }
 ) {
-    const { taskId } = params;
+    const { taskId } = await params;
     if (!taskId || !mongoose.Types.ObjectId.isValid(taskId)) {
         return NextResponse.json({ error: 'Некорректный идентификатор задачи' }, { status: 400 });
     }
