@@ -640,6 +640,18 @@ export async function PUT(
             }
         }
 
+        if (typeof body.contractorPayment !== 'undefined') {
+            const cp = parseMaybeNumber(body.contractorPayment);
+            const prev = typeof currentTask.contractorPayment === 'number' ? currentTask.contractorPayment : undefined;
+            if (typeof cp !== 'undefined') {
+                markChange('contractorPayment', prev, cp);
+                allowedPatch.contractorPayment = cp;
+            } else {
+                markChange('contractorPayment', prev, undefined);
+                allowedPatch.contractorPayment = undefined;
+            }
+        }
+
         const newWorkItems = sanitizeWorkItems(body.workItems);
         if (newWorkItems !== null) {
             const prevWorkItemsNormalized =

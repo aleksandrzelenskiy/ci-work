@@ -123,6 +123,7 @@ export interface Task {
   applicationCount?: number;
   acceptedApplicationId?: string;
   allowInstantClaim?: boolean;
+  contractorPayment?: number;
 
   taskType: TaskType; // construction | document
   requiredAttachments?: RequiredAttachmentType[]; // например ['photo'] или ['pdf', 'dwg']

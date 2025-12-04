@@ -87,6 +87,7 @@ export type TaskForEdit = {
     bsLatitude?: number;
     bsLongitude?: number;
     totalCost?: number;
+    contractorPayment?: number;
     priority?: Priority | string;
     executorId?: string;
     executorName?: string;
@@ -351,6 +352,7 @@ export default function WorkspaceTaskDialog({
     const [workItems, setWorkItems] = React.useState<ParsedWorkItem[]>([]);
     const [isPublicTask, setIsPublicTask] = React.useState(false);
     const [requiredSkills, setRequiredSkills] = React.useState<string[]>([]);
+    const [contractorPayment, setContractorPayment] = React.useState<string>('');
 
     const [projectMeta, setProjectMeta] = React.useState<{ regionCode?: string; operator?: string } | null>(null);
     const isT2Operator = React.useMemo(() => projectMeta?.operator === '250020', [projectMeta?.operator]);
@@ -550,6 +552,11 @@ export default function WorkspaceTaskDialog({
         setIsPublicTask(initialVisibility === 'public');
         const initialSkills = (initialTask as unknown as { skills?: string[] })?.skills;
         setRequiredSkills(Array.isArray(initialSkills) ? initialSkills : []);
+        setContractorPayment(
+            typeof initialTask.contractorPayment === 'number' && !Number.isNaN(initialTask.contractorPayment)
+                ? String(initialTask.contractorPayment)
+                : ''
+        );
 
         const entries: BsFormEntry[] = [];
 
@@ -979,6 +986,7 @@ export default function WorkspaceTaskDialog({
         setRelatedTasksError(null);
         setRelatedInput('');
         setSkillsInput('');
+        setContractorPayment('');
         setBsEntries([
             {
                 id: 'bs-main',
@@ -1172,6 +1180,7 @@ export default function WorkspaceTaskDialog({
                 executorName: isPublicTask ? null : selectedExecutor ? selectedExecutor.name : null,
                 executorEmail: isPublicTask ? null : selectedExecutor ? selectedExecutor.email : null,
                 totalCost: totalCost.trim() ? Number(totalCost.trim()) : undefined,
+                contractorPayment: contractorPayment.trim() ? Number(contractorPayment.trim()) : undefined,
                 workItems,
                 relatedTasks: relatedTasksSelected.map((t) => t.id),
                 visibility: isPublicTask ? 'public' : 'private',
@@ -1233,6 +1242,7 @@ export default function WorkspaceTaskDialog({
                 executorName: isPublicTask ? null : selectedExecutor ? selectedExecutor.name : null,
                 executorEmail: isPublicTask ? null : selectedExecutor ? selectedExecutor.email : null,
                 totalCost: totalCost.trim() ? Number(totalCost.trim()) : undefined,
+                contractorPayment: contractorPayment.trim() ? Number(contractorPayment.trim()) : undefined,
                 workItems,
                 relatedTasks: relatedTasksSelected.map((t) => t.id),
                 visibility: isPublicTask ? 'public' : 'private',
@@ -1711,6 +1721,17 @@ export default function WorkspaceTaskDialog({
                                 onChange={(e) => setTotalCost(e.target.value)}
                                 fullWidth
                                 inputProps={{ min: 0, step: '0.01' }}
+                                sx={glassInputSx}
+                            />
+
+                            <TextField
+                                label="Оплата подрядчику, ₽"
+                                type="number"
+                                value={contractorPayment}
+                                onChange={(e) => setContractorPayment(e.target.value)}
+                                fullWidth
+                                inputProps={{ min: 0, step: '0.01' }}
+                                helperText="Сумма выплаты исполнителю за задачу"
                                 sx={glassInputSx}
                             />
 

@@ -93,6 +93,7 @@ const TaskSchema = new Schema<Task & Document>({
   applicationCount: { type: Number, default: 0 },
   acceptedApplicationId: { type: String },
   allowInstantClaim: { type: Boolean, default: false },
+  contractorPayment: { type: Number },
 
   // Ссылки на связанные задачи (для зависимостей и макро-задач)
   relatedTasks: [{ type: Schema.Types.ObjectId, ref: 'Task' }],

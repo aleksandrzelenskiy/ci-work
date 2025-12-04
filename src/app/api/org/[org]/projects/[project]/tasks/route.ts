@@ -113,6 +113,7 @@ type CreateTaskBody = {
     bsLatitude?: number;
     bsLongitude?: number;
     totalCost?: number | string;
+    contractorPayment?: number | string;
     workItems?: unknown[];
     status?: string;
     priority?: 'urgent' | 'high' | 'medium' | 'low';
@@ -239,6 +240,7 @@ export async function POST(
             bsLatitude,
             bsLongitude,
             totalCost,
+            contractorPayment,
             workItems,
             status,
             priority,
@@ -326,6 +328,12 @@ export async function POST(
                     ? totalCost
                     : totalCost
                         ? Number(totalCost)
+                        : undefined,
+            contractorPayment:
+                typeof contractorPayment === 'number'
+                    ? contractorPayment
+                    : contractorPayment
+                        ? Number(contractorPayment)
                         : undefined,
             workItems: sanitizedWorkItems ?? undefined,
             status: finalStatus,

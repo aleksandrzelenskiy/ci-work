@@ -510,6 +510,7 @@ export default function TaskDetailsPage() {
             bsAddress: t.bsAddress,
             taskDescription: t.taskDescription,
             totalCost: t.totalCost,
+            contractorPayment: t.contractorPayment,
             priority: t.priority,
             executorId: t.executorId,
             executorName: t.executorName,
