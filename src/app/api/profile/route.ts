@@ -72,7 +72,7 @@ export async function PATCH(request: Request) {
       typeof body.phone === 'string' ? sanitizeString(body.phone) : undefined;
     const nextRegion =
       typeof body.regionCode === 'string' ? sanitizeString(body.regionCode) : undefined;
-    const skills =
+    const skills: string[] | undefined =
       Array.isArray(body.skills) && body.skills.length
         ? body.skills.map((s) => sanitizeString(s)).filter(Boolean)
         : Array.isArray(body.skills)
