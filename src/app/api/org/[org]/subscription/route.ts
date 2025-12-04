@@ -26,6 +26,9 @@ type SubscriptionDTO = {
     status: SubStatus;
     seats?: number;
     projectsLimit?: number;
+    publicTasksLimit?: number;
+    boostCredits?: number;
+    storageLimitGb?: number;
     periodStart?: ISODateString | null;
     periodEnd?: ISODateString | null;
     note?: string;
@@ -38,7 +41,7 @@ type GetSubResponse = { subscription: SubscriptionDTO } | { error: string };
 type PatchBody = Partial<
     Pick<
         SubscriptionDTO,
-        'plan' | 'status' | 'seats' | 'projectsLimit' | 'periodStart' | 'periodEnd' | 'note'
+        'plan' | 'status' | 'seats' | 'projectsLimit' | 'publicTasksLimit' | 'boostCredits' | 'storageLimitGb' | 'periodStart' | 'periodEnd' | 'note'
     >
 >;
 type PatchSubResponse = { ok: true; subscription: SubscriptionDTO } | { error: string };
@@ -49,6 +52,9 @@ interface SubscriptionLean {
     status: SubStatus;
     seats?: number;
     projectsLimit?: number;
+    publicTasksLimit?: number;
+    boostCredits?: number;
+    storageLimitGb?: number;
     periodStart?: Date | string | null;
     periodEnd?: Date | string | null;
     note?: string;
@@ -75,6 +81,9 @@ function toSubscriptionDTO(doc: SubscriptionLean, orgSlug: string): Subscription
         status: doc.status,
         seats: doc.seats,
         projectsLimit: doc.projectsLimit,
+        publicTasksLimit: doc.publicTasksLimit,
+        boostCredits: doc.boostCredits,
+        storageLimitGb: doc.storageLimitGb,
         periodStart: toISO(doc.periodStart),
         periodEnd: toISO(doc.periodEnd),
         note: doc.note,
@@ -91,6 +100,9 @@ function fallbackDTO(orgSlug: string): SubscriptionDTO {
         status: 'inactive',
         seats: 10,
         projectsLimit: 10,
+        publicTasksLimit: 2,
+        boostCredits: 0,
+        storageLimitGb: 10,
         periodStart: null,
         periodEnd: null,
         note: 'not configured',
@@ -169,6 +181,9 @@ export async function PATCH(
             status?: SubStatus;
             seats?: number;
             projectsLimit?: number;
+            publicTasksLimit?: number;
+            boostCredits?: number;
+            storageLimitGb?: number;
             periodStart?: Date | null;
             periodEnd?: Date | null;
             note?: string;
@@ -181,6 +196,9 @@ export async function PATCH(
             ...('status' in body ? { status: body.status } : {}),
             ...('seats' in body ? { seats: body.seats } : {}),
             ...('projectsLimit' in body ? { projectsLimit: body.projectsLimit } : {}),
+            ...('publicTasksLimit' in body ? { publicTasksLimit: body.publicTasksLimit } : {}),
+            ...('boostCredits' in body ? { boostCredits: body.boostCredits } : {}),
+            ...('storageLimitGb' in body ? { storageLimitGb: body.storageLimitGb } : {}),
             ...('periodStart' in body ? { periodStart: parsedPeriodStart ?? null } : {}),
             ...('periodEnd' in body ? { periodEnd: parsedPeriodEnd ?? null } : {}),
             ...('note' in body ? { note: body.note } : {}),

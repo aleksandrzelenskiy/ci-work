@@ -7,6 +7,9 @@ export interface Subscription extends Document {
     status: 'active' | 'trial' | 'suspended' | 'past_due' | 'inactive';
     seats?: number;            // лимит мест
     projectsLimit?: number;    // лимит проектов
+    publicTasksLimit?: number; // лимит публичных задач
+    boostCredits?: number;     // кредиты на бусты
+    storageLimitGb?: number;   // лимит хранилища
     periodStart?: Date;
     periodEnd?: Date;
     note?: string;             // номер счёта/комментарии
@@ -21,6 +24,9 @@ const SubscriptionSchema = new Schema<Subscription>(
         status: { type: String, enum: ['active', 'trial', 'suspended', 'past_due', 'inactive'], default: 'inactive' },
         seats: { type: Number, default: 10 },
         projectsLimit: { type: Number, default: 10 },
+        publicTasksLimit: { type: Number, default: 2 },
+        boostCredits: { type: Number, default: 0 },
+        storageLimitGb: { type: Number, default: 10 },
         periodStart: { type: Date },
         periodEnd: { type: Date },
         note: { type: String },

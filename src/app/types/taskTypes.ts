@@ -18,6 +18,9 @@ export type TaskType = 'construction' | 'installation' | 'document';
 // Тип обязательных вложений
 export type RequiredAttachmentType = 'photo' | 'pdf' | 'doc' | 'dwg';
 
+export type TaskVisibility = 'private' | 'public';
+export type PublicTaskStatus = 'open' | 'in_review' | 'assigned' | 'closed';
+
 export interface BsLocation {
   id?: string;
   name: string;
@@ -110,6 +113,16 @@ export interface Task {
   priority: PriorityLevel;
   status: CurrentStatus;
   createdAt: Date;
+
+  // Маркетплейс параметры
+  visibility?: TaskVisibility;
+  publicStatus?: PublicTaskStatus;
+  budget?: number;
+  currency?: string;
+  skills?: string[];
+  applicationCount?: number;
+  acceptedApplicationId?: string;
+  allowInstantClaim?: boolean;
 
   taskType: TaskType; // construction | document
   requiredAttachments?: RequiredAttachmentType[]; // например ['photo'] или ['pdf', 'dwg']

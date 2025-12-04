@@ -1,4 +1,4 @@
-// app/api/tasks/[id]/route.ts
+// app/api/tasks/[taskId]/route.ts
 
 import { NextRequest, NextResponse } from 'next/server';
 export const runtime = 'nodejs';
@@ -110,12 +110,11 @@ async function resolveStorageScope(task: { orgId?: unknown; projectId?: unknown 
 
 export async function GET(
     _request: NextRequest,
-    context: { params: Promise<{ id: string }> }
+    context: { params: Promise<{ taskId: string }> }
 ) {
   try {
     await connectToDatabase();
-    const { id } = await context.params;
-    const taskId = id;
+    const { taskId } = await context.params;
     if (!taskId)
       return NextResponse.json({ error: 'No taskId provided' }, { status: 400 });
 
@@ -157,12 +156,11 @@ export async function GET(
 
 export async function PATCH(
     request: NextRequest,
-    context: { params: Promise<{ id: string }> }
+    context: { params: Promise<{ taskId: string }> }
 ) {
   try {
     await connectToDatabase();
-    const { id } = await context.params;
-    const taskId = id;
+    const { taskId } = await context.params;
     if (!taskId)
       return NextResponse.json({ error: 'No taskId provided' }, { status: 400 });
 
@@ -721,12 +719,11 @@ export async function PATCH(
 
 export async function DELETE(
     request: NextRequest,
-    context: { params: Promise<{ id: string }> }
+    context: { params: Promise<{ taskId: string }> }
 ) {
   try {
     await connectToDatabase();
-    const { id } = await context.params;
-    const taskId = id;
+    const { taskId } = await context.params;
     if (!taskId)
       return NextResponse.json({ error: 'No taskId provided' }, { status: 400 });
 

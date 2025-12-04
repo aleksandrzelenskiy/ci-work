@@ -74,6 +74,26 @@ const TaskSchema = new Schema<Task & Document>({
     },
   ],
 
+  // Маркетплейс параметры
+  visibility: {
+    type: String,
+    enum: ['private', 'public'],
+    default: 'private',
+    index: true,
+  },
+  publicStatus: {
+    type: String,
+    enum: ['open', 'in_review', 'assigned', 'closed'],
+    default: 'open',
+    index: true,
+  },
+  budget: { type: Number },
+  currency: { type: String, default: 'RUB' },
+  skills: { type: [String], default: [] },
+  applicationCount: { type: Number, default: 0 },
+  acceptedApplicationId: { type: String },
+  allowInstantClaim: { type: Boolean, default: false },
+
   // Ссылки на связанные задачи (для зависимостей и макро-задач)
   relatedTasks: [{ type: Schema.Types.ObjectId, ref: 'Task' }],
 
