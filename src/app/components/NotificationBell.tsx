@@ -97,7 +97,8 @@ const markAllNotificationsAsRead = async () => {
             body: JSON.stringify({ markAll: true }),
         });
         if (!res.ok) {
-            throw new Error(res.statusText);
+            console.error('Failed to mark notifications as read', res.statusText);
+            return;
         }
     } catch (error) {
         console.error('Failed to mark notifications as read', error);
@@ -110,8 +111,11 @@ const formatTimestamp = (value: string) =>
 const getNotificationLink = (notification: NotificationDTO) => {
     if (
         notification.type === 'task_assigned' ||
+        notification.type === 'task_unassigned' ||
         notification.type === 'task_comment' ||
-        notification.type === 'task_status_change'
+        notification.type === 'task_status_change' ||
+        notification.type === 'task_application_submitted' ||
+        notification.type === 'task_application_status'
     ) {
         const metadataTaskId = notification.metadata?.taskId;
         const rawTaskId =
@@ -257,7 +261,9 @@ export default function NotificationBell({ buttonSx }: NotificationBellProps) {
                 error?: string;
             };
             if (!res.ok || payload.ok !== true) {
-                throw new Error(payload.error || res.statusText);
+                const message = payload.error || res.statusText;
+                setActionError(message);
+                return;
             }
 
             setNotifications((prev) => prev.filter((n) => n.id !== notificationId));
@@ -386,7 +392,8 @@ export default function NotificationBell({ buttonSx }: NotificationBellProps) {
                 const { io, connect, default: defaultConnector } = socketModule;
                 const socketConnector = io ?? connect ?? defaultConnector ?? null;
                 if (!socketConnector) {
-                    throw new Error('Socket.io client is unavailable');
+                    setRealtimeError('Socket.io client is unavailable');
+                    return;
                 }
                 if (cancelled) return;
                 const socketInstance = (socketConnector as SocketConnector)({

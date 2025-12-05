@@ -5,8 +5,12 @@ export type NotificationKind =
     | 'invite_accepted'
     | 'invite_declined'
     | 'task_assigned'
+    | 'task_unassigned'
     | 'task_comment'
-    | 'task_status_change';
+    | 'task_status_change'
+    | 'task_published'
+    | 'task_application_submitted'
+    | 'task_application_status';
 
 export type NotificationStatus = 'unread' | 'read';
 

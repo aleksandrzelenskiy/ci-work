@@ -5,6 +5,7 @@ import dbConnect from '@/utils/mongoose';
 import TaskModel from '@/app/models/TaskModel';
 import { GetUserContext } from '@/server-actions/user-context';
 import { ensurePublicTaskSlot } from '@/utils/publicTasks';
+import { notifyTaskPublished } from '@/app/utils/taskNotifications';
 
 export const runtime = 'nodejs';
 export const dynamic = 'force-dynamic';
@@ -53,6 +54,8 @@ export async function PATCH(
     if (!task) {
         return NextResponse.json({ error: 'Задача не найдена' }, { status: 404 });
     }
+    const wasPublic = task.visibility === 'public';
+    const previousPublicStatus = task.publicStatus;
 
     const orgId = task.orgId?.toString();
     const isMember = orgId
@@ -107,6 +110,34 @@ export async function PATCH(
 
     try {
         const saved = await TaskModel.findByIdAndUpdate(task._id, { $set: update }, { new: true }).lean();
+
+        const becamePublic =
+            !wasPublic && saved?.visibility === 'public';
+        const reopenedFromClosed =
+            saved?.visibility === 'public' &&
+            previousPublicStatus === 'closed' &&
+            saved.publicStatus !== 'closed';
+
+        if (saved && (becamePublic || reopenedFromClosed)) {
+            try {
+                await notifyTaskPublished({
+                    taskId: saved.taskId ?? task.taskId,
+                    taskMongoId: saved._id?.toString?.() ?? task._id?.toString?.(),
+                    taskName: saved.taskName ?? task.taskName ?? 'Задача',
+                    bsNumber: saved.bsNumber ?? task.bsNumber,
+                    budget: saved.budget ?? task.budget,
+                    currency: saved.currency ?? task.currency,
+                    orgId: saved.orgId ?? task.orgId,
+                    orgSlug: (saved as { orgSlug?: string })?.orgSlug ?? (task as { orgSlug?: string })?.orgSlug,
+                    orgName: (saved as { orgName?: string })?.orgName ?? (task as { orgName?: string })?.orgName,
+                    projectKey: (saved as { projectKey?: string })?.projectKey ?? undefined,
+                    projectName: (saved as { projectName?: string })?.projectName ?? undefined,
+                });
+            } catch (notifyErr) {
+                console.error('Failed to notify about task publication', notifyErr);
+            }
+        }
+
         return NextResponse.json({ ok: true, task: saved });
     } catch (error) {
         console.error('Failed to update publish state', error);

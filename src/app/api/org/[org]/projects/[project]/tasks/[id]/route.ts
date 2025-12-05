@@ -12,7 +12,11 @@ import {
 import { BASE_STATION_COLLECTIONS } from '@/app/constants/baseStations';
 import { Types } from 'mongoose';
 import { getOrgAndProjectByRef } from '../../_helpers';
-import { notifyTaskAssignment } from '@/app/utils/taskNotifications';
+import {
+    notifyTaskAssignment,
+    notifyTaskStatusChange,
+    notifyTaskUnassignment,
+} from '@/app/utils/taskNotifications';
 import { syncBsCoordsForProject } from '@/app/utils/syncBsCoords';
 import {
     buildBsAddressFromLocations,
@@ -382,6 +386,10 @@ export async function PUT(
             return NextResponse.json({ error: 'Task not found' }, { status: 404 });
         }
 
+        const previousStatus = currentTask.status;
+        const previousExecutorId =
+            typeof currentTask.executorId === 'string' ? currentTask.executorId : '';
+
         const prevRelatedIds = normalizeRelatedTasks(
             (currentTask as { relatedTasks?: unknown[] }).relatedTasks
         ).map((entry) => entry._id);
@@ -553,12 +561,11 @@ export async function PUT(
         }> = [];
         let shouldNotifyExecutorAssignment = false;
         let assignedExecutorClerkId: string | null = null;
+        let executorRemoved = false;
 
         if (typeof body.executorId === 'string' && body.executorId.trim()) {
             const trimmedId = body.executorId.trim();
             const hadExecutorBefore = !!currentTask.executorId;
-            const previousExecutorId =
-                typeof currentTask.executorId === 'string' ? currentTask.executorId : '';
             const isSameExecutor = previousExecutorId === trimmedId;
 
             markChange('executorId', currentTask.executorId, trimmedId);
@@ -610,6 +617,7 @@ export async function PUT(
                 markChange('executorId', currentTask.executorId, undefined);
                 markChange('executorName', currentTask.executorName, undefined);
                 markChange('executorEmail', currentTask.executorEmail, undefined);
+                executorRemoved = true;
             }
 
             // именно удаляем поля
@@ -829,6 +837,62 @@ export async function PUT(
                 });
             } catch (notifyErr) {
                 console.error('Failed to send task assignment notification', notifyErr);
+            }
+        }
+
+        if (executorRemoved && previousExecutorId) {
+            try {
+                await notifyTaskUnassignment({
+                    executorClerkId: previousExecutorId,
+                    taskId: typeof updated.taskId === 'string' ? updated.taskId : undefined,
+                    taskMongoId: updated._id,
+                    taskName: updated.taskName,
+                    bsNumber: updated.bsNumber,
+                    orgId,
+                    orgSlug,
+                    projectRef,
+                    projectKey: projectDoc.key,
+                    projectName: projectDoc.name,
+                    triggeredByName: me.fullName || me.username || email,
+                    triggeredByEmail: email,
+                });
+            } catch (notifyErr) {
+                console.error('Failed to notify executor about unassignment', notifyErr);
+            }
+        }
+
+        if (previousStatus !== updated.status) {
+            const executorForStatusNotice =
+                shouldNotifyExecutorAssignment && typeof updated.executorId === 'string'
+                    ? undefined
+                    : updated.executorId;
+            try {
+                await notifyTaskStatusChange({
+                    taskId: typeof updated.taskId === 'string' ? updated.taskId : undefined,
+                    taskMongoId: updated._id,
+                    taskName: updated.taskName,
+                    bsNumber: updated.bsNumber,
+                    previousStatus,
+                    newStatus: updated.status,
+                    initiatorClerkId:
+                        typeof updated.initiatorId === 'string' ? updated.initiatorId : undefined,
+                    authorClerkId:
+                        typeof updated.authorId === 'string' ? updated.authorId : undefined,
+                    executorClerkId:
+                        typeof executorForStatusNotice === 'string'
+                            ? executorForStatusNotice
+                            : undefined,
+                    triggeredByClerkId: me.id,
+                    triggeredByName: me.fullName || me.username || email,
+                    triggeredByEmail: email,
+                    orgId,
+                    orgSlug,
+                    projectRef,
+                    projectKey: projectDoc.key,
+                    projectName: projectDoc.name,
+                });
+            } catch (notifyErr) {
+                console.error('Failed to send status change notification', notifyErr);
             }
         }
 

@@ -12,7 +12,11 @@ import { currentUser } from '@clerk/nextjs/server';
 import type { PriorityLevel } from '@/app/types/taskTypes';
 import { generateClosingDocumentsExcel } from '@/utils/generateExcel';
 import { uploadTaskFile, deleteTaskFile } from '@/utils/s3';
-import { notifyTaskAssignment } from '@/app/utils/taskNotifications';
+import {
+    notifyTaskAssignment,
+    notifyTaskStatusChange,
+    notifyTaskUnassignment,
+} from '@/app/utils/taskNotifications';
 import { splitAttachmentsAndDocuments } from '@/utils/taskFiles';
 import { normalizeRelatedTasks } from '@/app/utils/relatedTasks';
 import { createNotification } from '@/app/utils/notificationService';
@@ -175,6 +179,9 @@ export async function PATCH(
 
     const task = await TaskModel.findOne({ taskId: taskIdUpper });
     if (!task) return NextResponse.json({ error: 'Task not found' }, { status: 404 });
+    const previousStatus = task.status;
+    const previousExecutorId =
+        typeof task.executorId === 'string' ? task.executorId : '';
 
     // ✅ гарантируем массивы, чтобы ниже не ругался TS
     if (!Array.isArray(task.events)) {
@@ -375,9 +382,6 @@ export async function PATCH(
     }
 
     // === исполнитель: обновляем ТОЛЬКО если поле присутствует в запросе ===
-    const previousExecutorId =
-        typeof task.executorId === 'string' && task.executorId.length > 0 ? task.executorId : '';
-
     let executorRemoved = false;
     let executorAssigned = false;
     let shouldNotifyExecutorAssignment = false;
@@ -525,6 +529,7 @@ export async function PATCH(
 
     if (decision === 'reject') {
       const hadExecutor = !!task.executorId;
+      executorRemoved = executorRemoved || hadExecutor;
       task.executorId = '';
       task.executorName = '';
       task.executorEmail = '';
@@ -692,6 +697,64 @@ export async function PATCH(
         });
       } catch (notifyErr) {
         console.error('Failed to send task assignment notification', notifyErr);
+      }
+    }
+
+    if (executorRemoved && previousExecutorId) {
+      try {
+        await notifyTaskUnassignment({
+          executorClerkId: previousExecutorId,
+          taskId: updatedTask.taskId,
+          taskMongoId: updatedTask._id,
+          taskName: updatedTask.taskName,
+          bsNumber: updatedTask.bsNumber,
+          orgId: updatedTask.orgId ? updatedTask.orgId.toString() : undefined,
+          orgSlug: storageScope.orgSlug,
+          projectRef: undefined,
+          projectKey: storageScope.projectKey,
+          projectName: undefined,
+          triggeredByName: authorName,
+          triggeredByEmail: authorEmail ?? undefined,
+        });
+      } catch (notifyErr) {
+        console.error('Failed to notify executor about unassignment', notifyErr);
+      }
+    }
+
+    if (previousStatus !== updatedTask.status) {
+      const executorForStatusNotice =
+          shouldNotifyExecutorAssignment && typeof updatedTask.executorId === 'string'
+              ? undefined
+              : updatedTask.executorId;
+      try {
+        await notifyTaskStatusChange({
+          taskId: updatedTask.taskId,
+          taskMongoId: updatedTask._id,
+          taskName: updatedTask.taskName,
+          bsNumber: updatedTask.bsNumber,
+          previousStatus,
+          newStatus: updatedTask.status,
+          initiatorClerkId:
+              typeof updatedTask.initiatorId === 'string'
+                  ? updatedTask.initiatorId
+                  : undefined,
+          authorClerkId:
+              typeof updatedTask.authorId === 'string' ? updatedTask.authorId : undefined,
+          executorClerkId:
+              typeof executorForStatusNotice === 'string'
+                  ? executorForStatusNotice
+                  : undefined,
+          triggeredByClerkId: user.id,
+          triggeredByName: authorName,
+          triggeredByEmail: authorEmail ?? undefined,
+          orgId: updatedTask.orgId ? updatedTask.orgId.toString() : undefined,
+          orgSlug: storageScope.orgSlug,
+          projectRef: undefined,
+          projectKey: storageScope.projectKey,
+          projectName: undefined,
+        });
+      } catch (notifyErr) {
+        console.error('Failed to send status change notification', notifyErr);
       }
     }
 

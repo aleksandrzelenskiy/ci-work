@@ -9,6 +9,13 @@ import type { ApplicationStatus } from '@/app/models/ApplicationModel';
 import UserModel from '@/app/models/UserModel';
 import MembershipModel from '@/app/models/MembershipModel';
 import { ensureSeatAvailable } from '@/utils/seats';
+import {
+    notifyApplicationStatusChanged,
+    notifyApplicationSubmitted,
+    notifyTaskAssignment,
+    notifyTaskUnassignment,
+    notifyTaskStatusChange,
+} from '@/app/utils/taskNotifications';
 
 export const runtime = 'nodejs';
 export const dynamic = 'force-dynamic';
@@ -134,6 +141,33 @@ export async function POST(
             $inc: { applicationCount: 1 },
         });
 
+        try {
+            const managerClerkIds = [task.initiatorId, task.authorId]
+                .map((v) => (typeof v === 'string' ? v.trim() : ''))
+                .filter((v) => v.length > 0);
+
+            await notifyApplicationSubmitted({
+                taskId: task.taskId,
+                taskMongoId: task._id,
+                taskName: task.taskName ?? 'Задача',
+                bsNumber: task.bsNumber,
+                applicationId: app._id,
+                contractor: { _id: user._id, name: user.name, email: user.email },
+                proposedBudget,
+                orgId: task.orgId,
+                orgSlug: (task as { orgSlug?: string })?.orgSlug,
+                orgName: (task as { orgName?: string })?.orgName,
+                managerClerkIds,
+                projectRef: undefined,
+                projectKey: undefined,
+                projectName: undefined,
+                triggeredByName: user.name,
+                triggeredByEmail: user.email,
+            });
+        } catch (notifyErr) {
+            console.error('Failed to notify about application submission', notifyErr);
+        }
+
         return NextResponse.json({ ok: true, application: app.toObject() }, { status: 201 });
     } catch (error) {
         console.error('Failed to create application', error);
@@ -177,6 +211,14 @@ export async function PATCH(
     }
 
     const previousStatus = app.status;
+    const previousTaskStatus = task.status;
+    const previousExecutorId =
+        typeof task.executorId === 'string' ? task.executorId : '';
+    const contractor = await UserModel.findById(app.contractorId).lean();
+    const actorClerkId = user.clerkUserId;
+    const actorName = user.name;
+    const actorEmail = user.email;
+    let updatedTask: typeof task | null = null;
     const orgId = task.orgId?.toString();
     const isMember = orgId ? memberships.some((m) => m.orgId === orgId) : false;
     const canManage =
@@ -190,7 +232,6 @@ export async function PATCH(
     } else if (canManage && body.status) {
         app.status = body.status;
         if (body.status === 'accepted') {
-            const contractor = await UserModel.findById(app.contractorId).lean();
             if (!contractor) {
                 return NextResponse.json({ error: 'Подрядчик не найден' }, { status: 404 });
             }
@@ -250,9 +291,13 @@ export async function PATCH(
                 update.status = 'Assigned';
             }
 
-            await TaskModel.findByIdAndUpdate(task._id, {
-                $set: update,
-            });
+            updatedTask = await TaskModel.findByIdAndUpdate(
+                task._id,
+                {
+                    $set: update,
+                },
+                { new: true, lean: true }
+            );
         } else if (
             previousStatus === 'accepted' &&
             (!task.acceptedApplicationId || task.acceptedApplicationId === app._id.toString())
@@ -272,16 +317,124 @@ export async function PATCH(
 
             const unsetUpdate: Record<string, string> = { acceptedApplicationId: '' };
 
-            await TaskModel.findByIdAndUpdate(task._id, {
-                $set: setUpdate,
-                ...(Object.keys(unsetUpdate).length > 0 ? { $unset: unsetUpdate } : {}),
-            });
+            updatedTask = await TaskModel.findByIdAndUpdate(
+                task._id,
+                {
+                    $set: setUpdate,
+                    ...(Object.keys(unsetUpdate).length > 0 ? { $unset: unsetUpdate } : {}),
+                },
+                { new: true, lean: true }
+            );
         }
     } else {
         return NextResponse.json({ error: 'Недостаточно прав' }, { status: 403 });
     }
 
     await app.save();
+    const finalTask =
+        updatedTask ??
+        (await TaskModel.findById(task._id).lean()) ??
+        task;
+
+    if (contractor && previousStatus !== app.status) {
+        try {
+            await notifyApplicationStatusChanged({
+                contractor: {
+                    _id: contractor._id,
+                    name: contractor.name,
+                    email: contractor.email,
+                },
+                status: app.status,
+                previousStatus,
+                taskId: finalTask.taskId,
+                taskMongoId: finalTask._id,
+                taskName: finalTask.taskName ?? task.taskName ?? 'Задача',
+                bsNumber: finalTask.bsNumber,
+                orgId: finalTask.orgId ?? task.orgId,
+                orgSlug: (finalTask as { orgSlug?: string })?.orgSlug,
+                orgName: (finalTask as { orgName?: string })?.orgName,
+                projectRef: undefined,
+                projectKey: undefined,
+                projectName: undefined,
+                triggeredByName: actorName,
+                triggeredByEmail: actorEmail,
+            });
+        } catch (notifyErr) {
+            console.error('Failed to notify contractor about application status', notifyErr);
+        }
+    }
+
+    if (app.status === 'accepted' && contractor?.clerkUserId) {
+        try {
+            await notifyTaskAssignment({
+                executorClerkId: contractor.clerkUserId,
+                taskId: finalTask.taskId,
+                taskMongoId: finalTask._id,
+                taskName: finalTask.taskName ?? task.taskName ?? 'Задача',
+                bsNumber: finalTask.bsNumber,
+                orgId: finalTask.orgId ?? task.orgId,
+                orgSlug: (finalTask as { orgSlug?: string })?.orgSlug,
+                orgName: (finalTask as { orgName?: string })?.orgName,
+                projectRef: undefined,
+                projectKey: undefined,
+                projectName: undefined,
+                triggeredByName: actorName,
+                triggeredByEmail: actorEmail,
+            });
+        } catch (notifyErr) {
+            console.error('Failed to notify executor assignment from application', notifyErr);
+        }
+    }
+
+    if (previousStatus === 'accepted' && app.status !== 'accepted' && previousExecutorId) {
+        try {
+            await notifyTaskUnassignment({
+                executorClerkId: previousExecutorId,
+                taskId: finalTask.taskId,
+                taskMongoId: finalTask._id,
+                taskName: finalTask.taskName ?? task.taskName ?? 'Задача',
+                bsNumber: finalTask.bsNumber,
+                orgId: finalTask.orgId ?? task.orgId,
+                orgSlug: (finalTask as { orgSlug?: string })?.orgSlug,
+                orgName: (finalTask as { orgName?: string })?.orgName,
+                projectRef: undefined,
+                projectKey: undefined,
+                projectName: undefined,
+                triggeredByName: actorName,
+                triggeredByEmail: actorEmail,
+            });
+        } catch (notifyErr) {
+            console.error('Failed to notify executor unassignment from application', notifyErr);
+        }
+    }
+
+    if (typeof finalTask.status === 'string' && previousTaskStatus !== finalTask.status) {
+        try {
+            await notifyTaskStatusChange({
+                taskId: finalTask.taskId,
+                taskMongoId: finalTask._id,
+                taskName: finalTask.taskName ?? task.taskName ?? 'Задача',
+                bsNumber: finalTask.bsNumber,
+                previousStatus: previousTaskStatus,
+                newStatus: finalTask.status,
+                initiatorClerkId: typeof finalTask.initiatorId === 'string' ? finalTask.initiatorId : undefined,
+                authorClerkId: typeof finalTask.authorId === 'string' ? finalTask.authorId : undefined,
+                executorClerkId: typeof finalTask.executorId === 'string' ? finalTask.executorId : undefined,
+                triggeredByClerkId: actorClerkId,
+                triggeredByName: actorName,
+                triggeredByEmail: actorEmail,
+                orgId: finalTask.orgId ?? task.orgId,
+                orgSlug: (finalTask as { orgSlug?: string })?.orgSlug,
+                orgName: (finalTask as { orgName?: string })?.orgName,
+                projectRef: undefined,
+                projectKey: undefined,
+                projectName: undefined,
+            });
+        } catch (notifyErr) {
+            console.error('Failed to notify participants about task status change', notifyErr);
+        }
+    }
+
     return NextResponse.json({ ok: true, application: app.toObject() });
 }
 
