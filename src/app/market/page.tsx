@@ -24,6 +24,8 @@ import {
     Divider,
     Tooltip,
 } from '@mui/material';
+import { styled } from '@mui/material/styles';
+import Masonry from '@mui/lab/Masonry';
 import SearchIcon from '@mui/icons-material/Search';
 import RefreshIcon from '@mui/icons-material/Refresh';
 import ArrowOutwardIcon from '@mui/icons-material/ArrowOutward';
@@ -108,6 +110,16 @@ const statusChipMap: Record<PublicTaskStatus, { label: string; color: 'default' 
     assigned: { label: 'Назначена', color: 'default' },
     closed: { label: 'Закрыта', color: 'default' },
 };
+
+const CardItem = styled(Paper)(({ theme }) => ({
+    backgroundColor: '#fff',
+    padding: theme.spacing(2),
+    borderRadius: theme.shape.borderRadius,
+    boxShadow: theme.shadows[3],
+    ...theme.applyStyles?.('dark', {
+        backgroundColor: '#1A2027',
+    }),
+}));
 
 function formatBudget(budget?: number, currency?: string) {
     if (!budget || budget <= 0) return 'Бюджет не указан';
@@ -669,45 +681,54 @@ export default function MarketplacePage() {
                 fullScreen
                 PaperProps={{
                     sx: {
-                        background: gradientBg,
+                        bgcolor: 'background.default',
                     },
                 }}
             >
-                <DialogContent sx={{ p: 0 }}>
+                <DialogContent sx={{ p: 0, bgcolor: 'background.default' }}>
                     <Box
                         sx={{
                             position: 'sticky',
                             top: 0,
                             zIndex: 10,
-                            backdropFilter: 'blur(20px)',
-                            background: (theme) =>
-                                theme.palette.mode === 'dark'
-                                    ? 'rgba(9,10,14,0.75)'
-                                    : 'rgba(255,255,255,0.8)',
                             borderBottom: '1px solid',
                             borderColor: 'divider',
+                            backdropFilter: 'blur(16px)',
+                            bgcolor: (theme) =>
+                                theme.palette.mode === 'dark'
+                                    ? 'rgba(26,32,39,0.8)'
+                                    : 'rgba(255,255,255,0.9)',
                         }}
                     >
-                        <Container maxWidth="md" sx={{ py: 2.5 }}>
+                        <Container maxWidth="md" sx={{ py: 2.5, px: { xs: 1.5, sm: 3 } }}>
                             <Stack direction="row" alignItems="center" justifyContent="space-between" spacing={2}>
-                                <Box>
+                                <Box sx={{ minWidth: 0 }}>
                                     <Typography variant="overline" color="text.secondary">
                                         Задача
                                     </Typography>
-                                    <Typography variant="h5" fontWeight={700}>
-                                        {detailsTask
-                                            ? [detailsTask.taskName, detailsTask.bsNumber].filter(Boolean).join(' ')
-                                            : 'Детали задачи'}
-                                    </Typography>
+                                    <Stack direction="row" spacing={1} alignItems="center" flexWrap="wrap">
+                                        <Typography
+                                            variant="h5"
+                                            fontWeight={700}
+                                            sx={{ wordBreak: 'break-word' }}
+                                        >
+                                            {detailsTask
+                                                ? [detailsTask.taskName, detailsTask.bsNumber]
+                                                      .filter(Boolean)
+                                                      .join(' ')
+                                                : 'Детали задачи'}
+                                        </Typography>
+                                        {detailsTask?.project?.key && (
+                                            <Chip
+                                                label={detailsTask.project.key}
+                                                variant="outlined"
+                                                size="small"
+                                                sx={{ borderRadius: 2 }}
+                                            />
+                                        )}
+                                    </Stack>
                                 </Box>
                                 <Stack direction="row" spacing={1}>
-                                    {detailsTask?.project?.key && (
-                                        <Chip
-                                            label={detailsTask.project.key}
-                                            variant="outlined"
-                                            sx={{ borderRadius: 2 }}
-                                        />
-                                    )}
                                     <IconButton
                                         onClick={() => setDetailsTask(null)}
                                         sx={{
@@ -724,171 +745,157 @@ export default function MarketplacePage() {
                         </Container>
                     </Box>
 
-                    <Container maxWidth="md" sx={{ py: 4, px: { xs: 1.5, sm: 3 } }}>
-                        <Stack spacing={3}>
-                            <Paper sx={glassPaperStyles} elevation={0}>
-                                <Grid container spacing={2.5}>
-                                    <Grid item xs={12} sm={6}>
-                                        <Typography variant="caption" color="text.secondary">
-                                            Организация
+                    <Container maxWidth="md" sx={{ py: 3.5, px: { xs: 1.5, sm: 3 } }}>
+                        <Stack spacing={2.5}>
+                            <Masonry
+                                columns={{ xs: 1, sm: 1, md: 2 }}
+                                spacing={{ xs: 1, sm: 1.5, md: 2 }}
+                                sx={{
+                                    '& > *': {
+                                        boxSizing: 'border-box',
+                                    },
+                                }}
+                            >
+                                <CardItem sx={{ minWidth: 0 }}>
+                                    <Typography
+                                        variant="subtitle1"
+                                        fontWeight={600}
+                                        gutterBottom
+                                        sx={{ display: 'flex', alignItems: 'center', gap: 1 }}
+                                    >
+                                        <InfoOutlinedIcon fontSize="small" />
+                                        Информация
+                                    </Typography>
+                                    <Divider sx={{ mb: 1.5 }} />
+                                    <Stack spacing={1}>
+                                        <Typography variant="body1">
+                                            <strong>Организация:</strong>{' '}
+                                            {detailsTask?.orgName ||
+                                                detailsTask?.orgSlug ||
+                                                detailsTask?.orgId ||
+                                                '—'}
                                         </Typography>
-                                        <Typography variant="subtitle1" fontWeight={700}>
-                                            {detailsTask?.orgName || detailsTask?.orgSlug || detailsTask?.orgId || '—'}
+                                        <Typography variant="body1">
+                                            <strong>Оператор:</strong> {detailsTask?.project?.operator || '—'}
                                         </Typography>
-                                    </Grid>
-                                    <Grid item xs={12} sm={6}>
-                                        <Typography variant="caption" color="text.secondary">
-                                            Оператор
-                                        </Typography>
-                                        <Typography variant="subtitle1" fontWeight={700}>
-                                            {detailsTask?.project?.operator || '—'}
-                                        </Typography>
-                                    </Grid>
-                                    <Grid item xs={12} sm={6}>
-                                        <Typography variant="caption" color="text.secondary">
-                                            Регион
-                                        </Typography>
-                                        <Typography variant="subtitle1" fontWeight={700}>
-                                            {detailsTask?.project?.regionCode || '—'}
+                                        <Typography variant="body1">
+                                            <strong>Регион:</strong> {detailsTask?.project?.regionCode || '—'}
                                             {getRegionLabel(detailsTask?.project?.regionCode)
-                                                ? ` · ${getRegionLabel(detailsTask?.project?.regionCode)}`
+                                                ? ` — ${getRegionLabel(detailsTask?.project?.regionCode)}`
                                                 : ''}
                                         </Typography>
-                                    </Grid>
-                                    <Grid item xs={12} sm={6}>
-                                        <Typography variant="caption" color="text.secondary">
-                                            Название проекта
+                                        <Typography variant="body1">
+                                            <strong>Название проекта:</strong> {detailsTask?.project?.name || '—'}
                                         </Typography>
-                                        <Typography variant="subtitle1" fontWeight={700}>
-                                            {detailsTask?.project?.name || '—'}
+                                        <Typography variant="body1">
+                                            <strong>Базовая станция:</strong> {detailsTask?.bsNumber || '—'}
                                         </Typography>
-                                    </Grid>
-                                    <Grid item xs={12} sm={6}>
-                                        <Typography variant="caption" color="text.secondary">
-                                            Базовая станция
+                                        <Typography variant="body1">
+                                            <strong>Адрес:</strong> {detailsTask?.bsAddress || '—'}
                                         </Typography>
-                                        <Typography variant="subtitle1" fontWeight={700}>
-                                            {detailsTask?.bsNumber || '—'}
-                                        </Typography>
-                                    </Grid>
-                                    <Grid item xs={12} sm={6}>
-                                        <Typography variant="caption" color="text.secondary">
-                                            Адрес
-                                        </Typography>
-                                        <Typography variant="subtitle1" fontWeight={700}>
-                                            {detailsTask?.bsAddress || '—'}
-                                        </Typography>
-                                    </Grid>
-                                    <Grid item xs={12} sm={6}>
-                                        <Typography variant="caption" color="text.secondary">
-                                            Геолокация
-                                        </Typography>
-                                        <Typography variant="subtitle1" fontWeight={700}>
+                                        <Typography variant="body1">
+                                            <strong>Геолокация:</strong>{' '}
                                             {detailsTask?.bsLocation?.[0]?.coordinates ||
                                                 detailsTask?.bsLocation?.[0]?.name ||
                                                 '—'}
                                         </Typography>
-                                    </Grid>
-                                    <Grid item xs={12} sm={6}>
-                                        <Typography variant="caption" color="text.secondary">
-                                            Срок выполнения
+                                        <Typography variant="body1">
+                                            <strong>Срок выполнения:</strong> {formatDateRu(detailsTask?.dueDate)}
                                         </Typography>
-                                        <Typography variant="subtitle1" fontWeight={700}>
-                                            {formatDateRu(detailsTask?.dueDate)}
-                                        </Typography>
-                                    </Grid>
-                                    <Grid item xs={12} sm={6}>
-                                        <Typography variant="caption" color="text.secondary">
-                                            Приоритет
-                                        </Typography>
-                                        <Typography variant="subtitle1" fontWeight={700}>
+                                        <Typography variant="body1">
+                                            <strong>Приоритет:</strong>{' '}
                                             {getPriorityLabelRu(detailsTask?.priority) || 'Не указан'}
                                         </Typography>
-                                    </Grid>
-                                    <Grid item xs={12} sm={6}>
-                                        <Typography variant="caption" color="text.secondary">
-                                            Плановый бюджет
-                                        </Typography>
-                                        <Typography variant="subtitle1" fontWeight={700}>
+                                        <Typography variant="body1">
+                                            <strong>Плановый бюджет:</strong>{' '}
                                             {formatBudget(detailsTask?.budget, detailsTask?.currency)}
                                         </Typography>
-                                    </Grid>
-                                    <Grid item xs={12} sm={6}>
-                                        <Typography variant="caption" color="text.secondary">
-                                            Тип задачи
+                                        <Typography variant="body1">
+                                            <strong>Тип задачи:</strong> {getTaskTypeLabel(detailsTask?.taskType)}
                                         </Typography>
-                                        <Typography variant="subtitle1" fontWeight={700}>
-                                            {getTaskTypeLabel(detailsTask?.taskType)}
+                                    </Stack>
+                                </CardItem>
+
+                                {detailsTask?.publicDescription || detailsTask?.taskDescription ? (
+                                    <CardItem sx={{ minWidth: 0 }}>
+                                        <Typography variant="subtitle1" fontWeight={600} gutterBottom>
+                                            Описание
                                         </Typography>
-                                    </Grid>
-                                </Grid>
-                            </Paper>
+                                        <Divider sx={{ mb: 1.5 }} />
+                                        <Typography
+                                            color="text.secondary"
+                                            sx={{ whiteSpace: 'pre-wrap', lineHeight: 1.6 }}
+                                        >
+                                            {detailsTask?.publicDescription || detailsTask?.taskDescription}
+                                        </Typography>
+                                    </CardItem>
+                                ) : null}
 
-                            {detailsTask?.publicDescription || detailsTask?.taskDescription ? (
-                                <Paper sx={glassPaperStyles} elevation={0}>
-                                    <Typography variant="h6" fontWeight={700} gutterBottom>
-                                        Описание
-                                    </Typography>
-                                    <Typography color="text.secondary" sx={{ whiteSpace: 'pre-wrap', lineHeight: 1.6 }}>
-                                        {detailsTask?.publicDescription || detailsTask?.taskDescription}
-                                    </Typography>
-                                </Paper>
-                            ) : null}
+                                {detailsTask?.skills && detailsTask.skills.length > 0 ? (
+                                    <CardItem sx={{ minWidth: 0 }}>
+                                        <Typography variant="subtitle1" fontWeight={600} gutterBottom>
+                                            Навыки
+                                        </Typography>
+                                        <Divider sx={{ mb: 1.5 }} />
+                                        <Stack direction="row" spacing={1} flexWrap="wrap">
+                                            {detailsTask.skills.map((skill) => (
+                                                <Chip key={skill} label={skill} sx={{ borderRadius: 2 }} />
+                                            ))}
+                                        </Stack>
+                                    </CardItem>
+                                ) : null}
 
-                            {detailsTask?.skills && detailsTask.skills.length > 0 ? (
-                                <Paper sx={glassPaperStyles} elevation={0}>
-                                    <Typography variant="h6" fontWeight={700} gutterBottom>
-                                        Навыки
-                                    </Typography>
-                                    <Stack direction="row" spacing={1} flexWrap="wrap">
-                                        {detailsTask.skills.map((skill) => (
-                                            <Chip key={skill} label={skill} sx={{ borderRadius: 2 }} />
-                                        ))}
-                                    </Stack>
-                                </Paper>
-                            ) : null}
+                                {detailsTask?.workItems && detailsTask.workItems.length > 0 ? (
+                                    <CardItem sx={{ minWidth: 0 }}>
+                                        <Typography variant="subtitle1" fontWeight={600} gutterBottom>
+                                            Состав работ
+                                        </Typography>
+                                        <Divider sx={{ mb: 1.5 }} />
+                                        <Stack spacing={1.5}>
+                                            {detailsTask.workItems.map((item, idx) => (
+                                                <Box key={`${item.workType}-${idx}`}>
+                                                    <Typography fontWeight={600}>
+                                                        {item.workType || 'Работа'}
+                                                    </Typography>
+                                                    <Typography color="text.secondary">
+                                                        {item.quantity
+                                                            ? `${item.quantity} ${item.unit || ''}`.trim()
+                                                            : '—'}
+                                                        {item.note ? ` · ${item.note}` : ''}
+                                                    </Typography>
+                                                </Box>
+                                            ))}
+                                        </Stack>
+                                    </CardItem>
+                                ) : null}
 
-                            {detailsTask?.workItems && detailsTask.workItems.length > 0 ? (
-                                <Paper sx={glassPaperStyles} elevation={0}>
-                                    <Typography variant="h6" fontWeight={700} gutterBottom>
-                                        Состав работ
-                                    </Typography>
-                                    <Stack spacing={1.5}>
-                                        {detailsTask.workItems.map((item, idx) => (
-                                            <Box key={`${item.workType}-${idx}`}>
-                                                <Typography fontWeight={600}>{item.workType || 'Работа'}</Typography>
-                                                <Typography color="text.secondary">
-                                                    {item.quantity ? `${item.quantity} ${item.unit || ''}`.trim() : '—'}
-                                                    {item.note ? ` · ${item.note}` : ''}
-                                                </Typography>
-                                            </Box>
-                                        ))}
-                                    </Stack>
-                                </Paper>
-                            ) : null}
-
-                            {detailsTask?.attachments && detailsTask.attachments.length > 0 ? (
-                                <Paper sx={glassPaperStyles} elevation={0}>
-                                    <Typography variant="h6" fontWeight={700} gutterBottom>
-                                        Аттачменты
-                                    </Typography>
-                                    <Stack spacing={1}>
-                                        {detailsTask.attachments.map((link) => (
-                                            <Button
-                                                key={link}
-                                                href={link}
-                                                target="_blank"
-                                                rel="noreferrer"
-                                                variant="text"
-                                                endIcon={<ArrowOutwardIcon fontSize="small" />}
-                                                sx={{ justifyContent: 'flex-start', textTransform: 'none' }}
-                                            >
-                                                {link}
-                                            </Button>
-                                        ))}
-                                    </Stack>
-                                </Paper>
-                            ) : null}
+                                {detailsTask?.attachments && detailsTask.attachments.length > 0 ? (
+                                    <CardItem sx={{ minWidth: 0 }}>
+                                        <Typography variant="subtitle1" fontWeight={600} gutterBottom>
+                                            Аттачменты
+                                        </Typography>
+                                        <Divider sx={{ mb: 1.5 }} />
+                                        <Stack spacing={1}>
+                                            {detailsTask.attachments.map((link) => (
+                                                <Button
+                                                    key={link}
+                                                    href={link}
+                                                    target="_blank"
+                                                    rel="noreferrer"
+                                                    variant="text"
+                                                    endIcon={<ArrowOutwardIcon fontSize="small" />}
+                                                    sx={{
+                                                        justifyContent: 'flex-start',
+                                                        textTransform: 'none',
+                                                    }}
+                                                >
+                                                    {link}
+                                                </Button>
+                                            ))}
+                                        </Stack>
+                                    </CardItem>
+                                ) : null}
+                            </Masonry>
 
                             <Stack
                                 direction={{ xs: 'column', sm: 'row' }}
