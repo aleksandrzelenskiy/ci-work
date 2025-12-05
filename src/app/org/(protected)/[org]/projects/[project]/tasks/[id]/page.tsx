@@ -997,6 +997,43 @@ export default function TaskDetailsPage() {
         }
     };
 
+    const handleUnassignApplication = async (applicationId: string) => {
+        if (!taskMongoId) return;
+        setApplicationActionLoading(applicationId);
+        try {
+            const res = await fetch(`/api/tasks/${taskMongoId}/applications`, {
+                method: 'PATCH',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ applicationId, status: 'submitted' }),
+            });
+            const data = await res.json().catch(() => ({}));
+            if (!res.ok || data.error) {
+                setApplicationSnack({
+                    open: true,
+                    sev: 'error',
+                    message: data.error || 'Не удалось снять исполнителя',
+                });
+                return;
+            }
+            setApplicationSnack({
+                open: true,
+                sev: 'success',
+                message: 'Исполнитель снят с задачи',
+            });
+            await fetchApplications();
+            await load();
+        } catch (e) {
+            setApplicationSnack({
+                open: true,
+                sev: 'error',
+                message:
+                    e instanceof Error ? e.message : 'Ошибка при снятии исполнителя',
+            });
+        } finally {
+            setApplicationActionLoading(null);
+        }
+    };
+
     const sortedEvents = React.useMemo(() => {
         if (!task?.events) return [];
 
@@ -1664,7 +1701,9 @@ export default function TaskDetailsPage() {
                                             };
                                             const statusLabel =
                                                 statusLabelMap[app.status] || app.status;
-                                            const canAssign = app.status !== 'accepted';
+                                            const isAccepted = app.status === 'accepted';
+                                            const actionInProgress =
+                                                applicationActionLoading === appId;
 
                                             return (
                                                 <Paper
@@ -1727,21 +1766,25 @@ export default function TaskDetailsPage() {
                                                         </Box>
                                                         <Box sx={{ display: 'flex', flexDirection: 'column', gap: 1 }}>
                                                             <Button
-                                                                variant="contained"
+                                                                variant={isAccepted ? 'outlined' : 'contained'}
+                                                                color={isAccepted ? 'error' : 'primary'}
                                                                 size="small"
-                                                                onClick={() => void handleAcceptApplication(appId)}
+                                                                onClick={() =>
+                                                                    void (isAccepted
+                                                                        ? handleUnassignApplication(appId)
+                                                                        : handleAcceptApplication(appId))
+                                                                }
                                                                 disabled={
-                                                                    !canAssign ||
                                                                     !appId ||
                                                                     applicationActionLoading === appId
                                                                 }
                                                                 startIcon={
-                                                                    applicationActionLoading === appId ? (
+                                                                    actionInProgress ? (
                                                                         <CircularProgress size={16} color="inherit" />
                                                                     ) : undefined
                                                                 }
                                                             >
-                                                                Назначить
+                                                                {isAccepted ? 'Снять' : 'Назначить'}
                                                             </Button>
                                                         </Box>
                                                     </Stack>

@@ -176,6 +176,7 @@ export async function PATCH(
         return NextResponse.json({ error: 'Отклик не найден' }, { status: 404 });
     }
 
+    const previousStatus = app.status;
     const orgId = task.orgId?.toString();
     const isMember = orgId ? memberships.some((m) => m.orgId === orgId) : false;
     const canManage =
@@ -251,6 +252,29 @@ export async function PATCH(
 
             await TaskModel.findByIdAndUpdate(task._id, {
                 $set: update,
+            });
+        } else if (
+            previousStatus === 'accepted' &&
+            (!task.acceptedApplicationId || task.acceptedApplicationId === app._id.toString())
+        ) {
+            const setUpdate: Record<string, unknown> = {
+                executorId: '',
+                executorName: '',
+                executorEmail: '',
+            };
+
+            if (task.status && task.status !== 'To do') {
+                setUpdate.status = 'To do';
+            }
+            if (task.publicStatus === 'assigned') {
+                setUpdate.publicStatus = 'open';
+            }
+
+            const unsetUpdate: Record<string, string> = { acceptedApplicationId: '' };
+
+            await TaskModel.findByIdAndUpdate(task._id, {
+                $set: setUpdate,
+                ...(Object.keys(unsetUpdate).length > 0 ? { $unset: unsetUpdate } : {}),
             });
         }
     } else {
