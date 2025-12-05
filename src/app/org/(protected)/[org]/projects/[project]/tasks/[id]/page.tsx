@@ -1634,10 +1634,7 @@ export default function TaskDetailsPage() {
                                 ) : (
                                     <Stack spacing={1.5}>
                                         {applications.map((app) => {
-                                            const appId =
-                                                typeof app._id === 'string'
-                                                    ? app._id
-                                                    : app._id?.toString() || '';
+                                            const appId = app._id ? String(app._id) : '';
                                             const statusLabelMap: Record<string, string> = {
                                                 submitted: 'На рассмотрении',
                                                 shortlisted: 'В шорт-листе',
