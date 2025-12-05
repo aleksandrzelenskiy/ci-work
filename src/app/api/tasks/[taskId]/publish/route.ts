@@ -14,7 +14,8 @@ const MANAGER_ROLES = new Set(['owner', 'org_admin', 'manager', 'super_admin']);
 type Payload = {
     visibility?: 'private' | 'public';
     publicStatus?: 'open' | 'in_review' | 'assigned' | 'closed';
-    budget?: number;
+    budget?: number | null;
+    publicDescription?: string | null;
     currency?: string;
     skills?: string[];
     allowInstantClaim?: boolean;
@@ -67,8 +68,15 @@ export async function PATCH(
 
     const update: Record<string, unknown> = {};
 
-    if (typeof payload.budget === 'number' && payload.budget >= 0) {
-        update.budget = payload.budget;
+    if ('budget' in payload) {
+        if (typeof payload.budget === 'number' && payload.budget >= 0) {
+            update.budget = payload.budget;
+        } else if (payload.budget === null) {
+            update.budget = null;
+        }
+    }
+    if (typeof payload.publicDescription === 'string') {
+        update.publicDescription = payload.publicDescription.trim();
     }
     if (payload.currency) {
         update.currency = payload.currency;

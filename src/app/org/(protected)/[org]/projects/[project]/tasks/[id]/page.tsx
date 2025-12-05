@@ -120,7 +120,8 @@ type Task = {
     bsAddress?: string;
     bsLocation?: Array<{ name?: string; coordinates: string; address?: string | null }>;
     totalCost?: number;
-    budget?: number;
+    budget?: number | null;
+    publicDescription?: string;
     currency?: string;
     skills?: string[];
     applicationCount?: number;
@@ -233,6 +234,7 @@ export default function TaskDetailsPage() {
     const [publishDialogOpen, setPublishDialogOpen] = React.useState(false);
     const [publishSkillsInput, setPublishSkillsInput] = React.useState('');
     const [publishBudgetInput, setPublishBudgetInput] = React.useState('');
+    const [publishInfoInput, setPublishInfoInput] = React.useState('');
     const [publishDialogError, setPublishDialogError] = React.useState<string | null>(null);
     const [applications, setApplications] = React.useState<TaskApplication[]>([]);
     const [applicationsLoading, setApplicationsLoading] = React.useState(false);
@@ -389,7 +391,7 @@ export default function TaskDetailsPage() {
     const handlePublishToggle = React.useCallback(
         async (
             makePublic: boolean,
-            payload?: { skills?: string[]; budget?: number }
+            payload?: { skills?: string[]; budget?: number | null; publicDescription?: string }
         ) => {
             if (!id) return false;
             setPublishLoading(true);
@@ -404,6 +406,7 @@ export default function TaskDetailsPage() {
                                 publicStatus: 'open',
                                 skills: payload?.skills,
                                 budget: payload?.budget,
+                                publicDescription: payload?.publicDescription,
                             }
                             : { visibility: 'private', publicStatus: 'closed' }
                     ),
@@ -716,6 +719,7 @@ export default function TaskDetailsPage() {
                 ? String(task.budget)
                 : ''
         );
+        setPublishInfoInput(task.publicDescription || '');
         setPublishDialogError(null);
         setPublishDialogOpen(true);
     };
@@ -734,7 +738,7 @@ export default function TaskDetailsPage() {
         }
 
         const budgetRaw = publishBudgetInput.trim();
-        let budget: number | undefined;
+        let budget: number | null | undefined;
         if (budgetRaw) {
             const num = Number(budgetRaw);
             if (Number.isNaN(num) || num < 0) {
@@ -742,10 +746,16 @@ export default function TaskDetailsPage() {
                 return;
             }
             budget = num;
+        } else {
+            budget = null;
         }
 
         setPublishDialogError(null);
-        const success = await handlePublishToggle(true, { skills, budget });
+        const success = await handlePublishToggle(true, {
+            skills,
+            budget,
+            publicDescription: publishInfoInput.trim(),
+        });
         if (success) {
             setPublishDialogOpen(false);
         }
@@ -1521,6 +1531,10 @@ export default function TaskDetailsPage() {
                                     <strong>Плановый бюджет:</strong> {formatPrice(task.budget)}
                                 </Typography>
                                 <Typography variant="body1">
+                                    <strong>Утвержденная оплата подрядчику:</strong>{' '}
+                                    {formatPrice(task.contractorPayment)}
+                                </Typography>
+                                <Typography variant="body1">
                                     <strong>Тип задачи:</strong> {task.taskType || '—'}
                                 </Typography>
 
@@ -1547,6 +1561,12 @@ export default function TaskDetailsPage() {
                                     <Typography variant="body1">
                                         <strong>Исполнитель:</strong>{' '}
                                         {task.executorName || task.executorEmail}
+                                    </Typography>
+                                )}
+                                {task.publicDescription && (
+                                    <Typography variant="body1" sx={{ whiteSpace: 'pre-wrap' }}>
+                                        <strong>Информация для подрядчика:</strong>{' '}
+                                        {task.publicDescription}
                                     </Typography>
                                 )}
 
@@ -2271,8 +2291,9 @@ export default function TaskDetailsPage() {
                 <DialogTitle>Публикация задачи</DialogTitle>
                 <DialogContent sx={{ display: 'flex', flexDirection: 'column', gap: 2, pt: 2 }}>
                     <Typography variant="body2" color="text.secondary">
-                        Добавьте навыки, которые потребуются исполнителю, и укажите плановый бюджет
-                        (при необходимости). Эти данные увидят подрядчики перед откликом.
+                        Добавьте навыки, плановый бюджет (по умолчанию попадёт в ставку отклика) и
+                        дайте более подробную информацию о задаче. Эти данные увидят подрядчики перед
+                        откликом, но смогут скорректировать ставку.
                     </Typography>
                     <TextField
                         label="Необходимые навыки"
@@ -2291,6 +2312,16 @@ export default function TaskDetailsPage() {
                         helperText="Можно оставить пустым"
                         fullWidth
                         inputProps={{ min: 0 }}
+                    />
+                    <TextField
+                        label="Информация о задаче"
+                        placeholder="Подробнее опишите задачу для публикации"
+                        value={publishInfoInput}
+                        onChange={(e) => setPublishInfoInput(e.target.value)}
+                        helperText="Эта информация будет показана подрядчикам"
+                        fullWidth
+                        multiline
+                        minRows={3}
                     />
                     {publishDialogError && (
                         <Alert severity="error">{publishDialogError}</Alert>

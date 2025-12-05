@@ -39,6 +39,7 @@ type PublicTask = {
     budget?: number;
     currency?: string;
     skills?: string[];
+    publicDescription?: string;
     publicStatus?: PublicTaskStatus;
     visibility?: TaskVisibility;
     applicationCount?: number;
@@ -171,6 +172,22 @@ export default function MarketplacePage() {
         void fetchUser();
     // eslint-disable-next-line react-hooks/exhaustive-deps
     }, []);
+
+    useEffect(() => {
+        if (selectedTask) {
+            const draftBudget =
+                selectedTask.budget && selectedTask.budget > 0
+                    ? String(selectedTask.budget)
+                    : '';
+            setApplyBudget(draftBudget);
+            setApplyEta('');
+            setApplyMessage('');
+        } else {
+            setApplyBudget('');
+            setApplyEta('');
+            setApplyMessage('');
+        }
+    }, [selectedTask]);
 
     const handleSubmitApplication = async () => {
         if (!selectedTask?._id) return;
@@ -392,7 +409,7 @@ export default function MarketplacePage() {
                                                     </Typography>
                                                 </Stack>
                                                 <Typography color="text.secondary" sx={{ lineHeight: 1.5 }}>
-                                                    {task.taskDescription || 'Описание не заполнено'}
+                                                    {task.publicDescription || task.taskDescription || 'Описание не заполнено'}
                                                 </Typography>
                                             </Stack>
                                             {task.skills && task.skills.length > 0 && (
@@ -454,6 +471,15 @@ export default function MarketplacePage() {
                         <Alert severity="info">
                             Фиксированная ставка, без комиссий платформы. Сообщение увидит работодатель.
                         </Alert>
+                        {selectedTask?.publicDescription && (
+                            <Typography
+                                variant="body2"
+                                color="text.secondary"
+                                sx={{ whiteSpace: 'pre-wrap' }}
+                            >
+                                {selectedTask.publicDescription}
+                            </Typography>
+                        )}
                         <TextField
                             label="Ставка за задачу"
                             type="number"

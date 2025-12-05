@@ -64,6 +64,7 @@ export async function GET(request: NextRequest) {
         matchStage.$or = [
             { taskName: regex },
             { taskDescription: regex },
+            { publicDescription: regex },
             { bsNumber: regex },
         ];
     }

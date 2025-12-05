@@ -117,7 +117,8 @@ export interface Task {
   // Маркетплейс параметры
   visibility?: TaskVisibility;
   publicStatus?: PublicTaskStatus;
-  budget?: number;
+  budget?: number | null;
+  publicDescription?: string;
   currency?: string;
   skills?: string[];
   applicationCount?: number;

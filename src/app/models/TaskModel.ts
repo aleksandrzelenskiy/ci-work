@@ -88,6 +88,7 @@ const TaskSchema = new Schema<Task & Document>({
     index: true,
   },
   budget: { type: Number },
+  publicDescription: { type: String },
   currency: { type: String, default: 'RUB' },
   skills: { type: [String], default: [] },
   applicationCount: { type: Number, default: 0 },
