@@ -260,3 +260,83 @@ export async function PATCH(
     await app.save();
     return NextResponse.json({ ok: true, application: app.toObject() });
 }
+
+export async function DELETE(
+    request: NextRequest,
+    { params }: { params: Promise<{ taskId: string }> }
+) {
+    const { taskId } = await params;
+    const { searchParams } = new URL(request.url);
+    let applicationId = searchParams.get('applicationId');
+
+    if (!applicationId) {
+        try {
+            const body = (await request.json()) as { applicationId?: string };
+            applicationId = body?.applicationId ?? null;
+        } catch {
+            applicationId = null;
+        }
+    }
+
+    if (!applicationId || !mongoose.Types.ObjectId.isValid(applicationId)) {
+        return NextResponse.json({ error: 'Некорректный идентификатор отклика' }, { status: 400 });
+    }
+
+    try {
+        await dbConnect();
+    } catch (error) {
+        console.error('DB connect error', error);
+        return NextResponse.json({ error: 'DB connection failed' }, { status: 500 });
+    }
+
+    const context = await GetUserContext();
+    if (!context.success || !context.data) {
+        return NextResponse.json({ error: 'Требуется авторизация' }, { status: 401 });
+    }
+
+    const { user } = context.data;
+    const task = await loadTask(taskId);
+    if (!task) {
+        return NextResponse.json({ error: 'Задача не найдена' }, { status: 404 });
+    }
+
+    const app = await ApplicationModel.findById(applicationId);
+    if (!app || app.taskId.toString() !== task._id.toString()) {
+        return NextResponse.json({ error: 'Отклик не найден' }, { status: 404 });
+    }
+
+    const isOwner = app.contractorId.toString() === user._id.toString();
+    if (!isOwner) {
+        return NextResponse.json({ error: 'Недостаточно прав для удаления' }, { status: 403 });
+    }
+
+    if (app.status === 'accepted') {
+        return NextResponse.json(
+            { error: 'Принятый отклик нельзя удалить. Попросите менеджера переназначить задачу' },
+            { status: 409 }
+        );
+    }
+
+    try {
+        await app.deleteOne();
+        await TaskModel.findByIdAndUpdate(task._id, [
+            {
+                $set: {
+                    applicationCount: {
+                        $max: [
+                            {
+                                $subtract: [{ $ifNull: ['$applicationCount', 0] }, 1],
+                            },
+                            0,
+                        ],
+                    },
+                },
+            },
+        ]);
+    } catch (error) {
+        console.error('Failed to delete application', error);
+        return NextResponse.json({ error: 'Не удалось удалить отклик' }, { status: 500 });
+    }
+
+    return NextResponse.json({ ok: true });
+}

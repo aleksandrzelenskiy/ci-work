@@ -3,6 +3,8 @@ import { NextRequest, NextResponse } from 'next/server';
 import mongoose from 'mongoose';
 import dbConnect from '@/utils/mongoose';
 import TaskModel from '@/app/models/TaskModel';
+import ApplicationModel from '@/app/models/ApplicationModel';
+import { GetUserContext } from '@/server-actions/user-context';
 
 export const runtime = 'nodejs';
 export const dynamic = 'force-dynamic';
@@ -27,6 +29,10 @@ export async function GET(request: NextRequest) {
     const status = (searchParams.get('status') || '').trim();
     const regionCode = (searchParams.get('region') || '').trim();
     const limit = Math.min(parseNumber(searchParams.get('limit')) ?? 50, 100);
+
+    const context = await GetUserContext();
+    const currentUserId =
+        context.success && context.data?.user?._id ? context.data.user._id.toString() : null;
 
     try {
         await dbConnect();
@@ -102,7 +108,50 @@ export async function GET(request: NextRequest) {
 
     try {
         const tasks = await TaskModel.aggregate(pipeline);
-        return NextResponse.json({ tasks });
+
+        if (!currentUserId || tasks.length === 0) {
+            return NextResponse.json({ tasks });
+        }
+
+        const userObjectId = new mongoose.Types.ObjectId(currentUserId);
+        const taskIds = tasks.map((task) => task._id);
+
+        const myApplications = await ApplicationModel.find({
+            taskId: { $in: taskIds },
+            contractorId: userObjectId,
+        })
+            .select('_id taskId status proposedBudget coverMessage etaDays')
+            .lean();
+
+        const appMap = new Map<
+            string,
+            {
+                _id: string;
+                taskId: string;
+                status: string;
+                proposedBudget?: number;
+                coverMessage?: string;
+                etaDays?: number;
+            }
+        >();
+
+        myApplications.forEach((app) => {
+            appMap.set(app.taskId.toString(), {
+                _id: app._id.toString(),
+                taskId: app.taskId.toString(),
+                status: app.status,
+                proposedBudget: app.proposedBudget,
+                coverMessage: app.coverMessage,
+                etaDays: app.etaDays,
+            });
+        });
+
+        const enriched = tasks.map((task) => ({
+            ...task,
+            myApplication: appMap.get(task._id.toString()) || null,
+        }));
+
+        return NextResponse.json({ tasks: enriched });
     } catch (error) {
         console.error('Failed to load public tasks', error);
         return NextResponse.json({ error: 'Failed to load tasks' }, { status: 500 });

@@ -29,12 +29,14 @@ import RefreshIcon from '@mui/icons-material/Refresh';
 import ArrowOutwardIcon from '@mui/icons-material/ArrowOutward';
 import SendIcon from '@mui/icons-material/Send';
 import StarRoundedIcon from '@mui/icons-material/StarRounded';
-import BoltIcon from '@mui/icons-material/Bolt';
 import type { PublicTaskStatus, TaskVisibility } from '@/app/types/taskTypes';
+import type { TaskApplication } from '@/app/types/application';
 
 type PublicTask = {
     _id: string;
     taskName: string;
+    bsNumber?: string;
+    orgId?: string;
     taskDescription?: string;
     budget?: number;
     currency?: string;
@@ -49,6 +51,7 @@ type PublicTask = {
         regionCode?: string;
         operator?: string;
     };
+    myApplication?: Pick<TaskApplication, '_id' | 'status' | 'proposedBudget' | 'etaDays' | 'coverMessage'> | null;
     createdAt?: string;
 };
 
@@ -110,6 +113,7 @@ export default function MarketplacePage() {
     const [applyBudget, setApplyBudget] = useState('');
     const [applyEta, setApplyEta] = useState('');
     const [submitLoading, setSubmitLoading] = useState(false);
+    const [cancelLoadingId, setCancelLoadingId] = useState<string | null>(null);
     const [snack, setSnack] = useState<{ open: boolean; message: string; severity: 'success' | 'error' }>({
         open: false,
         message: '',
@@ -147,6 +151,57 @@ export default function MarketplacePage() {
             setTasks([]);
         } finally {
             setLoading(false);
+        }
+    };
+
+    const handleWithdrawApplication = async (task: PublicTask) => {
+        const applicationId = task.myApplication?._id;
+        if (!applicationId) return;
+
+        setCancelLoadingId(applicationId);
+
+        try {
+            const res = await fetch(`/api/tasks/${task._id}/applications`, {
+                method: 'DELETE',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ applicationId }),
+            });
+            const data = (await res.json().catch(() => ({}))) as { error?: string };
+
+            if (!res.ok || data.error) {
+                setSnack({
+                    open: true,
+                    message: data.error || 'Не удалось отменить отклик',
+                    severity: 'error',
+                });
+                return;
+            }
+
+            setTasks((prev) =>
+                prev.map((t) =>
+                    t._id === task._id
+                        ? {
+                              ...t,
+                              myApplication: null,
+                              applicationCount: Math.max((t.applicationCount ?? 1) - 1, 0),
+                          }
+                        : t
+                )
+            );
+
+            setSnack({
+                open: true,
+                message: 'Отклик удалён',
+                severity: 'success',
+            });
+        } catch (e) {
+            setSnack({
+                open: true,
+                message: e instanceof Error ? e.message : 'Ошибка при удалении',
+                severity: 'error',
+            });
+        } finally {
+            setCancelLoadingId(null);
         }
     };
 
@@ -247,7 +302,8 @@ export default function MarketplacePage() {
                 position: 'relative',
                 overflow: 'hidden',
                 borderRadius: 4,
-                p: { xs: 3, md: 5 },
+                px: { xs: 2, md: 5 },
+                py: { xs: 3, md: 5 },
                 mb: 4,
                 background: (theme) =>
                     theme.palette.mode === 'dark'
@@ -274,19 +330,7 @@ export default function MarketplacePage() {
                     opacity: 0.85,
                 }}
             />
-            <Stack spacing={3} sx={{ position: 'relative' }}>
-                <Stack direction="row" alignItems="center" spacing={1.5}>
-                    <BoltIcon color="warning" />
-                    <Typography variant="overline" sx={{ letterSpacing: 1 }}>
-                        Маркетплейс задач
-                    </Typography>
-                </Stack>
-                <Typography variant="h3" fontWeight={700} sx={{ maxWidth: 720 }}>
-                    Публичные задачи от компаний. Выбирайте, откликайтесь, закрывайте работу.
-                </Typography>
-                <Typography variant="h6" color="text.secondary" sx={{ maxWidth: 760 }}>
-                    Фиксированная ставка без комиссий площадки. Совместная работа и статусная лента в одном окне.
-                </Typography>
+            <Stack spacing={2} sx={{ position: 'relative' }}>
                 {contextError && <Alert severity="warning">{contextError}</Alert>}
                 <Stack direction={{ xs: 'column', sm: 'row' }} spacing={2} alignItems="center">
                     <TextField
@@ -353,7 +397,7 @@ export default function MarketplacePage() {
                 py: { xs: 4, md: 6 },
             }}
         >
-            <Container maxWidth="lg">
+            <Container maxWidth="lg" sx={{ px: { xs: 1.5, sm: 3, md: 4 } }}>
                 {hero}
                 {loading ? (
                     <Stack alignItems="center" spacing={2} sx={{ py: 6 }}>
@@ -372,10 +416,19 @@ export default function MarketplacePage() {
                     <Grid container spacing={2.5}>
                         {tasks.map((task) => {
                             const chipMeta = task.publicStatus ? statusChipMap[task.publicStatus] : undefined;
+                            const taskTitle = [task.taskName, task.bsNumber].filter(Boolean).join(' ');
+                            const hasActiveApplication =
+                                Boolean(task.myApplication && task.myApplication.status !== 'withdrawn');
+                            const isCanceling =
+                                Boolean(cancelLoadingId && task.myApplication?._id === cancelLoadingId);
+
                             return (
                                 <Grid item xs={12} md={6} key={task._id}>
                                     <Paper sx={glassPaperStyles} elevation={0}>
                                         <Stack spacing={2}>
+                                            <Typography variant="caption" color="text.secondary" fontWeight={600}>
+                                                Организация: {task.orgId || '—'}
+                                            </Typography>
                                             <Stack direction="row" alignItems="center" spacing={1.5}>
                                                 <Chip
                                                     size="small"
@@ -399,14 +452,19 @@ export default function MarketplacePage() {
                                                     sx={{ borderRadius: 2 }}
                                                 />
                                             </Stack>
-                                            <Stack spacing={1}>
-                                                <Stack direction="row" alignItems="center" justifyContent="space-between">
-                                                    <Typography variant="h5" fontWeight={700}>
-                                                        {task.taskName}
+                                            <Stack spacing={1.25}>
+                                                <Stack direction="row" alignItems="flex-start" justifyContent="space-between" spacing={2}>
+                                                    <Typography variant="h5" fontWeight={700} sx={{ pr: 1, wordBreak: 'break-word' }}>
+                                                        {taskTitle || 'Без названия'}
                                                     </Typography>
-                                                    <Typography variant="subtitle1" fontWeight={700}>
-                                                        {formatBudget(task.budget, task.currency)}
-                                                    </Typography>
+                                                    <Stack spacing={0.25} alignItems="flex-end">
+                                                        <Typography variant="caption" color="text.secondary">
+                                                            Планируемый бюджет
+                                                        </Typography>
+                                                        <Typography variant="subtitle1" fontWeight={700}>
+                                                            {formatBudget(task.budget, task.currency)}
+                                                        </Typography>
+                                                    </Stack>
                                                 </Stack>
                                                 <Typography color="text.secondary" sx={{ lineHeight: 1.5 }}>
                                                     {task.publicDescription || task.taskDescription || 'Описание не заполнено'}
@@ -434,13 +492,24 @@ export default function MarketplacePage() {
                                                         Регион: {task.project?.regionCode || '—'}
                                                     </Typography>
                                                 </Stack>
-                                                <Button
-                                                    variant="contained"
-                                                    endIcon={<ArrowOutwardIcon />}
-                                                    onClick={() => setSelectedTask(task)}
-                                                >
-                                                    Откликнуться
-                                                </Button>
+                                                {hasActiveApplication ? (
+                                                    <Button
+                                                        variant="outlined"
+                                                        color="error"
+                                                        onClick={() => void handleWithdrawApplication(task)}
+                                                        disabled={isCanceling}
+                                                    >
+                                                        {isCanceling ? 'Отменяем…' : 'Отменить отклик'}
+                                                    </Button>
+                                                ) : (
+                                                    <Button
+                                                        variant="contained"
+                                                        endIcon={<ArrowOutwardIcon />}
+                                                        onClick={() => setSelectedTask(task)}
+                                                    >
+                                                        Откликнуться
+                                                    </Button>
+                                                )}
                                             </Stack>
                                         </Stack>
                                     </Paper>
@@ -464,7 +533,9 @@ export default function MarketplacePage() {
                 }}
             >
                 <DialogTitle>
-                    {selectedTask?.taskName || 'Отклик на задачу'}
+                    {selectedTask
+                        ? [selectedTask.taskName, selectedTask.bsNumber].filter(Boolean).join(' ')
+                        : 'Отклик на задачу'}
                 </DialogTitle>
                 <DialogContent>
                     <Stack spacing={2} sx={{ mt: 1 }}>
