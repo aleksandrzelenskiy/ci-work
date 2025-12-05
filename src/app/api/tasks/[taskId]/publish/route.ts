@@ -98,11 +98,7 @@ export async function PATCH(
     }
 
     try {
-        const saved = await TaskModel.findByIdAndUpdate(
-            taskId,
-            { $set: update },
-            { new: true }
-        ).lean();
+        const saved = await TaskModel.findByIdAndUpdate(task._id, { $set: update }, { new: true }).lean();
         return NextResponse.json({ ok: true, task: saved });
     } catch (error) {
         console.error('Failed to update publish state', error);
