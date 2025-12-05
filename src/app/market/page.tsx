@@ -29,8 +29,13 @@ import RefreshIcon from '@mui/icons-material/Refresh';
 import ArrowOutwardIcon from '@mui/icons-material/ArrowOutward';
 import SendIcon from '@mui/icons-material/Send';
 import StarRoundedIcon from '@mui/icons-material/StarRounded';
+import CloseIcon from '@mui/icons-material/Close';
+import InfoOutlinedIcon from '@mui/icons-material/InfoOutlined';
 import type { PublicTaskStatus, TaskVisibility } from '@/app/types/taskTypes';
+import type { PriorityLevel, TaskType } from '@/app/types/taskTypes';
 import type { TaskApplication } from '@/app/types/application';
+import { REGION_MAP } from '@/app/utils/regions';
+import { getPriorityLabelRu } from '@/utils/priorityIcons';
 
 type PublicTask = {
     _id: string;
@@ -43,6 +48,13 @@ type PublicTask = {
     budget?: number;
     currency?: string;
     skills?: string[];
+    bsAddress?: string;
+    bsLocation?: { name?: string; coordinates?: string; address?: string }[];
+    dueDate?: string;
+    priority?: PriorityLevel;
+    taskType?: TaskType;
+    attachments?: string[];
+    workItems?: { workType?: string; quantity?: number; unit?: string; note?: string }[];
     publicDescription?: string;
     publicStatus?: PublicTaskStatus;
     visibility?: TaskVisibility;
@@ -104,6 +116,32 @@ function formatBudget(budget?: number, currency?: string) {
     return `${fmt.format(budget)} ${code}`;
 }
 
+function getRegionLabel(code?: string) {
+    if (!code) return '';
+    const region = REGION_MAP.get(code) || REGION_MAP.get(code.toUpperCase());
+    return region?.label || '';
+}
+
+function formatDateRu(dateInput?: string) {
+    if (!dateInput) return '—';
+    const date = new Date(dateInput);
+    if (Number.isNaN(date.getTime())) return '—';
+    return date.toLocaleDateString('ru-RU', { day: '2-digit', month: 'long', year: 'numeric' });
+}
+
+function getTaskTypeLabel(taskType?: TaskType) {
+    switch (taskType) {
+        case 'construction':
+            return 'Строительная';
+        case 'installation':
+            return 'Инсталляционная';
+        case 'document':
+            return 'Документальная';
+        default:
+            return 'Не указан';
+    }
+}
+
 export default function MarketplacePage() {
     const [tasks, setTasks] = useState<PublicTask[]>([]);
     const [loading, setLoading] = useState(true);
@@ -111,6 +149,7 @@ export default function MarketplacePage() {
     const [search, setSearch] = useState('');
     const [skillsQuery, setSkillsQuery] = useState('');
     const [selectedTask, setSelectedTask] = useState<PublicTask | null>(null);
+    const [detailsTask, setDetailsTask] = useState<PublicTask | null>(null);
     const [applyMessage, setApplyMessage] = useState('');
     const [applyBudget, setApplyBudget] = useState('');
     const [applyEta, setApplyEta] = useState('');
@@ -433,7 +472,13 @@ export default function MarketplacePage() {
                                                     Организация: {task.orgName || task.orgSlug || task.orgId || '—'}
                                                 </Typography>
                                                 <Typography variant="caption" color="text.secondary">
+                                                    Название проекта: {task.project?.name || '—'}
+                                                </Typography>
+                                                <Typography variant="caption" color="text.secondary">
                                                     Регион: {task.project?.regionCode || '—'}
+                                                    {getRegionLabel(task.project?.regionCode)
+                                                        ? ` — ${getRegionLabel(task.project?.regionCode)}`
+                                                        : ''}
                                                 </Typography>
                                             </Stack>
                                             <Stack direction="row" alignItems="center" spacing={1.5}>
@@ -488,24 +533,45 @@ export default function MarketplacePage() {
                                                 </Stack>
                                             )}
                                             <Divider flexItem />
-                                            <Stack direction="row" justifyContent="space-between" alignItems="center">
-                                                <Typography variant="body2" color="text.secondary">
-                                                    {task.project?.name || 'Организация скрыта'}
-                                                </Typography>
+                                            <Stack
+                                                direction={{ xs: 'column', sm: 'row' }}
+                                                justifyContent="space-between"
+                                                alignItems={{ xs: 'stretch', sm: 'center' }}
+                                                spacing={1.5}
+                                            >
+                                                <Button
+                                                    variant="outlined"
+                                                    startIcon={<InfoOutlinedIcon />}
+                                                    onClick={() => setDetailsTask(task)}
+                                                    sx={{
+                                                        borderRadius: 2,
+                                                        textTransform: 'none',
+                                                    }}
+                                                >
+                                                    Подробнее
+                                                </Button>
                                                 {hasActiveApplication ? (
                                                     <Button
                                                         variant="outlined"
                                                         color="error"
                                                         onClick={() => void handleWithdrawApplication(task)}
                                                         disabled={isCanceling}
+                                                        sx={{ borderRadius: 2 }}
                                                     >
                                                         {isCanceling ? 'Отменяем…' : 'Отменить отклик'}
                                                     </Button>
                                                 ) : (
                                                     <Button
                                                         variant="contained"
+                                                        size="large"
                                                         endIcon={<ArrowOutwardIcon />}
                                                         onClick={() => setSelectedTask(task)}
+                                                        sx={{
+                                                            borderRadius: 2.5,
+                                                            px: 3.5,
+                                                            py: 1.25,
+                                                            textTransform: 'none',
+                                                        }}
                                                     >
                                                         Откликнуться
                                                     </Button>
@@ -595,6 +661,283 @@ export default function MarketplacePage() {
                         {submitLoading ? 'Отправляем…' : 'Отправить'}
                     </Button>
                 </DialogActions>
+            </Dialog>
+
+            <Dialog
+                open={Boolean(detailsTask)}
+                onClose={() => setDetailsTask(null)}
+                fullScreen
+                PaperProps={{
+                    sx: {
+                        background: gradientBg,
+                    },
+                }}
+            >
+                <DialogContent sx={{ p: 0 }}>
+                    <Box
+                        sx={{
+                            position: 'sticky',
+                            top: 0,
+                            zIndex: 10,
+                            backdropFilter: 'blur(20px)',
+                            background: (theme) =>
+                                theme.palette.mode === 'dark'
+                                    ? 'rgba(9,10,14,0.75)'
+                                    : 'rgba(255,255,255,0.8)',
+                            borderBottom: '1px solid',
+                            borderColor: 'divider',
+                        }}
+                    >
+                        <Container maxWidth="md" sx={{ py: 2.5 }}>
+                            <Stack direction="row" alignItems="center" justifyContent="space-between" spacing={2}>
+                                <Box>
+                                    <Typography variant="overline" color="text.secondary">
+                                        Задача
+                                    </Typography>
+                                    <Typography variant="h5" fontWeight={700}>
+                                        {detailsTask
+                                            ? [detailsTask.taskName, detailsTask.bsNumber].filter(Boolean).join(' ')
+                                            : 'Детали задачи'}
+                                    </Typography>
+                                </Box>
+                                <Stack direction="row" spacing={1}>
+                                    {detailsTask?.project?.key && (
+                                        <Chip
+                                            label={detailsTask.project.key}
+                                            variant="outlined"
+                                            sx={{ borderRadius: 2 }}
+                                        />
+                                    )}
+                                    <IconButton
+                                        onClick={() => setDetailsTask(null)}
+                                        sx={{
+                                            borderRadius: 2,
+                                            border: '1px solid',
+                                            borderColor: 'divider',
+                                            bgcolor: 'background.paper',
+                                        }}
+                                    >
+                                        <CloseIcon />
+                                    </IconButton>
+                                </Stack>
+                            </Stack>
+                        </Container>
+                    </Box>
+
+                    <Container maxWidth="md" sx={{ py: 4, px: { xs: 1.5, sm: 3 } }}>
+                        <Stack spacing={3}>
+                            <Paper sx={glassPaperStyles} elevation={0}>
+                                <Grid container spacing={2.5}>
+                                    <Grid item xs={12} sm={6}>
+                                        <Typography variant="caption" color="text.secondary">
+                                            Организация
+                                        </Typography>
+                                        <Typography variant="subtitle1" fontWeight={700}>
+                                            {detailsTask?.orgName || detailsTask?.orgSlug || detailsTask?.orgId || '—'}
+                                        </Typography>
+                                    </Grid>
+                                    <Grid item xs={12} sm={6}>
+                                        <Typography variant="caption" color="text.secondary">
+                                            Оператор
+                                        </Typography>
+                                        <Typography variant="subtitle1" fontWeight={700}>
+                                            {detailsTask?.project?.operator || '—'}
+                                        </Typography>
+                                    </Grid>
+                                    <Grid item xs={12} sm={6}>
+                                        <Typography variant="caption" color="text.secondary">
+                                            Регион
+                                        </Typography>
+                                        <Typography variant="subtitle1" fontWeight={700}>
+                                            {detailsTask?.project?.regionCode || '—'}
+                                            {getRegionLabel(detailsTask?.project?.regionCode)
+                                                ? ` · ${getRegionLabel(detailsTask?.project?.regionCode)}`
+                                                : ''}
+                                        </Typography>
+                                    </Grid>
+                                    <Grid item xs={12} sm={6}>
+                                        <Typography variant="caption" color="text.secondary">
+                                            Название проекта
+                                        </Typography>
+                                        <Typography variant="subtitle1" fontWeight={700}>
+                                            {detailsTask?.project?.name || '—'}
+                                        </Typography>
+                                    </Grid>
+                                    <Grid item xs={12} sm={6}>
+                                        <Typography variant="caption" color="text.secondary">
+                                            Базовая станция
+                                        </Typography>
+                                        <Typography variant="subtitle1" fontWeight={700}>
+                                            {detailsTask?.bsNumber || '—'}
+                                        </Typography>
+                                    </Grid>
+                                    <Grid item xs={12} sm={6}>
+                                        <Typography variant="caption" color="text.secondary">
+                                            Адрес
+                                        </Typography>
+                                        <Typography variant="subtitle1" fontWeight={700}>
+                                            {detailsTask?.bsAddress || '—'}
+                                        </Typography>
+                                    </Grid>
+                                    <Grid item xs={12} sm={6}>
+                                        <Typography variant="caption" color="text.secondary">
+                                            Геолокация
+                                        </Typography>
+                                        <Typography variant="subtitle1" fontWeight={700}>
+                                            {detailsTask?.bsLocation?.[0]?.coordinates ||
+                                                detailsTask?.bsLocation?.[0]?.name ||
+                                                '—'}
+                                        </Typography>
+                                    </Grid>
+                                    <Grid item xs={12} sm={6}>
+                                        <Typography variant="caption" color="text.secondary">
+                                            Срок выполнения
+                                        </Typography>
+                                        <Typography variant="subtitle1" fontWeight={700}>
+                                            {formatDateRu(detailsTask?.dueDate)}
+                                        </Typography>
+                                    </Grid>
+                                    <Grid item xs={12} sm={6}>
+                                        <Typography variant="caption" color="text.secondary">
+                                            Приоритет
+                                        </Typography>
+                                        <Typography variant="subtitle1" fontWeight={700}>
+                                            {getPriorityLabelRu(detailsTask?.priority) || 'Не указан'}
+                                        </Typography>
+                                    </Grid>
+                                    <Grid item xs={12} sm={6}>
+                                        <Typography variant="caption" color="text.secondary">
+                                            Плановый бюджет
+                                        </Typography>
+                                        <Typography variant="subtitle1" fontWeight={700}>
+                                            {formatBudget(detailsTask?.budget, detailsTask?.currency)}
+                                        </Typography>
+                                    </Grid>
+                                    <Grid item xs={12} sm={6}>
+                                        <Typography variant="caption" color="text.secondary">
+                                            Тип задачи
+                                        </Typography>
+                                        <Typography variant="subtitle1" fontWeight={700}>
+                                            {getTaskTypeLabel(detailsTask?.taskType)}
+                                        </Typography>
+                                    </Grid>
+                                </Grid>
+                            </Paper>
+
+                            {detailsTask?.publicDescription || detailsTask?.taskDescription ? (
+                                <Paper sx={glassPaperStyles} elevation={0}>
+                                    <Typography variant="h6" fontWeight={700} gutterBottom>
+                                        Описание
+                                    </Typography>
+                                    <Typography color="text.secondary" sx={{ whiteSpace: 'pre-wrap', lineHeight: 1.6 }}>
+                                        {detailsTask?.publicDescription || detailsTask?.taskDescription}
+                                    </Typography>
+                                </Paper>
+                            ) : null}
+
+                            {detailsTask?.skills && detailsTask.skills.length > 0 ? (
+                                <Paper sx={glassPaperStyles} elevation={0}>
+                                    <Typography variant="h6" fontWeight={700} gutterBottom>
+                                        Навыки
+                                    </Typography>
+                                    <Stack direction="row" spacing={1} flexWrap="wrap">
+                                        {detailsTask.skills.map((skill) => (
+                                            <Chip key={skill} label={skill} sx={{ borderRadius: 2 }} />
+                                        ))}
+                                    </Stack>
+                                </Paper>
+                            ) : null}
+
+                            {detailsTask?.workItems && detailsTask.workItems.length > 0 ? (
+                                <Paper sx={glassPaperStyles} elevation={0}>
+                                    <Typography variant="h6" fontWeight={700} gutterBottom>
+                                        Состав работ
+                                    </Typography>
+                                    <Stack spacing={1.5}>
+                                        {detailsTask.workItems.map((item, idx) => (
+                                            <Box key={`${item.workType}-${idx}`}>
+                                                <Typography fontWeight={600}>{item.workType || 'Работа'}</Typography>
+                                                <Typography color="text.secondary">
+                                                    {item.quantity ? `${item.quantity} ${item.unit || ''}`.trim() : '—'}
+                                                    {item.note ? ` · ${item.note}` : ''}
+                                                </Typography>
+                                            </Box>
+                                        ))}
+                                    </Stack>
+                                </Paper>
+                            ) : null}
+
+                            {detailsTask?.attachments && detailsTask.attachments.length > 0 ? (
+                                <Paper sx={glassPaperStyles} elevation={0}>
+                                    <Typography variant="h6" fontWeight={700} gutterBottom>
+                                        Аттачменты
+                                    </Typography>
+                                    <Stack spacing={1}>
+                                        {detailsTask.attachments.map((link) => (
+                                            <Button
+                                                key={link}
+                                                href={link}
+                                                target="_blank"
+                                                rel="noreferrer"
+                                                variant="text"
+                                                endIcon={<ArrowOutwardIcon fontSize="small" />}
+                                                sx={{ justifyContent: 'flex-start', textTransform: 'none' }}
+                                            >
+                                                {link}
+                                            </Button>
+                                        ))}
+                                    </Stack>
+                                </Paper>
+                            ) : null}
+
+                            <Stack
+                                direction={{ xs: 'column', sm: 'row' }}
+                                spacing={1.5}
+                                justifyContent="flex-end"
+                                alignItems={{ xs: 'stretch', sm: 'center' }}
+                            >
+                                {detailsTask &&
+                                detailsTask.myApplication &&
+                                detailsTask.myApplication.status !== 'withdrawn' ? (
+                                    <Button
+                                        variant="outlined"
+                                        color="error"
+                                        onClick={() => void handleWithdrawApplication(detailsTask)}
+                                        disabled={
+                                            Boolean(cancelLoadingId) &&
+                                            detailsTask.myApplication?._id === cancelLoadingId
+                                        }
+                                        sx={{ borderRadius: 2 }}
+                                    >
+                                        {Boolean(cancelLoadingId) &&
+                                        detailsTask.myApplication?._id === cancelLoadingId
+                                            ? 'Отменяем…'
+                                            : 'Отменить отклик'}
+                                    </Button>
+                                ) : (
+                                    <Button
+                                        variant="contained"
+                                        size="large"
+                                        endIcon={<ArrowOutwardIcon />}
+                                        onClick={() => {
+                                            if (detailsTask) setSelectedTask(detailsTask);
+                                            setDetailsTask(null);
+                                        }}
+                                        sx={{
+                                            borderRadius: 2.5,
+                                            px: 3.5,
+                                            py: 1.25,
+                                            textTransform: 'none',
+                                            alignSelf: { xs: 'stretch', sm: 'center' },
+                                        }}
+                                    >
+                                        Откликнуться
+                                    </Button>
+                                )}
+                            </Stack>
+                        </Stack>
+                    </Container>
+                </DialogContent>
             </Dialog>
 
             <Snackbar
