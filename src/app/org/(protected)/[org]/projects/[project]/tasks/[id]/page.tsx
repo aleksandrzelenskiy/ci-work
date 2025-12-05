@@ -285,8 +285,8 @@ export default function TaskDetailsPage() {
         return `${yyyy}-${mm}-${dd}`;
     };
 
-    const formatPrice = (v?: number) => {
-        if (typeof v !== 'number') return '—';
+    const formatPrice = (v?: number | null) => {
+        if (typeof v !== 'number' || Number.isNaN(v)) return '—';
         return new Intl.NumberFormat('ru-RU').format(v) + ' ₽';
     };
 
