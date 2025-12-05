@@ -33,6 +33,7 @@ import {
     TextField,
 } from '@mui/material';
 import { styled } from '@mui/material/styles';
+import GroupsIcon from '@mui/icons-material/Groups';
 import ArrowBackIcon from '@mui/icons-material/ArrowBack';
 import ExpandMoreIcon from '@mui/icons-material/ExpandMore';
 import RefreshIcon from '@mui/icons-material/Refresh';
@@ -1235,6 +1236,7 @@ export default function TaskDetailsPage() {
                             variant={task.visibility === 'public' ? 'outlined' : 'contained'}
                             color={task.visibility === 'public' ? 'inherit' : 'primary'}
                             size="small"
+                            startIcon={<GroupsIcon />}
                             onClick={() => void handlePublishToggle(task.visibility !== 'public')}
                             disabled={publishLoading}
                         >

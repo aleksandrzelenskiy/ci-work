@@ -25,7 +25,7 @@ export async function PATCH(
     { params }: { params: Promise<{ taskId: string }> }
 ) {
     const { taskId } = await params;
-    if (!taskId || !mongoose.Types.ObjectId.isValid(taskId)) {
+    if (!taskId) {
         return NextResponse.json({ error: 'Некорректный идентификатор задачи' }, { status: 400 });
     }
 
@@ -44,7 +44,11 @@ export async function PATCH(
     const { effectiveOrgRole, isSuperAdmin, memberships } = context.data;
     const payload = (await request.json()) as Payload;
 
-    const task = await TaskModel.findById(taskId);
+    const taskQuery = mongoose.Types.ObjectId.isValid(taskId)
+        ? { _id: new mongoose.Types.ObjectId(taskId) }
+        : { taskId: taskId.toUpperCase() };
+
+    const task = await TaskModel.findOne(taskQuery);
     if (!task) {
         return NextResponse.json({ error: 'Задача не найдена' }, { status: 404 });
     }

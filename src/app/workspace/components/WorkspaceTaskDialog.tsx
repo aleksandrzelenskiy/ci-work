@@ -27,8 +27,6 @@ import {
     Alert,
     Drawer,
     Divider,
-    Checkbox,
-    FormControlLabel,
 } from '@mui/material';
 import Autocomplete, { createFilterOptions } from '@mui/material/Autocomplete';
 import { DatePicker, LocalizationProvider } from '@mui/x-date-pickers';
@@ -350,8 +348,6 @@ export default function WorkspaceTaskDialog({
     // новое поле: стоимость
     const [totalCost, setTotalCost] = React.useState<string>('');
     const [workItems, setWorkItems] = React.useState<ParsedWorkItem[]>([]);
-    const [isPublicTask, setIsPublicTask] = React.useState(false);
-    const [requiredSkills, setRequiredSkills] = React.useState<string[]>([]);
     const [contractorPayment, setContractorPayment] = React.useState<string>('');
 
     const [projectMeta, setProjectMeta] = React.useState<{ regionCode?: string; operator?: string } | null>(null);
@@ -380,7 +376,6 @@ export default function WorkspaceTaskDialog({
     const [relatedTasksLoading, setRelatedTasksLoading] = React.useState(false);
     const [relatedTasksError, setRelatedTasksError] = React.useState<string | null>(null);
     const [relatedInput, setRelatedInput] = React.useState('');
-    const [skillsInput, setSkillsInput] = React.useState('');
 
     // диалог удаления существующего файла
     const [deleteDialogOpen, setDeleteDialogOpen] = React.useState(false);
@@ -548,10 +543,6 @@ export default function WorkspaceTaskDialog({
                 : ''
         );
         setWorkItems(sanitizeWorkItemsInput(initialTask.workItems));
-        const initialVisibility = (initialTask as unknown as { visibility?: string })?.visibility;
-        setIsPublicTask(initialVisibility === 'public');
-        const initialSkills = (initialTask as unknown as { skills?: string[] })?.skills;
-        setRequiredSkills(Array.isArray(initialSkills) ? initialSkills : []);
         setContractorPayment(
             typeof initialTask.contractorPayment === 'number' && !Number.isNaN(initialTask.contractorPayment)
                 ? String(initialTask.contractorPayment)
@@ -972,8 +963,6 @@ export default function WorkspaceTaskDialog({
         setPriority('medium');
         setDueDate(new Date());
         setSelectedExecutor(null);
-        setIsPublicTask(false);
-        setRequiredSkills([]);
         setExistingAttachments([]);
         setAttachments([]);
         setEstimateFile(null);
@@ -985,7 +974,6 @@ export default function WorkspaceTaskDialog({
         setRelatedTasksOptions([]);
         setRelatedTasksError(null);
         setRelatedInput('');
-        setSkillsInput('');
         setContractorPayment('');
         setBsEntries([
             {
@@ -1026,12 +1014,6 @@ export default function WorkspaceTaskDialog({
         if (!files.length) return;
         addFiles(files);
     };
-
-    React.useEffect(() => {
-        if (isPublicTask) {
-            setSelectedExecutor(null);
-        }
-    }, [isPublicTask]);
 
     const inputRef = React.useRef<HTMLInputElement | null>(null);
     const openFileDialog = () => inputRef.current?.click();
@@ -1176,16 +1158,13 @@ export default function WorkspaceTaskDialog({
                 bsLatitude: typeof primaryCoords.lat === 'number' ? primaryCoords.lat : undefined,
                 bsLongitude: typeof primaryCoords.lon === 'number' ? primaryCoords.lon : undefined,
                 bsLocation,
-                executorId: isPublicTask ? null : selectedExecutor ? selectedExecutor.id : null,
-                executorName: isPublicTask ? null : selectedExecutor ? selectedExecutor.name : null,
-                executorEmail: isPublicTask ? null : selectedExecutor ? selectedExecutor.email : null,
+                executorId: selectedExecutor ? selectedExecutor.id : null,
+                executorName: selectedExecutor ? selectedExecutor.name : null,
+                executorEmail: selectedExecutor ? selectedExecutor.email : null,
                 totalCost: totalCost.trim() ? Number(totalCost.trim()) : undefined,
                 contractorPayment: contractorPayment.trim() ? Number(contractorPayment.trim()) : undefined,
                 workItems,
                 relatedTasks: relatedTasksSelected.map((t) => t.id),
-                visibility: isPublicTask ? 'public' : 'private',
-                publicStatus: isPublicTask ? 'open' : undefined,
-                skills: isPublicTask ? requiredSkills : undefined,
             };
 
             const res = await fetch(apiPath(`/projects/${encodeURIComponent(projectRef)}/tasks`), {
@@ -1238,16 +1217,13 @@ export default function WorkspaceTaskDialog({
                 bsLatitude: typeof primaryCoords.lat === 'number' ? primaryCoords.lat : undefined,
                 bsLongitude: typeof primaryCoords.lon === 'number' ? primaryCoords.lon : undefined,
                 bsLocation,
-                executorId: isPublicTask ? null : selectedExecutor ? selectedExecutor.id : null,
-                executorName: isPublicTask ? null : selectedExecutor ? selectedExecutor.name : null,
-                executorEmail: isPublicTask ? null : selectedExecutor ? selectedExecutor.email : null,
+                executorId: selectedExecutor ? selectedExecutor.id : null,
+                executorName: selectedExecutor ? selectedExecutor.name : null,
+                executorEmail: selectedExecutor ? selectedExecutor.email : null,
                 totalCost: totalCost.trim() ? Number(totalCost.trim()) : undefined,
                 contractorPayment: contractorPayment.trim() ? Number(contractorPayment.trim()) : undefined,
                 workItems,
                 relatedTasks: relatedTasksSelected.map((t) => t.id),
-                visibility: isPublicTask ? 'public' : 'private',
-                publicStatus: isPublicTask ? 'open' : undefined,
-                skills: isPublicTask ? requiredSkills : undefined,
             };
 
             const res = await fetch(
@@ -1735,101 +1711,54 @@ export default function WorkspaceTaskDialog({
                                 sx={glassInputSx}
                             />
 
-                            <FormControlLabel
-                                control={
-                                    <Checkbox
-                                        checked={isPublicTask}
-                                        onChange={(e) => setIsPublicTask(e.target.checked)}
-                                    />
+                            <Autocomplete<MemberOption>
+                                options={members}
+                                value={selectedExecutor}
+                                onChange={(_e, val) => setSelectedExecutor(val)}
+                                getOptionLabel={(opt) => opt?.name || opt?.email || ''}
+                                loading={membersLoading}
+                                noOptionsText={
+                                    membersError ? `Ошибка: ${membersError}` : 'Нет активных участников'
                                 }
-                                label="Сделать задачу публичной (видна исполнителям на витрине)"
-                                sx={{ mt: 0.5 }}
+                                renderInput={(params) => (
+                                    <TextField
+                                        {...params}
+                                        label="Исполнитель (участники организации)"
+                                        placeholder={
+                                            membersLoading ? 'Загрузка...' : 'Начните вводить имя или email'
+                                        }
+                                        fullWidth
+                                        sx={glassInputSx}
+                                        InputProps={{
+                                            ...params.InputProps,
+                                            endAdornment: (
+                                                <>
+                                                    {membersLoading ? (
+                                                        <CircularProgress size={18} sx={{ mr: 1 }} />
+                                                    ) : null}
+                                                    {params.InputProps.endAdornment}
+                                                </>
+                                            ),
+                                        }}
+                                    />
+                                )}
+                                renderOption={(props, option) => {
+                                    const { key, ...optionProps } = props;
+                                    return (
+                                        <li {...optionProps} key={key}>
+                                            <Avatar
+                                                src={option.profilePic}
+                                                alt={option.name}
+                                                sx={{ width: 24, height: 24, mr: 1 }}
+                                            >
+                                                {(option.name || option.email)?.[0]?.toUpperCase() ?? 'U'}
+                                            </Avatar>
+                                            <ListItemText primary={option.name} secondary={option.email} />
+                                        </li>
+                                    );
+                                }}
+                                isOptionEqualToValue={(opt, val) => opt.id === val.id}
                             />
-
-                            {isPublicTask ? (
-                                <Autocomplete<string, true, false, true>
-                                    multiple
-                                    freeSolo
-                                    options={[]}
-                                    value={requiredSkills}
-                                    inputValue={skillsInput}
-                                    onInputChange={(_e, val) => setSkillsInput(val)}
-                                    onChange={(_e, val) =>
-                                        setRequiredSkills(
-                                            (val as string[]).map((v) => v.trim()).filter(Boolean)
-                                        )
-                                    }
-                                    renderTags={(value, getTagProps) =>
-                                        value.map((option, index) => (
-                                            <Chip
-                                                variant="filled"
-                                                label={option}
-                                                {...getTagProps({ index })}
-                                                key={`${option}-${index}`}
-                                                sx={{ borderRadius: 2 }}
-                                            />
-                                        ))
-                                    }
-                                    renderInput={(params) => (
-                                        <TextField
-                                            {...params}
-                                            label="Требуемые навыки"
-                                            placeholder="Например: оптика, электрика, сварка"
-                                            fullWidth
-                                            sx={glassInputSx}
-                                        />
-                                    )}
-                                />
-                            ) : (
-                                <Autocomplete<MemberOption>
-                                    options={members}
-                                    value={selectedExecutor}
-                                    onChange={(_e, val) => setSelectedExecutor(val)}
-                                    getOptionLabel={(opt) => opt?.name || opt?.email || ''}
-                                    loading={membersLoading}
-                                    noOptionsText={
-                                        membersError ? `Ошибка: ${membersError}` : 'Нет активных участников'
-                                    }
-                                    renderInput={(params) => (
-                                        <TextField
-                                            {...params}
-                                            label="Исполнитель (участники организации)"
-                                            placeholder={
-                                                membersLoading ? 'Загрузка...' : 'Начните вводить имя или email'
-                                            }
-                                            fullWidth
-                                            sx={glassInputSx}
-                                            InputProps={{
-                                                ...params.InputProps,
-                                                endAdornment: (
-                                                    <>
-                                                        {membersLoading ? (
-                                                            <CircularProgress size={18} sx={{ mr: 1 }} />
-                                                        ) : null}
-                                                        {params.InputProps.endAdornment}
-                                                    </>
-                                                ),
-                                            }}
-                                        />
-                                    )}
-                                    renderOption={(props, option) => {
-                                        const { key, ...optionProps } = props;
-                                        return (
-                                            <li {...optionProps} key={key}>
-                                                <Avatar
-                                                    src={option.profilePic}
-                                                    alt={option.name}
-                                                    sx={{ width: 24, height: 24, mr: 1 }}
-                                                >
-                                                    {(option.name || option.email)?.[0]?.toUpperCase() ?? 'U'}
-                                                </Avatar>
-                                                <ListItemText primary={option.name} secondary={option.email} />
-                                            </li>
-                                        );
-                                    }}
-                                    isOptionEqualToValue={(opt, val) => opt.id === val.id}
-                                />
-                            )}
 
                             <Autocomplete<RelatedTaskOption, true, false, false>
                                 multiple
