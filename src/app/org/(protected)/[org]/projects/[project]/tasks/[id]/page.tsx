@@ -60,6 +60,7 @@ import type { ParsedWorkItem } from '@/app/workspace/components/T2/T2EstimatePar
 import { T2NcwGenerator } from '@/app/workspace/components/T2/T2NcwGenerator';
 import { getPriorityIcon, normalizePriority } from '@/utils/priorityIcons';
 import TaskGeoLocation from '@/app/workspace/components/TaskGeoLocation';
+import type { TaskApplication } from '@/app/types/application';
 import { getStatusColor } from '@/utils/statusColors';
 import { getStatusLabel, normalizeStatusTitle } from '@/utils/statusLabels';
 import {
@@ -119,6 +120,12 @@ type Task = {
     bsAddress?: string;
     bsLocation?: Array<{ name?: string; coordinates: string; address?: string | null }>;
     totalCost?: number;
+    budget?: number;
+    currency?: string;
+    skills?: string[];
+    applicationCount?: number;
+    acceptedApplicationId?: string;
+    allowInstantClaim?: boolean;
     contractorPayment?: number;
     priority?: 'urgent' | 'high' | 'medium' | 'low';
     dueDate?: string;
@@ -186,6 +193,7 @@ export default function TaskDetailsPage() {
     const [loading, setLoading] = React.useState(true);
     const [error, setError] = React.useState<string | null>(null);
     const [task, setTask] = React.useState<Task | null>(null);
+    const taskMongoId = task?._id || '';
 
     const [editOpen, setEditOpen] = React.useState(false);
     const [deleteOpen, setDeleteOpen] = React.useState(false);
@@ -222,6 +230,21 @@ export default function TaskDetailsPage() {
         type: 'success' | 'error';
         message: string;
     } | null>(null);
+    const [publishDialogOpen, setPublishDialogOpen] = React.useState(false);
+    const [publishSkillsInput, setPublishSkillsInput] = React.useState('');
+    const [publishBudgetInput, setPublishBudgetInput] = React.useState('');
+    const [publishDialogError, setPublishDialogError] = React.useState<string | null>(null);
+    const [applications, setApplications] = React.useState<TaskApplication[]>([]);
+    const [applicationsLoading, setApplicationsLoading] = React.useState(false);
+    const [applicationsError, setApplicationsError] = React.useState<string | null>(null);
+    const [applicationActionLoading, setApplicationActionLoading] = React.useState<string | null>(
+        null
+    );
+    const [applicationSnack, setApplicationSnack] = React.useState<{
+        open: boolean;
+        message: string;
+        sev: 'success' | 'error';
+    }>({ open: false, message: '', sev: 'success' });
     const orderFileInputRef = React.useRef<HTMLInputElement | null>(null);
 
     const asText = (x: unknown): string => {
@@ -263,6 +286,13 @@ export default function TaskDetailsPage() {
     const formatPrice = (v?: number) => {
         if (typeof v !== 'number') return '—';
         return new Intl.NumberFormat('ru-RU').format(v) + ' ₽';
+    };
+
+    const parseSkillsInput = (raw: string): string[] => {
+        return raw
+            .split(/[,\n;]/)
+            .map((s) => s.trim())
+            .filter(Boolean);
     };
 
     const addDays = (v: string, days: number): Date | null => {
@@ -333,9 +363,35 @@ export default function TaskDetailsPage() {
         }
     }, [org, project]);
 
+    const fetchApplications = React.useCallback(async () => {
+        if (!taskMongoId) return;
+        setApplicationsLoading(true);
+        setApplicationsError(null);
+        try {
+            const res = await fetch(`/api/tasks/${taskMongoId}/applications`, {
+                cache: 'no-store',
+            });
+            const data = await res.json().catch(() => ({}));
+            if (!res.ok || data.error) {
+                setApplications([]);
+                setApplicationsError(data.error || 'Не удалось загрузить отклики');
+                return;
+            }
+            setApplications(Array.isArray(data.applications) ? data.applications : []);
+        } catch (e) {
+            setApplications([]);
+            setApplicationsError(e instanceof Error ? e.message : 'Ошибка загрузки откликов');
+        } finally {
+            setApplicationsLoading(false);
+        }
+    }, [taskMongoId]);
+
     const handlePublishToggle = React.useCallback(
-        async (makePublic: boolean) => {
-            if (!id) return;
+        async (
+            makePublic: boolean,
+            payload?: { skills?: string[]; budget?: number }
+        ) => {
+            if (!id) return false;
             setPublishLoading(true);
             try {
                 const res = await fetch(`/api/tasks/${encodeURIComponent(id)}/publish`, {
@@ -343,7 +399,12 @@ export default function TaskDetailsPage() {
                     headers: { 'Content-Type': 'application/json' },
                     body: JSON.stringify(
                         makePublic
-                            ? { visibility: 'public', publicStatus: 'open' }
+                            ? {
+                                visibility: 'public',
+                                publicStatus: 'open',
+                                skills: payload?.skills,
+                                budget: payload?.budget,
+                            }
                             : { visibility: 'private', publicStatus: 'closed' }
                     ),
                 });
@@ -354,20 +415,22 @@ export default function TaskDetailsPage() {
                         sev: 'error',
                         message: data.error || 'Не удалось обновить публикацию',
                     });
-                } else {
-                    setPublishSnack({
-                        open: true,
-                        sev: 'success',
-                        message: makePublic ? 'Задача опубликована' : 'Публикация снята',
-                    });
-                    await load();
+                    return false;
                 }
+                setPublishSnack({
+                    open: true,
+                    sev: 'success',
+                    message: makePublic ? 'Задача опубликована' : 'Публикация снята',
+                });
+                await load();
+                return true;
             } catch (e) {
                 setPublishSnack({
                     open: true,
                     sev: 'error',
                     message: e instanceof Error ? e.message : 'Ошибка сети',
                 });
+                return false;
             } finally {
                 setPublishLoading(false);
             }
@@ -386,6 +449,14 @@ export default function TaskDetailsPage() {
     React.useEffect(() => {
         void loadProjectOperator();
     }, [loadProjectOperator]);
+
+    React.useEffect(() => {
+        if (task?.visibility === 'public') {
+            void fetchApplications();
+        } else {
+            setApplications([]);
+        }
+    }, [task?.visibility, fetchApplications]);
 
     const attachmentLinks = React.useMemo(
         () =>
@@ -637,6 +708,49 @@ export default function TaskDetailsPage() {
         }
     };
 
+    const openPublishDialog = () => {
+        if (!task) return;
+        setPublishSkillsInput(Array.isArray(task.skills) ? task.skills.join(', ') : '');
+        setPublishBudgetInput(
+            typeof task.budget === 'number' && Number.isFinite(task.budget)
+                ? String(task.budget)
+                : ''
+        );
+        setPublishDialogError(null);
+        setPublishDialogOpen(true);
+    };
+
+    const closePublishDialog = () => {
+        if (publishLoading) return;
+        setPublishDialogOpen(false);
+        setPublishDialogError(null);
+    };
+
+    const handlePublishSubmit = async () => {
+        const skills = parseSkillsInput(publishSkillsInput);
+        if (skills.length === 0) {
+            setPublishDialogError('Добавьте хотя бы один навык');
+            return;
+        }
+
+        const budgetRaw = publishBudgetInput.trim();
+        let budget: number | undefined;
+        if (budgetRaw) {
+            const num = Number(budgetRaw);
+            if (Number.isNaN(num) || num < 0) {
+                setPublishDialogError('Бюджет должен быть неотрицательным числом');
+                return;
+            }
+            budget = num;
+        }
+
+        setPublishDialogError(null);
+        const success = await handlePublishToggle(true, { skills, budget });
+        if (success) {
+            setPublishDialogOpen(false);
+        }
+    };
+
     const prefillOrderFields = React.useCallback(() => {
         setOrderNumberInput(task?.orderNumber || '');
         setOrderDateInput(toInputDate(task?.orderDate));
@@ -836,6 +950,42 @@ export default function TaskDetailsPage() {
     };
 
     const handleDocumentSnackbarClose = () => setDocumentSnackbar(null);
+
+    const handleAcceptApplication = async (applicationId: string) => {
+        if (!taskMongoId) return;
+        setApplicationActionLoading(applicationId);
+        try {
+            const res = await fetch(`/api/tasks/${taskMongoId}/applications`, {
+                method: 'PATCH',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ applicationId, status: 'accepted' }),
+            });
+            const data = await res.json().catch(() => ({}));
+            if (!res.ok || data.error) {
+                setApplicationSnack({
+                    open: true,
+                    sev: 'error',
+                    message: data.error || 'Не удалось назначить исполнителя',
+                });
+                return;
+            }
+            setApplicationSnack({
+                open: true,
+                sev: 'success',
+                message: 'Исполнитель назначен из отклика',
+            });
+            await fetchApplications();
+            await load();
+        } catch (e) {
+            setApplicationSnack({
+                open: true,
+                sev: 'error',
+                message: e instanceof Error ? e.message : 'Ошибка назначения',
+            });
+        } finally {
+            setApplicationActionLoading(null);
+        }
+    };
 
     const sortedEvents = React.useMemo(() => {
         if (!task?.events) return [];
@@ -1237,7 +1387,11 @@ export default function TaskDetailsPage() {
                             color={task.visibility === 'public' ? 'inherit' : 'primary'}
                             size="small"
                             startIcon={<GroupsIcon />}
-                            onClick={() => void handlePublishToggle(task.visibility !== 'public')}
+                            onClick={() =>
+                                task.visibility === 'public'
+                                    ? void handlePublishToggle(false)
+                                    : openPublishDialog()
+                            }
                             disabled={publishLoading}
                         >
                             {publishLoading
@@ -1364,7 +1518,28 @@ export default function TaskDetailsPage() {
                                     <strong>Стоимость:</strong> {formatPrice(task.totalCost)}
                                 </Typography>
                                 <Typography variant="body1">
+                                    <strong>Плановый бюджет:</strong> {formatPrice(task.budget)}
+                                </Typography>
+                                <Typography variant="body1">
                                     <strong>Тип задачи:</strong> {task.taskType || '—'}
+                                </Typography>
+
+                                <Typography variant="body1">
+                                    <strong>Навыки:</strong>{' '}
+                                    {Array.isArray(task.skills) && task.skills.length > 0 ? (
+                                        <Stack direction="row" spacing={0.5} component="span" sx={{ flexWrap: 'wrap' }}>
+                                            {task.skills.map((skill) => (
+                                                <Chip
+                                                    key={skill}
+                                                    label={skill}
+                                                    size="small"
+                                                    sx={{ mr: 0.5, mb: 0.5 }}
+                                                />
+                                            ))}
+                                        </Stack>
+                                    ) : (
+                                        'Не указаны'
+                                    )}
                                 </Typography>
 
                                 {/* Исполнитель (если есть) */}
@@ -1396,6 +1571,170 @@ export default function TaskDetailsPage() {
                                 </Box>
                             </Stack>
                         </CardItem>
+
+                        {task.visibility === 'public' && (
+                            <CardItem sx={{ minWidth: 0 }}>
+                                <Box
+                                    sx={{
+                                        display: 'flex',
+                                        alignItems: 'center',
+                                        justifyContent: 'space-between',
+                                        gap: 1,
+                                        mb: 1,
+                                    }}
+                                >
+                                    <Typography
+                                        variant="subtitle1"
+                                        fontWeight={600}
+                                        gutterBottom
+                                        sx={{ display: 'flex', alignItems: 'center', gap: 1 }}
+                                    >
+                                        <GroupsIcon fontSize="small" />
+                                        Отклики
+                                    </Typography>
+                                    <Tooltip title="Обновить список откликов">
+                                        <span>
+                                            <IconButton
+                                                size="small"
+                                                onClick={() => void fetchApplications()}
+                                                disabled={applicationsLoading}
+                                            >
+                                                <RefreshIcon fontSize="small" />
+                                            </IconButton>
+                                        </span>
+                                    </Tooltip>
+                                </Box>
+                                <Divider sx={{ mb: 1.5 }} />
+                                {applicationsLoading ? (
+                                    <Stack alignItems="center" spacing={1}>
+                                        <CircularProgress size={24} />
+                                        <Typography variant="body2" color="text.secondary">
+                                            Загружаем отклики…
+                                        </Typography>
+                                    </Stack>
+                                ) : applicationsError ? (
+                                    <Alert
+                                        severity="error"
+                                        action={
+                                            <Button
+                                                color="inherit"
+                                                size="small"
+                                                onClick={() => void fetchApplications()}
+                                            >
+                                                Повторить
+                                            </Button>
+                                        }
+                                    >
+                                        {applicationsError}
+                                    </Alert>
+                                ) : applications.length === 0 ? (
+                                    <Typography color="text.secondary">
+                                        Пока нет откликов на задачу
+                                    </Typography>
+                                ) : (
+                                    <Stack spacing={1.5}>
+                                        {applications.map((app) => {
+                                            const appId =
+                                                typeof app._id === 'string'
+                                                    ? app._id
+                                                    : app._id?.toString() || '';
+                                            const statusLabelMap: Record<string, string> = {
+                                                submitted: 'На рассмотрении',
+                                                shortlisted: 'В шорт-листе',
+                                                accepted: 'Назначен',
+                                                rejected: 'Отклонён',
+                                                withdrawn: 'Отозван',
+                                            };
+                                            const statusLabel =
+                                                statusLabelMap[app.status] || app.status;
+                                            const canAssign = app.status !== 'accepted';
+
+                                            return (
+                                                <Paper
+                                                    key={appId || app.contractorEmail || app.contractorId}
+                                                    variant="outlined"
+                                                    sx={{ p: 1.5, borderRadius: 2 }}
+                                                >
+                                                    <Stack
+                                                        direction="row"
+                                                        alignItems="flex-start"
+                                                        justifyContent="space-between"
+                                                        spacing={1}
+                                                    >
+                                                        <Box sx={{ minWidth: 0, flex: 1 }}>
+                                                            <Stack
+                                                                direction="row"
+                                                                alignItems="center"
+                                                                spacing={1}
+                                                                sx={{ flexWrap: 'wrap', mb: 0.5 }}
+                                                            >
+                                                                <Typography
+                                                                    variant="subtitle2"
+                                                                    fontWeight={600}
+                                                                    sx={{ wordBreak: 'break-word' }}
+                                                                >
+                                                                    {app.contractorName ||
+                                                                        app.contractorEmail ||
+                                                                        'Подрядчик'}
+                                                                </Typography>
+                                                                <Chip
+                                                                    label={statusLabel}
+                                                                    size="small"
+                                                                    variant="outlined"
+                                                                />
+                                                            </Stack>
+                                                            {app.contractorEmail && (
+                                                                <Typography
+                                                                    variant="body2"
+                                                                    color="text.secondary"
+                                                                    sx={{ wordBreak: 'break-all' }}
+                                                                >
+                                                                    {app.contractorEmail}
+                                                                </Typography>
+                                                            )}
+                                                            <Typography variant="body2" sx={{ mt: 0.5 }}>
+                                                                Ставка: {formatPrice(app.proposedBudget)}
+                                                            </Typography>
+                                                            {typeof app.etaDays === 'number' && (
+                                                                <Typography variant="body2">
+                                                                    Срок: {app.etaDays} дн.
+                                                                </Typography>
+                                                            )}
+                                                            <Typography
+                                                                variant="body2"
+                                                                color="text.secondary"
+                                                                sx={{ mt: 0.5, whiteSpace: 'pre-wrap' }}
+                                                            >
+                                                                {app.coverMessage}
+                                                            </Typography>
+                                                        </Box>
+                                                        <Box sx={{ display: 'flex', flexDirection: 'column', gap: 1 }}>
+                                                            <Button
+                                                                variant="contained"
+                                                                size="small"
+                                                                onClick={() => void handleAcceptApplication(appId)}
+                                                                disabled={
+                                                                    !canAssign ||
+                                                                    !appId ||
+                                                                    applicationActionLoading === appId
+                                                                }
+                                                                startIcon={
+                                                                    applicationActionLoading === appId ? (
+                                                                        <CircularProgress size={16} color="inherit" />
+                                                                    ) : undefined
+                                                                }
+                                                            >
+                                                                Назначить
+                                                            </Button>
+                                                        </Box>
+                                                    </Stack>
+                                                </Paper>
+                                            );
+                                        })}
+                                    </Stack>
+                                )}
+                            </CardItem>
+                        )}
 
                         {relatedTasks.length > 0 && (
                             <CardItem sx={{ minWidth: 0 }}>
@@ -1927,6 +2266,57 @@ export default function TaskDetailsPage() {
             )}
 
             <Dialog
+                open={publishDialogOpen}
+                onClose={closePublishDialog}
+                fullWidth
+                maxWidth="sm"
+            >
+                <DialogTitle>Публикация задачи</DialogTitle>
+                <DialogContent sx={{ display: 'flex', flexDirection: 'column', gap: 2, pt: 2 }}>
+                    <Typography variant="body2" color="text.secondary">
+                        Добавьте навыки, которые потребуются исполнителю, и укажите плановый бюджет
+                        (при необходимости). Эти данные увидят подрядчики перед откликом.
+                    </Typography>
+                    <TextField
+                        label="Необходимые навыки"
+                        placeholder="оптика, электрика, монтаж"
+                        value={publishSkillsInput}
+                        onChange={(e) => setPublishSkillsInput(e.target.value)}
+                        helperText="Укажите хотя бы один навык, через запятую"
+                        fullWidth
+                    />
+                    <TextField
+                        label="Планируемый бюджет"
+                        type="number"
+                        value={publishBudgetInput}
+                        onChange={(e) => setPublishBudgetInput(e.target.value)}
+                        placeholder="Например, 120000"
+                        helperText="Можно оставить пустым"
+                        fullWidth
+                        inputProps={{ min: 0 }}
+                    />
+                    {publishDialogError && (
+                        <Alert severity="error">{publishDialogError}</Alert>
+                    )}
+                </DialogContent>
+                <DialogActions>
+                    <Button onClick={closePublishDialog} disabled={publishLoading}>
+                        Отмена
+                    </Button>
+                    <Button
+                        onClick={() => void handlePublishSubmit()}
+                        variant="contained"
+                        disabled={publishLoading}
+                        startIcon={
+                            publishLoading ? <CircularProgress size={18} color="inherit" /> : undefined
+                        }
+                    >
+                        Опубликовать
+                    </Button>
+                </DialogActions>
+            </Dialog>
+
+            <Dialog
                 open={documentDialogOpen}
                 onClose={closeAddDocumentDialog}
                 fullWidth
@@ -2239,6 +2629,21 @@ export default function TaskDetailsPage() {
                         placeholder
                     </Alert>
                 )}
+            </Snackbar>
+            <Snackbar
+                open={applicationSnack.open}
+                autoHideDuration={3000}
+                onClose={() => setApplicationSnack((prev) => ({ ...prev, open: false }))}
+                anchorOrigin={{ vertical: 'bottom', horizontal: 'center' }}
+            >
+                <Alert
+                    onClose={() => setApplicationSnack((prev) => ({ ...prev, open: false }))}
+                    severity={applicationSnack.sev}
+                    variant="filled"
+                    sx={{ width: '100%' }}
+                >
+                    {applicationSnack.message}
+                </Alert>
             </Snackbar>
             <Snackbar
                 open={publishSnack.open}

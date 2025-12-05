@@ -6,6 +6,9 @@ import TaskModel from '@/app/models/TaskModel';
 import ApplicationModel from '@/app/models/ApplicationModel';
 import { GetUserContext } from '@/server-actions/user-context';
 import type { ApplicationStatus } from '@/app/models/ApplicationModel';
+import UserModel from '@/app/models/UserModel';
+import MembershipModel from '@/app/models/MembershipModel';
+import { ensureSeatAvailable } from '@/utils/seats';
 
 export const runtime = 'nodejs';
 export const dynamic = 'force-dynamic';
@@ -186,8 +189,68 @@ export async function PATCH(
     } else if (canManage && body.status) {
         app.status = body.status;
         if (body.status === 'accepted') {
+            const contractor = await UserModel.findById(app.contractorId).lean();
+            if (!contractor) {
+                return NextResponse.json({ error: 'Подрядчик не найден' }, { status: 404 });
+            }
+
+            if (task.orgId && contractor.email) {
+                const email = contractor.email.toLowerCase();
+                const membership = await MembershipModel.findOne({
+                    orgId: task.orgId,
+                    userEmail: email,
+                });
+
+                if (!membership || membership.status !== 'active') {
+                    const seat = await ensureSeatAvailable(task.orgId.toString());
+                    if (!seat.ok) {
+                        return NextResponse.json(
+                            { error: `Достигнут лимит рабочих мест: ${seat.used}/${seat.limit}` },
+                            { status: 402 }
+                        );
+                    }
+
+                    if (membership) {
+                        membership.status = 'active';
+                        membership.role = membership.role || 'executor';
+                        if (!membership.userName && contractor.name) {
+                            membership.userName = contractor.name;
+                        }
+                        await membership.save();
+                    } else {
+                        await MembershipModel.create({
+                            orgId: task.orgId,
+                            userEmail: email,
+                            userName: contractor.name || email,
+                            role: 'executor',
+                            status: 'active',
+                        });
+                    }
+                }
+            }
+
+            const update: Record<string, unknown> = {
+                publicStatus: 'assigned',
+                acceptedApplicationId: app._id.toString(),
+                contractorPayment: app.proposedBudget,
+            };
+
+            if (contractor.clerkUserId) {
+                update.executorId = contractor.clerkUserId;
+            }
+            if (contractor.name) {
+                update.executorName = contractor.name;
+            }
+            if (contractor.email) {
+                update.executorEmail = contractor.email;
+            }
+
+            if (!task.status || task.status === 'To do') {
+                update.status = 'Assigned';
+            }
+
             await TaskModel.findByIdAndUpdate(task._id, {
-                $set: { publicStatus: 'assigned', acceptedApplicationId: app._id.toString() },
+                $set: update,
             });
         }
     } else {
