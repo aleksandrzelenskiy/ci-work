@@ -23,6 +23,14 @@ import {
     Snackbar,
     Divider,
     Tooltip,
+    Accordion,
+    AccordionSummary,
+    AccordionDetails,
+    Table,
+    TableBody,
+    TableCell,
+    TableHead,
+    TableRow,
 } from '@mui/material';
 import { styled } from '@mui/material/styles';
 import Masonry from '@mui/lab/Masonry';
@@ -33,6 +41,10 @@ import SendIcon from '@mui/icons-material/Send';
 import StarRoundedIcon from '@mui/icons-material/StarRounded';
 import CloseIcon from '@mui/icons-material/Close';
 import InfoOutlinedIcon from '@mui/icons-material/InfoOutlined';
+import ExpandMoreIcon from '@mui/icons-material/ExpandMore';
+import OpenInFullIcon from '@mui/icons-material/OpenInFull';
+import CloseFullscreenIcon from '@mui/icons-material/CloseFullscreen';
+import TocOutlinedIcon from '@mui/icons-material/TocOutlined';
 import type { PublicTaskStatus, TaskVisibility } from '@/app/types/taskTypes';
 import type { PriorityLevel, TaskType } from '@/app/types/taskTypes';
 import type { TaskApplication } from '@/app/types/application';
@@ -162,6 +174,7 @@ export default function MarketplacePage() {
     const [skillsQuery, setSkillsQuery] = useState('');
     const [selectedTask, setSelectedTask] = useState<PublicTask | null>(null);
     const [detailsTask, setDetailsTask] = useState<PublicTask | null>(null);
+    const [workItemsFullScreen, setWorkItemsFullScreen] = useState(false);
     const [applyMessage, setApplyMessage] = useState('');
     const [applyBudget, setApplyBudget] = useState('');
     const [applyEta, setApplyEta] = useState('');
@@ -349,6 +362,54 @@ export default function MarketplacePage() {
         }
     };
 
+    const hasDetailsWorkItems = Boolean(detailsTask?.workItems && detailsTask.workItems.length > 0);
+
+    const renderWorkItemsTable = (maxHeight?: number | string) => {
+        if (!hasDetailsWorkItems || !detailsTask?.workItems) {
+            return (
+                <Typography color="text.secondary" sx={{ px: 1 }}>
+                    Нет данных
+                </Typography>
+            );
+        }
+
+        return (
+            <Box
+                sx={{
+                    maxHeight: maxHeight ?? { xs: 320, md: 420 },
+                    overflow: 'auto',
+                }}
+            >
+                <Table size="small" stickyHeader>
+                    <TableHead>
+                        <TableRow>
+                            <TableCell>Вид работ</TableCell>
+                            <TableCell>Кол-во</TableCell>
+                            <TableCell>Ед.</TableCell>
+                            <TableCell>Примечание</TableCell>
+                        </TableRow>
+                    </TableHead>
+                    <TableBody>
+                        {detailsTask.workItems.map((item, idx) => (
+                            <TableRow key={`work-${idx}`}>
+                                <TableCell sx={{ minWidth: 180 }}>
+                                    {item.workType || '—'}
+                                </TableCell>
+                                <TableCell sx={{ whiteSpace: 'nowrap' }}>
+                                    {item.quantity ?? '—'}
+                                </TableCell>
+                                <TableCell sx={{ whiteSpace: 'nowrap' }}>
+                                    {item.unit || '—'}
+                                </TableCell>
+                                <TableCell>{item.note || '—'}</TableCell>
+                            </TableRow>
+                        ))}
+                    </TableBody>
+                </Table>
+            </Box>
+        );
+    };
+
     const hero = (
         <Box
             sx={{
@@ -477,14 +538,23 @@ export default function MarketplacePage() {
 
                             return (
                                 <Grid item xs={12} md={6} key={task._id}>
-                                    <Paper sx={glassPaperStyles} elevation={0}>
+                                    <Paper
+                                        sx={(theme) => ({
+                                            ...glassPaperStyles(theme),
+                                            cursor: 'pointer',
+                                            transition: 'transform 120ms ease, box-shadow 120ms ease',
+                                            '&:hover': {
+                                                boxShadow: theme.shadows[10],
+                                                transform: 'translateY(-2px)',
+                                            },
+                                        })}
+                                        elevation={0}
+                                        onClick={() => setDetailsTask(task)}
+                                    >
                                         <Stack spacing={2}>
                                             <Stack spacing={0.25}>
                                                 <Typography variant="caption" color="text.secondary" fontWeight={600}>
                                                     Организация: {task.orgName || task.orgSlug || task.orgId || '—'}
-                                                </Typography>
-                                                <Typography variant="caption" color="text.secondary">
-                                                    Название проекта: {task.project?.name || '—'}
                                                 </Typography>
                                                 <Typography variant="caption" color="text.secondary">
                                                     Регион: {task.project?.regionCode || '—'}
@@ -554,7 +624,10 @@ export default function MarketplacePage() {
                                                 <Button
                                                     variant="outlined"
                                                     startIcon={<InfoOutlinedIcon />}
-                                                    onClick={() => setDetailsTask(task)}
+                                                    onClick={(e) => {
+                                                        e.stopPropagation();
+                                                        setDetailsTask(task);
+                                                    }}
                                                     sx={{
                                                         borderRadius: 2,
                                                         textTransform: 'none',
@@ -566,7 +639,10 @@ export default function MarketplacePage() {
                                                     <Button
                                                         variant="outlined"
                                                         color="error"
-                                                        onClick={() => void handleWithdrawApplication(task)}
+                                                        onClick={(e) => {
+                                                            e.stopPropagation();
+                                                            void handleWithdrawApplication(task);
+                                                        }}
                                                         disabled={isCanceling}
                                                         sx={{ borderRadius: 2 }}
                                                     >
@@ -577,7 +653,10 @@ export default function MarketplacePage() {
                                                         variant="contained"
                                                         size="large"
                                                         endIcon={<ArrowOutwardIcon />}
-                                                        onClick={() => setSelectedTask(task)}
+                                                        onClick={(e) => {
+                                                            e.stopPropagation();
+                                                            setSelectedTask(task);
+                                                        }}
                                                         sx={{
                                                             borderRadius: 2.5,
                                                             px: 3.5,
@@ -677,7 +756,10 @@ export default function MarketplacePage() {
 
             <Dialog
                 open={Boolean(detailsTask)}
-                onClose={() => setDetailsTask(null)}
+                onClose={() => {
+                    setDetailsTask(null);
+                    setWorkItemsFullScreen(false);
+                }}
                 fullScreen
                 PaperProps={{
                     sx: {
@@ -845,27 +927,52 @@ export default function MarketplacePage() {
                                     </CardItem>
                                 ) : null}
 
-                                {detailsTask?.workItems && detailsTask.workItems.length > 0 ? (
+                                {hasDetailsWorkItems ? (
                                     <CardItem sx={{ minWidth: 0 }}>
-                                        <Typography variant="subtitle1" fontWeight={600} gutterBottom>
-                                            Состав работ
-                                        </Typography>
-                                        <Divider sx={{ mb: 1.5 }} />
-                                        <Stack spacing={1.5}>
-                                            {detailsTask.workItems.map((item, idx) => (
-                                                <Box key={`${item.workType}-${idx}`}>
-                                                    <Typography fontWeight={600}>
-                                                        {item.workType || 'Работа'}
+                                        <Accordion
+                                            defaultExpanded
+                                            disableGutters
+                                            elevation={0}
+                                            sx={{ '&:before': { display: 'none' } }}
+                                        >
+                                            <AccordionSummary expandIcon={<ExpandMoreIcon />}>
+                                                <Box
+                                                    sx={{
+                                                        display: 'flex',
+                                                        alignItems: 'center',
+                                                        justifyContent: 'space-between',
+                                                        width: '100%',
+                                                        gap: 1,
+                                                    }}
+                                                >
+                                                    <Typography
+                                                        variant="subtitle1"
+                                                        fontWeight={600}
+                                                        gutterBottom
+                                                        sx={{ display: 'flex', alignItems: 'center', gap: 1 }}
+                                                    >
+                                                        <TocOutlinedIcon fontSize="small" />
+                                                        Состав работ
                                                     </Typography>
-                                                    <Typography color="text.secondary">
-                                                        {item.quantity
-                                                            ? `${item.quantity} ${item.unit || ''}`.trim()
-                                                            : '—'}
-                                                        {item.note ? ` · ${item.note}` : ''}
-                                                    </Typography>
+
+                                                    <Tooltip title="Развернуть на весь экран">
+                                                        <IconButton
+                                                            size="small"
+                                                            onClick={(e) => {
+                                                                e.stopPropagation();
+                                                                setWorkItemsFullScreen(true);
+                                                            }}
+                                                        >
+                                                            <OpenInFullIcon fontSize="inherit" />
+                                                        </IconButton>
+                                                    </Tooltip>
                                                 </Box>
-                                            ))}
-                                        </Stack>
+                                            </AccordionSummary>
+                                            <AccordionDetails sx={{ pt: 0 }}>
+                                                <Divider sx={{ mb: 1.5 }} />
+                                                {renderWorkItemsTable()}
+                                            </AccordionDetails>
+                                        </Accordion>
                                     </CardItem>
                                 ) : null}
 
@@ -945,6 +1052,34 @@ export default function MarketplacePage() {
                         </Stack>
                     </Container>
                 </DialogContent>
+            </Dialog>
+
+            <Dialog
+                fullScreen
+                open={workItemsFullScreen}
+                onClose={() => setWorkItemsFullScreen(false)}
+            >
+                <Box
+                    sx={{
+                        display: 'flex',
+                        alignItems: 'center',
+                        justifyContent: 'space-between',
+                        p: 2,
+                        borderBottom: 1,
+                        borderColor: 'divider',
+                    }}
+                >
+                    <Typography variant="h6" fontWeight={600}>
+                        Состав работ
+                    </Typography>
+                    <IconButton onClick={() => setWorkItemsFullScreen(false)}>
+                        <CloseFullscreenIcon />
+                    </IconButton>
+                </Box>
+
+                <Box sx={{ p: 2 }}>
+                    {renderWorkItemsTable('calc(100vh - 80px)')}
+                </Box>
             </Dialog>
 
             <Snackbar
