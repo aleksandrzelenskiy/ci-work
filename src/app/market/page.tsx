@@ -37,6 +37,7 @@ type PublicTask = {
     taskName: string;
     bsNumber?: string;
     orgId?: string;
+    orgSlug?: string;
     taskDescription?: string;
     budget?: number;
     currency?: string;
@@ -426,9 +427,14 @@ export default function MarketplacePage() {
                                 <Grid item xs={12} md={6} key={task._id}>
                                     <Paper sx={glassPaperStyles} elevation={0}>
                                         <Stack spacing={2}>
-                                            <Typography variant="caption" color="text.secondary" fontWeight={600}>
-                                                Организация: {task.orgId || '—'}
-                                            </Typography>
+                                            <Stack spacing={0.25}>
+                                                <Typography variant="caption" color="text.secondary" fontWeight={600}>
+                                                    Организация: {task.orgSlug || task.orgId || '—'}
+                                                </Typography>
+                                                <Typography variant="caption" color="text.secondary">
+                                                    Регион: {task.project?.regionCode || '—'}
+                                                </Typography>
+                                            </Stack>
                                             <Stack direction="row" alignItems="center" spacing={1.5}>
                                                 <Chip
                                                     size="small"
@@ -452,24 +458,22 @@ export default function MarketplacePage() {
                                                     sx={{ borderRadius: 2 }}
                                                 />
                                             </Stack>
-                                            <Stack spacing={1.25}>
-                                                <Stack direction="row" alignItems="flex-start" justifyContent="space-between" spacing={2}>
-                                                    <Typography variant="h5" fontWeight={700} sx={{ pr: 1, wordBreak: 'break-word' }}>
-                                                        {taskTitle || 'Без названия'}
-                                                    </Typography>
-                                                    <Stack spacing={0.25} alignItems="flex-end">
-                                                        <Typography variant="caption" color="text.secondary">
-                                                            Планируемый бюджет
-                                                        </Typography>
-                                                        <Typography variant="subtitle1" fontWeight={700}>
-                                                            {formatBudget(task.budget, task.currency)}
-                                                        </Typography>
-                                                    </Stack>
-                                                </Stack>
-                                                <Typography color="text.secondary" sx={{ lineHeight: 1.5 }}>
-                                                    {task.publicDescription || task.taskDescription || 'Описание не заполнено'}
+                                            <Stack spacing={1}>
+                                                <Typography variant="h5" fontWeight={700} sx={{ pr: 1, wordBreak: 'break-word' }}>
+                                                    {taskTitle || 'Без названия'}
                                                 </Typography>
+                                                <Stack spacing={0.25}>
+                                                    <Typography variant="caption" color="text.secondary">
+                                                        Планируемый бюджет
+                                                    </Typography>
+                                                    <Typography variant="subtitle1" fontWeight={700}>
+                                                        {formatBudget(task.budget, task.currency)}
+                                                    </Typography>
+                                                </Stack>
                                             </Stack>
+                                            <Typography color="text.secondary" sx={{ lineHeight: 1.5 }}>
+                                                {task.publicDescription || task.taskDescription || 'Описание не заполнено'}
+                                            </Typography>
                                             {task.skills && task.skills.length > 0 && (
                                                 <Stack direction="row" spacing={1} flexWrap="wrap">
                                                     {task.skills.map((skill) => (
@@ -484,14 +488,9 @@ export default function MarketplacePage() {
                                             )}
                                             <Divider flexItem />
                                             <Stack direction="row" justifyContent="space-between" alignItems="center">
-                                                <Stack spacing={0.5}>
-                                                    <Typography variant="body2" color="text.secondary">
-                                                        {task.project?.name || 'Организация скрыта'}
-                                                    </Typography>
-                                                    <Typography variant="caption" color="text.secondary">
-                                                        Регион: {task.project?.regionCode || '—'}
-                                                    </Typography>
-                                                </Stack>
+                                                <Typography variant="body2" color="text.secondary">
+                                                    {task.project?.name || 'Организация скрыта'}
+                                                </Typography>
                                                 {hasActiveApplication ? (
                                                     <Button
                                                         variant="outlined"

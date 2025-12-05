@@ -86,8 +86,17 @@ export async function GET(request: NextRequest) {
             },
         },
         {
+            $lookup: {
+                from: 'organizations',
+                localField: 'orgId',
+                foreignField: '_id',
+                as: 'orgDoc',
+            },
+        },
+        {
             $addFields: {
                 project: { $arrayElemAt: ['$projectDoc', 0] },
+                org: { $arrayElemAt: ['$orgDoc', 0] },
             },
         },
     ];
@@ -98,8 +107,15 @@ export async function GET(request: NextRequest) {
 
     pipeline.push(
         {
+            $addFields: {
+                orgSlug: { $ifNull: ['$org.orgSlug', '$orgSlug'] },
+            },
+        },
+        {
             $project: {
                 projectDoc: 0,
+                orgDoc: 0,
+                org: 0,
             },
         },
         { $sort: { createdAt: -1 } },
