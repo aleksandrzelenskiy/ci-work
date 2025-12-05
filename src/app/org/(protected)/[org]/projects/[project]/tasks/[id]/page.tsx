@@ -77,6 +77,7 @@ import { extractFileNameFromUrl, isDocumentUrl } from '@/utils/taskFiles';
 import { normalizeRelatedTasks } from '@/app/utils/relatedTasks';
 import type { RelatedTaskRef } from '@/app/types/taskTypes';
 import { buildBsAddressFromLocations } from '@/utils/bsLocation';
+import ProfilePageContent from '@/app/profile/ProfilePageContent';
 
 type TaskFile = {
     url: string;
@@ -211,6 +212,8 @@ export default function TaskDetailsPage() {
         message: string;
         sev: 'success' | 'error';
     }>({ open: false, message: '', sev: 'success' });
+    const [profileDialogOpen, setProfileDialogOpen] = React.useState(false);
+    const [profileUserId, setProfileUserId] = React.useState<string | null>(null);
 
     const [orgName, setOrgName] = React.useState<string | null>(null);
     const [projectOperator, setProjectOperator] = React.useState<string | null>(null);
@@ -440,6 +443,17 @@ export default function TaskDetailsPage() {
         },
         [id, load]
     );
+
+    const openProfileDialog = (userId?: string | null) => {
+        if (!userId) return;
+        setProfileUserId(String(userId));
+        setProfileDialogOpen(true);
+    };
+
+    const closeProfileDialog = () => {
+        setProfileDialogOpen(false);
+        setProfileUserId(null);
+    };
 
     React.useEffect(() => {
         void load();
@@ -1724,15 +1738,39 @@ export default function TaskDetailsPage() {
                                                                 spacing={1}
                                                                 sx={{ flexWrap: 'wrap', mb: 0.5 }}
                                                             >
-                                                                <Typography
+                                                                <Link
                                                                     variant="subtitle2"
-                                                                    fontWeight={600}
-                                                                    sx={{ wordBreak: 'break-word' }}
+                                                                    underline={
+                                                                        app.contractorId ? 'hover' : 'none'
+                                                                    }
+                                                                    color="inherit"
+                                                                    component={
+                                                                        app.contractorId ? 'button' : 'span'
+                                                                    }
+                                                                    type={
+                                                                        app.contractorId ? 'button' : undefined
+                                                                    }
+                                                                    onClick={
+                                                                        app.contractorId
+                                                                            ? () => openProfileDialog(app.contractorId)
+                                                                            : undefined
+                                                                    }
+                                                                    sx={{
+                                                                        wordBreak: 'break-word',
+                                                                        textAlign: 'left',
+                                                                        p: 0,
+                                                                        m: 0,
+                                                                        border: 'none',
+                                                                        background: 'none',
+                                                                        cursor: app.contractorId ? 'pointer' : 'default',
+                                                                        color: app.contractorId ? 'primary.main' : 'inherit',
+                                                                        fontWeight: 600,
+                                                                    }}
                                                                 >
                                                                     {app.contractorName ||
                                                                         app.contractorEmail ||
                                                                         'Подрядчик'}
-                                                                </Typography>
+                                                                </Link>
                                                                 <Chip
                                                                     label={statusLabel}
                                                                     size="small"
@@ -2324,6 +2362,25 @@ export default function TaskDetailsPage() {
                     initialTask={task ? toEditShape(task) : null}
                 />
             )}
+
+            <Dialog
+                open={profileDialogOpen}
+                onClose={closeProfileDialog}
+                fullWidth
+                maxWidth="md"
+            >
+                <DialogTitle>Профиль исполнителя</DialogTitle>
+                <DialogContent dividers>
+                    {profileUserId ? (
+                        <ProfilePageContent mode="public" userId={profileUserId} />
+                    ) : (
+                        <Typography>Пользователь не указан</Typography>
+                    )}
+                </DialogContent>
+                <DialogActions>
+                    <Button onClick={closeProfileDialog}>Закрыть</Button>
+                </DialogActions>
+            </Dialog>
 
             <Dialog
                 open={publishDialogOpen}
