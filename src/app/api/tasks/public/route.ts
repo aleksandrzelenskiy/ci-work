@@ -109,6 +109,7 @@ export async function GET(request: NextRequest) {
         {
             $addFields: {
                 orgSlug: { $ifNull: ['$org.orgSlug', '$orgSlug'] },
+                orgName: { $ifNull: ['$org.name', '$orgName'] },
             },
         },
         {

@@ -38,6 +38,7 @@ type PublicTask = {
     bsNumber?: string;
     orgId?: string;
     orgSlug?: string;
+    orgName?: string;
     taskDescription?: string;
     budget?: number;
     currency?: string;
@@ -429,7 +430,7 @@ export default function MarketplacePage() {
                                         <Stack spacing={2}>
                                             <Stack spacing={0.25}>
                                                 <Typography variant="caption" color="text.secondary" fontWeight={600}>
-                                                    Организация: {task.orgSlug || task.orgId || '—'}
+                                                    Организация: {task.orgName || task.orgSlug || task.orgId || '—'}
                                                 </Typography>
                                                 <Typography variant="caption" color="text.secondary">
                                                     Регион: {task.project?.regionCode || '—'}
