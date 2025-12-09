@@ -8,6 +8,8 @@ import type {
     NotificationStatus,
 } from '@/app/types/notifications';
 import { notificationSocketGateway } from '@/server/socket/notificationSocket';
+import UserModel from '@/app/models/UserModel';
+import { sendEmail } from '@/utils/mailer';
 
 type ObjectIdLike = Types.ObjectId | string;
 
@@ -66,6 +68,74 @@ export const mapNotificationToDTO = (doc: NotificationLeanDoc): NotificationDTO 
     metadata: doc.metadata ?? undefined,
 });
 
+const escapeHtml = (value: string): string =>
+    value
+        .replace(/&/g, '&amp;')
+        .replace(/</g, '&lt;')
+        .replace(/>/g, '&gt;')
+        .replace(/"/g, '&quot;')
+        .replace(/'/g, '&#39;');
+
+const buildEmailHtml = (message: string, link?: string, orgName?: string) => {
+    const parts = [`<p style="margin:0 0 12px 0;">${escapeHtml(message)}</p>`];
+
+    if (orgName) {
+        parts.push(
+            `<p style="margin:0 0 12px 0;"><strong>Организация:</strong> ${escapeHtml(orgName)}</p>`
+        );
+    }
+
+    if (link) {
+        parts.push(
+            `<p style="margin:0;"><a href="${escapeHtml(link)}" target="_blank" rel="noopener noreferrer">Открыть в CI Work</a></p>`
+        );
+    }
+
+    return parts.join('');
+};
+
+async function sendNotificationEmail(params: {
+    recipientUserId: Types.ObjectId;
+    title: string;
+    message: string;
+    link?: string;
+    orgName?: string;
+}) {
+    try {
+        const recipient = await UserModel.findById(params.recipientUserId)
+            .select('email name')
+            .lean();
+        const recipientEmail = recipient?.email;
+
+        if (!recipientEmail) {
+            console.warn(
+                'notifications email: recipient email not found',
+                params.recipientUserId.toString()
+            );
+            return;
+        }
+
+        const textLines = [params.message];
+
+        if (params.orgName) {
+            textLines.push(`Организация: ${params.orgName}`);
+        }
+
+        if (params.link) {
+            textLines.push(`Открыть: ${params.link}`);
+        }
+
+        await sendEmail({
+            to: recipientEmail,
+            subject: params.title,
+            text: textLines.join('\n\n'),
+            html: buildEmailHtml(params.message, params.link, params.orgName),
+        });
+    } catch (error) {
+        console.error('notifications email: failed to deliver', error);
+    }
+}
+
 export async function createNotification({
     recipientUserId,
     type,
@@ -93,6 +163,14 @@ export async function createNotification({
         senderName,
         senderEmail,
         metadata,
+    });
+
+    await sendNotificationEmail({
+        recipientUserId: created.recipientUserId,
+        title,
+        message,
+        link,
+        orgName,
     });
 
     const recipientId = created.recipientUserId.toString();
