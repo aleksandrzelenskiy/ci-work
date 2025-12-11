@@ -24,6 +24,7 @@ import {
   RUSSIAN_REGIONS,
   type RegionOption,
 } from '@/app/utils/regions';
+import type { Theme } from '@mui/material/styles';
 
 type ProfileResponse = {
   profileType?: ProfileType;
@@ -261,6 +262,15 @@ export default function OnboardingPage() {
     }
   };
 
+  const formSectionSx = { maxWidth: 960, width: '100%', mx: 'auto' };
+  const fieldSx = {
+    width: '100%',
+    backgroundColor: (theme: Theme) =>
+      theme.palette.mode === 'dark'
+        ? 'rgba(255,255,255,0.02)'
+        : 'rgba(255,255,255,0.96)',
+  };
+
   const phoneDigits = formValues.phone.replace(/\D/g, '');
   const phoneHasValue = Boolean(formValues.phone.trim());
   const showPhoneLengthError =
@@ -378,25 +388,25 @@ export default function OnboardingPage() {
               }}
             >
               <Stack spacing={3}>
-                <Box>
+                <Box sx={formSectionSx}>
                   <Typography variant='h6' fontWeight={700}>
                     Контактные данные
                   </Typography>
-                  <Typography color='text.secondary'>
+                  <Typography color='text.secondary' sx={{ mt: 0.5 }}>
                     Эти данные будут видны только вашей команде.
                   </Typography>
                 </Box>
                 <Grid
                   container
-                  spacing={2}
-                  justifyContent='center'
-                  alignItems='center'
+                  spacing={{ xs: 2, sm: 2.5, md: 3 }}
+                  alignItems='stretch'
+                  sx={formSectionSx}
                 >
-                  <Grid item xs={12} sm={6} md={5} display='flex' justifyContent='center'>
+                  <Grid item xs={12} sm={6}>
                     <TextField
                       label='Имя'
                       fullWidth
-                      sx={{ maxWidth: 380 }}
+                      sx={fieldSx}
                       value={formValues.firstName}
                       onChange={(event) =>
                         setFormValues((prev) => ({
@@ -406,11 +416,11 @@ export default function OnboardingPage() {
                       }
                     />
                   </Grid>
-                  <Grid item xs={12} sm={6} md={5} display='flex' justifyContent='center'>
+                  <Grid item xs={12} sm={6}>
                     <TextField
                       label='Фамилия'
                       fullWidth
-                      sx={{ maxWidth: 380 }}
+                      sx={fieldSx}
                       value={formValues.lastName}
                       onChange={(event) =>
                         setFormValues((prev) => ({
@@ -420,11 +430,11 @@ export default function OnboardingPage() {
                       }
                     />
                   </Grid>
-                  <Grid item xs={12} sm={6} md={5} display='flex' justifyContent='center'>
+                  <Grid item xs={12} sm={6}>
                     <TextField
                       label='Телефон'
                       fullWidth
-                      sx={{ maxWidth: 380 }}
+                      sx={fieldSx}
                       type='tel'
                       value={formValues.phone}
                       onChange={(event) =>
@@ -439,7 +449,7 @@ export default function OnboardingPage() {
                       inputProps={{ inputMode: 'tel' }}
                     />
                   </Grid>
-                  <Grid item xs={12} sm={6} md={5} display='flex' justifyContent='center'>
+                  <Grid item xs={12} sm={6}>
                     <Autocomplete
                       value={currentRegion}
                       options={RUSSIAN_REGIONS as RegionOption[]}
@@ -459,19 +469,24 @@ export default function OnboardingPage() {
                           {...params}
                           label='Регион'
                           fullWidth
-                          sx={{ maxWidth: 380 }}
+                          sx={fieldSx}
                         />
                       )}
                     />
                   </Grid>
                 </Grid>
-                <Typography variant='body2' color='text.secondary'>
+                <Typography
+                  variant='body2'
+                  color='text.secondary'
+                  sx={formSectionSx}
+                >
                   Мы никому не передаём контакты без вашего согласия и
                   используем их только для уведомлений.
                 </Typography>
                 {isFormValid && (
                   <Box
                     sx={{
+                      ...formSectionSx,
                       display: 'flex',
                       justifyContent: 'flex-end',
                     }}
@@ -489,7 +504,12 @@ export default function OnboardingPage() {
             </Paper>
 
             {roleStepVisible && (
-              <Stack spacing={3} textAlign='center' ref={roleSectionRef}>
+              <Stack
+                spacing={3}
+                textAlign='center'
+                ref={roleSectionRef}
+                sx={{ alignItems: 'center' }}
+              >
                 <Chip
                   label='Шаг 2 из 2'
                   color='default'
@@ -497,10 +517,9 @@ export default function OnboardingPage() {
                     fontWeight: 600,
                     textTransform: 'uppercase',
                     letterSpacing: 1,
-                    alignSelf: 'center',
                   }}
                 />
-                <Box>
+                <Box sx={formSectionSx}>
                   <Typography color='text.secondary'>
                     Выберите сценарий, чтобы мы подготовили нужные панели и
                     доступы.
@@ -508,19 +527,19 @@ export default function OnboardingPage() {
                 </Box>
                 <Grid
                   container
-                  spacing={2}
+                  spacing={{ xs: 2, sm: 2.5, md: 3 }}
                   justifyContent='center'
-                  alignItems='center'
+                  alignItems='stretch'
+                  sx={formSectionSx}
                 >
                   {ROLE_OPTIONS.map((option) => (
                     <Grid
                       item
                       xs={12}
                       sm={6}
-                      md={5}
+                      md={6}
                       key={option.type}
-                      display='flex'
-                      justifyContent='center'
+                      sx={{ display: 'flex', justifyContent: 'center' }}
                     >
                       <RoleCard
                         title={option.title}
@@ -539,7 +558,11 @@ export default function OnboardingPage() {
                     </Grid>
                   ))}
                 </Grid>
-                <Typography variant='body2' color='text.secondary'>
+                <Typography
+                  variant='body2'
+                  color='text.secondary'
+                  sx={formSectionSx}
+                >
                   Исполнители работают с задачами напрямую, а заказчики
                   управляют командами и бюджетами.
                 </Typography>

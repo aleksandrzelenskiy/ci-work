@@ -8,7 +8,6 @@ if (!MONGODB_URI) {
   throw new Error('MONGODB_URI не определён. Добавьте его в файл .env');
 }
 
-console.log('MONGODB_URI is:', process.env.MONGODB_URI);
 interface GlobalMongoose {
   mongoose: {
     conn: Connection | null;
