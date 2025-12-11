@@ -22,6 +22,7 @@ import PlaceIcon from '@mui/icons-material/Place';
 import LogoutIcon from '@mui/icons-material/Logout';
 import FolderIcon from '@mui/icons-material/Folder';
 import BusinessIcon from '@mui/icons-material/Business';
+import StorefrontIcon from '@mui/icons-material/Storefront';
 import KeyboardArrowRightIcon from '@mui/icons-material/KeyboardArrowRight';
 import { useClerk, useUser } from '@clerk/nextjs';
 import type { UserResource } from '@clerk/types';
@@ -281,8 +282,16 @@ export default function NavigationMenu({ onNavigateAction }: NavigationMenuProps
 
     const contextUser = userContext?.user as DbUserPayload | undefined;
     const effectiveRole = resolveRoleFromContext(userContext);
+    const profileType =
+        userContext?.profileType ||
+        (contextUser?.profileType as string | undefined) ||
+        null;
+    const isContractor = profileType === 'contractor';
+    const isEmployer = profileType === 'employer';
     const isManagerRole = effectiveRole ? MANAGER_ROLES.includes(effectiveRole) : false;
-    const isExecutor = effectiveRole === 'executor';
+    const isEmployerView = isEmployer || isManagerRole;
+    const isContractorView = isContractor || effectiveRole === 'executor';
+    const isExecutor = effectiveRole === 'executor' || isContractor;
     const projectMatch = pathname.match(/^\/org\/([^/]+)\/projects\/([^/]+)/);
     const orgSlug = projectMatch?.[1];
     const projectRef = projectMatch?.[2];
@@ -291,16 +300,15 @@ export default function NavigationMenu({ onNavigateAction }: NavigationMenuProps
             ? `/org/${orgSlug}/projects/${projectRef}/tasks/locations`
             : '/tasks/locations';
     const baseGeoPath = isExecutor ? '/tasks/locations' : managerGeoPath;
-    const profileType =
-        userContext?.profileType ||
-        (contextUser?.profileType as string | undefined) ||
-        null;
-    const isEmployer = profileType === 'employer';
-    const navLoading = userContextLoading || managerNavLoading;
-    const managerOrgPath =
-        isManagerRole && managerOrgSlug
+    const navLoading =
+        userContextLoading ||
+        (isEmployerView && managerNavLoading) ||
+        !profileType;
+    const managerOrgPath = isEmployerView
+        ? managerOrgSlug
             ? `/org/${encodeURIComponent(managerOrgSlug)}`
-            : null;
+            : '/org/new'
+        : null;
     const managerProjectPaths = React.useMemo(
         () =>
             managerProjects.map((project) => ({
@@ -315,14 +323,16 @@ export default function NavigationMenu({ onNavigateAction }: NavigationMenuProps
         [managerProjects]
     );
     const primaryManagerProject = managerProjectPaths[0];
-    const tasksPath = isEmployer
-        ? primaryManagerProject?.tasksPath ?? '/tasks'
+    const tasksPath = isEmployerView
+        ? primaryManagerProject?.tasksPath ??
+          (managerOrgSlug ? `/org/${encodeURIComponent(managerOrgSlug)}/projects` : '/tasks')
         : '/tasks';
-    const locationsPath = isEmployer
-        ? primaryManagerProject?.locationsPath ?? '/tasks/locations'
+    const locationsPath = isEmployerView
+        ? primaryManagerProject?.locationsPath ??
+          (managerOrgSlug ? `/org/${encodeURIComponent(managerOrgSlug)}/projects` : '/tasks/locations')
         : baseGeoPath;
     const tasksChildren =
-        isEmployer && managerProjectPaths.length > 1
+        isEmployerView && managerProjectPaths.length > 1
             ? managerProjectPaths.map((project) => ({
                   label: project.projectKey,
                   secondary: project.projectName,
@@ -330,7 +340,7 @@ export default function NavigationMenu({ onNavigateAction }: NavigationMenuProps
               }))
             : undefined;
     const locationsChildren =
-        isEmployer && managerProjectPaths.length > 1
+        isEmployerView && managerProjectPaths.length > 1
             ? managerProjectPaths.map((project) => ({
                   label: project.projectKey,
                   secondary: project.projectName,
@@ -338,46 +348,59 @@ export default function NavigationMenu({ onNavigateAction }: NavigationMenuProps
               }))
             : undefined;
     const projectsBaseOrgSlug =
-        managerOrgs[0]?.orgSlug ?? primaryManagerProject?.orgSlug ?? null;
+        managerOrgs[0]?.orgSlug ?? primaryManagerProject?.orgSlug ?? managerOrgSlug ?? null;
     const projectsPath =
-        isEmployer && projectsBaseOrgSlug
+        isEmployerView && projectsBaseOrgSlug
             ? `/org/${encodeURIComponent(projectsBaseOrgSlug)}/projects`
-            : null;
+            : isEmployerView
+              ? '/org/new'
+              : null;
     const projectsChildren =
-        isEmployer && managerOrgs.length > 1
+        isEmployerView && managerOrgs.length > 1
             ? managerOrgs.map((org) => ({
                   label: org.orgSlug,
                   secondary: org.orgName,
                   path: `/org/${encodeURIComponent(org.orgSlug)}/projects`,
               }))
             : undefined;
-    const isEmployerManager = isEmployer && managerProjects.length > 0;
     const navItems = React.useMemo<NavItem[]>(() => {
+        if (!profileType) return [];
         const items: NavItem[] = [...BASE_NAV_ITEMS];
-        if (isManagerRole && managerOrgPath) {
+        if (isEmployerView && managerOrgPath) {
             items.push({
                 label: 'ОРГАНИЗАЦИЯ',
                 path: managerOrgPath,
                 icon: <BusinessIcon sx={{ fontSize: 20 }} />,
             });
         }
-        const projectNavItem =
-            isEmployer && projectsPath
-                ? {
-                      label: 'МОИ ПРОЕКТЫ',
-                      path: projectsPath,
-                      icon: <FolderIcon sx={{ fontSize: 20 }} />,
-                      children: projectsChildren,
-                  }
-                : null;
-        if (isEmployerManager && projectNavItem) {
-            items.push(projectNavItem);
-        } else {
+        if (isEmployerView) {
+            if (projectsPath) {
+                items.push({
+                    label: 'МОИ ПРОЕКТЫ',
+                    path: projectsPath,
+                    icon: <FolderIcon sx={{ fontSize: 20 }} />,
+                    children: projectsChildren,
+                });
+            }
+            items.push({
+                label: 'ГЕОЛОКАЦИИ',
+                path: locationsPath,
+                icon: <PlaceIcon sx={{ fontSize: 20 }} />,
+                children: locationsChildren,
+            });
+            return items;
+        }
+        if (isContractorView) {
             items.push({
                 label: 'МОИ ЗАДАЧИ',
                 path: tasksPath,
                 icon: <TaskIcon sx={{ fontSize: 20 }} />,
                 children: tasksChildren,
+            });
+            items.push({
+                label: 'БИРЖА',
+                path: '/market',
+                icon: <StorefrontIcon sx={{ fontSize: 20 }} />,
             });
         }
         items.push({
@@ -386,21 +409,18 @@ export default function NavigationMenu({ onNavigateAction }: NavigationMenuProps
             icon: <PlaceIcon sx={{ fontSize: 20 }} />,
             children: locationsChildren,
         });
-        if (!isEmployerManager && projectNavItem) {
-            items.push(projectNavItem);
-        }
         return items;
     }, [
-        isManagerRole,
         managerOrgPath,
-        isEmployer,
-        isEmployerManager,
         locationsChildren,
         locationsPath,
         projectsChildren,
         projectsPath,
         tasksChildren,
         tasksPath,
+        isEmployerView,
+        isContractorView,
+        profileType,
     ]);
 
     const normalizeValue = (value?: string | null) => {
