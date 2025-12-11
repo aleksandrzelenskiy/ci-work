@@ -533,11 +533,7 @@ export default function OnboardingPage() {
                                 regionCode: newValue?.code ?? '',
                               }))
                           }
-                          getOptionLabel={(option) =>
-                              typeof option === 'string'
-                                  ? option
-                                  : `${option.code} - ${option.label}`
-                          }
+                          getOptionLabel={(option) => `${option.code} - ${option.label}`}
                           renderInput={(params) => (
                               <TextField
                                   {...params}
@@ -547,6 +543,7 @@ export default function OnboardingPage() {
                               />
                           )}
                       />
+
                     </Grid>
                   </Grid>
 
