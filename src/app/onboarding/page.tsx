@@ -97,6 +97,27 @@ const parseNameParts = (rawName?: string) => {
   return { firstName, lastName };
 };
 
+const normalizePhoneInput = (input: string) => {
+  const digitsOnly = input.replace(/\D/g, '');
+  if (!digitsOnly) {
+    return '';
+  }
+
+  let normalized = digitsOnly;
+  if (normalized.startsWith('8')) {
+    normalized = `7${normalized.slice(1)}`;
+  } else if (normalized.startsWith('9')) {
+    normalized = `7${normalized}`;
+  } else if (!normalized.startsWith('7')) {
+    normalized = `7${normalized}`;
+  }
+
+  normalized = normalized.slice(0, 11);
+  return `+${normalized}`;
+};
+
+const isPhoneValid = (value: string) => /^\+7\d{10}$/.test(value);
+
 export default function OnboardingPage() {
   const router = useRouter();
   const [loading, setLoading] = useState(true);
@@ -143,7 +164,7 @@ export default function OnboardingPage() {
           setFormValues({
             firstName: derivedFirst,
             lastName: derivedLast,
-            phone: resolvedPhone,
+            phone: normalizePhoneInput(resolvedPhone),
             regionCode: resolvedRegionCode,
           });
           if (data.profileSetupCompleted) {
@@ -186,6 +207,11 @@ export default function OnboardingPage() {
       !trimmed.regionCode
     ) {
       setError('Пожалуйста, заполните личные данные и выберите регион.');
+      return null;
+    }
+
+    if (!isPhoneValid(trimmed.phone)) {
+      setError('Введите номер телефона в формате +7XXXXXXXXXX.');
       return null;
     }
 
@@ -235,11 +261,20 @@ export default function OnboardingPage() {
     }
   };
 
+  const phoneDigits = formValues.phone.replace(/\D/g, '');
+  const phoneHasValue = Boolean(formValues.phone.trim());
+  const showPhoneLengthError =
+    Boolean(phoneDigits) && phoneDigits.length > 0 && phoneDigits.length < 11;
+  const phoneFormatInvalid = phoneHasValue && !isPhoneValid(formValues.phone);
+  const phoneHelperText = showPhoneLengthError
+    ? 'Номер должен содержать 11 цифр'
+    : undefined;
+
   const isFormValid =
     Boolean(formValues.firstName.trim()) &&
     Boolean(formValues.lastName.trim()) &&
-    Boolean(formValues.phone.trim()) &&
-    Boolean(formValues.regionCode.trim());
+    Boolean(formValues.regionCode.trim()) &&
+    isPhoneValid(formValues.phone);
 
   const currentRegion: RegionOption | null =
     RUSSIAN_REGIONS.find((region) => region.code === formValues.regionCode) ??
@@ -351,11 +386,17 @@ export default function OnboardingPage() {
                     Эти данные будут видны только вашей команде.
                   </Typography>
                 </Box>
-                <Grid container spacing={2}>
-                  <Grid item xs={12} sm={6}>
+                <Grid
+                  container
+                  spacing={2}
+                  justifyContent='center'
+                  alignItems='center'
+                >
+                  <Grid item xs={12} sm={6} md={5} display='flex' justifyContent='center'>
                     <TextField
                       label='Имя'
                       fullWidth
+                      sx={{ maxWidth: 380 }}
                       value={formValues.firstName}
                       onChange={(event) =>
                         setFormValues((prev) => ({
@@ -365,10 +406,11 @@ export default function OnboardingPage() {
                       }
                     />
                   </Grid>
-                  <Grid item xs={12} sm={6}>
+                  <Grid item xs={12} sm={6} md={5} display='flex' justifyContent='center'>
                     <TextField
                       label='Фамилия'
                       fullWidth
+                      sx={{ maxWidth: 380 }}
                       value={formValues.lastName}
                       onChange={(event) =>
                         setFormValues((prev) => ({
@@ -378,21 +420,26 @@ export default function OnboardingPage() {
                       }
                     />
                   </Grid>
-                  <Grid item xs={12} sm={6}>
+                  <Grid item xs={12} sm={6} md={5} display='flex' justifyContent='center'>
                     <TextField
                       label='Телефон'
                       fullWidth
+                      sx={{ maxWidth: 380 }}
                       type='tel'
                       value={formValues.phone}
                       onChange={(event) =>
                         setFormValues((prev) => ({
                           ...prev,
-                          phone: event.target.value,
+                          phone: normalizePhoneInput(event.target.value),
                         }))
                       }
+                      error={Boolean(showPhoneLengthError) || phoneFormatInvalid}
+                      helperText={phoneHelperText}
+                      placeholder='+7XXXXXXXXXX'
+                      inputProps={{ inputMode: 'tel' }}
                     />
                   </Grid>
-                  <Grid item xs={12} sm={6}>
+                  <Grid item xs={12} sm={6} md={5} display='flex' justifyContent='center'>
                     <Autocomplete
                       value={currentRegion}
                       options={RUSSIAN_REGIONS as RegionOption[]}
@@ -408,7 +455,12 @@ export default function OnboardingPage() {
                           : `${option.code} - ${option.label}`
                       }
                       renderInput={(params) => (
-                        <TextField {...params} label='Регион' />
+                        <TextField
+                          {...params}
+                          label='Регион'
+                          fullWidth
+                          sx={{ maxWidth: 380 }}
+                        />
                       )}
                     />
                   </Grid>
@@ -458,13 +510,14 @@ export default function OnboardingPage() {
                   container
                   spacing={2}
                   justifyContent='center'
-                  alignItems='stretch'
+                  alignItems='center'
                 >
                   {ROLE_OPTIONS.map((option) => (
                     <Grid
                       item
                       xs={12}
                       sm={6}
+                      md={5}
                       key={option.type}
                       display='flex'
                       justifyContent='center'
