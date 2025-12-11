@@ -271,13 +271,14 @@ export default function OnboardingPage() {
   };
 
   const formSectionSx = {
-    maxWidth: 960,
     width: '100%',
+    maxWidth: 1080,
     mx: 'auto',
-    px: { xs: 2.5, sm: 0 },
+    px: { xs: 2, sm: 3, md: 2 },
   };
   const fieldSx = {
     width: '100%',
+    maxWidth: 480,
     backgroundColor: (theme: Theme) =>
       theme.palette.mode === 'dark'
         ? 'rgba(255,255,255,0.02)'
@@ -285,8 +286,25 @@ export default function OnboardingPage() {
   };
   const formItemWrapperSx = {
     display: 'flex',
-    justifyContent: { xs: 'center', sm: 'flex-start' },
+    justifyContent: 'center',
     width: '100%',
+  };
+  const centeredTextBlockSx = {
+    ...formSectionSx,
+    textAlign: 'center',
+    display: 'flex',
+    flexDirection: 'column',
+    alignItems: 'center',
+    gap: 0.5,
+  };
+  const gridSectionSx = {
+    ...formSectionSx,
+    justifyContent: 'center',
+  };
+  const actionRowSx = {
+    ...formSectionSx,
+    display: 'flex',
+    justifyContent: 'center',
   };
 
   const phoneDigits = formValues.phone.replace(/\D/g, '');
@@ -391,6 +409,9 @@ export default function OnboardingPage() {
             <Paper
               elevation={0}
               sx={{
+                width: '100%',
+                maxWidth: 1140,
+                mx: 'auto',
                 p: { xs: 3, md: 4 },
                 borderRadius: 4,
                 border: '1px solid',
@@ -406,8 +427,8 @@ export default function OnboardingPage() {
               }}
             >
               <Stack spacing={3}>
-                <Box sx={formSectionSx}>
-                  <Typography variant='h6' fontWeight={700}>
+                <Box sx={centeredTextBlockSx}>
+                  <Typography variant='h6' fontWeight={700} textAlign='center'>
                     Контактные данные
                   </Typography>
                   <Typography color='text.secondary' sx={{ mt: 0.5 }}>
@@ -418,8 +439,8 @@ export default function OnboardingPage() {
                   container
                   spacing={{ xs: 2, sm: 2.5, md: 3 }}
                   alignItems='stretch'
-                  justifyContent={{ xs: 'center', md: 'flex-start' }}
-                  sx={formSectionSx}
+                  justifyContent='center'
+                  sx={gridSectionSx}
                 >
                   <Grid item xs={12} sm={6} sx={formItemWrapperSx}>
                     <TextField
@@ -497,18 +518,14 @@ export default function OnboardingPage() {
                 <Typography
                   variant='body2'
                   color='text.secondary'
-                  sx={formSectionSx}
+                  sx={centeredTextBlockSx}
                 >
                   Мы никому не передаём контакты без вашего согласия и
                   используем их только для уведомлений.
                 </Typography>
                 {isFormValid && (
                   <Box
-                    sx={{
-                      ...formSectionSx,
-                      display: 'flex',
-                      justifyContent: { xs: 'center', md: 'flex-end' },
-                    }}
+                    sx={actionRowSx}
                   >
                     <Button
                       variant='contained'
@@ -538,7 +555,7 @@ export default function OnboardingPage() {
                     letterSpacing: 1,
                   }}
                 />
-                <Box sx={formSectionSx}>
+                <Box sx={centeredTextBlockSx}>
                   <Typography color='text.secondary'>
                     Выберите сценарий, чтобы мы подготовили нужные панели и
                     доступы.
@@ -549,10 +566,7 @@ export default function OnboardingPage() {
                   spacing={{ xs: 2, sm: 2.5, md: 3 }}
                   justifyContent='center'
                   alignItems='stretch'
-                  sx={{
-                    ...formSectionSx,
-                    justifyContent: 'center',
-                  }}
+                  sx={gridSectionSx}
                 >
                   {ROLE_OPTIONS.map((option) => (
                     <Grid
@@ -565,7 +579,7 @@ export default function OnboardingPage() {
                         display: 'flex',
                         justifyContent: 'center',
                         width: '100%',
-                        maxWidth: { xs: 440, sm: 520, md: '100%' },
+                        maxWidth: { xs: 440, sm: 520, md: 540 },
                       }}
                     >
                       <RoleCard
@@ -588,7 +602,7 @@ export default function OnboardingPage() {
                 <Typography
                   variant='body2'
                   color='text.secondary'
-                  sx={formSectionSx}
+                  sx={centeredTextBlockSx}
                 >
                   Исполнители работают с задачами напрямую, а заказчики
                   управляют командами и бюджетами.
@@ -600,6 +614,9 @@ export default function OnboardingPage() {
           <Paper
             variant='outlined'
             sx={{
+              width: '100%',
+              maxWidth: 960,
+              mx: 'auto',
               mt: 5,
               borderRadius: 3,
               p: { xs: 2.5, md: 3 },
