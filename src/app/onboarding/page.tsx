@@ -151,6 +151,11 @@ export default function OnboardingPage() {
           setError(data.error || 'Не удалось загрузить профиль');
         } else {
           const userPayload = data.user || {};
+          const resolvedProfileType: ProfileType | null =
+            data.profileType ??
+            ((userPayload as { profileType?: ProfileType }).profileType ?? null);
+          const onboardingCompleteRedirect =
+            resolvedProfileType === 'employer' ? '/org/new' : '/';
           const resolvedName = data.name || userPayload?.name || '';
           const { firstName: derivedFirst, lastName: derivedLast } =
             parseNameParts(resolvedName);
@@ -169,7 +174,7 @@ export default function OnboardingPage() {
             regionCode: resolvedRegionCode,
           });
           if (data.profileSetupCompleted) {
-            router.replace('/');
+            router.replace(onboardingCompleteRedirect);
             return;
           }
         }
@@ -252,7 +257,10 @@ export default function OnboardingPage() {
         return;
       }
 
-      router.replace('/');
+      const onboardingCompleteRedirect =
+        profileType === 'employer' ? '/org/new' : '/';
+
+      router.replace(onboardingCompleteRedirect);
     } catch (err) {
       setError(
         err instanceof Error ? err.message : 'Ошибка при сохранении выбора'

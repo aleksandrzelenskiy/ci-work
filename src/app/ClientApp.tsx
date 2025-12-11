@@ -7,6 +7,7 @@ import React, {
   useEffect,
 } from 'react';
 import { useUser } from '@clerk/nextjs';
+import type { ProfileType } from '@/app/models/UserModel';
 import {
     Box,
     CssBaseline,
@@ -43,7 +44,13 @@ export default function ClientApp({ children }: { children: React.ReactNode }) {
       if (data) {
         const userPayload = (data.user ?? {}) as {
           profileSetupCompleted?: boolean;
+          profileType?: ProfileType;
         };
+        const resolvedProfileType: ProfileType | null =
+          data.profileType ??
+          (typeof userPayload.profileType === 'string'
+            ? userPayload.profileType
+            : null);
         const setupCompleted =
           typeof data.profileSetupCompleted !== 'undefined'
             ? data.profileSetupCompleted
@@ -53,12 +60,14 @@ export default function ClientApp({ children }: { children: React.ReactNode }) {
           typeof setupCompleted === 'boolean' ? setupCompleted : null;
 
         setProfileSetupCompleted(normalizedSetupCompleted);
+        const onboardingCompleteRedirect =
+          resolvedProfileType === 'employer' ? '/org/new' : '/';
 
         if (normalizedSetupCompleted === false && pathname !== '/onboarding') {
           router.replace('/onboarding');
         }
         if (normalizedSetupCompleted === true && pathname === '/onboarding') {
-          router.replace('/');
+          router.replace(onboardingCompleteRedirect);
         }
       } else {
         setProfileSetupCompleted(null);
