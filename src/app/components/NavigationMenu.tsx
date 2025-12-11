@@ -291,6 +291,10 @@ export default function NavigationMenu({ onNavigateAction }: NavigationMenuProps
     const isManagerRole = effectiveRole ? MANAGER_ROLES.includes(effectiveRole) : false;
     const isEmployerView = isEmployer || isManagerRole;
     const isContractorView = isContractor || effectiveRole === 'executor';
+    const isOwnerLike =
+        effectiveRole === 'owner' ||
+        effectiveRole === 'org_admin' ||
+        effectiveRole === 'super_admin';
     const isExecutor = effectiveRole === 'executor' || isContractor;
     const projectMatch = pathname.match(/^\/org\/([^/]+)\/projects\/([^/]+)/);
     const orgSlug = projectMatch?.[1];
@@ -328,8 +332,9 @@ export default function NavigationMenu({ onNavigateAction }: NavigationMenuProps
           (managerOrgSlug ? `/org/${encodeURIComponent(managerOrgSlug)}/projects` : '/tasks')
         : '/tasks';
     const locationsPath = isEmployerView
-        ? primaryManagerProject?.locationsPath ??
-          (managerOrgSlug ? `/org/${encodeURIComponent(managerOrgSlug)}/projects` : '/tasks/locations')
+        ? isOwnerLike || !primaryManagerProject
+            ? '/tasks/locations'
+            : primaryManagerProject.locationsPath
         : baseGeoPath;
     const tasksChildren =
         isEmployerView && managerProjectPaths.length > 1
