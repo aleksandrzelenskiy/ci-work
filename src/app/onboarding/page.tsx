@@ -268,11 +268,11 @@ export default function OnboardingPage() {
   };
 
   // ---- layout helpers ----
+  // Базовая секция без внутренних px — симметрия задаётся выше
   const formSectionSx = {
     width: '100%',
     maxWidth: LAYOUT_MAX_WIDTH,
     mx: 'auto',
-    px: { xs: 1.5, sm: 3, md: 2 },
   };
 
   const fieldSx = {
@@ -291,9 +291,11 @@ export default function OnboardingPage() {
     width: '100%',
   };
 
+  // Без px — только maxWidth + центрирование
   const centeredTextBlockSx = {
-    ...formSectionSx,
+    width: '100%',
     maxWidth: 720,
+    mx: 'auto',
     textAlign: 'center',
     display: 'flex',
     flexDirection: 'column',
@@ -302,15 +304,18 @@ export default function OnboardingPage() {
   };
 
   const gridSectionSx = {
-    ...formSectionSx,
+    width: '100%',
+    maxWidth: LAYOUT_MAX_WIDTH,
+    mx: 'auto',
     justifyContent: 'center',
   };
 
   const actionRowSx = {
-    ...formSectionSx,
+    width: '100%',
+    maxWidth: FIELD_MAX_WIDTH,
+    mx: 'auto',
     display: 'flex',
     justifyContent: 'center',
-    maxWidth: FIELD_MAX_WIDTH,
   };
 
   const roleCardWrapperSx = {
@@ -427,15 +432,19 @@ export default function OnboardingPage() {
               </Typography>
             </Stack>
 
-            <Stack spacing={{ xs: 3, md: 4 }} sx={{ mt: { xs: 3, md: 4 } }}>
+            <Stack
+                spacing={{ xs: 3, md: 4 }}
+                sx={{
+                  mt: { xs: 3, md: 4 },
+                  px: { xs: 1.5, sm: 3, md: 2 }, // общий симметричный отступ
+                }}
+            >
               {/* Блок контактов */}
               <Paper
                   elevation={0}
                   sx={{
-                    width: '100%',
-                    maxWidth: LAYOUT_MAX_WIDTH,
-                    mx: 'auto',
-                    p: { xs: 2.5, sm: 3, md: 4 },
+                    ...formSectionSx,
+                    p: { xs: 2.5, sm: 3, md: 4 }, // только Paper рулит внутренними отступами
                     borderRadius: 4,
                     border: '1px solid',
                     borderColor: (theme) =>
@@ -550,7 +559,7 @@ export default function OnboardingPage() {
                     используем их только для уведомлений.
                   </Typography>
 
-                  {/* Кнопка "Далее" всегда на месте, только блокируется */}
+                  {/* Кнопка "Далее" */}
                   <Box sx={actionRowSx}>
                     <Button
                         variant='contained'
@@ -577,7 +586,6 @@ export default function OnboardingPage() {
                         maxWidth: LAYOUT_MAX_WIDTH,
                         mx: 'auto',
                         mt: { xs: 1, md: 0 },
-                        px: { xs: 1.5, sm: 3, md: 2 },
                       }}
                   >
                     <Chip
@@ -650,9 +658,7 @@ export default function OnboardingPage() {
             <Paper
                 variant='outlined'
                 sx={{
-                  width: '100%',
-                  maxWidth: LAYOUT_MAX_WIDTH,
-                  mx: 'auto',
+                  ...formSectionSx,
                   mt: 5,
                   borderRadius: 3,
                   p: { xs: 2.5, md: 3 },
