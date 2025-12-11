@@ -265,10 +265,16 @@ export default function OnboardingPage() {
   const formSectionSx = { maxWidth: 960, width: '100%', mx: 'auto' };
   const fieldSx = {
     width: '100%',
+    maxWidth: { xs: 420, sm: '100%' },
     backgroundColor: (theme: Theme) =>
       theme.palette.mode === 'dark'
         ? 'rgba(255,255,255,0.02)'
         : 'rgba(255,255,255,0.96)',
+  };
+  const formItemWrapperSx = {
+    display: 'flex',
+    justifyContent: { xs: 'center', sm: 'flex-start' },
+    width: '100%',
   };
 
   const phoneDigits = formValues.phone.replace(/\D/g, '');
@@ -400,9 +406,10 @@ export default function OnboardingPage() {
                   container
                   spacing={{ xs: 2, sm: 2.5, md: 3 }}
                   alignItems='stretch'
+                  justifyContent={{ xs: 'center', md: 'flex-start' }}
                   sx={formSectionSx}
                 >
-                  <Grid item xs={12} sm={6}>
+                  <Grid item xs={12} sm={6} sx={formItemWrapperSx}>
                     <TextField
                       label='Имя'
                       fullWidth
@@ -416,7 +423,7 @@ export default function OnboardingPage() {
                       }
                     />
                   </Grid>
-                  <Grid item xs={12} sm={6}>
+                  <Grid item xs={12} sm={6} sx={formItemWrapperSx}>
                     <TextField
                       label='Фамилия'
                       fullWidth
@@ -430,7 +437,7 @@ export default function OnboardingPage() {
                       }
                     />
                   </Grid>
-                  <Grid item xs={12} sm={6}>
+                  <Grid item xs={12} sm={6} sx={formItemWrapperSx}>
                     <TextField
                       label='Телефон'
                       fullWidth
@@ -449,7 +456,7 @@ export default function OnboardingPage() {
                       inputProps={{ inputMode: 'tel' }}
                     />
                   </Grid>
-                  <Grid item xs={12} sm={6}>
+                  <Grid item xs={12} sm={6} sx={formItemWrapperSx}>
                     <Autocomplete
                       value={currentRegion}
                       options={RUSSIAN_REGIONS as RegionOption[]}
@@ -488,7 +495,7 @@ export default function OnboardingPage() {
                     sx={{
                       ...formSectionSx,
                       display: 'flex',
-                      justifyContent: 'flex-end',
+                      justifyContent: { xs: 'center', md: 'flex-end' },
                     }}
                   >
                     <Button
@@ -530,7 +537,10 @@ export default function OnboardingPage() {
                   spacing={{ xs: 2, sm: 2.5, md: 3 }}
                   justifyContent='center'
                   alignItems='stretch'
-                  sx={formSectionSx}
+                  sx={{
+                    ...formSectionSx,
+                    justifyContent: 'center',
+                  }}
                 >
                   {ROLE_OPTIONS.map((option) => (
                     <Grid
@@ -539,7 +549,12 @@ export default function OnboardingPage() {
                       sm={6}
                       md={6}
                       key={option.type}
-                      sx={{ display: 'flex', justifyContent: 'center' }}
+                      sx={{
+                        display: 'flex',
+                        justifyContent: 'center',
+                        width: '100%',
+                        maxWidth: { xs: 440, sm: 520, md: '100%' },
+                      }}
                     >
                       <RoleCard
                         title={option.title}
