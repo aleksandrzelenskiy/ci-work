@@ -270,10 +270,14 @@ export default function OnboardingPage() {
     }
   };
 
-  const formSectionSx = { maxWidth: 960, width: '100%', mx: 'auto' };
+  const formSectionSx = {
+    maxWidth: 960,
+    width: '100%',
+    mx: 'auto',
+    px: { xs: 2.5, sm: 0 },
+  };
   const fieldSx = {
     width: '100%',
-    maxWidth: { xs: 420, sm: '100%' },
     backgroundColor: (theme: Theme) =>
       theme.palette.mode === 'dark'
         ? 'rgba(255,255,255,0.02)'
