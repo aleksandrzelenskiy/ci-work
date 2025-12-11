@@ -278,7 +278,7 @@ export default function OnboardingPage() {
   };
   const fieldSx = {
     width: '100%',
-    maxWidth: 480,
+    maxWidth: 520,
     backgroundColor: (theme: Theme) =>
       theme.palette.mode === 'dark'
         ? 'rgba(255,255,255,0.02)'
@@ -287,10 +287,12 @@ export default function OnboardingPage() {
   const formItemWrapperSx = {
     display: 'flex',
     justifyContent: 'center',
+    alignItems: 'center',
     width: '100%',
   };
   const centeredTextBlockSx = {
     ...formSectionSx,
+    maxWidth: 720,
     textAlign: 'center',
     display: 'flex',
     flexDirection: 'column',
@@ -305,6 +307,14 @@ export default function OnboardingPage() {
     ...formSectionSx,
     display: 'flex',
     justifyContent: 'center',
+    maxWidth: 520,
+  };
+  const roleCardWrapperSx = {
+    display: 'flex',
+    justifyContent: 'center',
+    width: '100%',
+    maxWidth: 520,
+    height: '100%',
   };
 
   const phoneDigits = formValues.phone.replace(/\D/g, '');
@@ -410,7 +420,7 @@ export default function OnboardingPage() {
               elevation={0}
               sx={{
                 width: '100%',
-                maxWidth: 1140,
+                maxWidth: 1080,
                 mx: 'auto',
                 p: { xs: 3, md: 4 },
                 borderRadius: 4,
@@ -579,23 +589,24 @@ export default function OnboardingPage() {
                         display: 'flex',
                         justifyContent: 'center',
                         width: '100%',
-                        maxWidth: { xs: 440, sm: 520, md: 540 },
                       }}
                     >
-                      <RoleCard
-                        title={option.title}
-                        description={option.description}
-                        helperText={option.helperText}
-                        onSelect={() => handleSelect(option.type)}
-                        disabled={!isFormValid || Boolean(savingType)}
-                        selected={selectedType === option.type}
-                        icon={option.icon}
-                        actionLabel={
-                          savingType === option.type
-                            ? 'Сохраняем...'
-                            : 'Выбрать'
-                        }
-                      />
+                      <Box sx={roleCardWrapperSx}>
+                        <RoleCard
+                          title={option.title}
+                          description={option.description}
+                          helperText={option.helperText}
+                          onSelect={() => handleSelect(option.type)}
+                          disabled={!isFormValid || Boolean(savingType)}
+                          selected={selectedType === option.type}
+                          icon={option.icon}
+                          actionLabel={
+                            savingType === option.type
+                              ? 'Сохраняем...'
+                              : 'Выбрать'
+                          }
+                        />
+                      </Box>
                     </Grid>
                   ))}
                 </Grid>
@@ -615,7 +626,7 @@ export default function OnboardingPage() {
             variant='outlined'
             sx={{
               width: '100%',
-              maxWidth: 960,
+              maxWidth: 1080,
               mx: 'auto',
               mt: 5,
               borderRadius: 3,
