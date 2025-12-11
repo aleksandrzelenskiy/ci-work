@@ -112,6 +112,7 @@ const isPhoneValid = (value: string) => /^\+7\d{10}$/.test(value);
 // ----- layout constants -----
 const LAYOUT_MAX_WIDTH = 1080;
 const FIELD_MAX_WIDTH = 520;
+const PAGE_PADDING_X = { xs: 2, sm: 3, md: 4 };
 
 export default function OnboardingPage() {
   const router = useRouter();
@@ -268,16 +269,8 @@ export default function OnboardingPage() {
   };
 
   // ---- layout helpers ----
-  // Базовая секция без внутренних px — симметрия задаётся выше
-  const formSectionSx = {
-    width: '100%',
-    maxWidth: LAYOUT_MAX_WIDTH,
-    mx: 'auto',
-  };
-
   const fieldSx = {
     width: '100%',
-    maxWidth: FIELD_MAX_WIDTH,
     backgroundColor: (theme: Theme) =>
         theme.palette.mode === 'dark'
             ? 'rgba(255,255,255,0.02)'
@@ -287,43 +280,7 @@ export default function OnboardingPage() {
   const formItemWrapperSx = {
     display: 'flex',
     justifyContent: 'center',
-    alignItems: 'center',
     width: '100%',
-  };
-
-  // Без px — только maxWidth + центрирование
-  const centeredTextBlockSx = {
-    width: '100%',
-    maxWidth: 720,
-    mx: 'auto',
-    textAlign: 'center',
-    display: 'flex',
-    flexDirection: 'column',
-    alignItems: 'center',
-    gap: 0.5,
-  };
-
-  const gridSectionSx = {
-    width: '100%',
-    maxWidth: LAYOUT_MAX_WIDTH,
-    mx: 'auto',
-    justifyContent: 'center',
-  };
-
-  const actionRowSx = {
-    width: '100%',
-    maxWidth: FIELD_MAX_WIDTH,
-    mx: 'auto',
-    display: 'flex',
-    justifyContent: 'center',
-  };
-
-  const roleCardWrapperSx = {
-    display: 'flex',
-    justifyContent: 'center',
-    width: '100%',
-    maxWidth: FIELD_MAX_WIDTH,
-    height: '100%',
   };
 
   const phoneDigits = formValues.phone.replace(/\D/g, '');
@@ -380,7 +337,8 @@ export default function OnboardingPage() {
             pb: { xs: 6, md: 10 },
           }}
       >
-        <Container maxWidth='lg' sx={{ position: 'relative' }}>
+        {/* убираем внутренние отступы контейнера, всё контролируем сами */}
+        <Container maxWidth='lg' disableGutters sx={{ position: 'relative' }}>
           {/* мягкие свечения */}
           <Box
               sx={{
@@ -409,7 +367,16 @@ export default function OnboardingPage() {
               }}
           />
 
-          <Box sx={{ position: 'relative', zIndex: 1 }}>
+          {/* центральная колонка страницы */}
+          <Box
+              sx={{
+                position: 'relative',
+                zIndex: 1,
+                maxWidth: LAYOUT_MAX_WIDTH,
+                mx: 'auto',
+                px: PAGE_PADDING_X,
+              }}
+          >
             <Stack spacing={2} textAlign='center' alignItems='center'>
               <Chip
                   label='Шаг 1 из 2'
@@ -432,19 +399,11 @@ export default function OnboardingPage() {
               </Typography>
             </Stack>
 
-            <Stack
-                spacing={{ xs: 3, md: 4 }}
-                sx={{
-                  mt: { xs: 3, md: 4 },
-                  px: { xs: 1.5, sm: 3, md: 2 }, // общий симметричный отступ
-                }}
-            >
-              {/* Блок контактов */}
+            <Stack spacing={{ xs: 3, md: 4 }} sx={{ mt: { xs: 3, md: 4 } }}>
+              {/* ШАГ 1 – плитка с контактами */}
               <Paper
                   elevation={0}
                   sx={{
-                    ...formSectionSx,
-                    p: { xs: 2.5, sm: 3, md: 4 }, // только Paper рулит внутренними отступами
                     borderRadius: 4,
                     border: '1px solid',
                     borderColor: (theme) =>
@@ -456,122 +415,144 @@ export default function OnboardingPage() {
                             ? 'rgba(13,16,23,0.85)'
                             : 'rgba(255,255,255,0.9)',
                     backdropFilter: 'blur(18px)',
+                    p: { xs: 2.5, sm: 3, md: 4 },
                   }}
               >
-                <Stack spacing={3}>
-                  <Box sx={centeredTextBlockSx}>
-                    <Typography variant='h6' fontWeight={700} textAlign='center'>
-                      Контактные данные
-                    </Typography>
-                    <Typography color='text.secondary' sx={{ mt: 0.5 }}>
-                      Эти данные будут видны только вашей команде.
-                    </Typography>
-                  </Box>
-
-                  <Grid
-                      container
-                      spacing={{ xs: 2, sm: 2.5, md: 3 }}
-                      alignItems='stretch'
-                      justifyContent='center'
-                      sx={gridSectionSx}
-                  >
-                    <Grid item xs={12} sm={6} sx={formItemWrapperSx}>
-                      <TextField
-                          label='Имя'
-                          fullWidth
-                          sx={fieldSx}
-                          value={formValues.firstName}
-                          onChange={(event) =>
-                              setFormValues((prev) => ({
-                                ...prev,
-                                firstName: event.target.value,
-                              }))
-                          }
-                      />
-                    </Grid>
-                    <Grid item xs={12} sm={6} sx={formItemWrapperSx}>
-                      <TextField
-                          label='Фамилия'
-                          fullWidth
-                          sx={fieldSx}
-                          value={formValues.lastName}
-                          onChange={(event) =>
-                              setFormValues((prev) => ({
-                                ...prev,
-                                lastName: event.target.value,
-                              }))
-                          }
-                      />
-                    </Grid>
-                    <Grid item xs={12} sm={6} sx={formItemWrapperSx}>
-                      <TextField
-                          label='Телефон'
-                          fullWidth
-                          sx={fieldSx}
-                          type='tel'
-                          value={formValues.phone}
-                          onChange={(event) =>
-                              setFormValues((prev) => ({
-                                ...prev,
-                                phone: normalizePhoneInput(event.target.value),
-                              }))
-                          }
-                          error={Boolean(showPhoneLengthError) || phoneFormatInvalid}
-                          helperText={phoneHelperText}
-                          placeholder='+7XXXXXXXXXX'
-                          inputProps={{ inputMode: 'tel' }}
-                      />
-                    </Grid>
-                    <Grid item xs={12} sm={6} sx={formItemWrapperSx}>
-                      <Autocomplete<RegionOption, false, false, false>
-                          value={currentRegion}
-                          options={RUSSIAN_REGIONS as RegionOption[]}
-                          fullWidth
-                          onChange={(_, newValue) =>
-                              setFormValues((prev) => ({
-                                ...prev,
-                                regionCode: newValue?.code ?? '',
-                              }))
-                          }
-                          getOptionLabel={(option) => `${option.code} - ${option.label}`}
-                          renderInput={(params) => (
-                              <TextField
-                                  {...params}
-                                  label='Регион'
-                                  fullWidth
-                                  sx={fieldSx}
-                              />
-                          )}
-                      />
-
-                    </Grid>
-                  </Grid>
-
-                  <Typography
-                      variant='body2'
-                      color='text.secondary'
-                      sx={centeredTextBlockSx}
-                  >
-                    Мы никому не передаём контакты без вашего согласия и
-                    используем их только для уведомлений.
-                  </Typography>
-
-                  {/* Кнопка "Далее" */}
-                  <Box sx={actionRowSx}>
-                    <Button
-                        variant='contained'
-                        size='large'
-                        onClick={handleContinue}
-                        disabled={!isFormValid}
-                        sx={{ minWidth: 180 }}
+                {/* внутренняя центральная колонка плитки */}
+                <Box
+                    sx={{
+                      width: '100%',
+                      maxWidth: FIELD_MAX_WIDTH,
+                      mx: 'auto',
+                    }}
+                >
+                  <Stack spacing={3}>
+                    <Box
+                        sx={{
+                          textAlign: 'center',
+                          display: 'flex',
+                          flexDirection: 'column',
+                          alignItems: 'center',
+                          gap: 0.5,
+                        }}
                     >
-                      Далее
-                    </Button>
-                  </Box>
-                </Stack>
+                      <Typography variant='h6' fontWeight={700} textAlign='center'>
+                        Контактные данные
+                      </Typography>
+                      <Typography color='text.secondary' sx={{ mt: 0.5 }}>
+                        Эти данные будут видны только вашей команде.
+                      </Typography>
+                    </Box>
+
+                    <Grid
+                        container
+                        spacing={2}
+                        direction='column'
+                        wrap='nowrap'
+                    >
+                      <Grid item sx={formItemWrapperSx}>
+                        <TextField
+                            label='Имя'
+                            fullWidth
+                            sx={fieldSx}
+                            value={formValues.firstName}
+                            onChange={(event) =>
+                                setFormValues((prev) => ({
+                                  ...prev,
+                                  firstName: event.target.value,
+                                }))
+                            }
+                        />
+                      </Grid>
+                      <Grid item sx={formItemWrapperSx}>
+                        <TextField
+                            label='Фамилия'
+                            fullWidth
+                            sx={fieldSx}
+                            value={formValues.lastName}
+                            onChange={(event) =>
+                                setFormValues((prev) => ({
+                                  ...prev,
+                                  lastName: event.target.value,
+                                }))
+                            }
+                        />
+                      </Grid>
+                      <Grid item sx={formItemWrapperSx}>
+                        <TextField
+                            label='Телефон'
+                            fullWidth
+                            sx={fieldSx}
+                            type='tel'
+                            value={formValues.phone}
+                            onChange={(event) =>
+                                setFormValues((prev) => ({
+                                  ...prev,
+                                  phone: normalizePhoneInput(event.target.value),
+                                }))
+                            }
+                            error={Boolean(showPhoneLengthError) || phoneFormatInvalid}
+                            helperText={phoneHelperText}
+                            placeholder='+7XXXXXXXXXX'
+                            inputProps={{ inputMode: 'tel' }}
+                        />
+                      </Grid>
+                      <Grid item sx={formItemWrapperSx}>
+                        <Autocomplete<RegionOption, false, false, false>
+                            value={currentRegion}
+                            options={RUSSIAN_REGIONS as RegionOption[]}
+                            fullWidth
+                            onChange={(_, newValue) =>
+                                setFormValues((prev) => ({
+                                  ...prev,
+                                  regionCode: newValue?.code ?? '',
+                                }))
+                            }
+                            getOptionLabel={(option) =>
+                                `${option.code} - ${option.label}`
+                            }
+                            renderInput={(params) => (
+                                <TextField
+                                    {...params}
+                                    label='Регион'
+                                    fullWidth
+                                    sx={fieldSx}
+                                />
+                            )}
+                        />
+                      </Grid>
+                    </Grid>
+
+                    <Typography
+                        variant='body2'
+                        color='text.secondary'
+                        sx={{ textAlign: 'center' }}
+                    >
+                      Мы никому не передаём контакты без вашего согласия и
+                      используем их только для уведомлений.
+                    </Typography>
+
+                    <Box
+                        sx={{
+                          display: 'flex',
+                          justifyContent: 'center',
+                        }}
+                    >
+                      <Button
+                          variant='contained'
+                          size='large'
+                          onClick={handleContinue}
+                          disabled={!isFormValid}
+                          sx={{ minWidth: 180 }}
+                      >
+                        Далее
+                      </Button>
+                    </Box>
+                  </Stack>
+                </Box>
               </Paper>
 
-              {/* Шаг выбора роли */}
+              {/* ШАГ 2 – выбор роли */}
               {roleStepVisible && (
                   <Stack
                       spacing={3}
@@ -579,10 +560,6 @@ export default function OnboardingPage() {
                       ref={roleSectionRef}
                       sx={{
                         alignItems: 'center',
-                        width: '100%',
-                        maxWidth: LAYOUT_MAX_WIDTH,
-                        mx: 'auto',
-                        mt: { xs: 1, md: 0 },
                       }}
                   >
                     <Chip
@@ -594,56 +571,63 @@ export default function OnboardingPage() {
                           letterSpacing: 1,
                         }}
                     />
-                    <Box sx={centeredTextBlockSx}>
-                      <Typography color='text.secondary'>
-                        Выберите сценарий, чтобы мы подготовили нужные панели и
-                        доступы.
-                      </Typography>
+                    <Typography color='text.secondary'>
+                      Выберите сценарий, чтобы мы подготовили нужные панели и
+                      доступы.
+                    </Typography>
+
+                    {/* общий контейнер для двух плиток, строго по центру */}
+                    <Box
+                        sx={{
+                          width: '100%',
+                          maxWidth: 2 * FIELD_MAX_WIDTH + 32, // две карты + примерный gap
+                          mx: 'auto',
+                        }}
+                    >
+                      <Grid
+                          container
+                          spacing={2.5}
+                          justifyContent='center'
+                          alignItems='stretch'
+                      >
+                        {ROLE_OPTIONS.map((option) => (
+                            <Grid
+                                item
+                                xs={12}
+                                sm={6}
+                                key={option.type}
+                                sx={{
+                                  display: 'flex',
+                                  justifyContent: 'center',
+                                }}
+                            >
+                              <Box
+                                  sx={{
+                                    width: '100%',
+                                    maxWidth: FIELD_MAX_WIDTH,
+                                  }}
+                              >
+                                <RoleCard
+                                    title={option.title}
+                                    description={option.description}
+                                    helperText={option.helperText}
+                                    onSelect={() => handleSelect(option.type)}
+                                    disabled={!isFormValid || Boolean(savingType)}
+                                    selected={selectedType === option.type}
+                                    icon={option.icon}
+                                    actionLabel={
+                                      savingType === option.type
+                                          ? 'Сохраняем...'
+                                          : 'Выбрать'
+                                    }
+                                />
+                              </Box>
+                            </Grid>
+                        ))}
+                      </Grid>
                     </Box>
-                    <Grid
-                        container
-                        spacing={{ xs: 2, sm: 2.5, md: 3 }}
-                        justifyContent='center'
-                        alignItems='stretch'
-                        sx={gridSectionSx}
-                    >
-                      {ROLE_OPTIONS.map((option) => (
-                          <Grid
-                              item
-                              xs={12}
-                              sm={6}
-                              md={6}
-                              key={option.type}
-                              sx={{
-                                display: 'flex',
-                                justifyContent: 'center',
-                                width: '100%',
-                              }}
-                          >
-                            <Box sx={roleCardWrapperSx}>
-                              <RoleCard
-                                  title={option.title}
-                                  description={option.description}
-                                  helperText={option.helperText}
-                                  onSelect={() => handleSelect(option.type)}
-                                  disabled={!isFormValid || Boolean(savingType)}
-                                  selected={selectedType === option.type}
-                                  icon={option.icon}
-                                  actionLabel={
-                                    savingType === option.type
-                                        ? 'Сохраняем...'
-                                        : 'Выбрать'
-                                  }
-                              />
-                            </Box>
-                          </Grid>
-                      ))}
-                    </Grid>
-                    <Typography
-                        variant='body2'
-                        color='text.secondary'
-                        sx={centeredTextBlockSx}
-                    >
+
+                    <Typography variant='body2' color='text.secondary'>
                       Исполнители работают с задачами напрямую, а заказчики
                       управляют командами и бюджетами.
                     </Typography>
@@ -655,7 +639,6 @@ export default function OnboardingPage() {
             <Paper
                 variant='outlined'
                 sx={{
-                  ...formSectionSx,
                   mt: 5,
                   borderRadius: 3,
                   p: { xs: 2.5, md: 3 },
