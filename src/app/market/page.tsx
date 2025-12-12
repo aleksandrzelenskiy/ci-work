@@ -1,7 +1,7 @@
 // src/app/market/page.tsx
 'use client';
 
-import { useEffect, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import dayjs, { type Dayjs } from 'dayjs';
 import 'dayjs/locale/ru';
 import {
@@ -34,6 +34,7 @@ import {
     TableHead,
     TableRow,
     MenuItem,
+    Autocomplete,
 } from '@mui/material';
 import { DatePicker } from '@mui/x-date-pickers/DatePicker';
 import { LocalizationProvider } from '@mui/x-date-pickers/LocalizationProvider';
@@ -46,6 +47,7 @@ import ArrowOutwardIcon from '@mui/icons-material/ArrowOutward';
 import SendIcon from '@mui/icons-material/Send';
 import StarRoundedIcon from '@mui/icons-material/StarRounded';
 import CloseIcon from '@mui/icons-material/Close';
+import CurrencyRubleRounded from '@mui/icons-material/CurrencyRubleRounded';
 import InfoOutlinedIcon from '@mui/icons-material/InfoOutlined';
 import ExpandMoreIcon from '@mui/icons-material/ExpandMore';
 import OpenInFullIcon from '@mui/icons-material/OpenInFull';
@@ -53,6 +55,7 @@ import CloseFullscreenIcon from '@mui/icons-material/CloseFullscreen';
 import TocOutlinedIcon from '@mui/icons-material/TocOutlined';
 import LocationOnIcon from '@mui/icons-material/LocationOn';
 import FilterListIcon from '@mui/icons-material/FilterList';
+import FilterListOffIcon from '@mui/icons-material/FilterListOff';
 import type { PublicTaskStatus, TaskVisibility } from '@/app/types/taskTypes';
 import type { PriorityLevel, TaskType } from '@/app/types/taskTypes';
 import type { TaskApplication } from '@/app/types/application';
@@ -101,6 +104,13 @@ type UserContext = {
     name?: string;
     email?: string;
     user?: { _id?: string };
+};
+
+type BudgetDisplay = {
+    label: string;
+    amount: string | null;
+    currencyCode: string;
+    isRuble: boolean;
 };
 
 const glassPaperStyles = (theme: { palette: { mode: string } }) => ({
@@ -168,12 +178,22 @@ const CardItem = styled(Paper)(({ theme }) => ({
     }),
 }));
 
-function formatBudget(budget?: number, currency?: string) {
-    if (!budget || budget <= 0) return 'Бюджет не указан';
-    const fmt = new Intl.NumberFormat('ru-RU', { maximumFractionDigits: 0 });
+function getBudgetDisplay(budget?: number, currency?: string): BudgetDisplay {
     const code = currency || 'RUB';
-    const displayCode = code === 'RUB' ? '₽' : code;
-    return `${fmt.format(budget)} ${displayCode}`;
+    const isRuble = code === 'RUB';
+
+    if (!budget || budget <= 0) {
+        return { label: 'Бюджет не указан', amount: null, currencyCode: isRuble ? '₽' : code, isRuble };
+    }
+
+    const fmt = new Intl.NumberFormat('ru-RU', { maximumFractionDigits: 0 });
+
+    return {
+        label: `${fmt.format(budget)} ${isRuble ? '₽' : code}`,
+        amount: fmt.format(budget),
+        currencyCode: isRuble ? '₽' : code,
+        isRuble,
+    };
 }
 
 function getRegionLabel(code?: string) {
@@ -236,6 +256,50 @@ export default function MarketplacePage() {
     });
     const [userContext, setUserContext] = useState<UserContext | null>(null);
     const [contextError, setContextError] = useState<string | null>(null);
+
+    const organizationOptions = useMemo(() => {
+        const values = tasks
+            .flatMap((task) => [task.orgName, task.orgSlug, task.orgId].filter(Boolean))
+            .map((value) => value?.trim() || '')
+            .filter(Boolean);
+        return Array.from(new Set(values));
+    }, [tasks]);
+
+    const projectOptions = useMemo(() => {
+        const values = tasks
+            .flatMap((task) => [task.project?.name, task.project?.key].filter(Boolean))
+            .map((value) => value?.trim() || '')
+            .filter(Boolean);
+        return Array.from(new Set(values));
+    }, [tasks]);
+
+    const availableStatuses = useMemo(
+        () =>
+            Array.from(
+                new Set(
+                    tasks
+                        .map((task) => task.publicStatus)
+                        .filter((status): status is PublicTaskStatus => Boolean(status))
+                )
+            ),
+        [tasks]
+    );
+
+    const organizationAutocompleteOptions = useMemo(
+        () =>
+            filters.organization && !organizationOptions.includes(filters.organization)
+                ? [...organizationOptions, filters.organization]
+                : organizationOptions,
+        [filters.organization, organizationOptions]
+    );
+
+    const projectAutocompleteOptions = useMemo(
+        () =>
+            filters.project && !projectOptions.includes(filters.project)
+                ? [...projectOptions, filters.project]
+                : projectOptions,
+        [filters.project, projectOptions]
+    );
 
     const handleOpenMapInfo = (task: MarketPublicTask) => {
         setMapOpen(false);
@@ -360,6 +424,12 @@ export default function MarketplacePage() {
         }
     }, [selectedTask]);
 
+    useEffect(() => {
+        if (filters.status && !availableStatuses.includes(filters.status)) {
+            setFilters((prev) => ({ ...prev, status: '' }));
+        }
+    }, [availableStatuses, filters.status]);
+
     const includesQuery = (value: string | undefined | null, query: string) =>
         value?.toLowerCase().includes(query.toLowerCase()) ?? false;
 
@@ -460,6 +530,7 @@ export default function MarketplacePage() {
     };
 
     const hasDetailsWorkItems = Boolean(detailsTask?.workItems && detailsTask.workItems.length > 0);
+    const detailsBudget = getBudgetDisplay(detailsTask?.budget, detailsTask?.currency);
 
     const isFiltersApplied =
         Boolean(filters.organization) ||
@@ -708,6 +779,7 @@ export default function MarketplacePage() {
                                     Boolean(task.myApplication && task.myApplication.status !== 'withdrawn');
                                 const isCanceling =
                                     Boolean(cancelLoadingId && task.myApplication?._id === cancelLoadingId);
+                                const budgetDisplay = getBudgetDisplay(task.budget, task.currency);
 
                                 return (
                                     <Grid item xs={12} md={6} key={task._id}>
@@ -767,9 +839,36 @@ export default function MarketplacePage() {
                                                         <Typography variant="caption" color="text.secondary">
                                                             Планируемый бюджет
                                                         </Typography>
-                                                        <Typography variant="subtitle1" fontWeight={700}>
-                                                            {formatBudget(task.budget, task.currency)}
-                                                        </Typography>
+                                                        {budgetDisplay.amount ? (
+                                                            <Box
+                                                                sx={{
+                                                                    display: 'inline-flex',
+                                                                    alignItems: 'center',
+                                                                    gap: 0.75,
+                                                                }}
+                                                            >
+                                                                <Typography
+                                                                    variant="h5"
+                                                                    fontWeight={800}
+                                                                    sx={{ fontSize: { xs: '1.35rem', sm: '1.5rem' }, lineHeight: 1.1 }}
+                                                                >
+                                                                    {budgetDisplay.amount}
+                                                                </Typography>
+                                                                {budgetDisplay.isRuble ? (
+                                                                    <CurrencyRubleRounded
+                                                                        sx={{ fontSize: { xs: '1.25rem', sm: '1.4rem' } }}
+                                                                    />
+                                                                ) : (
+                                                                    <Typography variant="subtitle1" fontWeight={700}>
+                                                                        {budgetDisplay.currencyCode}
+                                                                    </Typography>
+                                                                )}
+                                                            </Box>
+                                                        ) : (
+                                                            <Typography variant="subtitle1" fontWeight={600}>
+                                                                {budgetDisplay.label}
+                                                            </Typography>
+                                                        )}
                                                     </Stack>
                                                 </Stack>
                                                 <Typography color="text.secondary" sx={{ lineHeight: 1.5 }}>
@@ -881,19 +980,45 @@ export default function MarketplacePage() {
                                 </Typography>
                             )}
                         </Stack>
-                        <TextField
-                            label="Организация"
-                            value={filters.organization}
-                            onChange={(e) =>
-                                setFilters((prev) => ({ ...prev, organization: e.target.value }))
+                        <Autocomplete
+                            options={organizationAutocompleteOptions}
+                            value={filters.organization || null}
+                            onChange={(_, newValue) =>
+                                setFilters((prev) => ({ ...prev, organization: newValue || '' }))
                             }
+                            renderInput={(params) => (
+                                <TextField
+                                    {...params}
+                                    label="Организация"
+                                    placeholder={
+                                        organizationOptions.length
+                                            ? 'Выберите организацию'
+                                            : 'Нет данных из опубликованных задач'
+                                    }
+                                />
+                            )}
                             fullWidth
+                            clearOnEscape
                         />
-                        <TextField
-                            label="Проект"
-                            value={filters.project}
-                            onChange={(e) => setFilters((prev) => ({ ...prev, project: e.target.value }))}
+                        <Autocomplete
+                            options={projectAutocompleteOptions}
+                            value={filters.project || null}
+                            onChange={(_, newValue) =>
+                                setFilters((prev) => ({ ...prev, project: newValue || '' }))
+                            }
+                            renderInput={(params) => (
+                                <TextField
+                                    {...params}
+                                    label="Проект"
+                                    placeholder={
+                                        projectOptions.length
+                                            ? 'Выберите проект'
+                                            : 'Нет данных из опубликованных задач'
+                                    }
+                                />
+                            )}
                             fullWidth
+                            clearOnEscape
                         />
                         <TextField
                             select
@@ -908,7 +1033,7 @@ export default function MarketplacePage() {
                             fullWidth
                         >
                             <MenuItem value="">Все статусы</MenuItem>
-                            {(Object.keys(statusChipMap) as PublicTaskStatus[]).map((status) => (
+                            {availableStatuses.map((status) => (
                                 <MenuItem key={status} value={status}>
                                     {statusChipMap[status]?.label}
                                 </MenuItem>
@@ -944,8 +1069,13 @@ export default function MarketplacePage() {
                     </Stack>
                 </DialogContent>
                 <DialogActions sx={{ px: 3, py: 2 }}>
-                    <Button color="secondary" onClick={resetFilters}>
-                        Сбросить и закрыть
+                    <Button
+                        color="secondary"
+                        variant="outlined"
+                        startIcon={<FilterListOffIcon />}
+                        onClick={resetFilters}
+                    >
+                        Сбросить
                     </Button>
                     <Button variant="contained" onClick={() => setFiltersDialogOpen(false)}>
                         Закрыть
@@ -1211,7 +1341,27 @@ export default function MarketplacePage() {
                                         </Typography>
                                         <Typography variant="body1">
                                             <strong>Плановый бюджет:</strong>{' '}
-                                            {formatBudget(detailsTask?.budget, detailsTask?.currency)}
+                                            {detailsBudget.amount ? (
+                                                <Box
+                                                    component="span"
+                                                    sx={{
+                                                        display: 'inline-flex',
+                                                        alignItems: 'center',
+                                                        gap: 0.5,
+                                                        fontWeight: 700,
+                                                        fontSize: '1.1rem',
+                                                    }}
+                                                >
+                                                    <span>{detailsBudget.amount}</span>
+                                                    {detailsBudget.isRuble ? (
+                                                        <CurrencyRubleRounded sx={{ fontSize: '1.2rem' }} />
+                                                    ) : (
+                                                        <span>{detailsBudget.currencyCode}</span>
+                                                    )}
+                                                </Box>
+                                            ) : (
+                                                detailsBudget.label
+                                            )}
                                         </Typography>
                                         <Typography variant="body1">
                                             <strong>Тип задачи:</strong> {getTaskTypeLabel(detailsTask?.taskType)}
