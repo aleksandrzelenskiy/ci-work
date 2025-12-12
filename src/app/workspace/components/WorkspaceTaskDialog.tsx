@@ -27,6 +27,9 @@ import {
     Alert,
     Drawer,
     Divider,
+    Collapse,
+    Link,
+    Slider,
 } from '@mui/material';
 import Autocomplete, { createFilterOptions } from '@mui/material/Autocomplete';
 import { DatePicker, LocalizationProvider } from '@mui/x-date-pickers';
@@ -349,6 +352,7 @@ export default function WorkspaceTaskDialog({
     const [totalCost, setTotalCost] = React.useState<string>('');
     const [workItems, setWorkItems] = React.useState<ParsedWorkItem[]>([]);
     const [contractorPayment, setContractorPayment] = React.useState<string>('');
+    const [percentEditorOpen, setPercentEditorOpen] = React.useState(false);
 
     const [projectMeta, setProjectMeta] = React.useState<{ regionCode?: string; operator?: string } | null>(null);
     const isT2Operator = React.useMemo(() => projectMeta?.operator === '250020', [projectMeta?.operator]);
@@ -1132,6 +1136,46 @@ export default function WorkspaceTaskDialog({
         [relatedTasksOptions, relatedTasksSelected, excludeCurrentTaskId]
     );
 
+    const totalCostNumber = React.useMemo(
+        () => parseNumberOrUndefined(totalCost) ?? 0,
+        [totalCost]
+    );
+
+    const contractorPaymentNumber = React.useMemo(
+        () => parseNumberOrUndefined(contractorPayment) ?? 0,
+        [contractorPayment]
+    );
+
+    const contractorPercent = React.useMemo(() => {
+        if (totalCostNumber <= 0 || contractorPaymentNumber < 0) return 0;
+        const percent = (contractorPaymentNumber / totalCostNumber) * 100;
+        return Number.isFinite(percent) ? percent : 0;
+    }, [contractorPaymentNumber, totalCostNumber]);
+
+    const handlePercentUpdate = React.useCallback(
+        (nextPercent: number) => {
+            if (totalCostNumber <= 0) return;
+            const safePercent = Math.max(0, nextPercent);
+            const nextPayment = (totalCostNumber * safePercent) / 100;
+            setContractorPayment(nextPayment ? nextPayment.toFixed(2) : '0');
+        },
+        [totalCostNumber]
+    );
+
+    const handlePercentInputChange = React.useCallback(
+        (raw: string) => {
+            const trimmed = raw.trim();
+            if (!trimmed) {
+                setContractorPayment('');
+                return;
+            }
+            const parsed = Number(trimmed.replace(',', '.'));
+            if (!Number.isFinite(parsed)) return;
+            handlePercentUpdate(parsed);
+        },
+        [handlePercentUpdate]
+    );
+
     const hasAtLeastOneBsNumber = !!taskBsNumber;
 
     async function handleCreate() {
@@ -1700,16 +1744,78 @@ export default function WorkspaceTaskDialog({
                                 sx={glassInputSx}
                             />
 
-                            <TextField
-                                label="Оплата подрядчику, ₽"
-                                type="number"
-                                value={contractorPayment}
-                                onChange={(e) => setContractorPayment(e.target.value)}
-                                fullWidth
-                                inputProps={{ min: 0, step: '0.01' }}
-                                helperText="Сумма выплаты исполнителю за задачу"
-                                sx={glassInputSx}
-                            />
+                            <Box>
+                                <TextField
+                                    label="Оплата подрядчику, ₽"
+                                    type="number"
+                                    value={contractorPayment}
+                                    onChange={(e) => setContractorPayment(e.target.value)}
+                                    fullWidth
+                                    inputProps={{ min: 0, step: '0.01' }}
+                                    helperText="Сумма выплаты исполнителю за задачу"
+                                    sx={glassInputSx}
+                                />
+                                <Typography variant="body2" sx={{ mt: 0.5 }}>
+                                    Процент:{' '}
+                                    {totalCostNumber > 0 ? (
+                                        <Link
+                                            component="button"
+                                            type="button"
+                                            underline="hover"
+                                            onClick={() => setPercentEditorOpen((prev) => !prev)}
+                                            sx={{ fontWeight: 600 }}
+                                        >
+                                            {contractorPercent.toFixed(1)}%
+                                        </Link>
+                                    ) : (
+                                        'Введите стоимость, чтобы рассчитать процент'
+                                    )}
+                                </Typography>
+                                <Collapse in={percentEditorOpen}>
+                                    <Box
+                                        sx={{
+                                            mt: 1,
+                                            p: 2,
+                                            borderRadius: 2,
+                                            border: '1px solid rgba(148,163,184,0.35)',
+                                            backgroundColor: 'rgba(241,245,249,0.5)',
+                                        }}
+                                    >
+                                        <Stack spacing={1.5}>
+                                            <TextField
+                                                label="Процент оплаты"
+                                                type="number"
+                                                value={totalCostNumber > 0 ? contractorPercent.toFixed(2) : ''}
+                                                onChange={(e) => handlePercentInputChange(e.target.value)}
+                                                fullWidth
+                                                inputProps={{ min: 0, max: 200, step: '0.1' }}
+                                                disabled={totalCostNumber <= 0}
+                                            />
+                                            <Slider
+                                                value={
+                                                    totalCostNumber > 0
+                                                        ? Math.min(Math.max(contractorPercent, 0), 200)
+                                                        : 0
+                                                }
+                                                onChange={(_e, value) =>
+                                                    handlePercentUpdate(
+                                                        Array.isArray(value) ? value[0] ?? 0 : value ?? 0
+                                                    )
+                                                }
+                                                min={0}
+                                                max={200}
+                                                step={1}
+                                                disabled={totalCostNumber <= 0}
+                                                valueLabelDisplay="auto"
+                                            />
+                                            <Typography variant="caption" color="text.secondary">
+                                                Измените процент, чтобы автоматически пересчитать оплату от поля
+                                                «Стоимость».
+                                            </Typography>
+                                        </Stack>
+                                    </Box>
+                                </Collapse>
+                            </Box>
 
                             <Autocomplete<MemberOption>
                                 options={members}
