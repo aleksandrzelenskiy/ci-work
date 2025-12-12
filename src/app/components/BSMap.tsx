@@ -358,10 +358,13 @@ export default function BSMap(): React.ReactElement {
 
     const regionFilteredStations = React.useMemo(() => {
         return stations.filter((station) => {
-            if (selectedRegion.code === ALL_REGIONS_OPTION.code) {
+            if (normalizeOperator(station.op) !== operator) {
                 return false;
             }
-            return normalizeOperator(station.op) === operator && station.region === selectedRegion.code;
+            if (selectedRegion.code === ALL_REGIONS_OPTION.code) {
+                return true;
+            }
+            return station.region === selectedRegion.code;
         });
     }, [stations, selectedRegion, operator]);
 

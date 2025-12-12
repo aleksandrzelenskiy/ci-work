@@ -62,7 +62,7 @@ function resolveCollectionName(region?: string | null, operator?: string | null)
     const operatorCode = operator?.toString().trim();
     if (regionCode && operatorCode) {
         const entry = BASE_STATION_COLLECTIONS.find(
-            (item) => item.regionCode === regionCode && item.operator === operatorCode
+            (item) => item.region === regionCode && item.operator === operatorCode
         );
         if (entry?.collection) return entry.collection;
     }
@@ -471,7 +471,7 @@ export async function PUT(
             const normalizedBs = normalizeBsNumber(newBsNumber);
             const bsQuery: Record<string, unknown> = { name: normalizedBs };
             if (operatorCode) bsQuery.operatorCode = operatorCode;
-            if (regionCode) bsQuery.regionCode = regionCode;
+            if (regionCode) bsQuery.region = regionCode;
 
             const collectionName = resolveCollectionName(regionCode, operatorCode);
             const StationModel = getBsCoordinateModel(collectionName);
@@ -778,7 +778,7 @@ export async function PUT(
                     bsAddress: st.address ?? finalBsAddress,
                     lat: ensureLat,
                     lon: ensureLon,
-                    regionCode,
+                    region: regionCode,
                     operatorCode,
                 });
             } catch (syncErr) {
@@ -789,7 +789,7 @@ export async function PUT(
         // Синхронизация с коллекцией координат региона / оператора
         try {
             await syncBsCoordsForProject({
-                regionCode,
+                region: regionCode,
                 operatorCode,
                 bsNumber:
                     Array.isArray(finalBsLocation) && finalBsLocation.length > 1

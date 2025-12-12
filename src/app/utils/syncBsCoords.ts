@@ -10,7 +10,7 @@ export interface BsLocationItem {
 }
 
 export interface SyncBsCoordsParams {
-    regionCode?: string | null;
+    region?: string | null;
     operatorCode?: string | null;
     bsNumber?: string | null;
     bsAddress?: string | null;
@@ -51,25 +51,25 @@ function coordsEqual(a?: number, b?: number): boolean {
  *  - если есть и отсутствуют координаты или адрес → дополняет
  *  - если координаты или адрес отличаются → обновляет
  */
-function resolveCollectionName(regionCode?: string | null, operatorCode?: string | null): string | null {
-    const region = regionCode?.toString().trim();
+function resolveCollectionName(region?: string | null, operatorCode?: string | null): string | null {
+    const normalizedRegion = region?.toString().trim();
     const operator = operatorCode?.toString().trim();
-    if (!region || !operator) return null;
+    if (!normalizedRegion || !operator) return null;
 
     const mapping = BASE_STATION_COLLECTIONS.find(
-        (entry) => entry.regionCode === region && entry.operator === operator
+        (entry) => entry.region === normalizedRegion && entry.operator === operator
     );
 
     if (mapping?.collection) {
         return mapping.collection;
     }
 
-    return `${region}-${operator.toLowerCase()}-bs-coords`;
+    return `${normalizedRegion}-${operator.toLowerCase()}-bs-coords`;
 }
 
 export async function syncBsCoordsForProject(params: SyncBsCoordsParams): Promise<void> {
     const {
-        regionCode,
+        region,
         operatorCode,
         bsNumber,
         bsAddress,
@@ -78,10 +78,10 @@ export async function syncBsCoordsForProject(params: SyncBsCoordsParams): Promis
         lon,
     } = params;
 
-    const region = regionCode?.toString().trim();
+    const normalizedRegion = region?.toString().trim();
     const op = operatorCode?.toString().trim();
 
-    if (!region || !op) {
+    if (!normalizedRegion || !op) {
         // нет привязки к региону/оператору
         return;
     }
@@ -93,7 +93,7 @@ export async function syncBsCoordsForProject(params: SyncBsCoordsParams): Promis
     }
 
     // пример: "38-t2-bs-coords"
-    const collectionName = resolveCollectionName(region, op);
+    const collectionName = resolveCollectionName(normalizedRegion, op);
     if (!collectionName) return;
     const col = db.collection(collectionName);
 
@@ -185,7 +185,7 @@ export async function syncBsCoordsForProject(params: SyncBsCoordsParams): Promis
                 // БС нет в коллекции → добавляем
                 const doc: Record<string, unknown> = {
                     name,
-                    region,
+                    region: normalizedRegion,
                     op,
                     createdAt: new Date(),
                     updatedAt: new Date(),
@@ -239,7 +239,7 @@ export async function syncBsCoordsForProject(params: SyncBsCoordsParams): Promis
                 await col.updateOne({ _id: existing._id }, { $set: update });
             }
         } catch (err) {
-            console.error('[syncBsCoordsForProject] error for', { region, op, name }, err);
+            console.error('[syncBsCoordsForProject] error for', { region: normalizedRegion, op, name }, err);
         }
     }
 }

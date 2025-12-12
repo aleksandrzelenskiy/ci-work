@@ -426,7 +426,7 @@ export async function POST(
                     bsAddress: st.address ?? finalBsAddress,
                     lat: ensureLat,
                     lon: ensureLon,
-                    regionCode: rel.projectDoc.regionCode,
+                    region: rel.projectDoc.regionCode,
                     operatorCode: rel.projectDoc.operator,
                 });
             } catch (syncErr) {
@@ -437,7 +437,7 @@ export async function POST(
         // Синхронизация с коллекцией координат региона / оператора
         try {
             await syncBsCoordsForProject({
-                regionCode: rel.projectDoc.regionCode,
+                region: rel.projectDoc.regionCode,
                 operatorCode: rel.projectDoc.operator,
                 bsNumber:
                     Array.isArray(normalizedBsLocation) && normalizedBsLocation.length > 1

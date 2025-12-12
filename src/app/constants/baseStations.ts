@@ -1,12 +1,12 @@
 export type BaseStationCollection = {
-    regionCode: string;
+    region: string;
     operator: string;
     collection: string;
 };
 
 export const BASE_STATION_COLLECTIONS: readonly BaseStationCollection[] = [
     {
-        regionCode: '38',
+        region: '38',
         operator: '250020',
         collection: '38-t2-bs-coords',
     },

@@ -17,7 +17,6 @@ export interface BsCoordinate extends Document {
     coordKey?: string;
     source?: string;
     region?: string;
-    regionCode?: string;
     op?: string;
     operatorCode?: string;
     mcc?: string;
@@ -88,7 +87,6 @@ const schema = new Schema<BsCoordinate>(
         coordKey: { type: String, index: true, unique: true, sparse: true },
         source: { type: String, default: 'kmz' },
         region: { type: String, index: true },
-        regionCode: { type: String, index: true },
         op: { type: String, index: true },
         operatorCode: { type: String, index: true },
         mcc: { type: String },
@@ -111,10 +109,9 @@ schema.pre('save', function (next) {
         this.name = normalizeBsNumber(this.name);
     }
 
-    const region = this.regionCode || this.region;
-    if (region) {
-        this.region = region;
-        this.regionCode = region;
+    if (typeof this.region === 'string') {
+        const trimmedRegion = this.region.trim();
+        this.region = trimmedRegion || undefined;
     }
 
     const opCode = normalizeOperatorCode(this.operatorCode || this.op);
@@ -152,7 +149,7 @@ type StationSyncPayload = {
     bsAddress?: string;
     lat?: number | null;
     lon?: number | null;
-    regionCode?: string | null;
+    region?: string | null;
     operatorCode?: string | null;
 };
 
@@ -163,7 +160,7 @@ function sanitizeCoordinate(value?: number | null): number | undefined {
 }
 
 export async function ensureIrkutskT2Station(payload: StationSyncPayload): Promise<void> {
-    if (!isIrkutskT2(payload.regionCode, payload.operatorCode)) return;
+    if (!isIrkutskT2(payload.region, payload.operatorCode)) return;
     const normalized = normalizeBsNumber(payload.bsNumber);
     if (!normalized) return;
 
@@ -180,7 +177,6 @@ export async function ensureIrkutskT2Station(payload: StationSyncPayload): Promi
             lat,
             lon,
             region: IRKUTSK_REGION_CODE,
-            regionCode: IRKUTSK_REGION_CODE,
             op: 't2',
             operatorCode: T2_OPERATOR_CODE,
             mcc: '250',
@@ -202,10 +198,6 @@ export async function ensureIrkutskT2Station(payload: StationSyncPayload): Promi
     }
     if (typeof lon === 'number' && typeof match.lon !== 'number') {
         match.lon = lon;
-        dirty = true;
-    }
-    if (!match.regionCode) {
-        match.regionCode = IRKUTSK_REGION_CODE;
         dirty = true;
     }
     if (!match.region) {

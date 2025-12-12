@@ -38,9 +38,7 @@ const findCollectionName = (region?: string | null, operator?: string | null): s
     if (!normalizedOperator) return null;
 
     const entry = BASE_STATION_COLLECTIONS.find(
-        (item) =>
-            item.regionCode === normalizedRegion &&
-            item.operator === normalizedOperator
+        (item) => item.region === normalizedRegion && item.operator === normalizedOperator
     );
 
     return entry?.collection ?? null;

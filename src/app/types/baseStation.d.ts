@@ -11,7 +11,6 @@ export interface IBaseStation extends Document {
   coordKey?: string;
   source?: string;
   region?: string;
-  regionCode?: string;
   op?: string;
   operatorCode?: string;
   mcc?: string;
