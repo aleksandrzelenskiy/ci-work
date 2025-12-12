@@ -51,20 +51,15 @@ import {
 import OpenInFullIcon from '@mui/icons-material/OpenInFull';
 import CloseFullscreenIcon from '@mui/icons-material/CloseFullscreen';
 import LinkOutlinedIcon from '@mui/icons-material/LinkOutlined';
-import { FINANCE_CONFIG } from '@/config/finance';
 import { getPriorityIcon, normalizePriority } from '@/utils/priorityIcons';
 import TaskGeoLocation from '@/app/workspace/components/TaskGeoLocation';
 import { getStatusColor } from '@/utils/statusColors';
 import { getStatusLabel, normalizeStatusTitle } from '@/utils/statusLabels';
 import TaskComments, { type TaskComment } from '@/app/components/TaskComments';
-import { fetchUserContext, resolveRoleFromContext } from '@/app/utils/userContext';
-import type { EffectiveOrgRole } from '@/app/types/roles';
-import { isAdminRole, isExecutorRole } from '@/app/utils/roleGuards';
+import { fetchUserContext } from '@/app/utils/userContext';
 import type { Task, WorkItem, TaskEvent } from '@/app/types/taskTypes';
 import { extractFileNameFromUrl, isDocumentUrl } from '@/utils/taskFiles';
 import { normalizeRelatedTasks } from '@/app/utils/relatedTasks';
-
-type LoadedRole = EffectiveOrgRole | null;
 
 const CardItem = styled(Paper)(({ theme }) => ({
     backgroundColor: '#fff',
@@ -91,7 +86,6 @@ export default function TaskDetailPage() {
     const [task, setTask] = React.useState<Task | null>(null);
     const [loading, setLoading] = React.useState(true);
     const [error, setError] = React.useState<string | null>(null);
-    const [userRole, setUserRole] = React.useState<LoadedRole>(null);
     const [currentUserId, setCurrentUserId] = React.useState<string>('');
     const [profileType, setProfileType] = React.useState<'employer' | 'contractor' | undefined>(undefined);
     const [workItemsFullScreen, setWorkItemsFullScreen] = React.useState(false);
@@ -103,10 +97,6 @@ export default function TaskDetailPage() {
     const handleCompleteClick = React.useCallback(() => {
         // TODO: implement completion action
     }, []);
-
-    const roleLoaded = userRole !== null;
-    const isExecutor = isExecutorRole(userRole);
-    const isAdmin = isAdminRole(userRole);
 
     const formatDate = (v?: string | Date) => {
         if (!v) return '—';
@@ -134,53 +124,8 @@ export default function TaskDetailPage() {
     };
 
     const renderCost = () => {
-        if (typeof task?.totalCost !== 'number') return '—';
-
-        const total = task.totalCost;
-        const commission = total * FINANCE_CONFIG.COMMISSION_PERCENT;
-        const sumToPay = total * FINANCE_CONFIG.SUM_TO_PAY_PERCENT;
-        const tax = (total * (1 - FINANCE_CONFIG.COMMISSION_PERCENT)) * FINANCE_CONFIG.TAX_PERCENT_OF_REMAINING;
-        const profit = total - (commission + sumToPay + tax);
-
-        if (!roleLoaded) return formatRuble(total);
-        if (isExecutor) return formatRuble(sumToPay);
-        if (isAdmin) {
-            return (
-                <Tooltip
-                    title={
-                        <Box sx={{ p: 1 }}>
-                            <Typography variant="body2">
-                                <strong>Комиссия:</strong> {formatRuble(commission)}
-                            </Typography>
-                            <Typography variant="body2">
-                                <strong>Налоги:</strong> {formatRuble(tax)}
-                            </Typography>
-                            <Typography variant="body2">
-                                <strong>Выплата исполнителю:</strong> {formatRuble(sumToPay)}
-                            </Typography>
-                            <Typography variant="body2">
-                                <strong>Прибыль:</strong> {formatRuble(profit)}
-                            </Typography>
-                        </Box>
-                    }
-                    arrow
-                    placement="top"
-                >
-                    <Box
-                        component="span"
-                        sx={{
-                            cursor: 'help',
-                            borderBottom: '1px dotted',
-                            borderColor: 'text.secondary',
-                        }}
-                    >
-                        {formatRuble(total)}
-                    </Box>
-                </Tooltip>
-            );
-        }
-
-        return formatRuble(total);
+        if (typeof task?.contractorPayment !== 'number') return '—';
+        return formatRuble(task.contractorPayment);
     };
 
     const asText = (x: unknown): string => {
@@ -219,8 +164,6 @@ export default function TaskDetailPage() {
         const fetchUserRole = async () => {
             try {
                 const ctx = await fetchUserContext();
-                const resolvedRole = resolveRoleFromContext(ctx);
-                setUserRole(resolvedRole ?? 'executor');
                 const clerkId =
                     (ctx?.user as { clerkUserId?: string; id?: string } | undefined)?.clerkUserId ||
                     (ctx?.user as { id?: string } | undefined)?.id ||
@@ -228,7 +171,7 @@ export default function TaskDetailPage() {
                 setCurrentUserId(clerkId);
                 setProfileType(ctx?.profileType);
             } catch {
-                setUserRole('executor');
+                setProfileType('contractor');
             }
         };
         void fetchUserRole();
