@@ -272,12 +272,11 @@ export default function WorkItemsEditorDialog({
                             },
                             '& .MuiDataGrid-row:hover': {
                                 backgroundColor: 'rgba(59,130,246,0.08)',
-                            },
-                            '& .MuiDataGrid-withBorderColor': {
-                                borderColor: 'rgba(148,163,184,0.25)',
-                            },
-                        }}
-                        experimentalFeatures={{ newEditingApi: true }}
+                        },
+                        '& .MuiDataGrid-withBorderColor': {
+                            borderColor: 'rgba(148,163,184,0.25)',
+                        },
+                    }}
                     />
                 </Box>
             </DialogContent>
