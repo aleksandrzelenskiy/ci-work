@@ -12,7 +12,7 @@ import type { Types } from 'mongoose';
 export const runtime = 'nodejs';
 export const dynamic = 'force-dynamic';
 
-const FRONTEND_URL = process.env.FRONTEND_URL ?? 'http://localhost:3000';
+const FRONTEND_URL = process.env.FRONTEND_URL || process.env.NEXT_PUBLIC_FRONTEND_URL || 'https://ws.ciwork.pro';
 
 type InviteBody = { userEmail: string; role?: OrgRole };
 type InviteResponse =

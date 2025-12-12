@@ -39,6 +39,7 @@ import CloudUploadIcon from '@mui/icons-material/CloudUpload';
 import TaskAltIcon from '@mui/icons-material/TaskAlt';
 import CloseIcon from '@mui/icons-material/Close';
 import AddIcon from '@mui/icons-material/Add';
+import TableRowsIcon from '@mui/icons-material/TableRows';
 import { YMaps, Map, Placemark } from '@pbe/react-yandex-maps';
 import T2EstimateParser, {
     ParsedEstimateResult,
@@ -51,6 +52,7 @@ import {
 import { isDocumentUrl } from '@/utils/taskFiles';
 import { normalizeRelatedTasks } from '@/app/utils/relatedTasks';
 import type { RelatedTaskRef } from '@/app/types/taskTypes';
+import WorkItemsEditorDialog from '@/app/workspace/components/WorkItemsEditorDialog';
 
 
 
@@ -353,6 +355,7 @@ export default function WorkspaceTaskDialog({
     const [workItems, setWorkItems] = React.useState<ParsedWorkItem[]>([]);
     const [contractorPayment, setContractorPayment] = React.useState<string>('');
     const [percentEditorOpen, setPercentEditorOpen] = React.useState(false);
+    const [workItemsDialogOpen, setWorkItemsDialogOpen] = React.useState(false);
 
     const [projectMeta, setProjectMeta] = React.useState<{ regionCode?: string; operator?: string } | null>(null);
     const isT2Operator = React.useMemo(() => projectMeta?.operator === '250020', [projectMeta?.operator]);
@@ -990,12 +993,14 @@ export default function WorkspaceTaskDialog({
                 selectedBsOption: null,
             },
         ]);
+        setWorkItemsDialogOpen(false);
     };
 
     const handleSnackbarClose = () => setSnackbarOpen(false);
 
     const handleClose = () => {
         if (saving || uploading) return;
+        setWorkItemsDialogOpen(false);
         if (!isEdit) reset();
         onCloseAction();
     };
@@ -1175,6 +1180,13 @@ export default function WorkspaceTaskDialog({
         },
         [handlePercentUpdate]
     );
+
+    const openWorkItemsDialog = React.useCallback(() => setWorkItemsDialogOpen(true), []);
+    const closeWorkItemsDialog = React.useCallback(() => setWorkItemsDialogOpen(false), []);
+    const handleWorkItemsSave = React.useCallback((items: ParsedWorkItem[]) => {
+        setWorkItems(items);
+        setWorkItemsDialogOpen(false);
+    }, []);
 
     const hasAtLeastOneBsNumber = !!taskBsNumber;
 
@@ -1734,6 +1746,27 @@ export default function WorkspaceTaskDialog({
                                 sx={glassInputSx}
                             />
 
+                            <Stack
+                                direction={{ xs: 'column', sm: 'row' }}
+                                spacing={1.5}
+                                alignItems={{ xs: 'flex-start', sm: 'center' }}
+                            >
+                                <Button
+                                    variant="outlined"
+                                    startIcon={<TableRowsIcon />}
+                                    onClick={openWorkItemsDialog}
+                                    disabled={saving || uploading}
+                                    sx={{ borderRadius: 2 }}
+                                >
+                                    Состав работ
+                                </Button>
+                                <Typography variant="body2" color="text.secondary">
+                                    {workItems.length > 0
+                                        ? `${workItems.length} поз. добавлено`
+                                        : 'Заполните таблицу в отдельном окне'}
+                                </Typography>
+                            </Stack>
+
                             <TextField
                                 label="Стоимость, ₽"
                                 type="number"
@@ -2203,6 +2236,12 @@ export default function WorkspaceTaskDialog({
                     />
                 )}
 
+                <WorkItemsEditorDialog
+                    open={workItemsDialogOpen}
+                    initialItems={workItems}
+                    onClose={closeWorkItemsDialog}
+                    onSave={handleWorkItemsSave}
+                />
 
             </Drawer>
         </LocalizationProvider>
