@@ -854,7 +854,10 @@ export default function MarketplacePage() {
                                                                 </Typography>
                                                                 {budgetDisplay.isRuble ? (
                                                                     <CurrencyRubleRounded
-                                                                        sx={{ fontSize: { xs: '1.25rem', sm: '1.4rem' } }}
+                                                                        sx={{
+                                                                            fontSize: { xs: '1.25rem', sm: '1.4rem' },
+                                                                            fontWeight: 800,
+                                                                        }}
                                                                     />
                                                                 ) : (
                                                                     <Typography variant="subtitle1" fontWeight={700}>
@@ -1352,7 +1355,7 @@ export default function MarketplacePage() {
                                                 >
                                                     <span>{detailsBudget.amount}</span>
                                                     {detailsBudget.isRuble ? (
-                                                        <CurrencyRubleRounded sx={{ fontSize: '1.2rem' }} />
+                                                        <CurrencyRubleRounded sx={{ fontSize: '1.2rem', fontWeight: 700 }} />
                                                     ) : (
                                                         <span>{detailsBudget.currencyCode}</span>
                                                     )}
