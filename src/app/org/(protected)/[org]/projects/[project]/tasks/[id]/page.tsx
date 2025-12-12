@@ -239,6 +239,7 @@ export default function TaskDetailsPage() {
         message: string;
     } | null>(null);
     const [publishDialogOpen, setPublishDialogOpen] = React.useState(false);
+    const [publishSkills, setPublishSkills] = React.useState<string[]>([]);
     const [publishSkillsInput, setPublishSkillsInput] = React.useState('');
     const [publishBudgetInput, setPublishBudgetInput] = React.useState('');
     const [publishInfoInput, setPublishInfoInput] = React.useState('');
@@ -254,6 +255,7 @@ export default function TaskDetailsPage() {
         message: string;
         sev: 'success' | 'error';
     }>({ open: false, message: '', sev: 'success' });
+    const skillsInputRef = React.useRef<HTMLInputElement | null>(null);
     const orderFileInputRef = React.useRef<HTMLInputElement | null>(null);
 
     const asText = (x: unknown): string => {
@@ -297,11 +299,27 @@ export default function TaskDetailsPage() {
         return new Intl.NumberFormat('ru-RU').format(v) + ' ₽';
     };
 
-    const parseSkillsInput = (raw: string): string[] => {
+    const normalizeSkillsInput = (raw: string): string[] => {
         return raw
             .split(/[,\n;]/)
             .map((s) => s.trim())
             .filter(Boolean);
+    };
+
+    const mergeSkillsUnique = (base: string[], additions: string[]): string[] => {
+        const seen = new Set<string>();
+        const result: string[] = [];
+        const push = (skill: string) => {
+            const normalized = skill.trim();
+            if (!normalized) return;
+            const key = normalized.toLowerCase();
+            if (seen.has(key)) return;
+            seen.add(key);
+            result.push(normalized);
+        };
+        base.forEach(push);
+        additions.forEach(push);
+        return result;
     };
 
     const addDays = (v: string, days: number): Date | null => {
@@ -729,9 +747,35 @@ export default function TaskDetailsPage() {
         }
     };
 
+    const addSkillsFromInput = (raw: string) => {
+        const additions = normalizeSkillsInput(raw);
+        if (additions.length === 0) return;
+        setPublishSkills((prev) => mergeSkillsUnique(prev, additions));
+        setPublishSkillsInput('');
+        setPublishDialogError(null);
+    };
+
+    const handleSkillDelete = (skill: string) => {
+        setPublishSkills((prev) =>
+            prev.filter((item) => item.trim().toLowerCase() !== skill.trim().toLowerCase())
+        );
+    };
+
+    const handleSkillsInputKeyDown = (e: React.KeyboardEvent<HTMLInputElement>) => {
+        if (e.key === 'Enter') {
+            e.preventDefault();
+            addSkillsFromInput(publishSkillsInput);
+        }
+    };
+
+    const focusSkillsInput = () => {
+        skillsInputRef.current?.focus();
+    };
+
     const openPublishDialog = () => {
         if (!task) return;
-        setPublishSkillsInput(Array.isArray(task.skills) ? task.skills.join(', ') : '');
+        setPublishSkills(Array.isArray(task.skills) ? mergeSkillsUnique(task.skills, []) : []);
+        setPublishSkillsInput('');
         setPublishBudgetInput(
             typeof task.budget === 'number' && Number.isFinite(task.budget)
                 ? String(task.budget)
@@ -749,11 +793,13 @@ export default function TaskDetailsPage() {
     };
 
     const handlePublishSubmit = async () => {
-        const skills = parseSkillsInput(publishSkillsInput);
+        const skills = mergeSkillsUnique(publishSkills, normalizeSkillsInput(publishSkillsInput));
         if (skills.length === 0) {
             setPublishDialogError('Добавьте хотя бы один навык');
             return;
         }
+        setPublishSkills(skills);
+        setPublishSkillsInput('');
 
         const budgetRaw = publishBudgetInput.trim();
         let budget: number | null | undefined;
@@ -2417,14 +2463,45 @@ export default function TaskDetailsPage() {
                         дайте более подробную информацию о задаче. Эти данные увидят подрядчики перед
                         откликом, но смогут скорректировать ставку.
                     </Typography>
-                    <TextField
-                        label="Необходимые навыки"
-                        placeholder="оптика, электрика, монтаж"
-                        value={publishSkillsInput}
-                        onChange={(e) => setPublishSkillsInput(e.target.value)}
-                        helperText="Укажите хотя бы один навык, через запятую"
-                        fullWidth
-                    />
+                    <Stack spacing={0.5}>
+                        <Typography variant="subtitle2">Необходимые навыки</Typography>
+                        <Box
+                            sx={(theme) => ({
+                                display: 'flex',
+                                alignItems: 'center',
+                                flexWrap: 'wrap',
+                                gap: 1,
+                                p: 1,
+                                minHeight: 56,
+                                borderRadius: 1,
+                                border: `1px solid ${theme.palette.divider}`,
+                                cursor: 'text',
+                            })}
+                            onClick={focusSkillsInput}
+                        >
+                            {publishSkills.map((skill) => (
+                                <Chip
+                                    key={skill}
+                                    label={skill}
+                                    onDelete={() => handleSkillDelete(skill)}
+                                    size="small"
+                                />
+                            ))}
+                            <TextField
+                                inputRef={skillsInputRef}
+                                value={publishSkillsInput}
+                                onChange={(e) => setPublishSkillsInput(e.target.value)}
+                                onKeyDown={handleSkillsInputKeyDown}
+                                placeholder="Введите навык и нажмите Enter"
+                                variant="standard"
+                                InputProps={{ disableUnderline: true }}
+                                sx={{ minWidth: 160, flexGrow: 1 }}
+                            />
+                        </Box>
+                        <Typography variant="caption" color="text.secondary">
+                            Добавляйте навыки по одному, нажимая Enter. Теги можно удалить крестиком.
+                        </Typography>
+                    </Stack>
                     <TextField
                         label="Планируемый бюджет"
                         type="number"
