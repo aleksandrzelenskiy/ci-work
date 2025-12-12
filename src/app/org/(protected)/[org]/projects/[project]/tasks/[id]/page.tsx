@@ -189,6 +189,9 @@ export default function TaskDetailsPage() {
 
     const router = useRouter();
 
+    const pageGutter = { xs: 1.5, sm: 2.5, md: 3, lg: 3.5, xl: 4 };
+    const masonrySpacing = { xs: 1, sm: 1.5, md: 2 } as const;
+
     const org = params.org?.trim();
     const project = params.project?.trim();
     const id = params.id?.trim();
@@ -1371,10 +1374,10 @@ export default function TaskDetailsPage() {
     return (
         <Container
             disableGutters
-            maxWidth={false}
+            maxWidth="xl"
             sx={{
-                px: { xs: 1.5, sm: 2.5, md: 3 },
-                py: 2,
+                px: pageGutter,
+                py: { xs: 2, sm: 2.5 },
                 display: 'flex',
                 flexDirection: 'column',
                 gap: 2,
@@ -1515,15 +1518,30 @@ export default function TaskDetailsPage() {
                 </Paper>
             ) : (
                 <Box sx={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
-                    <Masonry
-                        columns={{ xs: 1, sm: 1, md: 2, lg: 3, xl: 4 }}
-                        spacing={{ xs: 1, sm: 1.5, md: 2 }}
-                        sx={{
-                            '& > *': {
-                                boxSizing: 'border-box',
+                    <Box
+                        sx={(theme) => ({
+                            width: '100%',
+                            px: {
+                                xs: `calc(${theme.spacing(masonrySpacing.xs)} / 2)`,
+                                sm: `calc(${theme.spacing(masonrySpacing.sm)} / 2)`,
+                                md: `calc(${theme.spacing(masonrySpacing.md)} / 2)`,
+                                lg: `calc(${theme.spacing(masonrySpacing.md)} / 2)`,
+                                xl: `calc(${theme.spacing(masonrySpacing.md)} / 2)`,
                             },
-                        }}
+                            boxSizing: 'border-box',
+                        })}
                     >
+                        <Masonry
+                            columns={{ xs: 1, sm: 1, md: 2, lg: 3, xl: 4 }}
+                            spacing={masonrySpacing}
+                            sx={{
+                                width: '100%',
+                                boxSizing: 'border-box',
+                                '& > *': {
+                                    boxSizing: 'border-box',
+                                },
+                            }}
+                        >
                         {/* Информация */}
                         <CardItem sx={{ minWidth: 0 }}>
                             <Typography
@@ -2345,9 +2363,9 @@ export default function TaskDetailsPage() {
                                 </AccordionDetails>
                             </Accordion>
                         </CardItem>
-
                     </Masonry>
                 </Box>
+            </Box>
             )}
 
 
