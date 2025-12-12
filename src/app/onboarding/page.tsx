@@ -424,6 +424,7 @@ export default function OnboardingPage() {
                       width: '100%',
                       maxWidth: FIELD_MAX_WIDTH,
                       mx: 'auto',
+                        px: { xs: 1.5, sm: 2, md: 0 },
                     }}
                 >
                   <Stack spacing={3}>
