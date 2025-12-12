@@ -28,6 +28,7 @@ import {
     DialogActions,
     DialogContent,
     DialogTitle,
+    Container,
 } from '@mui/material';
 import { styled } from '@mui/material/styles';
 import ExpandMoreIcon from '@mui/icons-material/ExpandMore';
@@ -82,6 +83,8 @@ export default function TaskDetailPage() {
     const params = useParams<{ id: string }>();
     const taskId = params?.id?.trim() || '';
     const router = useRouter();
+
+    const pageGutter = { xs: 1.5, sm: 2.5, md: 3, lg: 3.5, xl: 4 };
 
     const [task, setTask] = React.useState<Task | null>(null);
     const [loading, setLoading] = React.useState(true);
@@ -343,15 +346,23 @@ export default function TaskDetailPage() {
 
     if (loading) {
         return (
-            <Box sx={{ display: 'flex', justifyContent: 'center', mt: 4 }}>
+            <Container
+                disableGutters
+                maxWidth="xl"
+                sx={{ px: pageGutter, py: { xs: 3, sm: 4 }, display: 'flex', justifyContent: 'center' }}
+            >
                 <CircularProgress />
-            </Box>
+            </Container>
         );
     }
 
     if (error) {
         return (
-            <Box sx={{ p: 3, textAlign: 'center' }}>
+            <Container
+                disableGutters
+                maxWidth="xl"
+                sx={{ px: pageGutter, py: { xs: 3, sm: 4 }, textAlign: 'center' }}
+            >
                 <Typography color="error" gutterBottom>
                     {error}
                 </Typography>
@@ -362,13 +373,17 @@ export default function TaskDetailPage() {
                 >
                     Повторить
                 </Button>
-            </Box>
+            </Container>
         );
     }
 
     if (!task) {
         return (
-            <Box sx={{ p: 3, textAlign: 'center' }}>
+            <Container
+                disableGutters
+                maxWidth="xl"
+                sx={{ px: pageGutter, py: { xs: 3, sm: 4 }, textAlign: 'center' }}
+            >
                 <Typography gutterBottom>Задача не найдена</Typography>
                 <Button
                     variant="text"
@@ -377,24 +392,30 @@ export default function TaskDetailPage() {
                 >
                     К списку задач
                 </Button>
-            </Box>
+            </Container>
         );
     }
 
     if (profileType === undefined) {
         return (
-            <Box sx={{ display: 'flex', justifyContent: 'center', mt: 4 }}>
+            <Container
+                disableGutters
+                maxWidth="xl"
+                sx={{ px: pageGutter, py: { xs: 3, sm: 4 }, display: 'flex', justifyContent: 'center' }}
+            >
                 <CircularProgress />
-            </Box>
+            </Container>
         );
     }
 
     if (profileType !== 'contractor') {
         return (
-            <Box
+            <Container
+                disableGutters
+                maxWidth="xl"
                 sx={{
-                    px: 2,
-                    py: 4,
+                    px: pageGutter,
+                    py: { xs: 3, sm: 4 },
                     display: 'flex',
                     flexDirection: 'column',
                     gap: 2,
@@ -409,7 +430,7 @@ export default function TaskDetailPage() {
                 <Button variant="contained" onClick={() => router.push('/tasks')}>
                     К списку задач
                 </Button>
-            </Box>
+            </Container>
         );
     }
 
@@ -424,10 +445,12 @@ export default function TaskDetailPage() {
 
     if (isContractorRestricted) {
         return (
-            <Box
+            <Container
+                disableGutters
+                maxWidth="xl"
                 sx={{
-                    px: 2,
-                    py: 4,
+                    px: pageGutter,
+                    py: { xs: 3, sm: 4 },
                     display: 'flex',
                     flexDirection: 'column',
                     gap: 2,
@@ -442,15 +465,17 @@ export default function TaskDetailPage() {
                 <Button variant="contained" onClick={() => router.push('/tasks')}>
                     К списку задач
                 </Button>
-            </Box>
+            </Container>
         );
     }
 
     return (
-        <Box
+        <Container
+            disableGutters
+            maxWidth="xl"
             sx={{
-                px: { xs: 0.5, md: 1.5 },
-                    py: 2,
+                px: pageGutter,
+                py: { xs: 2, sm: 2.5 },
                 display: 'flex',
                 flexDirection: 'column',
                 gap: 2,
@@ -1140,6 +1165,6 @@ export default function TaskDetailPage() {
 
                 <Box sx={{ p: 2 }}>{renderCommentsSection('calc(100vh - 80px)')}</Box>
             </Dialog>
-        </Box>
+        </Container>
     );
 }
