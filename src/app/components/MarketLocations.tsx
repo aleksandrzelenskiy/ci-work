@@ -23,10 +23,11 @@ import RestartAltRoundedIcon from '@mui/icons-material/RestartAltRounded';
 import CloseRoundedIcon from '@mui/icons-material/CloseRounded';
 import RefreshRoundedIcon from '@mui/icons-material/RefreshRounded';
 import { YMaps, Map, Placemark, Clusterer, ZoomControl, FullscreenControl } from '@pbe/react-yandex-maps';
-import type { PublicTaskStatus, PriorityLevel, TaskVisibility } from '@/app/types/taskTypes';
+import type { PublicTaskStatus, PriorityLevel, TaskVisibility, TaskType } from '@/app/types/taskTypes';
+import type { TaskApplication } from '@/app/types/application';
 import { getPriorityIcon, getPriorityLabelRu } from '@/utils/priorityIcons';
 
-type PublicTask = {
+export type MarketPublicTask = {
     _id: string;
     taskId?: string;
     taskName?: string;
@@ -41,10 +42,21 @@ type PublicTask = {
     priority?: PriorityLevel;
     budget?: number | null;
     currency?: string;
+    skills?: string[];
+    taskDescription?: string;
+    publicDescription?: string;
+    workItems?: { workType?: string; quantity?: number; unit?: string; note?: string }[];
+    attachments?: string[];
+    applicationCount?: number;
+    myApplication?: Pick<TaskApplication, '_id' | 'status' | 'proposedBudget' | 'etaDays' | 'coverMessage'> | null;
+    dueDate?: string;
+    taskType?: TaskType;
+    project?: { key?: string; regionCode?: string; name?: string; operator?: string };
 };
 
 type MapPoint = {
     id: string;
+    taskMongoId: string;
     coords: [number, number];
     bsNumber: string;
     taskId: string;
@@ -94,8 +106,13 @@ const formatBudget = (budget?: number | null, currency?: string): string => {
     return `${formatter.format(budget)} ${currency || 'RUB'}`;
 };
 
-export default function MarketLocations(): React.ReactElement {
-    const [tasks, setTasks] = React.useState<PublicTask[]>([]);
+type MarketLocationsProps = {
+    onOpenInfo?: (task: MarketPublicTask) => void;
+    onOpenApply?: (task: MarketPublicTask) => void;
+};
+
+export default function MarketLocations({ onOpenInfo, onOpenApply }: MarketLocationsProps): React.ReactElement {
+    const [tasks, setTasks] = React.useState<MarketPublicTask[]>([]);
     const [loading, setLoading] = React.useState(true);
     const [error, setError] = React.useState<string | null>(null);
     const [search, setSearch] = React.useState('');
@@ -120,7 +137,7 @@ export default function MarketLocations(): React.ReactElement {
         setError(null);
         try {
             const res = await fetch('/api/tasks/public?limit=200', { cache: 'no-store' });
-            const payload = (await res.json()) as { tasks?: PublicTask[]; error?: string };
+            const payload = (await res.json()) as { tasks?: MarketPublicTask[]; error?: string };
             if (!res.ok || payload.error) {
                 setError(payload.error || 'Не удалось загрузить публичные задачи');
                 setTasks([]);
@@ -157,6 +174,7 @@ export default function MarketLocations(): React.ReactElement {
 
                 result.push({
                     id: `${task._id}-${idx}`,
+                    taskMongoId: task._id,
                     coords,
                     bsNumber,
                     taskId: task.taskId || task._id,
@@ -260,6 +278,10 @@ export default function MarketLocations(): React.ReactElement {
             ${projectLine}
             ${orgLine}
             ${addressLine}
+            <div style="display:flex;flex-direction:column;gap:8px;margin-top:10px;">
+                <a href="#" data-balloon-action="info" data-task-id="${point.taskMongoId}" style="color:#2563eb;text-decoration:none;font-weight:600;">Информация о задаче</a>
+                <button data-balloon-action="apply" data-task-id="${point.taskMongoId}" style="padding:10px 12px;border-radius:10px;border:none;background:#111827;color:#fff;font-weight:700;cursor:pointer;">Откликнуться</button>
+            </div>
             <div style="color:#64748b;font-size:12px;">ID: ${point.taskId || '—'}</div>
         </div>`;
     }, []);
@@ -293,6 +315,31 @@ export default function MarketLocations(): React.ReactElement {
             low: true,
         });
     }, []);
+
+    React.useEffect(() => {
+        const handleBalloonClick = (event: MouseEvent) => {
+            const target = event.target as HTMLElement | null;
+            if (!target) return;
+            const actionNode = target.closest<HTMLElement>('[data-balloon-action]');
+            if (!actionNode) return;
+            const action = actionNode.getAttribute('data-balloon-action');
+            const taskId = actionNode.getAttribute('data-task-id');
+            if (!action || !taskId) return;
+            const task = tasks.find((t) => t._id === taskId);
+            if (!task) return;
+            event.preventDefault();
+            if (action === 'info') {
+                onOpenInfo?.(task);
+            } else if (action === 'apply') {
+                onOpenApply?.(task);
+            }
+        };
+
+        document.addEventListener('click', handleBalloonClick, true);
+        return () => {
+            document.removeEventListener('click', handleBalloonClick, true);
+        };
+    }, [onOpenApply, onOpenInfo, tasks]);
 
     return (
         <Box

@@ -190,6 +190,16 @@ export default function MarketplacePage() {
     const [userContext, setUserContext] = useState<UserContext | null>(null);
     const [contextError, setContextError] = useState<string | null>(null);
 
+    const handleOpenMapInfo = (task: PublicTask) => {
+        setMapOpen(false);
+        setDetailsTask(task);
+    };
+
+    const handleOpenMapApply = (task: PublicTask) => {
+        setMapOpen(false);
+        setSelectedTask(task);
+    };
+
     const fetchTasks = async () => {
         setLoading(true);
         setError(null);
@@ -698,7 +708,7 @@ export default function MarketplacePage() {
                         </IconButton>
                     </Box>
                     <Box sx={{ width: '100%', height: 'calc(100vh - 64px)' }}>
-                        <MarketLocations />
+                        <MarketLocations onOpenInfo={handleOpenMapInfo} onOpenApply={handleOpenMapApply} />
                     </Box>
                 </DialogContent>
             </Dialog>
