@@ -2,6 +2,8 @@
 'use client';
 
 import { useEffect, useState } from 'react';
+import dayjs, { type Dayjs } from 'dayjs';
+import 'dayjs/locale/ru';
 import {
     Box,
     Container,
@@ -33,6 +35,9 @@ import {
     TableRow,
     MenuItem,
 } from '@mui/material';
+import { DatePicker } from '@mui/x-date-pickers/DatePicker';
+import { LocalizationProvider } from '@mui/x-date-pickers/LocalizationProvider';
+import { AdapterDayjs } from '@mui/x-date-pickers/AdapterDayjs';
 import { styled } from '@mui/material/styles';
 import Masonry from '@mui/lab/Masonry';
 import SearchIcon from '@mui/icons-material/Search';
@@ -54,6 +59,8 @@ import type { TaskApplication } from '@/app/types/application';
 import MarketLocations, { type MarketPublicTask } from '@/app/components/MarketLocations';
 import { REGION_MAP } from '@/app/utils/regions';
 import { getPriorityLabelRu } from '@/utils/priorityIcons';
+
+dayjs.locale('ru');
 
 type PublicTask = {
     _id: string;
@@ -219,7 +226,7 @@ export default function MarketplacePage() {
     const [skillInput, setSkillInput] = useState('');
     const [applyMessage, setApplyMessage] = useState('');
     const [applyBudget, setApplyBudget] = useState('');
-    const [applyEta, setApplyEta] = useState('');
+    const [applyEtaDate, setApplyEtaDate] = useState<Dayjs | null>(null);
     const [submitLoading, setSubmitLoading] = useState(false);
     const [cancelLoadingId, setCancelLoadingId] = useState<string | null>(null);
     const [snack, setSnack] = useState<{ open: boolean; message: string; severity: 'success' | 'error' }>({
@@ -344,11 +351,11 @@ export default function MarketplacePage() {
                     ? String(selectedTask.budget)
                     : '';
             setApplyBudget(draftBudget);
-            setApplyEta('');
+            setApplyEtaDate(selectedTask.dueDate ? dayjs(selectedTask.dueDate) : null);
             setApplyMessage('');
         } else {
             setApplyBudget('');
-            setApplyEta('');
+            setApplyEtaDate(null);
             setApplyMessage('');
         }
     }, [selectedTask]);
@@ -400,6 +407,21 @@ export default function MarketplacePage() {
             setSnack({ open: true, message: 'Укажите фиксированную ставку', severity: 'error' });
             return;
         }
+        if (!applyEtaDate || !applyEtaDate.isValid()) {
+            setSnack({ open: true, message: 'Выберите плановую дату завершения', severity: 'error' });
+            return;
+        }
+        const completionDate = applyEtaDate.startOf('day');
+        const today = dayjs().startOf('day');
+        const etaDays = completionDate.diff(today, 'day');
+        if (etaDays < 0) {
+            setSnack({
+                open: true,
+                message: 'Дата завершения не может быть в прошлом',
+                severity: 'error',
+            });
+            return;
+        }
         if (!applyMessage.trim()) {
             setSnack({ open: true, message: 'Добавьте сопроводительное сообщение', severity: 'error' });
             return;
@@ -412,7 +434,7 @@ export default function MarketplacePage() {
                 body: JSON.stringify({
                     coverMessage: applyMessage,
                     proposedBudget: budgetValue,
-                    etaDays: applyEta ? Number(applyEta) : undefined,
+                    etaDays,
                 }),
             });
             const data = await res.json();
@@ -424,7 +446,7 @@ export default function MarketplacePage() {
             setSelectedTask(null);
             setApplyMessage('');
             setApplyBudget('');
-            setApplyEta('');
+            setApplyEtaDate(null);
             void fetchTasks();
         } catch (e) {
             setSnack({
@@ -655,177 +677,178 @@ export default function MarketplacePage() {
     );
 
     return (
-        <Box
-            sx={{
-                minHeight: '100vh',
-                py: { xs: 4, md: 6 },
-            }}
-        >
-            <Container maxWidth="lg" sx={{ px: { xs: 1.5, sm: 3, md: 4 } }}>
-                {hero}
-                {loading ? (
-                    <Stack alignItems="center" spacing={2} sx={{ py: 6 }}>
-                        <CircularProgress />
-                        <Typography color="text.secondary">Загружаем задачи…</Typography>
-                    </Stack>
-                ) : error ? (
-                    <Alert severity="error" sx={{ mb: 3 }}>
-                        {error}
-                    </Alert>
-                ) : filteredTasks.length === 0 ? (
-                    <Alert severity="info" sx={{ mb: 3 }}>
-                        Подходящих задач не найдено
-                    </Alert>
-                ) : (
-                    <Grid container spacing={2.5}>
-                        {filteredTasks.map((task) => {
-                            const chipMeta = task.publicStatus ? statusChipMap[task.publicStatus] : undefined;
-                            const taskTitle = [task.taskName, task.bsNumber].filter(Boolean).join(' ');
-                            const hasActiveApplication =
-                                Boolean(task.myApplication && task.myApplication.status !== 'withdrawn');
-                            const isCanceling =
-                                Boolean(cancelLoadingId && task.myApplication?._id === cancelLoadingId);
+        <LocalizationProvider dateAdapter={AdapterDayjs} adapterLocale="ru">
+            <Box
+                sx={{
+                    minHeight: '100vh',
+                    py: { xs: 4, md: 6 },
+                }}
+            >
+                <Container maxWidth="lg" sx={{ px: { xs: 1.5, sm: 3, md: 4 } }}>
+                    {hero}
+                    {loading ? (
+                        <Stack alignItems="center" spacing={2} sx={{ py: 6 }}>
+                            <CircularProgress />
+                            <Typography color="text.secondary">Загружаем задачи…</Typography>
+                        </Stack>
+                    ) : error ? (
+                        <Alert severity="error" sx={{ mb: 3 }}>
+                            {error}
+                        </Alert>
+                    ) : filteredTasks.length === 0 ? (
+                        <Alert severity="info" sx={{ mb: 3 }}>
+                            Подходящих задач не найдено
+                        </Alert>
+                    ) : (
+                        <Grid container spacing={2.5}>
+                            {filteredTasks.map((task) => {
+                                const chipMeta = task.publicStatus ? statusChipMap[task.publicStatus] : undefined;
+                                const taskTitle = [task.taskName, task.bsNumber].filter(Boolean).join(' ');
+                                const hasActiveApplication =
+                                    Boolean(task.myApplication && task.myApplication.status !== 'withdrawn');
+                                const isCanceling =
+                                    Boolean(cancelLoadingId && task.myApplication?._id === cancelLoadingId);
 
-                            return (
-                                <Grid item xs={12} md={6} key={task._id}>
-                                    <Paper
-                                        sx={(theme) => ({
-                                            ...glassPaperStyles(theme),
-                                            cursor: 'pointer',
-                                            transition: 'transform 120ms ease, box-shadow 120ms ease',
-                                            '&:hover': {
-                                                boxShadow: theme.shadows[10],
-                                                transform: 'translateY(-2px)',
-                                            },
-                                        })}
-                                        elevation={0}
-                                        onClick={() => setDetailsTask(task)}
-                                    >
-                                        <Stack spacing={2}>
-                                            <Stack spacing={0.25}>
-                                                <Typography variant="caption" color="text.secondary" fontWeight={600}>
-                                                    Организация: {task.orgName || task.orgSlug || task.orgId || '—'}
-                                                </Typography>
-                                                <Typography variant="caption" color="text.secondary">
-                                                    Регион: {task.project?.regionCode || '—'}
-                                                    {getRegionLabel(task.project?.regionCode)
-                                                        ? ` — ${getRegionLabel(task.project?.regionCode)}`
-                                                        : ''}
-                                                </Typography>
-                                            </Stack>
-                                            <Stack direction="row" alignItems="center" spacing={1.5}>
-                                                <Chip
-                                                    size="small"
-                                                    color="default"
-                                                    variant="outlined"
-                                                    label={task.project?.key || 'Публичная задача'}
-                                                    sx={{ borderRadius: 2 }}
-                                                />
-                                                {chipMeta && (
+                                return (
+                                    <Grid item xs={12} md={6} key={task._id}>
+                                        <Paper
+                                            sx={(theme) => ({
+                                                ...glassPaperStyles(theme),
+                                                cursor: 'pointer',
+                                                transition: 'transform 120ms ease, box-shadow 120ms ease',
+                                                '&:hover': {
+                                                    boxShadow: theme.shadows[10],
+                                                    transform: 'translateY(-2px)',
+                                                },
+                                            })}
+                                            elevation={0}
+                                            onClick={() => setDetailsTask(task)}
+                                        >
+                                            <Stack spacing={2}>
+                                                <Stack spacing={0.25}>
+                                                    <Typography variant="caption" color="text.secondary" fontWeight={600}>
+                                                        Организация: {task.orgName || task.orgSlug || task.orgId || '—'}
+                                                    </Typography>
+                                                    <Typography variant="caption" color="text.secondary">
+                                                        Регион: {task.project?.regionCode || '—'}
+                                                        {getRegionLabel(task.project?.regionCode)
+                                                            ? ` — ${getRegionLabel(task.project?.regionCode)}`
+                                                            : ''}
+                                                    </Typography>
+                                                </Stack>
+                                                <Stack direction="row" alignItems="center" spacing={1.5}>
                                                     <Chip
                                                         size="small"
-                                                        color={chipMeta.color}
-                                                        label={chipMeta.label}
+                                                        color="default"
+                                                        variant="outlined"
+                                                        label={task.project?.key || 'Публичная задача'}
                                                         sx={{ borderRadius: 2 }}
                                                     />
-                                                )}
-                                                <Chip
-                                                    size="small"
-                                                    icon={<StarRoundedIcon fontSize="small" />}
-                                                    label={`${task.applicationCount ?? 0} откликов`}
-                                                    sx={{ borderRadius: 2 }}
-                                                />
-                                            </Stack>
-                                            <Stack spacing={1}>
-                                                <Typography variant="h5" fontWeight={700} sx={{ pr: 1, wordBreak: 'break-word' }}>
-                                                    {taskTitle || 'Без названия'}
-                                                </Typography>
-                                                <Stack spacing={0.25}>
-                                                    <Typography variant="caption" color="text.secondary">
-                                                        Планируемый бюджет
-                                                    </Typography>
-                                                    <Typography variant="subtitle1" fontWeight={700}>
-                                                        {formatBudget(task.budget, task.currency)}
-                                                    </Typography>
-                                                </Stack>
-                                            </Stack>
-                                            <Typography color="text.secondary" sx={{ lineHeight: 1.5 }}>
-                                                {task.publicDescription || task.taskDescription || 'Описание не заполнено'}
-                                            </Typography>
-                                            {task.skills && task.skills.length > 0 && (
-                                                <Stack direction="row" spacing={1} flexWrap="wrap">
-                                                    {task.skills.map((skill) => (
+                                                    {chipMeta && (
                                                         <Chip
-                                                            key={skill}
-                                                            label={skill}
                                                             size="small"
+                                                            color={chipMeta.color}
+                                                            label={chipMeta.label}
                                                             sx={{ borderRadius: 2 }}
                                                         />
-                                                    ))}
+                                                    )}
+                                                    <Chip
+                                                        size="small"
+                                                        icon={<StarRoundedIcon fontSize="small" />}
+                                                        label={`${task.applicationCount ?? 0} откликов`}
+                                                        sx={{ borderRadius: 2 }}
+                                                    />
                                                 </Stack>
-                                            )}
-                                            <Divider flexItem />
-                                            <Stack
-                                                direction={{ xs: 'column', sm: 'row' }}
-                                                justifyContent="space-between"
-                                                alignItems={{ xs: 'stretch', sm: 'center' }}
-                                                spacing={1.5}
-                                            >
-                                                <Button
-                                                    variant="outlined"
-                                                    startIcon={<InfoOutlinedIcon />}
-                                                    onClick={(e) => {
-                                                        e.stopPropagation();
-                                                        setDetailsTask(task);
-                                                    }}
-                                                    sx={{
-                                                        borderRadius: 2,
-                                                        textTransform: 'none',
-                                                    }}
+                                                <Stack spacing={1}>
+                                                    <Typography variant="h5" fontWeight={700} sx={{ pr: 1, wordBreak: 'break-word' }}>
+                                                        {taskTitle || 'Без названия'}
+                                                    </Typography>
+                                                    <Stack spacing={0.25}>
+                                                        <Typography variant="caption" color="text.secondary">
+                                                            Планируемый бюджет
+                                                        </Typography>
+                                                        <Typography variant="subtitle1" fontWeight={700}>
+                                                            {formatBudget(task.budget, task.currency)}
+                                                        </Typography>
+                                                    </Stack>
+                                                </Stack>
+                                                <Typography color="text.secondary" sx={{ lineHeight: 1.5 }}>
+                                                    {task.publicDescription || task.taskDescription || 'Описание не заполнено'}
+                                                </Typography>
+                                                {task.skills && task.skills.length > 0 && (
+                                                    <Stack direction="row" spacing={1} flexWrap="wrap">
+                                                        {task.skills.map((skill) => (
+                                                            <Chip
+                                                                key={skill}
+                                                                label={skill}
+                                                                size="small"
+                                                                sx={{ borderRadius: 2 }}
+                                                            />
+                                                        ))}
+                                                    </Stack>
+                                                )}
+                                                <Divider flexItem />
+                                                <Stack
+                                                    direction={{ xs: 'column', sm: 'row' }}
+                                                    justifyContent="space-between"
+                                                    alignItems={{ xs: 'stretch', sm: 'center' }}
+                                                    spacing={1.5}
                                                 >
-                                                    Подробнее
-                                                </Button>
-                                                {hasActiveApplication ? (
                                                     <Button
                                                         variant="outlined"
-                                                        color="error"
+                                                        startIcon={<InfoOutlinedIcon />}
                                                         onClick={(e) => {
                                                             e.stopPropagation();
-                                                            void handleWithdrawApplication(task);
-                                                        }}
-                                                        disabled={isCanceling}
-                                                        sx={{ borderRadius: 2 }}
-                                                    >
-                                                        {isCanceling ? 'Отменяем…' : 'Отменить отклик'}
-                                                    </Button>
-                                                ) : (
-                                                    <Button
-                                                        variant="contained"
-                                                        size="large"
-                                                        endIcon={<ArrowOutwardIcon />}
-                                                        onClick={(e) => {
-                                                            e.stopPropagation();
-                                                            setSelectedTask(task);
+                                                            setDetailsTask(task);
                                                         }}
                                                         sx={{
-                                                            borderRadius: 2.5,
-                                                            px: 3.5,
-                                                            py: 1.25,
+                                                            borderRadius: 2,
                                                             textTransform: 'none',
                                                         }}
                                                     >
-                                                        Откликнуться
+                                                        Подробнее
                                                     </Button>
-                                                )}
+                                                    {hasActiveApplication ? (
+                                                        <Button
+                                                            variant="outlined"
+                                                            color="error"
+                                                            onClick={(e) => {
+                                                                e.stopPropagation();
+                                                                void handleWithdrawApplication(task);
+                                                            }}
+                                                            disabled={isCanceling}
+                                                            sx={{ borderRadius: 2 }}
+                                                        >
+                                                            {isCanceling ? 'Отменяем…' : 'Отменить отклик'}
+                                                        </Button>
+                                                    ) : (
+                                                        <Button
+                                                            variant="contained"
+                                                            size="large"
+                                                            endIcon={<ArrowOutwardIcon />}
+                                                            onClick={(e) => {
+                                                                e.stopPropagation();
+                                                                setSelectedTask(task);
+                                                            }}
+                                                            sx={{
+                                                                borderRadius: 2.5,
+                                                                px: 3.5,
+                                                                py: 1.25,
+                                                                textTransform: 'none',
+                                                            }}
+                                                        >
+                                                            Откликнуться
+                                                        </Button>
+                                                    )}
+                                                </Stack>
                                             </Stack>
-                                        </Stack>
-                                    </Paper>
-                                </Grid>
-                            );
-                        })}
-                    </Grid>
-                )}
-            </Container>
+                                        </Paper>
+                                    </Grid>
+                                );
+                            })}
+                        </Grid>
+                    )}
+                </Container>
 
             <Dialog
                 open={filtersDialogOpen}
@@ -1003,13 +1026,24 @@ export default function MarketplacePage() {
                             inputProps={{ min: 0 }}
                             fullWidth
                         />
-                        <TextField
-                            label="Срок (дней)"
-                            type="number"
-                            value={applyEta}
-                            onChange={(e) => setApplyEta(e.target.value)}
-                            inputProps={{ min: 0 }}
-                            fullWidth
+                        <DatePicker
+                            label="Плановая дата завершения"
+                            value={applyEtaDate}
+                            minDate={dayjs()}
+                            onChange={(value) => setApplyEtaDate(value)}
+                            slotProps={{
+                                textField: {
+                                    fullWidth: true,
+                                    helperText: applyEtaDate
+                                        ? `Отправим как ${
+                                              Math.max(
+                                                  applyEtaDate.startOf('day').diff(dayjs().startOf('day'), 'day'),
+                                                  0
+                                              )
+                                          } дн. от сегодня`
+                                        : 'Выберите дату, когда планируете сдать работу',
+                                },
+                            }}
                         />
                         <TextField
                             label="Сообщение"
@@ -1385,5 +1419,6 @@ export default function MarketplacePage() {
                 </Alert>
             </Snackbar>
         </Box>
+        </LocalizationProvider>
     );
 }
