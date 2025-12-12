@@ -259,16 +259,14 @@ export default function MarketplacePage() {
 
     const organizationOptions = useMemo(() => {
         const values = tasks
-            .flatMap((task) => [task.orgName, task.orgSlug, task.orgId].filter(Boolean))
-            .map((value) => value?.trim() || '')
+            .map((task) => task.orgName?.trim() || '')
             .filter(Boolean);
         return Array.from(new Set(values));
     }, [tasks]);
 
     const projectOptions = useMemo(() => {
         const values = tasks
-            .flatMap((task) => [task.project?.name, task.project?.key].filter(Boolean))
-            .map((value) => value?.trim() || '')
+            .map((task) => task.project?.name?.trim() || '')
             .filter(Boolean);
         return Array.from(new Set(values));
     }, [tasks]);
