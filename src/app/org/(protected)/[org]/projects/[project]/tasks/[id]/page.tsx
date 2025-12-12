@@ -814,6 +814,7 @@ export default function TaskDetailsPage() {
     }, [task?.events]);
 
     const canCreateNcw = projectOperator === '250020';
+    const executorAssigned = Boolean(task?.executorId || task?.executorName || task?.executorEmail);
 
     const openNcwCreator = () => {
         if (!task || !canCreateNcw) return;
@@ -1448,7 +1449,7 @@ export default function TaskDetailsPage() {
                     </Box>
                 </Stack>
                 <Stack direction="row" spacing={1}>
-                    {task && (
+                    {task && !executorAssigned && (
                         <Button
                             variant={task.visibility === 'public' ? 'outlined' : 'contained'}
                             color={task.visibility === 'public' ? 'inherit' : 'primary'}
