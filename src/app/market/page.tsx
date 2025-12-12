@@ -49,7 +49,7 @@ import LocationOnIcon from '@mui/icons-material/LocationOn';
 import type { PublicTaskStatus, TaskVisibility } from '@/app/types/taskTypes';
 import type { PriorityLevel, TaskType } from '@/app/types/taskTypes';
 import type { TaskApplication } from '@/app/types/application';
-import MarketLocations from '@/app/components/MarketLocations';
+import MarketLocations, { type MarketPublicTask } from '@/app/components/MarketLocations';
 import { REGION_MAP } from '@/app/utils/regions';
 import { getPriorityLabelRu } from '@/utils/priorityIcons';
 
@@ -116,6 +116,35 @@ const glassPaperStyles = (theme: { palette: { mode: string } }) => ({
         theme.palette.mode === 'dark'
             ? '0 30px 90px rgba(0,0,0,0.55)'
             : '0 30px 90px rgba(15,23,42,0.08)',
+});
+
+const mapMarketTaskToPublicTask = (task: MarketPublicTask): PublicTask => ({
+    _id: task._id,
+    taskName: task.taskName || 'Задача',
+    taskDescription: task.taskDescription,
+    bsNumber: task.bsNumber,
+    bsAddress: task.bsAddress,
+    bsLocation: task.bsLocation?.map((loc) => ({
+        name: loc?.name,
+        coordinates: loc?.coordinates ?? undefined,
+        address: loc?.address,
+    })),
+    orgSlug: task.orgSlug,
+    orgName: task.orgName,
+    budget: task.budget ?? undefined,
+    currency: task.currency,
+    skills: task.skills,
+    dueDate: task.dueDate,
+    priority: task.priority,
+    taskType: task.taskType,
+    attachments: task.attachments,
+    workItems: task.workItems,
+    publicDescription: task.publicDescription,
+    publicStatus: task.publicStatus,
+    visibility: task.visibility,
+    applicationCount: task.applicationCount,
+    project: task.project,
+    myApplication: task.myApplication,
 });
 
 const statusChipMap: Record<PublicTaskStatus, { label: string; color: 'default' | 'success' | 'warning' }> = {
@@ -190,14 +219,14 @@ export default function MarketplacePage() {
     const [userContext, setUserContext] = useState<UserContext | null>(null);
     const [contextError, setContextError] = useState<string | null>(null);
 
-    const handleOpenMapInfo = (task: PublicTask) => {
+    const handleOpenMapInfo = (task: MarketPublicTask) => {
         setMapOpen(false);
-        setDetailsTask(task);
+        setDetailsTask(mapMarketTaskToPublicTask(task));
     };
 
-    const handleOpenMapApply = (task: PublicTask) => {
+    const handleOpenMapApply = (task: MarketPublicTask) => {
         setMapOpen(false);
-        setSelectedTask(task);
+        setSelectedTask(mapMarketTaskToPublicTask(task));
     };
 
     const fetchTasks = async () => {
@@ -470,21 +499,6 @@ export default function MarketplacePage() {
                         }}
                         sx={{ maxWidth: 520 }}
                     />
-                    <Button
-                        variant="contained"
-                        endIcon={<LocationOnIcon />}
-                        onClick={() => setMapOpen(true)}
-                        sx={{
-                            borderRadius: 2.5,
-                            px: 2.5,
-                            py: 1.2,
-                            textTransform: 'none',
-                            boxShadow: '0 10px 30px rgba(15,23,42,0.12)',
-                            width: { xs: '100%', sm: 'auto' },
-                        }}
-                    >
-                        На карте
-                    </Button>
                     <Tooltip title="Обновить">
                         <IconButton
                             size="large"
@@ -498,6 +512,21 @@ export default function MarketplacePage() {
                             }}
                         >
                             <RefreshIcon />
+                        </IconButton>
+                    </Tooltip>
+                    <Tooltip title="Смотреть на карте">
+                        <IconButton
+                            size="large"
+                            onClick={() => setMapOpen(true)}
+                            sx={{
+                                borderRadius: 2,
+                                border: '1px solid',
+                                borderColor: 'divider',
+                                bgcolor: 'background.paper',
+                                boxShadow: '0 10px 30px rgba(15,23,42,0.1)',
+                            }}
+                        >
+                            <LocationOnIcon />
                         </IconButton>
                     </Tooltip>
                 </Stack>
