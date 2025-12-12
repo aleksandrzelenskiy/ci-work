@@ -108,27 +108,51 @@ const markAllNotificationsAsRead = async () => {
 const formatTimestamp = (value: string) =>
     dayjs(value).isValid() ? dayjs(value).format('DD.MM.YYYY HH:mm') : value;
 
+const normalizeMetadataValue = (value: unknown) => {
+    if (typeof value === 'string') return value;
+    if (Array.isArray(value) && typeof value[0] === 'string') return value[0];
+    if (typeof value === 'number' || typeof value === 'boolean') {
+        return String(value);
+    }
+    return null;
+};
+
 const getNotificationLink = (notification: NotificationDTO) => {
-    if (
+    const isTaskNotification =
         notification.type === 'task_assigned' ||
         notification.type === 'task_unassigned' ||
         notification.type === 'task_comment' ||
         notification.type === 'task_status_change' ||
         notification.type === 'task_application_submitted' ||
-        notification.type === 'task_application_status'
-    ) {
-        const metadataTaskId = notification.metadata?.taskId;
-        const rawTaskId =
-            typeof metadataTaskId === 'string'
-                ? metadataTaskId
-                : Array.isArray(metadataTaskId) && typeof metadataTaskId[0] === 'string'
-                  ? metadataTaskId[0]
-                  : metadataTaskId
-                    ? String(metadataTaskId)
-                    : null;
-        if (rawTaskId) {
-            return `/tasks/${encodeURIComponent(rawTaskId.toLowerCase())}`;
-        }
+        notification.type === 'task_application_status';
+
+    if (!isTaskNotification) {
+        return notification.link;
+    }
+
+    const metadata = notification.metadata || {};
+    const rawTaskId =
+        normalizeMetadataValue(metadata.taskMongoId) ??
+        normalizeMetadataValue(metadata.taskId);
+    const orgSlug = notification.orgSlug ?? undefined;
+    const projectRef =
+        normalizeMetadataValue(metadata.projectRef) ??
+        normalizeMetadataValue(metadata.projectKey) ??
+        undefined;
+
+    if (orgSlug && projectRef && rawTaskId) {
+        const normalizedTaskId = rawTaskId.toLowerCase();
+        return `/org/${encodeURIComponent(orgSlug)}/projects/${encodeURIComponent(
+            projectRef
+        )}/tasks/${encodeURIComponent(normalizedTaskId)}`;
+    }
+
+    if (notification.link) {
+        return notification.link;
+    }
+
+    if (rawTaskId) {
+        return `/tasks/${encodeURIComponent(rawTaskId.toLowerCase())}`;
     }
 
     return notification.link;
