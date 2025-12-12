@@ -34,7 +34,6 @@ export type MarketPublicTask = {
     bsNumber?: string;
     bsLocation?: Array<{ name?: string; coordinates?: string | null; address?: string }>;
     bsAddress?: string;
-    project?: { key?: string; regionCode?: string; name?: string };
     orgName?: string;
     orgSlug?: string;
     visibility?: TaskVisibility;
