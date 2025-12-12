@@ -31,6 +31,7 @@ import {
     TableCell,
     TableHead,
     TableRow,
+    MenuItem,
 } from '@mui/material';
 import { styled } from '@mui/material/styles';
 import Masonry from '@mui/lab/Masonry';
@@ -46,6 +47,7 @@ import OpenInFullIcon from '@mui/icons-material/OpenInFull';
 import CloseFullscreenIcon from '@mui/icons-material/CloseFullscreen';
 import TocOutlinedIcon from '@mui/icons-material/TocOutlined';
 import LocationOnIcon from '@mui/icons-material/LocationOn';
+import FilterListIcon from '@mui/icons-material/FilterList';
 import type { PublicTaskStatus, TaskVisibility } from '@/app/types/taskTypes';
 import type { PriorityLevel, TaskType } from '@/app/types/taskTypes';
 import type { TaskApplication } from '@/app/types/application';
@@ -93,11 +95,6 @@ type UserContext = {
     email?: string;
     user?: { _id?: string };
 };
-
-const gradientBg = (theme: { palette: { mode: string } }) =>
-    theme.palette.mode === 'dark'
-        ? 'linear-gradient(145deg, #0b0d12 0%, #0f1420 50%, #090c12 100%)'
-        : 'linear-gradient(145deg, #f5f7fb 0%, #e8ecf6 55%, #f8fafc 100%)';
 
 const glassPaperStyles = (theme: { palette: { mode: string } }) => ({
     p: 3,
@@ -168,7 +165,8 @@ function formatBudget(budget?: number, currency?: string) {
     if (!budget || budget <= 0) return 'Бюджет не указан';
     const fmt = new Intl.NumberFormat('ru-RU', { maximumFractionDigits: 0 });
     const code = currency || 'RUB';
-    return `${fmt.format(budget)} ${code}`;
+    const displayCode = code === 'RUB' ? '₽' : code;
+    return `${fmt.format(budget)} ${displayCode}`;
 }
 
 function getRegionLabel(code?: string) {
@@ -206,6 +204,19 @@ export default function MarketplacePage() {
     const [detailsTask, setDetailsTask] = useState<PublicTask | null>(null);
     const [workItemsFullScreen, setWorkItemsFullScreen] = useState(false);
     const [mapOpen, setMapOpen] = useState(false);
+    const [filtersDialogOpen, setFiltersDialogOpen] = useState(false);
+    const [filters, setFilters] = useState<{
+        organization: string;
+        project: string;
+        status: PublicTaskStatus | '';
+        skills: string[];
+    }>({
+        organization: '',
+        project: '',
+        status: '',
+        skills: [],
+    });
+    const [skillInput, setSkillInput] = useState('');
     const [applyMessage, setApplyMessage] = useState('');
     const [applyBudget, setApplyBudget] = useState('');
     const [applyEta, setApplyEta] = useState('');
@@ -342,6 +353,38 @@ export default function MarketplacePage() {
         }
     }, [selectedTask]);
 
+    const includesQuery = (value: string | undefined | null, query: string) =>
+        value?.toLowerCase().includes(query.toLowerCase()) ?? false;
+
+    const handleAddSkill = () => {
+        const trimmed = skillInput.trim();
+        if (!trimmed) return;
+        setFilters((prev) => {
+            const exists = prev.skills.some((skill) => skill.toLowerCase() === trimmed.toLowerCase());
+            if (exists) return prev;
+            return { ...prev, skills: [...prev.skills, trimmed] };
+        });
+        setSkillInput('');
+    };
+
+    const handleRemoveSkill = (skillToRemove: string) => {
+        setFilters((prev) => ({
+            ...prev,
+            skills: prev.skills.filter((skill) => skill !== skillToRemove),
+        }));
+    };
+
+    const resetFilters = () => {
+        setFilters({
+            organization: '',
+            project: '',
+            status: '',
+            skills: [],
+        });
+        setSkillInput('');
+        setFiltersDialogOpen(false);
+    };
+
     const handleSubmitApplication = async () => {
         if (!selectedTask?._id) return;
         if (userContext?.profileType !== 'contractor') {
@@ -396,6 +439,78 @@ export default function MarketplacePage() {
 
     const hasDetailsWorkItems = Boolean(detailsTask?.workItems && detailsTask.workItems.length > 0);
 
+    const isFiltersApplied =
+        Boolean(filters.organization) ||
+        Boolean(filters.project) ||
+        Boolean(filters.status) ||
+        filters.skills.length > 0;
+
+    const filteredTasks = tasks.filter((task) => {
+        const matchesOrganization = filters.organization
+            ? [task.orgName, task.orgSlug, task.orgId].some((value) =>
+                  includesQuery(value, filters.organization)
+              )
+            : true;
+
+        const matchesProject = filters.project
+            ? includesQuery(task.project?.name, filters.project) ||
+              includesQuery(task.project?.key, filters.project)
+            : true;
+
+        const matchesStatus = filters.status ? task.publicStatus === filters.status : true;
+
+        const matchesSkills = filters.skills.length
+            ? filters.skills.every((skill) =>
+                  (task.skills || []).some((taskSkill) =>
+                      taskSkill.toLowerCase().includes(skill.toLowerCase())
+                  )
+              )
+            : true;
+
+        return matchesOrganization && matchesProject && matchesStatus && matchesSkills;
+    });
+
+    const selectedFilterChips = [
+        filters.organization
+            ? {
+                  key: 'organization',
+                  label: `Организация: ${filters.organization}`,
+                  onDelete: () =>
+                      setFilters((prev) => ({
+                          ...prev,
+                          organization: '',
+                      })),
+              }
+            : null,
+        filters.project
+            ? {
+                  key: 'project',
+                  label: `Проект: ${filters.project}`,
+                  onDelete: () =>
+                      setFilters((prev) => ({
+                          ...prev,
+                          project: '',
+                      })),
+              }
+            : null,
+        filters.status
+            ? {
+                  key: 'status',
+                  label: `Статус: ${statusChipMap[filters.status]?.label || filters.status}`,
+                  onDelete: () =>
+                      setFilters((prev) => ({
+                          ...prev,
+                          status: '',
+                      })),
+              }
+            : null,
+        ...filters.skills.map((skill) => ({
+            key: `skill-${skill}`,
+            label: `Навык: ${skill}`,
+            onDelete: () => handleRemoveSkill(skill),
+        })),
+    ].filter(Boolean) as { key: string; label: string; onDelete: () => void }[];
+
     const renderWorkItemsTable = (maxHeight?: number | string) => {
         if (!hasDetailsWorkItems || !detailsTask?.workItems) {
             return (
@@ -442,6 +557,14 @@ export default function MarketplacePage() {
         );
     };
 
+    const heroActionButtonBaseSx = {
+        borderRadius: 2,
+        border: '1px solid',
+        borderColor: 'divider',
+        bgcolor: 'background.paper',
+        boxShadow: '0 10px 30px rgba(15,23,42,0.1)',
+    };
+
     const hero = (
         <Box
             sx={{
@@ -451,10 +574,6 @@ export default function MarketplacePage() {
                 px: { xs: 2, md: 5 },
                 py: { xs: 3, md: 5 },
                 mb: 4,
-                background: (theme) =>
-                    theme.palette.mode === 'dark'
-                        ? 'linear-gradient(135deg, rgba(46,74,255,0.24), rgba(99,102,241,0.24))'
-                        : 'linear-gradient(135deg, rgba(15,23,42,0.08), rgba(88,114,255,0.08))',
                 border: '1px solid',
                 borderColor: (theme) =>
                     theme.palette.mode === 'dark'
@@ -466,23 +585,14 @@ export default function MarketplacePage() {
                         : '0 35px 90px rgba(15,23,42,0.12)',
             }}
         >
-            <Box
-                sx={{
-                    position: 'absolute',
-                    inset: 0,
-                    background:
-                        'radial-gradient(circle at 10% 20%, rgba(96,165,250,0.25), transparent 25%), radial-gradient(circle at 80% 0%, rgba(14,165,233,0.28), transparent 22%), radial-gradient(circle at 90% 80%, rgba(34,197,94,0.22), transparent 26%)',
-                    filter: 'blur(60px)',
-                    opacity: 0.85,
-                }}
-            />
             <Stack spacing={2} sx={{ position: 'relative' }}>
                 {contextError && <Alert severity="warning">{contextError}</Alert>}
                 <Stack
-                    direction={{ xs: 'column', sm: 'row' }}
-                    spacing={2}
+                    direction="row"
+                    spacing={1.5}
                     alignItems="center"
                     flexWrap="wrap"
+                    sx={{ width: '100%', rowGap: 1.5 }}
                 >
                     <TextField
                         fullWidth
@@ -497,38 +607,48 @@ export default function MarketplacePage() {
                             ),
                             sx: { borderRadius: 3 },
                         }}
-                        sx={{ maxWidth: 520 }}
+                        sx={{ flexGrow: 1, minWidth: { xs: 260, sm: 320 }, maxWidth: 520 }}
                     />
-                    <Tooltip title="Обновить">
-                        <IconButton
-                            size="large"
-                            onClick={() => void fetchTasks()}
-                            sx={{
-                                borderRadius: 2,
-                                border: '1px solid',
-                                borderColor: 'divider',
-                                bgcolor: 'background.paper',
-                                boxShadow: '0 10px 30px rgba(15,23,42,0.1)',
-                            }}
-                        >
-                            <RefreshIcon />
-                        </IconButton>
-                    </Tooltip>
-                    <Tooltip title="Смотреть на карте">
-                        <IconButton
-                            size="large"
-                            onClick={() => setMapOpen(true)}
-                            sx={{
-                                borderRadius: 2,
-                                border: '1px solid',
-                                borderColor: 'divider',
-                                bgcolor: 'background.paper',
-                                boxShadow: '0 10px 30px rgba(15,23,42,0.1)',
-                            }}
-                        >
-                            <LocationOnIcon />
-                        </IconButton>
-                    </Tooltip>
+                    <Stack direction="row" spacing={1.25} alignItems="center" flexWrap="wrap">
+                        <Tooltip title="Обновить">
+                            <IconButton
+                                size="large"
+                                onClick={() => void fetchTasks()}
+                                sx={heroActionButtonBaseSx}
+                            >
+                                <RefreshIcon />
+                            </IconButton>
+                        </Tooltip>
+                        <Tooltip title="Смотреть на карте">
+                            <IconButton
+                                size="large"
+                                onClick={() => setMapOpen(true)}
+                                sx={heroActionButtonBaseSx}
+                            >
+                                <LocationOnIcon />
+                            </IconButton>
+                        </Tooltip>
+                        <Tooltip title="Фильтры">
+                            <IconButton
+                                size="large"
+                                color={filtersDialogOpen || isFiltersApplied ? 'primary' : 'default'}
+                                onClick={() => setFiltersDialogOpen(true)}
+                                sx={(theme) => ({
+                                    ...heroActionButtonBaseSx,
+                                    borderColor:
+                                        filtersDialogOpen || isFiltersApplied
+                                            ? theme.palette.primary.main
+                                            : theme.palette.divider,
+                                    color:
+                                        filtersDialogOpen || isFiltersApplied
+                                            ? theme.palette.primary.main
+                                            : theme.palette.text.primary,
+                                })}
+                            >
+                                <FilterListIcon />
+                            </IconButton>
+                        </Tooltip>
+                    </Stack>
                 </Stack>
             </Stack>
         </Box>
@@ -538,7 +658,6 @@ export default function MarketplacePage() {
         <Box
             sx={{
                 minHeight: '100vh',
-                background: gradientBg,
                 py: { xs: 4, md: 6 },
             }}
         >
@@ -553,13 +672,13 @@ export default function MarketplacePage() {
                     <Alert severity="error" sx={{ mb: 3 }}>
                         {error}
                     </Alert>
-                ) : tasks.length === 0 ? (
+                ) : filteredTasks.length === 0 ? (
                     <Alert severity="info" sx={{ mb: 3 }}>
                         Подходящих задач не найдено
                     </Alert>
                 ) : (
                     <Grid container spacing={2.5}>
-                        {tasks.map((task) => {
+                        {filteredTasks.map((task) => {
                             const chipMeta = task.publicStatus ? statusChipMap[task.publicStatus] : undefined;
                             const taskTitle = [task.taskName, task.bsNumber].filter(Boolean).join(' ');
                             const hasActiveApplication =
@@ -707,6 +826,109 @@ export default function MarketplacePage() {
                     </Grid>
                 )}
             </Container>
+
+            <Dialog
+                open={filtersDialogOpen}
+                onClose={() => setFiltersDialogOpen(false)}
+                maxWidth="sm"
+                fullWidth
+                PaperProps={{ sx: { borderRadius: 3 } }}
+            >
+                <DialogTitle>Фильтры</DialogTitle>
+                <DialogContent dividers>
+                    <Stack spacing={2}>
+                        <Stack spacing={1}>
+                            <Typography variant="subtitle2" color="text.secondary">
+                                Выбранные фильтры
+                            </Typography>
+                            {selectedFilterChips.length > 0 ? (
+                                <Stack direction="row" spacing={1} flexWrap="wrap">
+                                    {selectedFilterChips.map((chip) => (
+                                        <Chip
+                                            key={chip.key}
+                                            label={chip.label}
+                                            onDelete={chip.onDelete}
+                                            sx={{ borderRadius: 2 }}
+                                        />
+                                    ))}
+                                </Stack>
+                            ) : (
+                                <Typography variant="body2" color="text.secondary">
+                                    Фильтры не выбраны
+                                </Typography>
+                            )}
+                        </Stack>
+                        <TextField
+                            label="Организация"
+                            value={filters.organization}
+                            onChange={(e) =>
+                                setFilters((prev) => ({ ...prev, organization: e.target.value }))
+                            }
+                            fullWidth
+                        />
+                        <TextField
+                            label="Проект"
+                            value={filters.project}
+                            onChange={(e) => setFilters((prev) => ({ ...prev, project: e.target.value }))}
+                            fullWidth
+                        />
+                        <TextField
+                            select
+                            label="Статус"
+                            value={filters.status}
+                            onChange={(e) =>
+                                setFilters((prev) => ({
+                                    ...prev,
+                                    status: e.target.value as PublicTaskStatus | '',
+                                }))
+                            }
+                            fullWidth
+                        >
+                            <MenuItem value="">Все статусы</MenuItem>
+                            {(Object.keys(statusChipMap) as PublicTaskStatus[]).map((status) => (
+                                <MenuItem key={status} value={status}>
+                                    {statusChipMap[status]?.label}
+                                </MenuItem>
+                            ))}
+                        </TextField>
+                        <Stack spacing={1}>
+                            <TextField
+                                label="Навыки"
+                                value={skillInput}
+                                onChange={(e) => setSkillInput(e.target.value)}
+                                onKeyDown={(e) => {
+                                    if (e.key === 'Enter') {
+                                        e.preventDefault();
+                                        handleAddSkill();
+                                    }
+                                }}
+                                fullWidth
+                                helperText="Нажмите Enter, чтобы добавить навык"
+                            />
+                            {filters.skills.length > 0 ? (
+                                <Stack direction="row" spacing={1} flexWrap="wrap">
+                                    {filters.skills.map((skill) => (
+                                        <Chip
+                                            key={skill}
+                                            label={skill}
+                                            onDelete={() => handleRemoveSkill(skill)}
+                                            sx={{ borderRadius: 2 }}
+                                        />
+                                    ))}
+                                </Stack>
+                            ) : null}
+                        </Stack>
+                    </Stack>
+                </DialogContent>
+                <DialogActions sx={{ px: 3, py: 2 }}>
+                    <Button color="secondary" onClick={resetFilters}>
+                        Сбросить и закрыть
+                    </Button>
+                    <Button variant="contained" onClick={() => setFiltersDialogOpen(false)}>
+                        Закрыть
+                    </Button>
+                </DialogActions>
+            </Dialog>
 
             <Dialog fullScreen open={mapOpen} onClose={() => setMapOpen(false)}>
                 <DialogContent sx={{ p: 0, bgcolor: 'background.default' }}>
