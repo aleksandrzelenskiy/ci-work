@@ -1,7 +1,7 @@
 // src/app/market/page.tsx
 'use client';
 
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useState } from 'react';
 import {
     Box,
     Container,
@@ -45,9 +45,11 @@ import ExpandMoreIcon from '@mui/icons-material/ExpandMore';
 import OpenInFullIcon from '@mui/icons-material/OpenInFull';
 import CloseFullscreenIcon from '@mui/icons-material/CloseFullscreen';
 import TocOutlinedIcon from '@mui/icons-material/TocOutlined';
+import LocationOnIcon from '@mui/icons-material/LocationOn';
 import type { PublicTaskStatus, TaskVisibility } from '@/app/types/taskTypes';
 import type { PriorityLevel, TaskType } from '@/app/types/taskTypes';
 import type { TaskApplication } from '@/app/types/application';
+import MarketLocations from '@/app/components/MarketLocations';
 import { REGION_MAP } from '@/app/utils/regions';
 import { getPriorityLabelRu } from '@/utils/priorityIcons';
 
@@ -171,10 +173,10 @@ export default function MarketplacePage() {
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState<string | null>(null);
     const [search, setSearch] = useState('');
-    const [skillsQuery, setSkillsQuery] = useState('');
     const [selectedTask, setSelectedTask] = useState<PublicTask | null>(null);
     const [detailsTask, setDetailsTask] = useState<PublicTask | null>(null);
     const [workItemsFullScreen, setWorkItemsFullScreen] = useState(false);
+    const [mapOpen, setMapOpen] = useState(false);
     const [applyMessage, setApplyMessage] = useState('');
     const [applyBudget, setApplyBudget] = useState('');
     const [applyEta, setApplyEta] = useState('');
@@ -188,23 +190,14 @@ export default function MarketplacePage() {
     const [userContext, setUserContext] = useState<UserContext | null>(null);
     const [contextError, setContextError] = useState<string | null>(null);
 
-    const derivedSkills = useMemo(
-        () =>
-            skillsQuery
-                .split(',')
-                .map((s) => s.trim())
-                .filter(Boolean),
-        [skillsQuery]
-    );
-
     const fetchTasks = async () => {
         setLoading(true);
         setError(null);
         try {
             const params = new URLSearchParams();
             if (search.trim()) params.set('q', search.trim());
-            if (derivedSkills.length > 0) params.set('skills', derivedSkills.join(','));
-            const res = await fetch(`/api/tasks/public?${params.toString()}`);
+            const query = params.toString();
+            const res = await fetch(query ? `/api/tasks/public?${query}` : '/api/tasks/public');
             const data: TaskResponse = await res.json();
             if (!res.ok || data.error) {
                 setError(data.error || 'Не удалось загрузить задачи');
@@ -446,7 +439,12 @@ export default function MarketplacePage() {
             />
             <Stack spacing={2} sx={{ position: 'relative' }}>
                 {contextError && <Alert severity="warning">{contextError}</Alert>}
-                <Stack direction={{ xs: 'column', sm: 'row' }} spacing={2} alignItems="center">
+                <Stack
+                    direction={{ xs: 'column', sm: 'row' }}
+                    spacing={2}
+                    alignItems="center"
+                    flexWrap="wrap"
+                >
                     <TextField
                         fullWidth
                         placeholder="Поиск по названию, адресу или описанию"
@@ -462,14 +460,21 @@ export default function MarketplacePage() {
                         }}
                         sx={{ maxWidth: 520 }}
                     />
-                    <TextField
-                        fullWidth
-                        placeholder="Навыки через запятую (оптика, электрика)"
-                        value={skillsQuery}
-                        onChange={(e) => setSkillsQuery(e.target.value)}
-                        InputProps={{ sx: { borderRadius: 3 } }}
-                        sx={{ maxWidth: 420 }}
-                    />
+                    <Button
+                        variant="contained"
+                        endIcon={<LocationOnIcon />}
+                        onClick={() => setMapOpen(true)}
+                        sx={{
+                            borderRadius: 2.5,
+                            px: 2.5,
+                            py: 1.2,
+                            textTransform: 'none',
+                            boxShadow: '0 10px 30px rgba(15,23,42,0.12)',
+                            width: { xs: '100%', sm: 'auto' },
+                        }}
+                    >
+                        На карте
+                    </Button>
                     <Tooltip title="Обновить">
                         <IconButton
                             size="large"
@@ -486,19 +491,6 @@ export default function MarketplacePage() {
                         </IconButton>
                     </Tooltip>
                 </Stack>
-                {derivedSkills.length > 0 && (
-                    <Stack direction="row" spacing={1} flexWrap="wrap">
-                        {derivedSkills.map((skill) => (
-                            <Chip
-                                key={skill}
-                                label={skill}
-                                color="default"
-                                variant="outlined"
-                                sx={{ borderRadius: 2 }}
-                            />
-                        ))}
-                    </Stack>
-                )}
             </Stack>
         </Box>
     );
@@ -676,6 +668,40 @@ export default function MarketplacePage() {
                     </Grid>
                 )}
             </Container>
+
+            <Dialog fullScreen open={mapOpen} onClose={() => setMapOpen(false)}>
+                <DialogContent sx={{ p: 0, bgcolor: 'background.default' }}>
+                    <Box
+                        sx={{
+                            position: 'sticky',
+                            top: 0,
+                            zIndex: 5,
+                            display: 'flex',
+                            alignItems: 'center',
+                            justifyContent: 'space-between',
+                            px: 2,
+                            py: 1.5,
+                            borderBottom: 1,
+                            borderColor: 'divider',
+                            backdropFilter: 'blur(12px)',
+                            bgcolor: (theme) =>
+                                theme.palette.mode === 'dark'
+                                    ? 'rgba(17,24,39,0.9)'
+                                    : 'rgba(255,255,255,0.9)',
+                        }}
+                    >
+                        <Typography variant="h6" fontWeight={700}>
+                            Публичные задачи на карте
+                        </Typography>
+                        <IconButton onClick={() => setMapOpen(false)}>
+                            <CloseIcon />
+                        </IconButton>
+                    </Box>
+                    <Box sx={{ width: '100%', height: 'calc(100vh - 64px)' }}>
+                        <MarketLocations />
+                    </Box>
+                </DialogContent>
+            </Dialog>
 
             <Dialog
                 open={Boolean(selectedTask)}
