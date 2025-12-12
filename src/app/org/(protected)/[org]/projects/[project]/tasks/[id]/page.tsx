@@ -31,6 +31,7 @@ import {
     Snackbar,
     Alert,
     TextField,
+    Container,
 } from '@mui/material';
 import { styled } from '@mui/material/styles';
 import GroupsIcon from '@mui/icons-material/Groups';
@@ -1368,9 +1369,11 @@ export default function TaskDetailsPage() {
 
 
     return (
-        <Box
+        <Container
+            disableGutters
+            maxWidth={false}
             sx={{
-                px: { xs: 0.5, md: 1.5 },
+                px: { xs: 1.5, sm: 2.5, md: 3 },
                 py: 2,
                 display: 'flex',
                 flexDirection: 'column',
@@ -2788,6 +2791,6 @@ export default function TaskDetailsPage() {
                     {publishSnack.message}
                 </Alert>
             </Snackbar>
-        </Box>
+        </Container>
     );
 }
