@@ -202,9 +202,17 @@ export default function ClientApp({ children }: { children: React.ReactNode }) {
           | { balance: number; bonusBalance: number; total: number; currency?: string }
           | { error: string }
           | null;
-      if (!res.ok || !data || 'error' in (data ?? {}) || !data) {
+      if (!res.ok || !data) {
           setWalletInfo(null);
-          setWalletError((data as { error?: string })?.error ?? 'Не удалось загрузить кошелёк');
+          setWalletError(
+              data && 'error' in data ? data.error : 'Не удалось загрузить кошелёк',
+          );
+          setWalletLoading(false);
+          return;
+      }
+      if ('error' in data) {
+          setWalletInfo(null);
+          setWalletError(data.error);
           setWalletLoading(false);
           return;
       }
