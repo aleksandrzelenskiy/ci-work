@@ -17,6 +17,7 @@ import {
     type SxProps,
     type Theme,
 } from '@mui/material';
+import { useTheme } from '@mui/material/styles';
 import NotificationsIcon from '@mui/icons-material/Notifications';
 import DeleteOutlineIcon from '@mui/icons-material/DeleteOutline';
 import dayjs from 'dayjs';
@@ -181,6 +182,14 @@ const fetchSocketToken = async (): Promise<string> => {
 };
 
 export default function NotificationBell({ buttonSx }: NotificationBellProps) {
+    const theme = useTheme();
+    const isDark = theme.palette.mode === 'dark';
+    const menuBg = isDark ? 'rgba(12,16,26,0.95)' : theme.palette.background.paper;
+    const menuBorder = isDark ? 'rgba(255,255,255,0.08)' : 'rgba(15,23,42,0.08)';
+    const menuShadow = isDark ? '0 30px 70px rgba(0,0,0,0.65)' : '0 18px 50px rgba(15,23,42,0.12)';
+    const unreadBg = isDark ? 'rgba(59,130,246,0.14)' : (theme) => theme.palette.action.selected;
+    const readBg = isDark ? 'rgba(255,255,255,0.03)' : theme.palette.background.paper;
+
     const [anchorEl, setAnchorEl] = React.useState<null | HTMLElement>(null);
     const [notifications, setNotifications] = React.useState<NotificationDTO[]>([]);
     const [loading, setLoading] = React.useState(false);
@@ -483,6 +492,10 @@ export default function NotificationBell({ buttonSx }: NotificationBellProps) {
                         width: 380,
                         maxHeight: 420,
                         p: 0,
+                        backgroundColor: menuBg,
+                        border: `1px solid ${menuBorder}`,
+                        boxShadow: menuShadow,
+                        backdropFilter: 'blur(10px)',
                     },
                 }}
                 anchorOrigin={{
@@ -547,10 +560,8 @@ export default function NotificationBell({ buttonSx }: NotificationBellProps) {
                                             alignItems='flex-start'
                                             sx={{
                                                 alignItems: 'stretch',
-                                                backgroundColor: (theme) =>
-                                                    notification.status === 'unread'
-                                                        ? theme.palette.action.selected
-                                                        : theme.palette.background.paper,
+                                                backgroundColor:
+                                                    notification.status === 'unread' ? unreadBg : readBg,
                                                 borderLeft: (theme) =>
                                                     notification.status === 'unread'
                                                         ? `4px solid ${theme.palette.primary.main}`

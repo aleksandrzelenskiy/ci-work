@@ -100,6 +100,30 @@ export default function MessengerInterface({
 }: MessengerInterfaceProps) {
     const theme = useTheme();
     const isMobile = useMediaQuery(theme.breakpoints.down('sm'));
+    const isDark = theme.palette.mode === 'dark';
+    const shellBg = isDark
+        ? 'linear-gradient(180deg, rgba(10,13,20,0.95), rgba(15,20,32,0.9))'
+        : 'rgba(255,255,255,0.86)';
+    const listBg = isDark
+        ? 'linear-gradient(180deg, rgba(16,21,32,0.9), rgba(12,18,30,0.9))'
+        : 'linear-gradient(180deg, rgba(255,255,255,0.58), rgba(238,244,255,0.92))';
+    const listActiveBg = isDark ? 'rgba(59,130,246,0.16)' : 'rgba(232,240,255,0.9)';
+    const listHoverBg = isDark ? 'rgba(59,130,246,0.22)' : 'rgba(255,255,255,0.85)';
+    const chatShellBg = isDark
+        ? 'linear-gradient(145deg, rgba(12,16,26,0.95), rgba(18,24,36,0.92))'
+        : 'linear-gradient(145deg, rgba(255,255,255,0.94), rgba(236,244,255,0.88))';
+    const chatHeaderBg = isDark
+        ? 'linear-gradient(145deg, rgba(14,18,28,0.98), rgba(16,23,35,0.95))'
+        : 'linear-gradient(145deg, rgba(255,255,255,0.98), rgba(236,244,255,0.94))';
+    const messagesBg = isDark
+        ? 'linear-gradient(180deg, rgba(16,21,32,0.94), rgba(13,18,30,0.92))'
+        : 'linear-gradient(180deg, rgba(255,255,255,0.9), rgba(237,243,255,0.88))';
+    const messageOwnBg = isDark
+        ? 'linear-gradient(135deg, #2563eb 0%, #7c3aed 100%)'
+        : 'linear-gradient(135deg, #0f8cff 0%, #4dabff 100%)';
+    const messageOtherBg = isDark
+        ? 'linear-gradient(135deg, rgba(255,255,255,0.08), rgba(255,255,255,0.05))'
+        : 'linear-gradient(135deg, rgba(255,255,255,0.82), rgba(236,242,255,0.85))';
     const [conversations, setConversations] = React.useState<MessengerConversationDTO[]>([]);
     const [messagesByConversation, setMessagesByConversation] = React.useState<
         Record<string, MessengerMessageDTO[]>
@@ -1078,13 +1102,15 @@ export default function MessengerInterface({
                     maxWidth: '100%',
                     height: isMobile ? '100dvh' : '100%',
                     maxHeight: isMobile ? '100dvh' : '100%',
-                    background: 'rgba(255,255,255,0.86)',
+                    background: shellBg,
                     backdropFilter: 'blur(18px)',
                     overflowY: isMobile ? 'auto' : 'hidden',
                     overflowX: 'hidden',
                     boxShadow: isMobile
                         ? 'none'
-                        : '0 18px 45px rgba(15,23,42,0.08), inset 0 1px 0 rgba(255,255,255,0.45)',
+                        : isDark
+                            ? '0 25px 60px rgba(0,0,0,0.55)'
+                            : '0 18px 45px rgba(15,23,42,0.08), inset 0 1px 0 rgba(255,255,255,0.45)',
                     boxSizing: 'border-box',
                 }}
             >
@@ -1096,8 +1122,7 @@ export default function MessengerInterface({
                             xs: 'none',
                             sm: (theme) => `1px solid ${theme.palette.divider}`,
                         },
-                        background:
-                            'linear-gradient(180deg, rgba(255,255,255,0.58), rgba(238,244,255,0.92))',
+                        background: listBg,
                         height: '100%',
                         maxHeight: '100%',
                         minHeight: 0,
@@ -1222,15 +1247,11 @@ export default function MessengerInterface({
                                             sx={{
                                                 alignItems: 'flex-start',
                                                 gap: 1,
-                                                backgroundColor: isActive
-                                                    ? 'rgba(232,240,255,0.9)'
-                                                    : 'transparent',
+                                                backgroundColor: isActive ? listActiveBg : 'transparent',
                                                 transition: 'background-color 0.2s ease, transform 0.15s ease',
                                                 py: 1.25,
                                                 '&:hover': {
-                                                    backgroundColor: isActive
-                                                        ? 'rgba(232,240,255,0.95)'
-                                                        : 'rgba(255,255,255,0.85)',
+                                                    backgroundColor: isActive ? listActiveBg : listHoverBg,
                                                     transform: 'translateX(2px)',
                                                 },
                                             }}
@@ -1300,7 +1321,7 @@ export default function MessengerInterface({
                         display: showChatPane ? 'grid' : 'none',
                         gridTemplateRows: 'auto 1fr auto',
                         rowGap: 1.25,
-                        background: 'linear-gradient(145deg, rgba(255,255,255,0.94), rgba(236,244,255,0.88))',
+                        background: chatShellBg,
                         width: '100%',
                         boxSizing: 'border-box',
                         overflow: 'hidden',
@@ -1315,8 +1336,7 @@ export default function MessengerInterface({
                             position: 'sticky',
                             top: 0,
                             zIndex: 2,
-                            background:
-                                'linear-gradient(145deg, rgba(255,255,255,0.98), rgba(236,244,255,0.94))',
+                            background: chatHeaderBg,
                             pb: 1,
                         }}
                     >
@@ -1419,9 +1439,8 @@ export default function MessengerInterface({
                             py: 1.25,
                             width: '100%',
                             borderRadius: 3,
-                            background:
-                                'linear-gradient(180deg, rgba(255,255,255,0.9), rgba(237,243,255,0.88))',
-                            boxShadow: 'inset 0 1px 0 rgba(255,255,255,0.75)',
+                            background: messagesBg,
+                            boxShadow: isDark ? 'inset 0 1px 0 rgba(255,255,255,0.06)' : 'inset 0 1px 0 rgba(255,255,255,0.75)',
                         }}
                         ref={chatContainerRef}
                     >
@@ -1447,9 +1466,7 @@ export default function MessengerInterface({
                                 {activeMessages.map((message) => {
                                     const isOwn = message.senderEmail === userEmail;
                                     const align = isOwn ? 'flex-end' : 'flex-start';
-                                    const bg = isOwn
-                                        ? 'linear-gradient(135deg, #0f8cff 0%, #4dabff 100%)'
-                                        : 'linear-gradient(135deg, rgba(255,255,255,0.82), rgba(236,242,255,0.85))';
+                                    const bg = isOwn ? messageOwnBg : messageOtherBg;
                                     const isRead = message.readBy?.includes(userEmail);
                                     return (
                                         <Stack
@@ -1475,8 +1492,12 @@ export default function MessengerInterface({
                                                     borderRadius: 3,
                                                     boxShadow: isOwn
                                                         ? '0 18px 38px rgba(15,23,42,0.18)'
-                                                        : '0 6px 18px rgba(15,23,42,0.08)',
-                                                    border: !isRead ? '1px solid rgba(99,102,241,0.25)' : '1px solid transparent',
+                                                        : isDark
+                                                            ? '0 12px 24px rgba(0,0,0,0.4)'
+                                                            : '0 6px 18px rgba(15,23,42,0.08)',
+                                                    border: !isRead
+                                                        ? '1px solid rgba(99,102,241,0.25)'
+                                                        : '1px solid transparent',
                                                     backdropFilter: isOwn ? 'blur(0px)' : 'blur(6px)',
                                                 }}
                                             >

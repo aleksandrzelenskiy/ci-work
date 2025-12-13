@@ -32,6 +32,7 @@ import {
     Stack,
 } from '@mui/material';
 import Pagination from '@mui/material/Pagination';
+import { useTheme } from '@mui/material/styles';
 import { ViewColumn as ViewColumnIcon } from '@mui/icons-material';
 import { Task } from '../types/taskTypes';
 import { getStatusColor } from '@/utils/statusColors';
@@ -137,7 +138,17 @@ function Row({
   const authorInitials = getInitials(authorName || authorEmail);
 
   return (
-    <TableRow hover sx={{ cursor: 'pointer' }} onClick={handleRowClick}>
+    <TableRow
+      hover
+      sx={{
+        cursor: 'pointer',
+        '& td': { borderColor: (theme) => (theme.palette.mode === 'dark' ? 'rgba(255,255,255,0.08)' : 'rgba(15,23,42,0.06)') },
+        '&:hover': {
+          backgroundColor: (theme) => (theme.palette.mode === 'dark' ? 'rgba(255,255,255,0.08)' : '#fffde7'),
+        },
+      }}
+      onClick={handleRowClick}
+    >
       {columnVisibility.taskId && (
         <TableCell align='center'>
           <Typography variant='body2' fontWeight={600}>
@@ -246,6 +257,14 @@ const TaskListPage = forwardRef<TaskListPageHandle, TaskListPageProps>(function 
   },
   ref
 ) {
+  const theme = useTheme();
+  const isDark = theme.palette.mode === 'dark';
+  const tableBg = isDark ? 'rgba(10,13,20,0.92)' : '#ffffff';
+  const headBg = isDark ? 'rgba(255,255,255,0.05)' : 'rgba(248,250,252,0.95)';
+  const cellBorder = isDark ? 'rgba(255,255,255,0.08)' : 'rgba(15,23,42,0.06)';
+  const containerShadow = isDark ? '0 25px 70px rgba(0,0,0,0.55)' : '0 20px 50px rgba(15,23,42,0.12)';
+  const popoverBg = isDark ? 'rgba(12,16,26,0.95)' : theme.palette.background.paper;
+
   const [tasks, setTasks] = useState<Task[]>([]);
   const [filteredTasks, setFilteredTasks] = useState<Task[]>([]);
   const [loading, setLoading] = useState(true);
@@ -454,16 +473,26 @@ const TaskListPage = forwardRef<TaskListPageHandle, TaskListPageProps>(function 
         </Box>
       )}
 
-      <TableContainer component={Box}>
+      <TableContainer
+        component={Box}
+        sx={{
+          backgroundColor: tableBg,
+          borderRadius: 3,
+          border: `1px solid ${cellBorder}`,
+          boxShadow: containerShadow,
+          overflow: 'hidden',
+        }}
+      >
           <Table>
             <TableHead>
-              <TableRow>
+              <TableRow sx={{ backgroundColor: headBg }}>
                 {columnVisibility.taskId && (
                     <TableCell
                         sx={{
                           whiteSpace: 'nowrap',
                           padding: '16px',
                           textAlign: 'center',
+                          borderColor: cellBorder,
                         }}
                     >
                       <strong>ID</strong>
@@ -477,6 +506,7 @@ const TaskListPage = forwardRef<TaskListPageHandle, TaskListPageProps>(function 
                       whiteSpace: 'nowrap',
                       padding: '16px',
                       textAlign: 'center',
+                      borderColor: cellBorder,
                     }}
                   >
                     <strong>{COLUMN_LABELS.task}</strong>
@@ -489,6 +519,7 @@ const TaskListPage = forwardRef<TaskListPageHandle, TaskListPageProps>(function 
                       whiteSpace: 'nowrap',
                       padding: '16px',
                       textAlign: 'center',
+                      borderColor: cellBorder,
                     }}
                   >
                     <strong>Проект</strong>
@@ -501,6 +532,7 @@ const TaskListPage = forwardRef<TaskListPageHandle, TaskListPageProps>(function 
                       whiteSpace: 'nowrap',
                       padding: '16px',
                       textAlign: 'center',
+                      borderColor: cellBorder,
                     }}
                   >
                     <strong>{COLUMN_LABELS.author}</strong>
@@ -513,6 +545,7 @@ const TaskListPage = forwardRef<TaskListPageHandle, TaskListPageProps>(function 
                       whiteSpace: 'nowrap',
                       padding: '16px',
                       textAlign: 'center',
+                      borderColor: cellBorder,
                     }}
                   >
                     <strong>{COLUMN_LABELS.created}</strong>
@@ -525,6 +558,7 @@ const TaskListPage = forwardRef<TaskListPageHandle, TaskListPageProps>(function 
                       whiteSpace: 'nowrap',
                       padding: '16px',
                       textAlign: 'center',
+                      borderColor: cellBorder,
                     }}
                   >
                     <strong>{COLUMN_LABELS.due}</strong>
@@ -533,7 +567,7 @@ const TaskListPage = forwardRef<TaskListPageHandle, TaskListPageProps>(function 
 
                 {columnVisibility.complete && (
                     <TableCell
-                        sx={{ whiteSpace: 'nowrap', padding: '16px', textAlign: 'center' }}
+                        sx={{ whiteSpace: 'nowrap', padding: '16px', textAlign: 'center', borderColor: cellBorder }}
                     >
                       <strong>{COLUMN_LABELS.complete}</strong>
                     </TableCell>
@@ -545,6 +579,7 @@ const TaskListPage = forwardRef<TaskListPageHandle, TaskListPageProps>(function 
                       whiteSpace: 'nowrap',
                       padding: '16px',
                       textAlign: 'center',
+                      borderColor: cellBorder,
                     }}
                   >
                     <strong>{COLUMN_LABELS.status}</strong>
@@ -557,6 +592,7 @@ const TaskListPage = forwardRef<TaskListPageHandle, TaskListPageProps>(function 
                       whiteSpace: 'nowrap',
                       padding: '16px',
                       textAlign: 'center',
+                      borderColor: cellBorder,
                     }}
                   >
                     <strong>{COLUMN_LABELS.priority}</strong>
@@ -623,7 +659,17 @@ const TaskListPage = forwardRef<TaskListPageHandle, TaskListPageProps>(function 
         anchorEl={columnsAnchorEl}
         onClose={closeColumns}
         anchorOrigin={{ vertical: 'bottom', horizontal: 'left' }}
-        slotProps={{ paper: { sx: { overflow: 'visible' } } }}
+        slotProps={{
+          paper: {
+            sx: {
+              overflow: 'visible',
+              backgroundColor: popoverBg,
+              borderRadius: 2,
+              border: `1px solid ${cellBorder}`,
+              boxShadow: containerShadow,
+            },
+          },
+        }}
       >
         <Box
           sx={{
