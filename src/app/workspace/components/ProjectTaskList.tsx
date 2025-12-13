@@ -190,6 +190,7 @@ const ProjectTaskListInner = (
     const menuIconColor = menuText;
     const menuIconDangerColor = '#ef4444';
     const menuItemHover = isDarkMode ? 'rgba(255,255,255,0.08)' : 'rgba(15,23,42,0.05)';
+    const rowHoverBg = isDarkMode ? 'rgba(255,255,255,0.08)' : '#fffde7';
 
     const storageKey = useMemo(
         () => `${COLUMN_STORAGE_PREFIX}:${org || 'org'}:${project || 'project'}`,
@@ -437,7 +438,10 @@ const ProjectTaskListInner = (
                                     sx={{
                                         transition: 'background-color .15s ease',
                                         cursor: 'pointer', // теперь логичнее pointer
-                                        '&:hover': { backgroundColor: '#fffde7' },
+                                        '&:hover': {
+                                            backgroundColor: rowHoverBg,
+                                            color: theme.palette.text.primary,
+                                        },
                                     }}
                                 >
                                     {columnVisibility.taskId && (
