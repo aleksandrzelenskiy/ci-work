@@ -1012,7 +1012,7 @@ export default function OrgSettingsPage() {
                                 {activeProjectsCount}
                             </Typography>
                             <Typography variant="body2" color={textSecondary}>
-                                из {projectsLimitLabel}
+                                из {projectsLimitLabel} доступных
                             </Typography>
                         </Box>
                         <Box sx={statCardSx}>

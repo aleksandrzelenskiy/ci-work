@@ -191,6 +191,10 @@ const ProjectTaskListInner = (
     const menuIconDangerColor = '#ef4444';
     const menuItemHover = isDarkMode ? 'rgba(255,255,255,0.08)' : 'rgba(15,23,42,0.05)';
     const rowHoverBg = isDarkMode ? 'rgba(255,255,255,0.08)' : '#fffde7';
+    const tableBg = isDarkMode ? 'rgba(10,13,20,0.92)' : '#ffffff';
+    const headBg = isDarkMode ? 'rgba(255,255,255,0.05)' : 'rgba(248,250,252,0.95)';
+    const cellBorder = isDarkMode ? 'rgba(255,255,255,0.06)' : 'rgba(15,23,42,0.06)';
+    const tableShadow = isDarkMode ? '0 25px 70px rgba(0,0,0,0.55)' : '0 20px 50px rgba(15,23,42,0.12)';
 
     const storageKey = useMemo(
         () => `${COLUMN_STORAGE_PREFIX}:${org || 'org'}:${project || 'project'}`,
@@ -367,42 +371,51 @@ const ProjectTaskListInner = (
 
     return (
         <Box>
-            <TableContainer component={Box}>
+            <TableContainer
+                component={Box}
+                sx={{
+                    backgroundColor: tableBg,
+                    borderRadius: 3,
+                    border: `1px solid ${cellBorder}`,
+                    boxShadow: tableShadow,
+                    overflow: 'hidden',
+                }}
+            >
                 <Table size="small">
                     <TableHead>
-                        <TableRow>
+                        <TableRow sx={{ backgroundColor: headBg }}>
                             {columnVisibility.taskId && (
-                                <TableCell width={100} align="center">
+                                <TableCell width={100} align="center" sx={{ borderColor: cellBorder }}>
                                     <strong>ID</strong>
                                 </TableCell>
                             )}
                             {columnVisibility.task && (
-                                <TableCell sx={{ minWidth: 280, width: '28%' }}>
+                                <TableCell sx={{ minWidth: 280, width: '28%', borderColor: cellBorder }}>
                                     <strong>Задача</strong>
                                 </TableCell>
                             )}
                             {columnVisibility.status && (
-                                <TableCell width={200} align="center">
+                                <TableCell width={200} align="center" sx={{ borderColor: cellBorder }}>
                                     <strong>Статус</strong>
                                 </TableCell>
                             )}
                             {columnVisibility.priority && (
-                                <TableCell width={180} align="center">
+                                <TableCell width={180} align="center" sx={{ borderColor: cellBorder }}>
                                     <strong>Приоритет</strong>
                                 </TableCell>
                             )}
                             {columnVisibility.executor && (
-                                <TableCell width={320}>
+                                <TableCell width={320} sx={{ borderColor: cellBorder }}>
                                     <strong>Исполнитель</strong>
                                 </TableCell>
                             )}
                             {columnVisibility.due && (
-                                <TableCell width={220} align="center">
+                                <TableCell width={220} align="center" sx={{ borderColor: cellBorder }}>
                                     <strong>Срок</strong>
                                 </TableCell>
                             )}
                             {columnVisibility.order && (
-                                <TableCell width={120} align="center">
+                                <TableCell width={120} align="center" sx={{ borderColor: cellBorder }}>
                                     <strong>Заказ</strong>
                                 </TableCell>
                             )}
@@ -438,6 +451,8 @@ const ProjectTaskListInner = (
                                     sx={{
                                         transition: 'background-color .15s ease',
                                         cursor: 'pointer', // теперь логичнее pointer
+                                        borderColor: cellBorder,
+                                        '& td': { borderColor: cellBorder },
                                         '&:hover': {
                                             backgroundColor: rowHoverBg,
                                             color: theme.palette.text.primary,

@@ -10,6 +10,7 @@ import {
     ListItemText,
     Divider,
 } from '@mui/material';
+import { useTheme } from '@mui/material/styles';
 import OpenInNewIcon from '@mui/icons-material/OpenInNew';
 import EditIcon from '@mui/icons-material/Edit';
 import DeleteOutlineIcon from '@mui/icons-material/DeleteOutline';
@@ -29,6 +30,14 @@ export default function TaskContextMenu({
                                             onEditTask,
                                             onDeleteTask,
                                         }: Props) {
+    const theme = useTheme();
+    const isDark = theme.palette.mode === 'dark';
+    const menuBg = isDark ? 'rgba(12,16,26,0.95)' : 'rgba(255,255,255,0.96)';
+    const menuBorder = isDark ? 'rgba(255,255,255,0.08)' : 'rgba(15,23,42,0.08)';
+    const menuShadow = isDark ? '0 30px 70px rgba(0,0,0,0.65)' : '0 20px 50px rgba(15,23,42,0.12)';
+    const hoverBg = isDark ? 'rgba(255,255,255,0.08)' : 'rgba(15,23,42,0.06)';
+    const textColor = isDark ? '#e5e7eb' : 'inherit';
+
     return (
         <Menu
             open={!!anchorPosition}
@@ -36,7 +45,16 @@ export default function TaskContextMenu({
             anchorReference="anchorPosition"
             anchorPosition={anchorPosition ?? undefined}
             slotProps={{
-                paper: { sx: { minWidth: 180, borderRadius: 2 } },
+                paper: {
+                    sx: {
+                        minWidth: 180,
+                        borderRadius: 2.5,
+                        backgroundColor: menuBg,
+                        border: `1px solid ${menuBorder}`,
+                        boxShadow: menuShadow,
+                        backdropFilter: 'blur(10px)',
+                    },
+                },
             }}
         >
             <MenuItem
@@ -44,6 +62,7 @@ export default function TaskContextMenu({
                     onOpenTask?.();
                     onClose();
                 }}
+                sx={{ color: textColor, '&:hover': { backgroundColor: hoverBg } }}
             >
                 <ListItemIcon>
                     <OpenInNewIcon fontSize="small" />
@@ -56,6 +75,7 @@ export default function TaskContextMenu({
                     onEditTask?.();
                     onClose();
                 }}
+                sx={{ color: textColor, '&:hover': { backgroundColor: hoverBg } }}
             >
                 <ListItemIcon>
                     <EditIcon fontSize="small" />
@@ -63,14 +83,17 @@ export default function TaskContextMenu({
                 <ListItemText primary="Редактировать" />
             </MenuItem>
 
-            <Divider />
+            <Divider sx={{ borderColor: menuBorder }} />
 
             <MenuItem
                 onClick={() => {
                     onDeleteTask?.();
                     onClose();
                 }}
-                sx={{ color: 'error.main' }}
+                sx={{
+                    color: 'error.main',
+                    '&:hover': { backgroundColor: hoverBg },
+                }}
             >
                 <ListItemIcon>
                     <DeleteOutlineIcon fontSize="small" color="error" />

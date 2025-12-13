@@ -13,6 +13,7 @@ import {
     TextField,
     Typography,
 } from '@mui/material';
+import { useTheme } from '@mui/material/styles';
 import CloudDownloadIcon from '@mui/icons-material/CloudDownload';
 import SaveIcon from '@mui/icons-material/Save';
 import { AdapterDayjs } from '@mui/x-date-pickers/AdapterDayjs';
@@ -70,6 +71,31 @@ export const T2NcwGenerator = ({
     onSaved,
     onClose,
 }: Props) => {
+    const theme = useTheme();
+    const isDark = theme.palette.mode === 'dark';
+    const cardBg = isDark ? 'rgba(10,13,20,0.92)' : 'rgba(255,255,255,0.95)';
+    const cardBorder = isDark ? 'rgba(255,255,255,0.08)' : 'rgba(15,23,42,0.08)';
+    const cardShadow = isDark ? '0 30px 80px rgba(0,0,0,0.65)' : '0 20px 50px rgba(15,23,42,0.12)';
+    const inputBg = isDark ? 'rgba(255,255,255,0.04)' : 'rgba(255,255,255,0.96)';
+    const inputBorder = isDark ? 'rgba(255,255,255,0.12)' : 'rgba(15,23,42,0.12)';
+    const textInputSx = {
+        '& .MuiOutlinedInput-root': {
+            backgroundColor: inputBg,
+            '& fieldset': { borderColor: inputBorder },
+            '&:hover fieldset': { borderColor: isDark ? 'rgba(125,211,252,0.5)' : 'rgba(59,130,246,0.4)' },
+            '&.Mui-focused fieldset': { borderColor: isDark ? 'rgba(59,130,246,0.9)' : 'rgba(59,130,246,0.7)' },
+        },
+    };
+    const cardSx = {
+        p: 2.5,
+        borderRadius: 3,
+        background: cardBg,
+        border: `1px solid ${cardBorder}`,
+        boxShadow: cardShadow,
+        backdropFilter: 'blur(10px)',
+    };
+    const previewBoxBg = isDark ? 'rgba(16,21,32,0.95)' : '#fff';
+
     const params = useSearchParams();
     const pathname = usePathname();
     const router = useRouter();
@@ -290,7 +316,7 @@ export const T2NcwGenerator = ({
                 gap={{ xs: 3, md: 4 }}
                 sx={{ width: '100%' }}
             >
-                <Stack spacing={3} flex={1}>
+                <Stack spacing={3} flex={1} sx={cardSx}>
                     <Typography variant="h5">Генерация уведомления о завершении работ</Typography>
 
                     <TextField
@@ -298,6 +324,7 @@ export const T2NcwGenerator = ({
                         value={contractNumber}
                         onChange={(e) => setContractNumber(e.target.value)}
                         fullWidth
+                        sx={textInputSx}
                     />
 
                     <DatePicker
@@ -305,7 +332,7 @@ export const T2NcwGenerator = ({
                         format="DD.MM.YYYY"
                         value={contractDate}
                         onChange={setContractDate}
-                        slotProps={{ textField: { fullWidth: true } }}
+                        slotProps={{ textField: { fullWidth: true, sx: textInputSx } }}
                     />
 
                     <TextField
@@ -313,6 +340,7 @@ export const T2NcwGenerator = ({
                         value={orderNumber}
                         onChange={(e) => setOrderNumber(e.target.value)}
                         fullWidth
+                        sx={textInputSx}
                     />
 
                     <DatePicker
@@ -320,7 +348,7 @@ export const T2NcwGenerator = ({
                         format="DD.MM.YYYY"
                         value={orderDate}
                         onChange={setOrderDate}
-                        slotProps={{ textField: { fullWidth: true } }}
+                        slotProps={{ textField: { fullWidth: true, sx: textInputSx } }}
                     />
 
                     <DatePicker
@@ -328,7 +356,7 @@ export const T2NcwGenerator = ({
                         format="DD.MM.YYYY"
                         value={completionDate}
                         onChange={setCompletionDate}
-                        slotProps={{ textField: { fullWidth: true } }}
+                        slotProps={{ textField: { fullWidth: true, sx: textInputSx } }}
                     />
 
                     <TextField
@@ -336,6 +364,7 @@ export const T2NcwGenerator = ({
                         value={objectNumber}
                         onChange={(e) => setObjectNumber(e.target.value)}
                         fullWidth
+                        sx={textInputSx}
                     />
 
                     <TextField
@@ -345,6 +374,7 @@ export const T2NcwGenerator = ({
                         fullWidth
                         multiline
                         rows={3}
+                        sx={textInputSx}
                     />
                 </Stack>
 
@@ -353,16 +383,18 @@ export const T2NcwGenerator = ({
                     flex={{ xs: 'none', md: 1 }}
                     sx={{
                         flexBasis: { xs: '100%', md: '55%' },
+                        ...cardSx,
                     }}
                 >
                     <Typography variant="h5">Предпросмотр</Typography>
                     <Box
                         sx={{
                             borderRadius: 2,
-                            border: 1,
-                            borderColor: 'divider',
+                            border: `1px solid ${cardBorder}`,
                             overflow: 'hidden',
                             height: { xs: 380, md: 560 },
+                            backgroundColor: previewBoxBg,
+                            boxShadow: cardShadow,
                         }}
                     >
                         <PDFViewer width="100%" height="100%">

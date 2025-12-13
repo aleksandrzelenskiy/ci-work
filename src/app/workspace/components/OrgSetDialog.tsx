@@ -21,6 +21,7 @@ import {
     Tooltip,
 } from '@mui/material';
 import type { SelectChangeEvent } from '@mui/material/Select';
+import { useTheme } from '@mui/material/styles';
 import ExpandMoreIcon from '@mui/icons-material/ExpandMore';
 import EditNoteIcon from '@mui/icons-material/EditNote';
 import DoneIcon from '@mui/icons-material/Done';
@@ -82,6 +83,13 @@ export default function OrgSetDialog({
                                      }: OrgSetDialogProps) {
     const [form, setForm] = React.useState<OrgSettingsFormValues>(defaultOrgSettings);
     const [isEditing, setIsEditing] = React.useState(false);
+    const theme = useTheme();
+    const isDark = theme.palette.mode === 'dark';
+    const paperBg = isDark ? 'rgba(10,13,20,0.92)' : 'rgba(255,255,255,0.9)';
+    const paperBorder = isDark ? 'rgba(255,255,255,0.08)' : 'rgba(15,23,42,0.08)';
+    const paperShadow = isDark ? '0 40px 80px rgba(0,0,0,0.7)' : '0 30px 70px rgba(15,23,42,0.2)';
+    const sectionBg = isDark ? 'rgba(16,21,32,0.9)' : 'rgba(248,250,252,0.92)';
+    const sectionBorder = isDark ? 'rgba(255,255,255,0.08)' : 'rgba(15,23,42,0.08)';
 
     React.useEffect(() => {
         if (!open) return;
@@ -113,15 +121,41 @@ export default function OrgSetDialog({
     const isIndividualEntrepreneur = form.legalForm === 'ИП';
 
     return (
-        <Dialog open={open} onClose={loading ? undefined : onCloseAction} maxWidth="md" fullWidth>
+        <Dialog
+            open={open}
+            onClose={loading ? undefined : onCloseAction}
+            maxWidth="md"
+            fullWidth
+            PaperProps={{
+                sx: {
+                    backdropFilter: 'blur(20px)',
+                    backgroundColor: paperBg,
+                    border: `1px solid ${paperBorder}`,
+                    boxShadow: paperShadow,
+                    borderRadius: 3,
+                },
+            }}
+        >
             <DialogTitle>Настройки организации</DialogTitle>
-            <DialogContent dividers>
-                <Stack spacing={1.5} sx={{ mb: 2 }}>
-
-                </Stack>
+            <DialogContent
+                dividers
+                sx={{
+                    backgroundColor: sectionBg,
+                    borderTop: `1px solid ${sectionBorder}`,
+                }}
+            >
+                <Stack spacing={1.5} sx={{ mb: 2 }} />
 
                 {isEditing ? (
-                    <Stack spacing={3} sx={{ mt: 1 }}>
+                    <Stack
+                        spacing={3}
+                        sx={{
+                            mt: 1,
+                            '& .MuiOutlinedInput-root': {
+                                backgroundColor: isDark ? 'rgba(255,255,255,0.04)' : '#fff',
+                            },
+                        }}
+                    >
                         <Stack spacing={2}>
                             <FormControl fullWidth size="small">
                                 <InputLabel id="legal-form-label">Форма</InputLabel>
@@ -272,7 +306,15 @@ export default function OrgSetDialog({
                         />
                     </Stack>
                 ) : (
-                    <Accordion>
+                    <Accordion
+                        disableGutters
+                        sx={{
+                            backgroundColor: sectionBg,
+                            border: `1px solid ${sectionBorder}`,
+                            borderRadius: 2,
+                            '&::before': { display: 'none' },
+                        }}
+                    >
                         <AccordionSummary expandIcon={<ExpandMoreIcon />}>
                             <Stack direction="row" spacing={1} alignItems="center" sx={{ width: '100%' }}>
                                 <Typography variant="subtitle1" sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
@@ -330,7 +372,12 @@ export default function OrgSetDialog({
                     </Accordion>
                 )}
             </DialogContent>
-            <DialogActions>
+            <DialogActions
+                sx={{
+                    backgroundColor: paperBg,
+                    borderTop: `1px solid ${sectionBorder}`,
+                }}
+            >
                 <Button onClick={onCloseAction} disabled={loading}>
                     Закрыть
                 </Button>

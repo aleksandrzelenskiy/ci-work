@@ -27,6 +27,7 @@ import {
     type Event as RBCEvent,
 } from 'react-big-calendar';
 import 'react-big-calendar/lib/css/react-big-calendar.css';
+import { useTheme } from '@mui/material/styles';
 import ArrowBackIos from '@mui/icons-material/ArrowBackIos';
 import ArrowForwardIos from '@mui/icons-material/ArrowForwardIos';
 import Today from '@mui/icons-material/Today';
@@ -138,6 +139,14 @@ export default function ProjectTaskCalendar({
 }) {
     const router = useRouter();
     void onReloadAction;
+    const theme = useTheme();
+    const isDark = theme.palette.mode === 'dark';
+    const calendarBg = isDark ? 'rgba(10,13,20,0.92)' : '#fff';
+    const calendarBorder = isDark ? 'rgba(255,255,255,0.08)' : 'rgba(15,23,42,0.08)';
+    const toolbarBg = isDark ? 'rgba(21,28,44,0.85)' : 'rgba(248,250,252,0.92)';
+    const slotBorder = isDark ? 'rgba(255,255,255,0.05)' : 'rgba(15,23,42,0.06)';
+    const offRangeBg = isDark ? 'rgba(255,255,255,0.02)' : '#f8fafc';
+    const todayBg = isDark ? 'rgba(59,130,246,0.16)' : 'rgba(59,130,246,0.12)';
 
     const openTaskPage = (task: Task) => {
         if (!org || !project) return;
@@ -176,7 +185,45 @@ export default function ProjectTaskCalendar({
     } as unknown as CalendarProps<CalendarEvent>['components'];
 
     return (
-        <Box sx={{ height: 'calc(100vh - 260px)' }}>
+        <Box
+            sx={{
+                height: 'calc(100vh - 260px)',
+                '& .rbc-calendar': {
+                    backgroundColor: calendarBg,
+                    borderRadius: 3,
+                    border: `1px solid ${calendarBorder}`,
+                    boxShadow: isDark ? '0 30px 80px rgba(0,0,0,0.55)' : '0 20px 50px rgba(15,23,42,0.15)',
+                    overflow: 'hidden',
+                    color: theme.palette.text.primary,
+                },
+                '& .rbc-toolbar': {
+                    backgroundColor: toolbarBg,
+                    borderBottom: `1px solid ${calendarBorder}`,
+                },
+                '& .rbc-header': {
+                    backgroundColor: isDark ? 'rgba(255,255,255,0.03)' : 'rgba(248,250,252,0.9)',
+                    color: theme.palette.text.primary,
+                    borderColor: slotBorder,
+                },
+                '& .rbc-time-slot, & .rbc-day-bg': {
+                    borderColor: slotBorder,
+                },
+                '& .rbc-off-range-bg': {
+                    backgroundColor: offRangeBg,
+                },
+                '& .rbc-today': {
+                    backgroundColor: todayBg,
+                },
+                '& .rbc-month-view, & .rbc-time-view, & .rbc-agenda-view': {
+                    color: theme.palette.text.primary,
+                },
+                '& .rbc-event': {
+                    borderRadius: 8,
+                    boxShadow: isDark ? '0 10px 25px rgba(0,0,0,0.35)' : '0 10px 25px rgba(15,23,42,0.15)',
+                    border: 'none',
+                },
+            }}
+        >
             <Calendar
                 localizer={localizer}
                 events={events}
@@ -193,6 +240,7 @@ export default function ProjectTaskCalendar({
                     return {
                         style: {
                             backgroundColor: statusBg[st] ?? '#9e9e9e',
+                            color: '#fff',
                             fontSize: '0.75rem',
                             lineHeight: 1.15,
                         },

@@ -137,6 +137,10 @@ export default function ProjectTaskLocation(): React.ReactElement {
     const [filtersOpen, setFiltersOpen] = React.useState(false);
     const theme = useTheme();
     const isDark = theme.palette.mode === 'dark';
+    const accentBase = isDark ? '#e2e8f0' : '#0f172a';
+    const filterButtonBg = isDark ? 'rgba(255,255,255,0.08)' : '#ffffff';
+    const filterButtonBorder = alpha(accentBase, isDark ? 0.18 : 0.12);
+    const filterButtonColor = isDark ? '#f8fafc' : '#0f172a';
     const params = useParams<{ org?: string; project?: string }>();
     const orgSlug = params?.org;
     const projectSlug = params?.project;
@@ -309,7 +313,7 @@ export default function ProjectTaskLocation(): React.ReactElement {
     );
 
     const glassPaperSx = React.useMemo(() => {
-        const borderColor = alpha(isDark ? '#ffffff' : '#0f172a', isDark ? 0.12 : 0.08);
+        const borderColor = alpha(accentBase, isDark ? 0.12 : 0.08);
         return {
             p: 1.5,
             boxShadow: '0 20px 40px rgba(0,0,0,0.12)',
@@ -320,7 +324,7 @@ export default function ProjectTaskLocation(): React.ReactElement {
                 : 'linear-gradient(145deg, rgba(255,255,255,0.9), rgba(243,247,252,0.82))',
             border: `1px solid ${borderColor}`,
         };
-    }, [isDark]);
+    }, [accentBase, isDark]);
 
     const resetFilters = React.useCallback(() => {
         setSearch('');
@@ -373,10 +377,10 @@ export default function ProjectTaskLocation(): React.ReactElement {
                             width: 48,
                             height: 48,
                             borderRadius: '50%',
-                            bgcolor: '#ffffff',
-                            color: '#0f172a',
-                            border: `1px solid ${alpha('#0f172a', 0.12)}`,
-                            boxShadow: '0 10px 24px rgba(0,0,0,0.15)',
+                            bgcolor: filterButtonBg,
+                            color: filterButtonColor,
+                            border: `1px solid ${filterButtonBorder}`,
+                            boxShadow: isDark ? '0 16px 30px rgba(0,0,0,0.35)' : '0 10px 24px rgba(0,0,0,0.15)',
                             backdropFilter: 'blur(10px)',
                         }}
                     >
@@ -463,12 +467,12 @@ export default function ProjectTaskLocation(): React.ReactElement {
                                                 variant={active ? 'filled' : 'outlined'}
                                                 sx={{
                                                     backgroundColor: active
-                                                        ? alpha(getStatusColor(status), 0.14)
+                                                        ? alpha(getStatusColor(status), isDark ? 0.2 : 0.14)
                                                         : 'transparent',
-                                                    borderColor: alpha(getStatusColor(status), active ? 0.24 : 0.4),
-                                                    color: active ? 'text.primary' : 'text.secondary',
+                                                    borderColor: alpha(getStatusColor(status), active ? 0.32 : 0.4),
+                                                    color: active ? theme.palette.text.primary : theme.palette.text.secondary,
                                                     '&:hover': {
-                                                        backgroundColor: alpha(getStatusColor(status), 0.2),
+                                                        backgroundColor: alpha(getStatusColor(status), isDark ? 0.28 : 0.2),
                                                     },
                                                 }}
                                             />
@@ -500,12 +504,12 @@ export default function ProjectTaskLocation(): React.ReactElement {
                                                 variant={active ? 'filled' : 'outlined'}
                                                 sx={{
                                                     backgroundColor: active
-                                                        ? alpha('#0f172a', isDark ? 0.4 : 0.08)
+                                                        ? alpha(accentBase, isDark ? 0.35 : 0.12)
                                                         : 'transparent',
-                                                    color: active ? 'text.primary' : 'text.secondary',
-                                                    borderColor: alpha('#0f172a', 0.2),
+                                                    color: active ? theme.palette.text.primary : theme.palette.text.secondary,
+                                                    borderColor: alpha(accentBase, isDark ? 0.3 : 0.2),
                                                     '&:hover': {
-                                                        backgroundColor: alpha('#0f172a', isDark ? 0.5 : 0.12),
+                                                        backgroundColor: alpha(accentBase, isDark ? 0.45 : 0.18),
                                                     },
                                                 }}
                                             />

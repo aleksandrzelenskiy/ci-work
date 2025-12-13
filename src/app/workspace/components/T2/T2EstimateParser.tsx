@@ -20,6 +20,7 @@ import {
     TableBody,
     Paper,
 } from '@mui/material';
+import { useTheme } from '@mui/material/styles';
 import { useDropzone, FileRejection } from 'react-dropzone';
 import CloseIcon from '@mui/icons-material/Close';
 import CloudUploadIcon from '@mui/icons-material/CloudUpload';
@@ -51,6 +52,21 @@ type Props = {
 };
 
 const T2EstimateParser: React.FC<Props> = ({ open, onClose, onApply, operatorLabel }) => {
+    const theme = useTheme();
+    const isDark = theme.palette.mode === 'dark';
+    const dialogBg = isDark ? 'rgba(10,13,20,0.92)' : 'rgba(255,255,255,0.95)';
+    const dialogBorder = isDark ? 'rgba(255,255,255,0.08)' : 'rgba(15,23,42,0.08)';
+    const cardBg = isDark
+        ? 'linear-gradient(145deg, rgba(14,18,28,0.9), rgba(16,24,38,0.92))'
+        : 'linear-gradient(135deg, #f7f9fc, #f0f4fb)';
+    const dropHoverBg = isDark
+        ? 'linear-gradient(135deg, rgba(30,41,59,0.95), rgba(37,44,68,0.9))'
+        : 'linear-gradient(135deg, #e9f3ff, #eef2ff)';
+    const surfaceBorder = isDark ? 'rgba(255,255,255,0.12)' : 'rgba(148,163,184,0.35)';
+    const previewBg = isDark
+        ? 'linear-gradient(135deg, rgba(18,24,36,0.92), rgba(22,30,46,0.92))'
+        : 'linear-gradient(135deg, #f8fafc, #eef2ff)';
+    const tableHeadBg = isDark ? 'rgba(255,255,255,0.05)' : undefined;
     const [file, setFile] = useState<File | null>(null);
     const [uploading, setUploading] = useState(false);
     const [uploadProgress, setUploadProgress] = useState(0);
@@ -243,7 +259,23 @@ const T2EstimateParser: React.FC<Props> = ({ open, onClose, onApply, operatorLab
     const title = operatorLabel ? `Заполнить по смете (${operatorLabel})` : 'Заполнить по смете';
 
     return (
-        <Dialog open={open} onClose={handleClose} maxWidth="lg" fullWidth>
+        <Dialog
+            open={open}
+            onClose={handleClose}
+            maxWidth="lg"
+            fullWidth
+            PaperProps={{
+                sx: {
+                    backgroundColor: dialogBg,
+                    border: `1px solid ${dialogBorder}`,
+                    borderRadius: 3,
+                    boxShadow: isDark
+                        ? '0 35px 80px rgba(0,0,0,0.65)'
+                        : '0 25px 60px rgba(15,23,42,0.15)',
+                    backdropFilter: 'blur(12px)',
+                },
+            }}
+        >
             <DialogTitle>{title}</DialogTitle>
             <DialogContent dividers>
                 <Box sx={{ display: 'flex', flexDirection: 'column', gap: 2, mt: 1 }}>
@@ -253,12 +285,10 @@ const T2EstimateParser: React.FC<Props> = ({ open, onClose, onApply, operatorLab
                             borderRadius: 3,
                             p: 2,
                             cursor: 'pointer',
-                            background: isDragActive
-                                ? 'linear-gradient(135deg, #e9f3ff, #eef2ff)'
-                                : 'linear-gradient(135deg, #f7f9fc, #f0f4fb)',
+                            background: isDragActive ? dropHoverBg : cardBg,
                             transition: 'all 200ms ease',
                             textAlign: 'center',
-                            boxShadow: 'inset 0 0 0 1px rgba(148,163,184,0.35)',
+                            boxShadow: `inset 0 0 0 1px ${surfaceBorder}`,
                             minHeight: 120,
                             display: 'flex',
                             alignItems: 'center',
@@ -328,8 +358,11 @@ const T2EstimateParser: React.FC<Props> = ({ open, onClose, onApply, operatorLab
                             sx={{
                                 p: 2,
                                 borderRadius: 3,
-                                background: 'linear-gradient(135deg, #f8fafc, #eef2ff)',
-                                boxShadow: '0 12px 30px rgba(15,23,42,0.12)',
+                                background: previewBg,
+                                boxShadow: isDark
+                                    ? '0 20px 50px rgba(0,0,0,0.45)'
+                                    : '0 12px 30px rgba(15,23,42,0.12)',
+                                borderColor: surfaceBorder,
                             }}
                         >
                             <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 2, mb: 2 }}>
@@ -355,10 +388,17 @@ const T2EstimateParser: React.FC<Props> = ({ open, onClose, onApply, operatorLab
                                     <Typography variant="subtitle2" gutterBottom>
                                         Состав работ
                                     </Typography>
-                                    <Paper variant="outlined" sx={{ borderRadius: 2 }}>
+                                    <Paper
+                                        variant="outlined"
+                                        sx={{
+                                            borderRadius: 2,
+                                            borderColor: surfaceBorder,
+                                            backgroundColor: isDark ? 'rgba(255,255,255,0.02)' : undefined,
+                                        }}
+                                    >
                                         <Table size="small">
                                             <TableHead>
-                                                <TableRow>
+                                                <TableRow sx={{ backgroundColor: tableHeadBg }}>
                                                     <TableCell>Вид работ</TableCell>
                                                     <TableCell>Кол-во</TableCell>
                                                     <TableCell>Ед.</TableCell>

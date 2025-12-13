@@ -18,6 +18,7 @@ import AddIcon from '@mui/icons-material/Add';
 import DeleteOutlineIcon from '@mui/icons-material/DeleteOutline';
 import FullscreenRoundedIcon from '@mui/icons-material/FullscreenRounded';
 import FullscreenExitRoundedIcon from '@mui/icons-material/FullscreenExitRounded';
+import { useTheme } from '@mui/material/styles';
 import type { ParsedWorkItem } from '@/app/workspace/components/T2/T2EstimateParser';
 
 type WorkItemRow = {
@@ -84,6 +85,18 @@ export default function WorkItemsEditorDialog({
                                                    onClose,
                                                    onSave,
                                                }: Props) {
+    const theme = useTheme();
+    const isDark = theme.palette.mode === 'dark';
+    const dialogBg = isDark
+        ? 'linear-gradient(180deg, rgba(11,14,22,0.95), rgba(15,20,32,0.94))'
+        : 'linear-gradient(180deg, rgba(250,252,255,0.95), rgba(237,242,248,0.92))';
+    const dialogBorder = isDark ? 'rgba(255,255,255,0.08)' : 'rgba(148,163,184,0.25)';
+    const dialogShadow = isDark ? '0 40px 90px rgba(0,0,0,0.75)' : '0 30px 80px rgba(15,23,42,0.28)';
+    const gridBg = isDark ? 'rgba(16,21,32,0.95)' : 'rgba(255,255,255,0.9)';
+    const gridBorder = isDark ? 'rgba(255,255,255,0.08)' : 'rgba(148,163,184,0.35)';
+    const gridHeaderBg = isDark ? 'rgba(255,255,255,0.04)' : 'rgba(241,245,249,0.9)';
+    const gridHover = isDark ? 'rgba(59,130,246,0.18)' : 'rgba(59,130,246,0.08)';
+
     const [rows, setRows] = React.useState<WorkItemRow[]>(() => normalizeRows(initialItems));
     const [isFullscreen, setIsFullscreen] = React.useState(false);
 
@@ -197,12 +210,9 @@ export default function WorkItemsEditorDialog({
             PaperProps={{
                 sx: {
                     borderRadius: isFullscreen ? 0 : 4,
-                    background:
-                        'linear-gradient(180deg, rgba(250,252,255,0.95), rgba(237,242,248,0.92))',
-                    boxShadow: isFullscreen
-                        ? '0 0 0 rgba(0,0,0,0)'
-                        : '0 30px 80px rgba(15,23,42,0.28)',
-                    border: '1px solid rgba(148,163,184,0.25)',
+                    background: dialogBg,
+                    boxShadow: isFullscreen ? '0 0 0 rgba(0,0,0,0)' : dialogShadow,
+                    border: `1px solid ${dialogBorder}`,
                     backdropFilter: 'blur(18px)',
                 },
             }}
@@ -247,9 +257,11 @@ export default function WorkItemsEditorDialog({
                     sx={{
                         borderRadius: 3,
                         overflow: 'hidden',
-                        border: '1px solid rgba(148,163,184,0.35)',
-                        boxShadow: '0 25px 60px rgba(15,23,42,0.15)',
-                        backgroundColor: 'rgba(255,255,255,0.9)',
+                        border: `1px solid ${gridBorder}`,
+                        boxShadow: isFullscreen
+                            ? '0 10px 30px rgba(0,0,0,0.45)'
+                            : '0 25px 60px rgba(15,23,42,0.2)',
+                        backgroundColor: gridBg,
                     }}
                 >
                     <DataGrid
@@ -263,20 +275,24 @@ export default function WorkItemsEditorDialog({
                         hideFooter
                         sx={{
                             '& .MuiDataGrid-columnHeaders': {
-                                backgroundColor: 'rgba(241,245,249,0.9)',
+                                backgroundColor: gridHeaderBg,
                                 backdropFilter: 'blur(8px)',
-                                borderBottom: '1px solid rgba(148,163,184,0.4)',
+                                borderBottom: `1px solid ${gridBorder}`,
                             },
                             '& .MuiDataGrid-cell': {
-                                borderColor: 'rgba(148,163,184,0.25)',
+                                borderColor: gridBorder,
                             },
                             '& .MuiDataGrid-row:hover': {
-                                backgroundColor: 'rgba(59,130,246,0.08)',
-                        },
-                        '& .MuiDataGrid-withBorderColor': {
-                            borderColor: 'rgba(148,163,184,0.25)',
-                        },
-                    }}
+                                backgroundColor: gridHover,
+                            },
+                            '& .MuiDataGrid-withBorderColor': {
+                                borderColor: gridBorder,
+                            },
+                            '& .MuiDataGrid-footerContainer': {
+                                borderTop: `1px solid ${gridBorder}`,
+                                backgroundColor: gridHeaderBg,
+                            },
+                        }}
                     />
                 </Box>
             </DialogContent>

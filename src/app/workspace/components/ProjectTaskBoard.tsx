@@ -20,6 +20,7 @@ import {
 } from '@mui/material';
 import Tooltip from '@mui/material/Tooltip';
 import TaskOutlinedIcon from '@mui/icons-material/TaskOutlined';
+import { useTheme } from '@mui/material/styles';
 import { getStatusColor } from '@/utils/statusColors';
 import { getPriorityIcon, normalizePriority } from '@/utils/priorityIcons';
 import { STATUS_ORDER, getStatusLabel, normalizeStatusTitle } from '@/utils/statusLabels';
@@ -79,16 +80,25 @@ function TaskCard({
     const execLabel = t.executorName || t.executorEmail || '';
     const execTooltip =
         t.executorName && t.executorEmail ? `${t.executorName} • ${t.executorEmail}` : execLabel;
+    const theme = useTheme();
+    const isDark = theme.palette.mode === 'dark';
+    const cardBg = isDark
+        ? 'linear-gradient(175deg, rgba(15,18,28,0.92), rgba(20,28,45,0.9))'
+        : 'linear-gradient(175deg, rgba(255,255,255,0.96), rgba(248,250,255,0.92))';
+    const cardBorder = isDark ? 'rgba(255,255,255,0.08)' : 'rgba(15,23,42,0.08)';
+    const cardShadow = isDark ? '0 25px 60px rgba(0,0,0,0.55)' : '0 25px 60px rgba(15,23,42,0.15)';
 
     return (
         <Card
             data-task-id={t._id}
             sx={{
                 mb: 2,
-                boxShadow: 2,
+                boxShadow: cardShadow,
                 position: 'relative',
                 overflow: 'hidden',
                 cursor: onClick ? 'pointer' : 'default',
+                background: cardBg,
+                border: `1px solid ${cardBorder}`,
                 '&:hover': onClick ? { transform: 'translateY(-1px)', transition: '150ms ease' } : undefined,
             }}
             onClick={onClick ? () => onClick(t) : undefined}
@@ -172,6 +182,12 @@ export default function ProjectTaskBoard({
     project: string;
     onReloadAction?: () => void;
 }) {
+
+    const theme = useTheme();
+    const isDark = theme.palette.mode === 'dark';
+    const columnBg = isDark ? 'rgba(10,13,20,0.9)' : 'rgba(255,255,255,0.94)';
+    const columnBorder = isDark ? 'rgba(255,255,255,0.08)' : 'divider';
+    const columnShadow = isDark ? '0 30px 70px rgba(0,0,0,0.55)' : '0 12px 30px rgba(15,23,42,0.12)';
 
     const router = useRouter();
 
@@ -291,11 +307,13 @@ export default function ProjectTaskBoard({
                         key={status}
                         sx={{
                             minWidth: 260,
-                            backgroundColor: 'background.paper',
+                            backgroundColor: columnBg,
                             p: 2,
                             borderRadius: 2,
                             border: '1px solid',
-                            borderColor: 'divider',
+                            borderColor: columnBorder,
+                            boxShadow: columnShadow,
+                            backdropFilter: 'blur(12px)',
                         }}
                     >
                         <Typography variant="h6" sx={{ mb: 2, textTransform: 'none' }}>
