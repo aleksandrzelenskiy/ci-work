@@ -40,6 +40,7 @@ import { fetchUserContext } from '@/app/utils/userContext';
 import NavigationMenu from '@/app/components/NavigationMenu';
 import NotificationBell from '@/app/components/NotificationBell';
 import MessengerTrigger from '@/app/components/MessengerTrigger';
+import RubleAmount from '@/app/components/RubleAmount';
 import dayjs from 'dayjs';
 
 export default function ClientApp({ children }: { children: React.ReactNode }) {
@@ -177,22 +178,29 @@ export default function ClientApp({ children }: { children: React.ReactNode }) {
   );
 
   const currentYear = new Date().getFullYear();
+  const appBarIconSize = 42;
+  const appBarIconGap = 0.9;
   const toolbarIconButtonSx = {
-    borderRadius: '16px',
-    border: `1px solid ${appBarBorder}`,
-    backdropFilter: 'blur(6px)',
-    width: 42,
-    height: 42,
+      borderRadius: '14px',
+      border: `1px solid ${appBarBorder}`,
+      backdropFilter: 'blur(6px)',
+      width: appBarIconSize,
+      height: appBarIconSize,
+      padding: 0.65,
   } as const;
 
-  const formatRuble = (value: number) =>
+  const normalizeCurrency = (currency?: string) => (currency ?? 'RUB').toUpperCase();
+
+  const formatForeignCurrency = (value: number, currency?: string) =>
       new Intl.NumberFormat('ru-RU', {
-        style: 'currency',
-        currency: 'RUB',
-        maximumFractionDigits: 0,
+          style: 'currency',
+          currency: normalizeCurrency(currency),
+          maximumFractionDigits: 0,
       }).format(Math.max(0, Math.round(value)));
 
   const walletMenuOpen = Boolean(walletAnchor);
+  const walletCurrency = normalizeCurrency(walletInfo?.currency);
+  const isWalletRuble = walletCurrency === 'RUB';
 
   type WalletResponse =
       | { balance: number; bonusBalance: number; total: number; currency?: string }
@@ -218,7 +226,7 @@ export default function ClientApp({ children }: { children: React.ReactNode }) {
           balance: data.balance,
           bonusBalance: data.bonusBalance,
           total: data.total,
-          currency: data.currency ?? 'RUB',
+          currency: normalizeCurrency(data.currency),
       });
       setWalletLoading(false);
   };
@@ -265,7 +273,7 @@ export default function ClientApp({ children }: { children: React.ReactNode }) {
               balance: data.wallet.balance ?? 0,
               bonusBalance: data.wallet.bonusBalance ?? 0,
               total: data.wallet.total ?? 0,
-              currency: data.wallet.currency ?? 'RUB',
+              currency: normalizeCurrency(data.wallet.currency),
           });
       }
       setTransactionsLoading(false);
@@ -398,19 +406,23 @@ export default function ClientApp({ children }: { children: React.ReactNode }) {
                     color: appBarText,
                   }}
                 >
-                  <Toolbar>
+                  <Toolbar
+                    sx={{
+                        gap: appBarIconGap,
+                        minHeight: 70,
+                        px: 2,
+                    }}
+                  >
                     <IconButton
                       onClick={handleToggleDrawer}
                       edge='start'
                       color='inherit'
                       sx={{
-                        mr: 1,
-                        borderRadius: '16px',
-                        border: `1px solid ${appBarBorder}`,
-                        backdropFilter: 'blur(6px)',
+                          ...toolbarIconButtonSx,
+                          mr: 0.5,
                       }}
                     >
-                      <MenuIcon />
+                      <MenuIcon fontSize='small' />
                     </IconButton>
                     <Box
                       sx={{ flexGrow: 1, display: 'flex', alignItems: 'center' }}
@@ -426,13 +438,7 @@ export default function ClientApp({ children }: { children: React.ReactNode }) {
                         <Typography variant='h6'>CI Work</Typography>
                       </Badge>
                     </Box>
-                    <Box
-                      sx={{
-                        display: 'flex',
-                        alignItems: 'center',
-                        marginRight: '5px',
-                      }}
-                    >
+                    <Box sx={{ display: 'flex', alignItems: 'center', gap: appBarIconGap }}>
                       <IconButton
                         onClick={toggleTheme}
                         color='inherit'
@@ -445,13 +451,11 @@ export default function ClientApp({ children }: { children: React.ReactNode }) {
                           <DarkModeIcon fontSize='small' />
                         )}
                       </IconButton>
-                    </Box>
-                    <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.5 }}>
                       <MessengerTrigger buttonSx={toolbarIconButtonSx} />
                       <IconButton
                         color='inherit'
                         sx={toolbarIconButtonSx}
-                        aria-label='Кошелёк'
+                        aria-label='Баланс'
                         onClick={handleWalletClick}
                       >
                         <AccountBalanceWalletIcon fontSize='small' />
@@ -468,19 +472,37 @@ export default function ClientApp({ children }: { children: React.ReactNode }) {
                   transformOrigin={{ vertical: 'top', horizontal: 'right' }}
                   PaperProps={{
                     sx: {
-                      minWidth: 260,
-                      p: 1.5,
+                      minWidth: 280,
+                      p: 2,
                       border: `1px solid ${appBarBorder}`,
                       boxShadow: appBarShadow,
-                      borderRadius: 2.5,
+                      borderRadius: 3,
                       backdropFilter: 'blur(18px)',
+                      background: isDarkMode
+                        ? 'linear-gradient(145deg, rgba(17,20,28,0.96), rgba(12,15,23,0.92))'
+                        : 'linear-gradient(145deg, rgba(255,255,255,0.98), rgba(239,244,255,0.96))',
                     },
                   }}
                 >
-                  <Box sx={{ display: 'flex', flexDirection: 'column', gap: 1 }}>
-                    <Typography variant='subtitle2' sx={{ letterSpacing: '0.02em' }}>
-                      Кошелёк
-                    </Typography>
+                  <Box sx={{ display: 'flex', flexDirection: 'column', gap: 1.25 }}>
+                    <Box
+                      sx={{
+                        display: 'flex',
+                        alignItems: 'center',
+                        justifyContent: 'space-between',
+                      }}
+                    >
+                      <Typography variant='subtitle1' sx={{ letterSpacing: '0.02em', fontWeight: 700 }}>
+                        Баланс
+                      </Typography>
+                      <Typography
+                        variant='caption'
+                        color='text.secondary'
+                        sx={{ textTransform: 'uppercase', fontWeight: 600, letterSpacing: '0.08em' }}
+                      >
+                        {walletCurrency}
+                      </Typography>
+                    </Box>
                     {walletLoading ? (
                       <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
                         <CircularProgress size={18} />
@@ -490,21 +512,31 @@ export default function ClientApp({ children }: { children: React.ReactNode }) {
                       <Typography variant='body2' color='error'>
                         {walletError}
                       </Typography>
-                    ) : (
+                    ) : walletInfo ? (
                       <Box sx={{ display: 'flex', flexDirection: 'column', gap: 0.5 }}>
-                        <Typography variant='h6' sx={{ lineHeight: 1.1 }}>
-                          {formatRuble(walletInfo?.total ?? 0)}
-                        </Typography>
-                        <Typography variant='body2' color='text.secondary'>
-                          Бонусы: {formatRuble(walletInfo?.bonusBalance ?? 0)}
+                        {isWalletRuble ? (
+                          <RubleAmount
+                            value={walletInfo.total ?? 0}
+                            variant='h4'
+                            fontWeight={800}
+                            iconSize={22}
+                          />
+                        ) : (
+                          <Typography variant='h4' sx={{ lineHeight: 1.1, fontWeight: 700 }}>
+                            {formatForeignCurrency(walletInfo.total ?? 0, walletCurrency)}
+                          </Typography>
+                        )}
+                        <Typography variant='caption' color='text.secondary' sx={{ letterSpacing: '0.03em' }}>
+                          Основной баланс
                         </Typography>
                       </Box>
-                    )}
-                    <Divider />
-                    <Box sx={{ display: 'flex', gap: 1 }}>
+                    ) : null}
+                    <Divider sx={{ opacity: 0.7 }} />
+                    <Box sx={{ display: 'grid', gridTemplateColumns: 'repeat(2, minmax(0, 1fr))', gap: 1 }}>
                       <Button
                         variant='contained'
                         size='small'
+                        fullWidth
                         onClick={() => {
                           handleWalletClose();
                           void handleOpenTransactions();
@@ -515,6 +547,7 @@ export default function ClientApp({ children }: { children: React.ReactNode }) {
                       <Button
                         variant='outlined'
                         size='small'
+                        fullWidth
                         onClick={() =>
                           setWalletError((prev) => prev ?? 'Пополнение скоро будет доступно')
                         }
@@ -530,7 +563,7 @@ export default function ClientApp({ children }: { children: React.ReactNode }) {
                   fullWidth
                   maxWidth='sm'
                 >
-                  <DialogTitle>Транзакции кошелька</DialogTitle>
+                  <DialogTitle>Транзакции баланса</DialogTitle>
                   <DialogContent dividers>
                     {transactionsLoading ? (
                       <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, py: 1 }}>
@@ -544,8 +577,9 @@ export default function ClientApp({ children }: { children: React.ReactNode }) {
                     ) : (
                       <List>
                         {transactions.map((tx) => {
-                          const amountLabel =
-                            (tx.type === 'credit' ? '+ ' : '- ') + formatRuble(tx.amount ?? 0);
+                          const amount = Math.abs(tx.amount ?? 0);
+                          const amountColor = tx.type === 'credit' ? 'success.main' : 'error.main';
+                          const amountSign = tx.type === 'credit' ? 'positive' : 'negative';
                           const ts =
                             tx.createdAt && dayjs(tx.createdAt).isValid()
                               ? dayjs(tx.createdAt).format('DD.MM.YYYY HH:mm')
@@ -568,9 +602,21 @@ export default function ClientApp({ children }: { children: React.ReactNode }) {
                                   >
                                     <Typography
                                       variant='body1'
-                                      color={tx.type === 'credit' ? 'success.main' : 'error.main'}
+                                      color={amountColor}
+                                      sx={{ display: 'inline-flex', alignItems: 'baseline', gap: 0.25 }}
                                     >
-                                      {amountLabel}
+                                      {isWalletRuble ? (
+                                        <RubleAmount
+                                          value={amount}
+                                          sign={amountSign}
+                                          variant='body1'
+                                          color='inherit'
+                                          fontWeight={600}
+                                          iconSize={16}
+                                        />
+                                      ) : (
+                                        `${amountSign === 'positive' ? '+ ' : '- '}${formatForeignCurrency(amount, walletCurrency)}`
+                                      )}
                                     </Typography>
                                     <Typography variant='caption' color='text.secondary'>
                                       {ts}
