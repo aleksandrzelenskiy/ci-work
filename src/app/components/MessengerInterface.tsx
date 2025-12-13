@@ -124,6 +124,13 @@ export default function MessengerInterface({
     const messageOtherBg = isDark
         ? 'linear-gradient(135deg, rgba(255,255,255,0.08), rgba(255,255,255,0.05))'
         : 'linear-gradient(135deg, rgba(255,255,255,0.82), rgba(236,242,255,0.85))';
+    const composerBg = isDark ? 'rgba(22,28,42,0.9)' : 'rgba(244,246,249,0.92)';
+    const composerBorder = isDark ? '1px solid rgba(255,255,255,0.08)' : '1px solid rgba(255,255,255,0.8)';
+    const composerShadow = isDark
+        ? 'inset 0 1px 0 rgba(255,255,255,0.08)'
+        : 'inset 0 1px 0 rgba(255,255,255,0.8)';
+    const composerInputBg = isDark ? 'rgba(12,16,26,0.9)' : '#fff';
+    const composerInputBorder = isDark ? 'rgba(255,255,255,0.12)' : 'rgba(0,0,0,0.12)';
     const [conversations, setConversations] = React.useState<MessengerConversationDTO[]>([]);
     const [messagesByConversation, setMessagesByConversation] = React.useState<
         Record<string, MessengerMessageDTO[]>
@@ -1542,10 +1549,11 @@ export default function MessengerInterface({
                             alignItems='center'
                             sx={{
                                 borderRadius: 999,
-                                backgroundColor: 'rgba(244,246,249,0.92)',
+                                backgroundColor: composerBg,
                                 px: 1,
                                 py: 0.75,
-                                boxShadow: 'inset 0 1px 0 rgba(255,255,255,0.8)',
+                                boxShadow: composerShadow,
+                                border: composerBorder,
                             }}
                         >
                             <TextField
@@ -1563,6 +1571,28 @@ export default function MessengerInterface({
                                         event.preventDefault();
                                         void handleSendMessage();
                                     }
+                                }}
+                                InputProps={{
+                                    sx: {
+                                        backgroundColor: composerInputBg,
+                                        borderRadius: 2,
+                                        '& input': {
+                                            color: isDark ? 'common.white' : 'text.primary',
+                                        },
+                                        '& .MuiOutlinedInput-notchedOutline': {
+                                            borderColor: composerInputBorder,
+                                        },
+                                        '&:hover .MuiOutlinedInput-notchedOutline': {
+                                            borderColor: 'primary.main',
+                                        },
+                                        '&.Mui-focused .MuiOutlinedInput-notchedOutline': {
+                                            borderColor: 'primary.main',
+                                        },
+                                        '& .MuiInputBase-input::placeholder': {
+                                            color: isDark ? 'rgba(255,255,255,0.6)' : undefined,
+                                            opacity: 1,
+                                        },
+                                    },
                                 }}
                             />
                             <IconButton

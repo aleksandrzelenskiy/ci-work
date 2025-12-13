@@ -469,13 +469,31 @@ export async function PATCH(
               ? `${authorName} подтвердил принятие задачи «${updatedTask.taskName}»${bsInfo}. Статус: ${newStatus}.`
               : `${authorName} отказался от задачи «${updatedTask.taskName}»${bsInfo}. Статус: ${newStatus}.`;
 
-      const link = `/tasks/${encodeURIComponent(updatedTask.taskId.toLowerCase())}`;
+      const fallbackTaskId =
+          typeof updatedTask.taskId === 'string' ? updatedTask.taskId.toLowerCase() : '';
+      const orgSlug = storageScope.orgSlug?.trim();
+      const projectKey = storageScope.projectKey?.trim();
+      const taskMongoId =
+          typeof updatedTask._id?.toString === 'function'
+              ? updatedTask._id.toString()
+              : '';
+      const taskIdForOrgRoute = taskMongoId || fallbackTaskId;
+      const employerLink =
+          orgSlug && projectKey && taskIdForOrgRoute
+              ? `/org/${encodeURIComponent(orgSlug)}/projects/${encodeURIComponent(
+                    projectKey
+                )}/tasks/${encodeURIComponent(taskIdForOrgRoute)}`
+              : null;
+      const link =
+          employerLink ??
+          (fallbackTaskId ? `/tasks/${encodeURIComponent(fallbackTaskId)}` : undefined);
       const metadataEntries = Object.entries({
         taskId: updatedTask.taskId,
         taskMongoId: updatedTask._id?.toString?.(),
         bsNumber: updatedTask.bsNumber,
         newStatus,
         decision: action,
+        projectKey,
       }).filter(([, value]) => typeof value !== 'undefined' && value !== null);
       const metadata = metadataEntries.length > 0 ? Object.fromEntries(metadataEntries) : undefined;
 
@@ -488,6 +506,7 @@ export async function PATCH(
                 message,
                 link,
                 orgId: updatedTask.orgId ?? undefined,
+                orgSlug: orgSlug ?? undefined,
                 senderName: authorName,
                 senderEmail: authorEmail ?? undefined,
                 metadata,
