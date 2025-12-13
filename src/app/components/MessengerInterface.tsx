@@ -1111,8 +1111,6 @@ export default function MessengerInterface({
                     maxHeight: isMobile ? '100dvh' : '100%',
                     background: shellBg,
                     backdropFilter: 'blur(18px)',
-                    overflowY: isMobile ? 'auto' : 'hidden',
-                    overflowX: 'hidden',
                     boxShadow: isMobile
                         ? 'none'
                         : isDark
@@ -1136,10 +1134,14 @@ export default function MessengerInterface({
                     }}
                 >
                     <Stack spacing={1.5} p={2}>
-                        <Stack direction='row' spacing={1} alignItems='center'>
+                        <Stack
+                            direction='row'
+                            spacing={1}
+                            alignItems='center'
+                            sx={{ minWidth: 0 }}
+                        >
                             <OutlinedInput
-                                fullWidth
-                                sx={{ flex: 1 }}
+                                sx={{ flex: 1, minWidth: 0, width: 'auto' }}
                                 size='small'
                                 placeholder='Поиск по участникам и чатам'
                                 value={conversationSearch}
