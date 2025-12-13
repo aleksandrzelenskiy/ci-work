@@ -57,6 +57,8 @@ import AddIcon from '@mui/icons-material/Add';
 import CloudUploadOutlinedIcon from '@mui/icons-material/CloudUploadOutlined';
 import LinkOutlinedIcon from '@mui/icons-material/LinkOutlined';
 import GridViewOutlinedIcon from '@mui/icons-material/GridViewOutlined';
+import CheckBoxIcon from '@mui/icons-material/CheckBox';
+import CheckBoxOutlineBlankIcon from '@mui/icons-material/CheckBoxOutlineBlank';
 import WorkspaceTaskDialog from '@/app/workspace/components/WorkspaceTaskDialog';
 import type { TaskForEdit } from '@/app/workspace/components/WorkspaceTaskDialog';
 import TaskComments from '@/app/components/TaskComments';
@@ -570,6 +572,10 @@ export default function TaskDetailsPage() {
 
     const handleSelectAllSections = () => {
         setVisibleSections([...TASK_SECTION_KEYS]);
+    };
+
+    const handleClearSections = () => {
+        setVisibleSections([]);
     };
 
     const isSectionVisible = React.useCallback(
@@ -2316,6 +2322,7 @@ export default function TaskDetailsPage() {
                                     variant="subtitle1"
                                     fontWeight={600}
                                     gutterBottom
+                                    sx={{ display: 'flex', alignItems: 'center', gap: 1 }}
                                 >
                                     <ArticleOutlinedIcon fontSize="small" />
                                     Заказ
@@ -2561,7 +2568,22 @@ export default function TaskDetailsPage() {
                 fullWidth
                 maxWidth="xs"
             >
-                <DialogTitle>Выбор блоков</DialogTitle>
+                <DialogTitle
+                    sx={{
+                        display: 'flex',
+                        alignItems: 'center',
+                        justifyContent: 'space-between',
+                        gap: 1,
+                        pr: 1,
+                    }}
+                >
+                    <Typography variant="h6" fontWeight={600}>
+                        Выбор блоков
+                    </Typography>
+                    <IconButton onClick={() => setSectionDialogOpen(false)}>
+                        <CloseIcon />
+                    </IconButton>
+                </DialogTitle>
                 <DialogContent dividers sx={{ display: 'flex', flexDirection: 'column', gap: 1 }}>
                     {TASK_SECTION_KEYS.map((section) => (
                         <FormControlLabel
@@ -2577,8 +2599,12 @@ export default function TaskDetailsPage() {
                     ))}
                 </DialogContent>
                 <DialogActions>
-                    <Button onClick={handleSelectAllSections}>Выбрать все</Button>
-                    <Button onClick={() => setSectionDialogOpen(false)}>Закрыть</Button>
+                    <Button onClick={handleSelectAllSections} startIcon={<CheckBoxIcon />}>
+                        Выбрать все
+                    </Button>
+                    <Button onClick={handleClearSections} startIcon={<CheckBoxOutlineBlankIcon />}>
+                        Очистить
+                    </Button>
                 </DialogActions>
             </Dialog>
 
