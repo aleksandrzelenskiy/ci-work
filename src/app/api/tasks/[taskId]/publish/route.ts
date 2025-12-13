@@ -93,56 +93,17 @@ export async function PATCH(
     if (payload.publicStatus) {
         update.publicStatus = payload.publicStatus;
     }
-    const session = await mongoose.startSession();
-    let saved: unknown = null;
-    let limitError: string | undefined;
 
-    try {
-        await session.withTransaction(async () => {
-            const freshTask = await TaskModel.findById(task._id).session(session);
-            if (!freshTask) {
-                throw new Error('TASK_NOT_FOUND');
-            }
+    const isTransactionNotSupported = (error: unknown) => {
+        const code = (error as { code?: number })?.code;
+        return (
+            code === 20 ||
+            (error instanceof Error &&
+                error.message.includes('Transaction numbers are only allowed'))
+        );
+    };
 
-            const taskUpdate: Record<string, unknown> = { ...update };
-
-            if (payload.visibility === 'public' && freshTask.visibility !== 'public') {
-                taskUpdate.visibility = 'public';
-                if (!taskUpdate.publicStatus) {
-                    taskUpdate.publicStatus = 'open';
-                }
-            } else if (payload.visibility === 'private') {
-                taskUpdate.visibility = 'private';
-                taskUpdate.publicStatus = 'closed';
-            }
-
-            const targetVisibility = (taskUpdate.visibility as string | undefined) ?? freshTask.visibility;
-            const targetPublicStatus = (taskUpdate.publicStatus as string | undefined) ?? freshTask.publicStatus;
-
-            const isPublishingNow =
-                targetVisibility === 'public' &&
-                (freshTask.visibility !== 'public' ||
-                    (freshTask.publicStatus === 'closed' && targetPublicStatus !== 'closed'));
-
-            if (isPublishingNow) {
-                const check = await ensurePublicTaskSlot(freshTask.orgId?.toString() ?? '', {
-                    consume: true,
-                    session,
-                });
-                if (!check.ok) {
-                    limitError = check.reason ?? 'Лимит публичных задач исчерпан';
-                    throw new Error('LIMIT_REACHED');
-                }
-            }
-
-            saved = await TaskModel.findByIdAndUpdate(
-                freshTask._id,
-                { $set: taskUpdate },
-                { new: true, session }
-            );
-        });
-    } catch (error) {
-        await session.endSession();
+    const buildErrorResponse = (error: unknown, limitError?: string) => {
         if ((error as Error).message === 'LIMIT_REACHED') {
             return NextResponse.json(
                 { error: limitError ?? 'Лимит публичных задач исчерпан' },
@@ -154,11 +115,85 @@ export async function PATCH(
         }
         console.error('Failed to update publish state', error);
         return NextResponse.json({ error: 'Не удалось обновить задачу' }, { status: 500 });
+    };
+
+    let session: mongoose.ClientSession | null = null;
+    let saved: typeof task | null = null;
+    let limitError: string | undefined;
+
+    const performUpdate = async (currentSession?: mongoose.ClientSession | null) => {
+        const freshTaskQuery = TaskModel.findById(task._id);
+        if (currentSession) {
+            freshTaskQuery.session(currentSession);
+        }
+        const freshTask = await freshTaskQuery;
+        if (!freshTask) {
+            throw new Error('TASK_NOT_FOUND');
+        }
+
+        const taskUpdate: Record<string, unknown> = { ...update };
+
+        if (payload.visibility === 'public' && freshTask.visibility !== 'public') {
+            taskUpdate.visibility = 'public';
+            if (!taskUpdate.publicStatus) {
+                taskUpdate.publicStatus = 'open';
+            }
+        } else if (payload.visibility === 'private') {
+            taskUpdate.visibility = 'private';
+            taskUpdate.publicStatus = 'closed';
+        }
+
+        const targetVisibility = (taskUpdate.visibility as string | undefined) ?? freshTask.visibility;
+        const targetPublicStatus = (taskUpdate.publicStatus as string | undefined) ?? freshTask.publicStatus;
+
+        const isPublishingNow =
+            targetVisibility === 'public' &&
+            (freshTask.visibility !== 'public' ||
+                (freshTask.publicStatus === 'closed' && targetPublicStatus !== 'closed'));
+
+        if (isPublishingNow) {
+            const check = await ensurePublicTaskSlot(freshTask.orgId?.toString() ?? '', {
+                consume: true,
+                session: currentSession ?? undefined,
+            });
+            if (!check.ok) {
+                limitError = check.reason ?? 'Лимит публичных задач исчерпан';
+                throw new Error('LIMIT_REACHED');
+            }
+        }
+
+        return TaskModel.findByIdAndUpdate(
+            freshTask._id,
+            { $set: taskUpdate },
+            { new: true, ...(currentSession ? { session: currentSession } : {}) }
+        );
+    };
+
+    try {
+        session = await mongoose.startSession();
+        await session.withTransaction(async () => {
+            saved = await performUpdate(session);
+        });
+    } catch (error) {
+        const transactionNotSupported = isTransactionNotSupported(error);
+        if (!transactionNotSupported) {
+            const response = buildErrorResponse(error, limitError);
+            await session?.endSession();
+            return response;
+        }
+
+        try {
+            saved = await performUpdate(null);
+        } catch (fallbackError) {
+            const response = buildErrorResponse(fallbackError, limitError);
+            await session?.endSession();
+            return response;
+        }
     }
 
-    await session.endSession();
+    await session?.endSession();
 
-    const savedTask = saved as typeof task | null;
+    const savedTask = saved;
 
     const becamePublic = !wasPublic && savedTask?.visibility === 'public';
     const reopenedFromClosed =
