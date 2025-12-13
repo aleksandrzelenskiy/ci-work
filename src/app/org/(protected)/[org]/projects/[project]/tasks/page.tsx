@@ -119,6 +119,7 @@ export default function ProjectTasksPage() {
     const [searchAnchor, setSearchAnchor] = React.useState<HTMLElement | null>(null);
     const [filterAnchor, setFilterAnchor] = React.useState<HTMLElement | null>(null);
     const [filters, setFilters] = React.useState<TaskFilters>(defaultTaskFilters);
+    const [hasCustomColumns, setHasCustomColumns] = React.useState(false);
 
     const [orgInfo, setOrgInfo] = React.useState<OrgInfo | null>(null);
     const [orgInfoError, setOrgInfoError] = React.useState<string | null>(null);
@@ -386,7 +387,9 @@ export default function ProjectTasksPage() {
         Number(Boolean(filters.priority)) +
         Number(Boolean(filters.dueFrom)) +
         Number(Boolean(filters.dueTo));
-    const getIconButtonSx = (options?: { active?: boolean; disabled?: boolean }) => {
+    const getIconButtonSx = (
+        options?: { active?: boolean; disabled?: boolean; activeColor?: string }
+    ) => {
         const active = options?.active ?? false;
         const disabled = options?.disabled ?? false;
         return {
@@ -397,7 +400,11 @@ export default function ProjectTasksPage() {
                 : active
                     ? iconActiveBg
                     : iconBg,
-            color: disabled ? disabledIconColor : active ? iconActiveText : iconText,
+            color: disabled
+                ? disabledIconColor
+                : active
+                    ? options?.activeColor ?? iconActiveText
+                    : iconText,
             boxShadow: disabled ? 'none' : iconShadow,
             backdropFilter: 'blur(14px)',
             transition: 'all 0.2s ease',
@@ -579,10 +586,11 @@ export default function ProjectTasksPage() {
                             {tab === 'list' && (
                                 <Tooltip title="Настроить колонки">
                                     <IconButton
-                                        onClick={(event) =>
-                                            taskListRef.current?.openColumns(event.currentTarget)
-                                        }
-                                        sx={getIconButtonSx()}
+                                        onClick={() => taskListRef.current?.openColumns()}
+                                        sx={getIconButtonSx({
+                                            active: hasCustomColumns,
+                                            activeColor: theme.palette.primary.main,
+                                        })}
                                     >
                                         <ViewColumnOutlinedIcon />
                                     </IconButton>
@@ -863,6 +871,7 @@ export default function ProjectTasksPage() {
                                 void load();
                             }}
                             userProfiles={userProfilesForList}
+                            onColumnsCustomizationChange={setHasCustomColumns}
                         />
                     )}
 

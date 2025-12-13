@@ -1,7 +1,14 @@
 // src/app/workspace/components/ProjectTaskList.tsx
 'use client';
 
-import React, { useMemo, useState, useEffect, forwardRef, useImperativeHandle } from 'react';
+import React, {
+    useMemo,
+    useState,
+    useEffect,
+    forwardRef,
+    useImperativeHandle,
+    useCallback,
+} from 'react';
 import { useRouter } from 'next/navigation';
 import {
     Box,
@@ -14,16 +21,11 @@ import {
     Typography,
     Tooltip,
     Chip,
-    Popover,
     FormControl,
     InputLabel,
     Select,
     MenuItem,
     Checkbox,
-    List,
-    ListItem,
-    ListItemIcon,
-    ListItemText,
     Pagination,
     Alert,
     Avatar,
@@ -40,11 +42,15 @@ import {
     ListItemIcon as MListItemIcon,
     ListItemText as MListItemText,
     IconButton,
+    FormControlLabel,
 } from '@mui/material';
 import OpenInNewIcon from '@mui/icons-material/OpenInNew';
 import EditNoteOutlinedIcon from '@mui/icons-material/EditNoteOutlined';
 import DeleteOutlineIcon from '@mui/icons-material/DeleteOutline';
 import DescriptionIcon from '@mui/icons-material/Description';
+import CloseIcon from '@mui/icons-material/Close';
+import CheckBoxIcon from '@mui/icons-material/CheckBox';
+import CheckBoxOutlineBlankIcon from '@mui/icons-material/CheckBoxOutlineBlank';
 
 import { useTheme } from '@mui/material/styles';
 import { getStatusColor } from '@/utils/statusColors';
@@ -110,9 +116,35 @@ const getInitials = (s?: string) =>
         .map((w) => w[0]?.toUpperCase())
         .join('') || '•';
 
+const COLUMN_KEYS = ['taskId', 'task', 'status', 'priority', 'executor', 'due', 'order'] as const;
+type ColumnKey = (typeof COLUMN_KEYS)[number];
+
+const COLUMN_LABELS: Record<ColumnKey, string> = {
+    taskId: 'ID',
+    task: 'Задача',
+    status: 'Статус',
+    priority: 'Приоритет',
+    executor: 'Исполнитель',
+    due: 'Срок',
+    order: 'Заказ',
+};
+
+const DEFAULT_COLUMN_VISIBILITY: Record<ColumnKey, boolean> = {
+    taskId: true,
+    task: true,
+    status: true,
+    priority: true,
+    executor: true,
+    due: true,
+    order: true,
+};
+
+const COLUMN_STORAGE_PREFIX = 'project-task-columns';
+
 export interface ProjectTaskListHandle {
-    openColumns: (anchor: HTMLElement) => void;
+    openColumns: () => void;
     closeColumns: () => void;
+    hasCustomColumns: () => boolean;
 }
 
 type UserProfile = {
@@ -128,11 +160,21 @@ type ProjectTaskListProps = {
     project: string;
     onReloadAction?: () => void;
     userProfiles: Record<string, UserProfile>;
+    onColumnsCustomizationChange?: (custom: boolean) => void;
 };
 
 /* ───────────── компонент ───────────── */
 const ProjectTaskListInner = (
-    { items, loading, error, org, project, onReloadAction, userProfiles }: ProjectTaskListProps,
+    {
+        items,
+        loading,
+        error,
+        org,
+        project,
+        onReloadAction,
+        userProfiles,
+        onColumnsCustomizationChange,
+    }: ProjectTaskListProps,
     ref: React.ForwardedRef<ProjectTaskListHandle>
 ) => {
 
@@ -149,20 +191,61 @@ const ProjectTaskListInner = (
     const menuIconDangerColor = '#ef4444';
     const menuItemHover = isDarkMode ? 'rgba(255,255,255,0.08)' : 'rgba(15,23,42,0.05)';
 
-    const [columnVisibility, setColumnVisibility] = useState<Record<string, boolean>>({
-        taskId: true,
-        task: true,
-        status: true,
-        priority: true,
-        executor: true,
-        due: true,
-        order: true,
-    });
-    const toggleColumn = (key: string) => setColumnVisibility((v) => ({ ...v, [key]: !v[key] }));
+    const storageKey = useMemo(
+        () => `${COLUMN_STORAGE_PREFIX}:${org || 'org'}:${project || 'project'}`,
+        [org, project]
+    );
+    const [columnVisibility, setColumnVisibility] =
+        useState<Record<ColumnKey, boolean>>(DEFAULT_COLUMN_VISIBILITY);
 
-    const [columnsAnchor, setColumnsAnchor] = useState<HTMLElement | null>(null);
-    const openColumnsPopover = Boolean(columnsAnchor);
-    const closeColumnsPopover = () => setColumnsAnchor(null);
+    useEffect(() => {
+        if (typeof window === 'undefined') return;
+        const raw = localStorage.getItem(storageKey);
+        if (!raw) return;
+        try {
+            const parsed = JSON.parse(raw);
+            if (parsed && typeof parsed === 'object') {
+                const next: Record<ColumnKey, boolean> = { ...DEFAULT_COLUMN_VISIBILITY };
+                COLUMN_KEYS.forEach((key) => {
+                    if (typeof parsed[key] === 'boolean') {
+                        next[key] = parsed[key];
+                    }
+                });
+                setColumnVisibility(next);
+            }
+        } catch {
+            // ignore malformed storage
+        }
+    }, [storageKey]);
+
+    useEffect(() => {
+        if (typeof window === 'undefined') return;
+        localStorage.setItem(storageKey, JSON.stringify(columnVisibility));
+    }, [columnVisibility, storageKey]);
+
+    const hasCustomColumns = useMemo(
+        () => COLUMN_KEYS.some((key) => columnVisibility[key] !== DEFAULT_COLUMN_VISIBILITY[key]),
+        [columnVisibility]
+    );
+
+    useEffect(() => {
+        onColumnsCustomizationChange?.(hasCustomColumns);
+    }, [hasCustomColumns, onColumnsCustomizationChange]);
+
+    const toggleColumn = (key: ColumnKey) =>
+        setColumnVisibility((v) => ({ ...v, [key]: !v[key] }));
+
+    const [columnsDialogOpen, setColumnsDialogOpen] = useState(false);
+    const closeColumnsDialog = useCallback(() => setColumnsDialogOpen(false), []);
+    const openColumnsDialog = useCallback(() => setColumnsDialogOpen(true), []);
+
+    const handleSelectAllColumns = useCallback(() => {
+        setColumnVisibility({ ...DEFAULT_COLUMN_VISIBILITY });
+    }, []);
+
+    const handleResetColumns = useCallback(() => {
+        setColumnVisibility({ ...DEFAULT_COLUMN_VISIBILITY });
+    }, []);
 
     const [page, setPage] = useState(1);
     const [rowsPerPage, setRowsPerPage] = useState<number>(10);
@@ -256,13 +339,17 @@ const ProjectTaskListInner = (
     useImperativeHandle(
         ref,
         () => ({
-            openColumns: (anchor) => setColumnsAnchor(anchor),
-            closeColumns: () => setColumnsAnchor(null),
+            openColumns: openColumnsDialog,
+            closeColumns: closeColumnsDialog,
+            hasCustomColumns: () => hasCustomColumns,
         }),
-        []
+        [closeColumnsDialog, hasCustomColumns, openColumnsDialog]
     );
 
-    const visibleColumnsCount = Object.values(columnVisibility).filter(Boolean).length;
+    const visibleColumnsCount = Math.max(
+        1,
+        Object.values(columnVisibility).filter(Boolean).length
+    );
 
     if (loading) {
         return (
@@ -501,26 +588,51 @@ const ProjectTaskListInner = (
                 </Box>
 
 
-                {/* попover колонок */}
-                <Popover
-                    open={openColumnsPopover}
-                    anchorEl={columnsAnchor}
-                    onClose={closeColumnsPopover}
-                    anchorOrigin={{ vertical: 'bottom', horizontal: 'left' }}
+                <Dialog
+                    open={columnsDialogOpen}
+                    onClose={closeColumnsDialog}
+                    fullWidth
+                    maxWidth="xs"
                 >
-                    <Box sx={{ p: 2, minWidth: 260 }}>
-                        <List dense>
-                            {Object.keys(columnVisibility).map((key) => (
-                                <ListItem key={key}>
-                                    <ListItemIcon>
-                                        <Checkbox checked={columnVisibility[key]} onChange={() => toggleColumn(key)} />
-                                    </ListItemIcon>
-                                    <ListItemText primary={key[0].toUpperCase() + key.slice(1)} />
-                                </ListItem>
-                            ))}
-                        </List>
-                    </Box>
-                </Popover>
+                    <DialogTitle
+                        sx={{
+                            display: 'flex',
+                            alignItems: 'center',
+                            justifyContent: 'space-between',
+                            gap: 1,
+                            pr: 1,
+                        }}
+                    >
+                        <Typography variant="h6" fontWeight={600}>
+                            Настройка колонок
+                        </Typography>
+                        <IconButton onClick={closeColumnsDialog}>
+                            <CloseIcon />
+                        </IconButton>
+                    </DialogTitle>
+                    <DialogContent dividers sx={{ display: 'flex', flexDirection: 'column', gap: 1 }}>
+                        {COLUMN_KEYS.map((key) => (
+                            <FormControlLabel
+                                key={key}
+                                control={
+                                    <Checkbox
+                                        checked={columnVisibility[key]}
+                                        onChange={() => toggleColumn(key)}
+                                    />
+                                }
+                                label={COLUMN_LABELS[key]}
+                            />
+                        ))}
+                    </DialogContent>
+                    <DialogActions>
+                        <Button onClick={handleSelectAllColumns} startIcon={<CheckBoxIcon />}>
+                            Выбрать все
+                        </Button>
+                        <Button onClick={handleResetColumns} startIcon={<CheckBoxOutlineBlankIcon />}>
+                            Сбросить
+                        </Button>
+                    </DialogActions>
+                </Dialog>
 
                 {/* контекстное меню */}
                 <Menu
