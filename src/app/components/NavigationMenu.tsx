@@ -98,13 +98,6 @@ export default function NavigationMenu({ onNavigateAction }: NavigationMenuProps
     const [expandedItems, setExpandedItems] = useState<Record<string, boolean>>(
         {}
     );
-    const [walletLoading, setWalletLoading] = useState(false);
-    const [walletError, setWalletError] = useState<string | null>(null);
-    const [walletInfo, setWalletInfo] = useState<{
-        total: number;
-        balance: number;
-        bonusBalance: number;
-    } | null>(null);
 
     useEffect(() => {
         let isMounted = true;
@@ -445,56 +438,6 @@ export default function NavigationMenu({ onNavigateAction }: NavigationMenuProps
         geoLabel,
     ]);
 
-    useEffect(() => {
-        let isMounted = true;
-        const loadWallet = async () => {
-            if (!isContractorView) {
-                if (isMounted) {
-                    setWalletInfo(null);
-                    setWalletError(null);
-                    setWalletLoading(false);
-                }
-                return;
-            }
-            setWalletLoading(true);
-            setWalletError(null);
-            try {
-                const res = await fetch('/api/wallet/me', { cache: 'no-store' });
-                const data = (await res.json().catch(() => null)) as
-                    | { balance: number; bonusBalance: number; total: number }
-                    | { error: string }
-                    | null;
-                if (!res.ok || !data || 'error' in data || !data) {
-                    throw new Error((data as { error?: string })?.error ?? 'Не удалось загрузить кошелёк');
-                }
-                if (isMounted) {
-                    setWalletInfo({
-                        balance: data.balance,
-                        bonusBalance: data.bonusBalance,
-                        total: data.total,
-                    });
-                    setWalletLoading(false);
-                }
-            } catch (error) {
-                if (!isMounted) return;
-                setWalletError(
-                    error instanceof Error ? error.message : 'Не удалось загрузить кошелёк'
-                );
-                setWalletInfo(null);
-                setWalletLoading(false);
-            }
-        };
-
-        void loadWallet();
-        return () => {
-            isMounted = false;
-        };
-    }, [isContractorView]);
-
-    const formatRuble = (value: number) =>
-        new Intl.NumberFormat('ru-RU', { style: 'currency', currency: 'RUB', maximumFractionDigits: 0 }).format(
-            Math.max(0, Math.round(value))
-        );
 
     const normalizeValue = (value?: string | null) => {
         if (!value) return undefined;
@@ -598,51 +541,6 @@ export default function NavigationMenu({ onNavigateAction }: NavigationMenuProps
                 >
                     {userEmail}
                 </Typography>
-                {isContractorView && (
-                    <Box
-                        sx={{
-                            mt: 0.5,
-                            px: 1.5,
-                            py: 1,
-                            borderRadius: 2,
-                            border: `1px solid ${palette.border}`,
-                            backgroundColor: isDarkMode ? 'rgba(255,255,255,0.04)' : 'rgba(0,0,0,0.02)',
-                            minWidth: '100%',
-                        }}
-                    >
-                        <Typography
-                            fontSize='0.75rem'
-                            color={palette.textSecondary}
-                            sx={{ display: 'flex', justifyContent: 'space-between', gap: 1 }}
-                        >
-                            <span>Кошелёк</span>
-                            {walletLoading && <span>···</span>}
-                        </Typography>
-                        {walletError ? (
-                            <Typography fontSize='0.8rem' color='error.main'>
-                                {walletError}
-                            </Typography>
-                        ) : (
-                            <Box sx={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-start' }}>
-                                <Typography
-                                    fontSize='1rem'
-                                    fontWeight={700}
-                                    color={palette.textPrimary}
-                                    sx={{ lineHeight: 1.4 }}
-                                >
-                                    {formatRuble(walletInfo?.total ?? 0)}
-                                </Typography>
-                                <Typography
-                                    fontSize='0.78rem'
-                                    color={palette.textSecondary}
-                                    sx={{ lineHeight: 1.2 }}
-                                >
-                                    Бонусы: {formatRuble(walletInfo?.bonusBalance ?? 0)}
-                                </Typography>
-                            </Box>
-                        )}
-                    </Box>
-                )}
                 <Button
                     size='small'
                     variant='text'

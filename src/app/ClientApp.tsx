@@ -19,20 +19,55 @@ import {
     createTheme,
     CircularProgress,
     IconButton,
+    Menu as MuiMenu,
+    Divider,
+    Dialog,
+    DialogTitle,
+    DialogContent,
+    DialogActions,
+    List,
+    ListItem,
+    ListItemText,
+    Button,
 } from '@mui/material';
-import { Menu } from '@mui/icons-material';
+import { Menu as MenuIcon } from '@mui/icons-material';
 import DarkModeIcon from '@mui/icons-material/DarkMode';
 import WbSunnyIcon from '@mui/icons-material/WbSunny';
 import Badge from '@mui/material/Badge'
+import AccountBalanceWalletIcon from '@mui/icons-material/AccountBalanceWallet';
 import { useRouter, usePathname } from 'next/navigation';
 import { fetchUserContext } from '@/app/utils/userContext';
 import NavigationMenu from '@/app/components/NavigationMenu';
 import NotificationBell from '@/app/components/NotificationBell';
 import MessengerTrigger from '@/app/components/MessengerTrigger';
+import dayjs from 'dayjs';
 
 export default function ClientApp({ children }: { children: React.ReactNode }) {
   const [mode, setMode] = useState<'light' | 'dark'>('light');
   const [profileSetupCompleted, setProfileSetupCompleted] = useState<boolean | null>(null);
+  const [walletAnchor, setWalletAnchor] = useState<null | HTMLElement>(null);
+  const [walletLoading, setWalletLoading] = useState(false);
+  const [walletError, setWalletError] = useState<string | null>(null);
+  const [walletInfo, setWalletInfo] = useState<{
+      balance: number;
+      bonusBalance: number;
+      total: number;
+      currency: string;
+  } | null>(null);
+  const [transactionsOpen, setTransactionsOpen] = useState(false);
+  const [transactionsLoading, setTransactionsLoading] = useState(false);
+  const [transactionsError, setTransactionsError] = useState<string | null>(null);
+  const [transactions, setTransactions] = useState<
+      Array<{
+          id: string;
+          amount: number;
+          type: 'credit' | 'debit';
+          source: string;
+          createdAt?: string | Date;
+          balanceAfter?: number;
+          bonusBalanceAfter?: number;
+      }>
+  >([]);
 
   const router = useRouter();
   const pathname = usePathname();
@@ -149,6 +184,90 @@ export default function ClientApp({ children }: { children: React.ReactNode }) {
     width: 42,
     height: 42,
   } as const;
+
+  const formatRuble = (value: number) =>
+      new Intl.NumberFormat('ru-RU', {
+        style: 'currency',
+        currency: 'RUB',
+        maximumFractionDigits: 0,
+      }).format(Math.max(0, Math.round(value)));
+
+  const walletMenuOpen = Boolean(walletAnchor);
+
+  const loadWalletInfo = async () => {
+      setWalletLoading(true);
+      setWalletError(null);
+      const res = await fetch('/api/wallet/me', { cache: 'no-store' });
+      const data = (await res.json().catch(() => null)) as
+          | { balance: number; bonusBalance: number; total: number; currency?: string }
+          | { error: string }
+          | null;
+      if (!res.ok || !data || 'error' in (data ?? {}) || !data) {
+          setWalletInfo(null);
+          setWalletError((data as { error?: string })?.error ?? 'Не удалось загрузить кошелёк');
+          setWalletLoading(false);
+          return;
+      }
+      setWalletInfo({
+          balance: data.balance,
+          bonusBalance: data.bonusBalance,
+          total: data.total,
+          currency: data.currency ?? 'RUB',
+      });
+      setWalletLoading(false);
+  };
+
+  const handleWalletClick = (event: React.MouseEvent<HTMLElement>) => {
+      setWalletAnchor(event.currentTarget);
+      void loadWalletInfo();
+  };
+
+  const handleWalletClose = () => {
+      setWalletAnchor(null);
+  };
+
+  const handleOpenTransactions = async () => {
+      setTransactionsOpen(true);
+      setTransactionsLoading(true);
+      setTransactionsError(null);
+      const res = await fetch('/api/wallet/transactions?limit=20', { cache: 'no-store' });
+      const data = (await res.json().catch(() => null)) as
+          | {
+              wallet?: { balance: number; bonusBalance: number; total: number; currency?: string };
+              transactions?: Array<{
+                  id: string;
+                  amount: number;
+                  type: 'credit' | 'debit';
+                  source: string;
+                  createdAt?: string;
+                  balanceAfter?: number;
+                  bonusBalanceAfter?: number;
+              }>;
+              error?: string;
+          }
+          | null;
+      if (!res.ok || !data || 'error' in (data ?? {}) || !data) {
+          setTransactions([]);
+          setTransactionsError((data as { error?: string })?.error ?? 'Не удалось загрузить транзакции');
+          setTransactionsLoading(false);
+          return;
+      }
+
+      setTransactions(data.transactions ?? []);
+      if (data.wallet) {
+          setWalletInfo({
+              balance: data.wallet.balance ?? 0,
+              bonusBalance: data.wallet.bonusBalance ?? 0,
+              total: data.wallet.total ?? 0,
+              currency: data.wallet.currency ?? 'RUB',
+          });
+      }
+      setTransactionsLoading(false);
+  };
+
+  const handleCloseTransactions = () => {
+      setTransactionsOpen(false);
+  };
 
   // Получаем состояние пользователя из Clerk
   const { isLoaded, isSignedIn } = useUser();
@@ -285,7 +404,7 @@ export default function ClientApp({ children }: { children: React.ReactNode }) {
                         backdropFilter: 'blur(6px)',
                       }}
                     >
-                      <Menu />
+                      <MenuIcon />
                     </IconButton>
                     <Box
                       sx={{ flexGrow: 1, display: 'flex', alignItems: 'center' }}
@@ -323,10 +442,151 @@ export default function ClientApp({ children }: { children: React.ReactNode }) {
                     </Box>
                     <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.5 }}>
                       <MessengerTrigger buttonSx={toolbarIconButtonSx} />
+                      <IconButton
+                        color='inherit'
+                        sx={toolbarIconButtonSx}
+                        aria-label='Кошелёк'
+                        onClick={handleWalletClick}
+                      >
+                        <AccountBalanceWalletIcon fontSize='small' />
+                      </IconButton>
                       <NotificationBell buttonSx={toolbarIconButtonSx} />
                     </Box>
                   </Toolbar>
                 </AppBar>
+                <MuiMenu
+                  anchorEl={walletAnchor}
+                  open={walletMenuOpen}
+                  onClose={handleWalletClose}
+                  anchorOrigin={{ vertical: 'bottom', horizontal: 'right' }}
+                  transformOrigin={{ vertical: 'top', horizontal: 'right' }}
+                  PaperProps={{
+                    sx: {
+                      minWidth: 260,
+                      p: 1.5,
+                      border: `1px solid ${appBarBorder}`,
+                      boxShadow: appBarShadow,
+                      borderRadius: 2.5,
+                      backdropFilter: 'blur(18px)',
+                    },
+                  }}
+                >
+                  <Box sx={{ display: 'flex', flexDirection: 'column', gap: 1 }}>
+                    <Typography variant='subtitle2' sx={{ letterSpacing: '0.02em' }}>
+                      Кошелёк
+                    </Typography>
+                    {walletLoading ? (
+                      <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+                        <CircularProgress size={18} />
+                        <Typography variant='body2'>Загрузка…</Typography>
+                      </Box>
+                    ) : walletError ? (
+                      <Typography variant='body2' color='error'>
+                        {walletError}
+                      </Typography>
+                    ) : (
+                      <Box sx={{ display: 'flex', flexDirection: 'column', gap: 0.5 }}>
+                        <Typography variant='h6' sx={{ lineHeight: 1.1 }}>
+                          {formatRuble(walletInfo?.total ?? 0)}
+                        </Typography>
+                        <Typography variant='body2' color='text.secondary'>
+                          Бонусы: {formatRuble(walletInfo?.bonusBalance ?? 0)}
+                        </Typography>
+                      </Box>
+                    )}
+                    <Divider />
+                    <Box sx={{ display: 'flex', gap: 1 }}>
+                      <Button
+                        variant='contained'
+                        size='small'
+                        onClick={() => {
+                          handleWalletClose();
+                          void handleOpenTransactions();
+                        }}
+                      >
+                        Транзакции
+                      </Button>
+                      <Button
+                        variant='outlined'
+                        size='small'
+                        onClick={() =>
+                          setWalletError((prev) => prev ?? 'Пополнение скоро будет доступно')
+                        }
+                      >
+                        Пополнить
+                      </Button>
+                    </Box>
+                  </Box>
+                </MuiMenu>
+                <Dialog
+                  open={transactionsOpen}
+                  onClose={handleCloseTransactions}
+                  fullWidth
+                  maxWidth='sm'
+                >
+                  <DialogTitle>Транзакции кошелька</DialogTitle>
+                  <DialogContent dividers>
+                    {transactionsLoading ? (
+                      <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, py: 1 }}>
+                        <CircularProgress size={18} />
+                        <Typography variant='body2'>Загрузка…</Typography>
+                      </Box>
+                    ) : transactionsError ? (
+                      <Typography color='error'>{transactionsError}</Typography>
+                    ) : transactions.length === 0 ? (
+                      <Typography variant='body2'>Нет транзакций.</Typography>
+                    ) : (
+                      <List>
+                        {transactions.map((tx) => {
+                          const amountLabel =
+                            (tx.type === 'credit' ? '+ ' : '- ') + formatRuble(tx.amount ?? 0);
+                          const ts =
+                            tx.createdAt && dayjs(tx.createdAt).isValid()
+                              ? dayjs(tx.createdAt).format('DD.MM.YYYY HH:mm')
+                              : '';
+                          return (
+                            <ListItem
+                              key={tx.id}
+                              divider
+                              sx={{ alignItems: 'flex-start', gap: 1 }}
+                            >
+                              <ListItemText
+                                primary={
+                                  <Box
+                                    sx={{
+                                      display: 'flex',
+                                      justifyContent: 'space-between',
+                                      gap: 1,
+                                      alignItems: 'center',
+                                    }}
+                                  >
+                                    <Typography
+                                      variant='body1'
+                                      color={tx.type === 'credit' ? 'success.main' : 'error.main'}
+                                    >
+                                      {amountLabel}
+                                    </Typography>
+                                    <Typography variant='caption' color='text.secondary'>
+                                      {ts}
+                                    </Typography>
+                                  </Box>
+                                }
+                                secondary={
+                                  <Typography variant='body2' color='text.secondary'>
+                                    {tx.source}
+                                  </Typography>
+                                }
+                              />
+                            </ListItem>
+                          );
+                        })}
+                      </List>
+                    )}
+                  </DialogContent>
+                  <DialogActions>
+                    <Button onClick={handleCloseTransactions}>Закрыть</Button>
+                  </DialogActions>
+                </Dialog>
                 {/* Sidebar Drawer */}
                 <Drawer
                   open={open}
