@@ -171,11 +171,16 @@ export const chargeBid = async (params: {
                 throw new Error(result.error);
             }
         });
-        return result as BidDebitResult;
     } catch (error) {
         if (result) return result;
         throw error;
     } finally {
         await session.endSession();
     }
+
+    if (!result) {
+        throw new Error('DEBIT_RESULT_MISSING');
+    }
+
+    return result;
 };

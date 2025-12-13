@@ -2,7 +2,7 @@
 import type { ClientSession } from 'mongoose';
 import { Types } from 'mongoose';
 import Subscription, { type SubscriptionPlan } from '@/app/models/SubscriptionModel';
-import BillingUsage, { type BillingPeriod } from '@/app/models/BillingUsageModel';
+import BillingUsageModel, { type BillingPeriod, type BillingUsage } from '@/app/models/BillingUsageModel';
 
 export type OrgId = Types.ObjectId | string;
 
@@ -132,7 +132,7 @@ export const consumeUsageSlot = async (
     const period = options?.period ?? getBillingPeriod(now);
 
     const session = options?.session;
-    const existingQuery = BillingUsage.findOne({ orgId, period });
+    const existingQuery = BillingUsageModel.findOne({ orgId, period });
     if (session) existingQuery.session(session);
     const existing = await existingQuery.lean();
     const currentUsed = (existing?.[usageField] as number | undefined) ?? 0;
@@ -146,11 +146,11 @@ export const consumeUsageSlot = async (
         );
     }
 
-    let usageDoc: Record<string, unknown> | null = null;
+    let usageDoc: BillingUsage | null = null;
 
     try {
         if (existing) {
-            usageDoc = await BillingUsage.findOneAndUpdate(
+            usageDoc = await BillingUsageModel.findOneAndUpdate(
                 {
                     _id: existing._id,
                     ...(typeof limitValue === 'number' ? { [usageField]: { $lt: limitValue } } : {}),
@@ -161,7 +161,6 @@ export const consumeUsageSlot = async (
                 },
                 {
                     new: true,
-                    lean: true,
                     ...(session ? { session } : {}),
                 }
             );
@@ -172,7 +171,7 @@ export const consumeUsageSlot = async (
             };
             initial[usageField] = 1;
 
-            const created = await BillingUsage.create(
+            const created = await BillingUsageModel.create(
                 [
                     {
                         orgId: orgObjectId,
@@ -182,14 +181,14 @@ export const consumeUsageSlot = async (
                 ],
                 session ? { session } : undefined
             );
-            usageDoc = created[0]?.toObject?.() ?? (created[0] as unknown as Record<string, unknown>);
+            usageDoc = created[0] ?? null;
         }
     } catch (error) {
         if (!isDuplicateKeyError(error)) {
             throw error;
         }
 
-        const retryQuery = BillingUsage.findOne({ orgId, period });
+        const retryQuery = BillingUsageModel.findOne({ orgId, period });
         if (session) retryQuery.session(session);
         const retry = await retryQuery.lean();
         const retryUsed = (retry?.[usageField] as number | undefined) ?? 0;
@@ -205,7 +204,7 @@ export const consumeUsageSlot = async (
             );
         }
 
-        usageDoc = await BillingUsage.findOneAndUpdate(
+        usageDoc = await BillingUsageModel.findOneAndUpdate(
             {
                 _id: retry._id,
                 ...(typeof limitValue === 'number' ? { [usageField]: { $lt: limitValue } } : {}),
@@ -216,7 +215,6 @@ export const consumeUsageSlot = async (
             },
             {
                 new: true,
-                lean: true,
                 ...(session ? { session } : {}),
             }
         );
@@ -248,6 +246,6 @@ export const getUsageSnapshot = async (
     orgId: OrgId,
     period: BillingPeriod = getBillingPeriod()
 ) => {
-    const usage = await BillingUsage.findOne({ orgId, period }).lean();
+    const usage = await BillingUsageModel.findOne({ orgId, period }).lean();
     return usage ?? null;
 };

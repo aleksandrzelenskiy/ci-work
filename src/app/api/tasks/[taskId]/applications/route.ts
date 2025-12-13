@@ -23,6 +23,9 @@ export const dynamic = 'force-dynamic';
 
 const MANAGER_ROLES = new Set(['owner', 'org_admin', 'manager', 'super_admin']);
 
+const toObjectId = (value: mongoose.Types.ObjectId | string): mongoose.Types.ObjectId =>
+    typeof value === 'string' ? new mongoose.Types.ObjectId(value) : value;
+
 type CreateApplicationBody = {
     coverMessage?: string;
     proposedBudget?: number;
@@ -125,7 +128,8 @@ export async function POST(
     }
 
     const session = await mongoose.startSession();
-    let applicationDoc: Awaited<ReturnType<typeof ApplicationModel.create>>[number] | null = null;
+    let applicationId: mongoose.Types.ObjectId | null = null;
+    let applicationObj: Record<string, unknown> | null = null;
     let insufficientFunds = false;
 
     try {
@@ -154,9 +158,9 @@ export async function POST(
             );
 
             const debit = await debitForBid({
-                contractorId: user._id,
-                taskId: freshTask._id,
-                applicationId: createdApp._id,
+                contractorId: toObjectId(user._id),
+                taskId: toObjectId(freshTask._id),
+                applicationId: toObjectId(createdApp._id),
                 session,
             });
 
@@ -171,7 +175,8 @@ export async function POST(
                 { session }
             );
 
-            applicationDoc = createdApp;
+            applicationId = createdApp._id;
+            applicationObj = createdApp.toObject() as unknown as Record<string, unknown>;
         });
     } catch (error) {
         await session.endSession();
@@ -193,9 +198,11 @@ export async function POST(
 
     await session.endSession();
 
-    if (!applicationDoc) {
+    if (!applicationId || !applicationObj) {
         return NextResponse.json({ error: 'Не удалось отправить отклик' }, { status: 500 });
     }
+
+    const createdApplication = applicationObj;
 
     try {
         const managerClerkIds = [task.initiatorId, task.authorId]
@@ -207,7 +214,7 @@ export async function POST(
             taskMongoId: task._id,
             taskName: task.taskName ?? 'Задача',
             bsNumber: task.bsNumber,
-            applicationId: applicationDoc._id,
+            applicationId,
             contractor: { _id: user._id, name: user.name, email: user.email },
             proposedBudget,
             orgId: task.orgId,
@@ -224,7 +231,7 @@ export async function POST(
         console.error('Failed to notify about application submission', notifyErr);
     }
 
-    return NextResponse.json({ ok: true, application: applicationDoc.toObject() }, { status: 201 });
+    return NextResponse.json({ ok: true, application: createdApplication }, { status: 201 });
 }
 
 export async function PATCH(

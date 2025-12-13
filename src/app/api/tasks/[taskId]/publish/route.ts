@@ -94,7 +94,7 @@ export async function PATCH(
         update.publicStatus = payload.publicStatus;
     }
     const session = await mongoose.startSession();
-    let saved: typeof task | null = null;
+    let saved: unknown = null;
     let limitError: string | undefined;
 
     try {
@@ -138,7 +138,7 @@ export async function PATCH(
             saved = await TaskModel.findByIdAndUpdate(
                 freshTask._id,
                 { $set: taskUpdate },
-                { new: true, lean: true, session }
+                { new: true, session }
             );
         });
     } catch (error) {
@@ -158,31 +158,33 @@ export async function PATCH(
 
     await session.endSession();
 
-    const becamePublic = !wasPublic && saved?.visibility === 'public';
-    const reopenedFromClosed =
-        saved?.visibility === 'public' &&
-        previousPublicStatus === 'closed' &&
-        saved.publicStatus !== 'closed';
+    const savedTask = saved as typeof task | null;
 
-    if (saved && (becamePublic || reopenedFromClosed)) {
+    const becamePublic = !wasPublic && savedTask?.visibility === 'public';
+    const reopenedFromClosed =
+        savedTask?.visibility === 'public' &&
+        previousPublicStatus === 'closed' &&
+        savedTask.publicStatus !== 'closed';
+
+    if (savedTask && (becamePublic || reopenedFromClosed)) {
         try {
             await notifyTaskPublished({
-                taskId: saved.taskId ?? task.taskId,
-                taskMongoId: saved._id?.toString?.() ?? task._id?.toString?.(),
-                taskName: saved.taskName ?? task.taskName ?? 'Задача',
-                bsNumber: saved.bsNumber ?? task.bsNumber,
-                budget: saved.budget ?? task.budget,
-                currency: saved.currency ?? task.currency,
-                orgId: saved.orgId ?? task.orgId,
-                orgSlug: (saved as { orgSlug?: string })?.orgSlug ?? (task as { orgSlug?: string })?.orgSlug,
-                orgName: (saved as { orgName?: string })?.orgName ?? (task as { orgName?: string })?.orgName,
-                projectKey: (saved as { projectKey?: string })?.projectKey ?? undefined,
-                projectName: (saved as { projectName?: string })?.projectName ?? undefined,
+                taskId: savedTask.taskId ?? task.taskId,
+                taskMongoId: savedTask._id?.toString?.() ?? task._id?.toString?.(),
+                taskName: savedTask.taskName ?? task.taskName ?? 'Задача',
+                bsNumber: savedTask.bsNumber ?? task.bsNumber,
+                budget: savedTask.budget ?? task.budget,
+                currency: savedTask.currency ?? task.currency,
+                orgId: savedTask.orgId ?? task.orgId,
+                orgSlug: (savedTask as { orgSlug?: string })?.orgSlug ?? (task as { orgSlug?: string })?.orgSlug,
+                orgName: (savedTask as { orgName?: string })?.orgName ?? (task as { orgName?: string })?.orgName,
+                projectKey: (savedTask as { projectKey?: string })?.projectKey ?? undefined,
+                projectName: (savedTask as { projectName?: string })?.projectName ?? undefined,
             });
         } catch (notifyErr) {
             console.error('Failed to notify about task publication', notifyErr);
         }
     }
 
-    return NextResponse.json({ ok: true, task: saved });
+    return NextResponse.json({ ok: true, task: savedTask });
 }
