@@ -187,7 +187,9 @@ export default function NotificationBell({ buttonSx }: NotificationBellProps) {
     const menuBg = isDark ? 'rgba(12,16,26,0.95)' : theme.palette.background.paper;
     const menuBorder = isDark ? 'rgba(255,255,255,0.08)' : 'rgba(15,23,42,0.08)';
     const menuShadow = isDark ? '0 30px 70px rgba(0,0,0,0.65)' : '0 18px 50px rgba(15,23,42,0.12)';
-    const unreadBg = isDark ? 'rgba(59,130,246,0.14)' : (theme) => theme.palette.action.selected;
+    const unreadBg = isDark
+        ? 'rgba(59,130,246,0.14)'
+        : (theme: Theme) => theme.palette.action.selected;
     const readBg = isDark ? 'rgba(255,255,255,0.03)' : theme.palette.background.paper;
 
     const [anchorEl, setAnchorEl] = React.useState<null | HTMLElement>(null);
