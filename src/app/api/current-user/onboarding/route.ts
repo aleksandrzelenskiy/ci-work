@@ -1,8 +1,10 @@
 import { NextResponse } from 'next/server';
 import { currentUser } from '@clerk/nextjs/server';
+import { Types } from 'mongoose';
 import dbConnect from '@/utils/mongoose';
 import UserModel, { type ProfileType } from '@/app/models/UserModel';
 import { RUSSIAN_REGIONS } from '@/app/utils/regions';
+import { ensureWalletWithBonus } from '@/utils/wallet';
 
 const VALID_PROFILE_TYPES: ProfileType[] = ['employer', 'contractor'];
 
@@ -81,6 +83,14 @@ export async function POST(request: Request) {
 
   if (!updatedUser) {
     return NextResponse.json({ error: 'User not found' }, { status: 404 });
+  }
+
+  if (updatedUser.profileType === 'contractor') {
+    try {
+      await ensureWalletWithBonus(new Types.ObjectId(updatedUser._id));
+    } catch (error) {
+      console.error('Failed to initialize contractor wallet', error);
+    }
   }
 
   return NextResponse.json({

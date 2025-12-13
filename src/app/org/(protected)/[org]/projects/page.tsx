@@ -74,7 +74,7 @@ type OrgInfoOk = { org: { _id: string; name: string; orgSlug: string }; role: Or
 type OrgInfoErr = { error: string };
 type OrgInfoResp = OrgInfoOk | OrgInfoErr;
 
-type Plan = 'basic' | 'pro' | 'business';
+type Plan = 'basic' | 'pro' | 'business' | 'enterprise';
 type SubscriptionStatus = 'active' | 'trial' | 'suspended' | 'past_due' | 'inactive';
 
 type SubscriptionInfo = {

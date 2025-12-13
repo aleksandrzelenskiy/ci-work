@@ -15,7 +15,7 @@ function errorMessage(err: unknown): string {
     return err instanceof Error ? err.message : 'Server error';
 }
 
-type Plan = 'basic' | 'pro' | 'business';
+type Plan = 'basic' | 'pro' | 'business' | 'enterprise';
 type SubStatus = 'active' | 'trial' | 'suspended' | 'past_due' | 'inactive';
 
 type ISODateString = string;
@@ -98,9 +98,9 @@ function fallbackDTO(orgSlug: string): SubscriptionDTO {
         orgSlug,
         plan: 'basic',
         status: 'inactive',
-        seats: 10,
-        projectsLimit: 10,
-        publicTasksLimit: 2,
+        seats: 5,
+        projectsLimit: 1,
+        publicTasksLimit: 5,
         boostCredits: 0,
         storageLimitGb: 10,
         periodStart: null,

@@ -344,7 +344,7 @@ export default function NavigationMenu({ onNavigateAction }: NavigationMenuProps
     const locationsPath = isEmployerView
         ? employerLocationsPath
         : baseGeoPath;
-    const geoLabel = isContractorView && !isEmployerView ? 'На карте' : 'ГЕОЛОКАЦИИ';
+    const geoLabel = isContractorView && !isEmployerView ? 'НА КАРТЕ' : 'ГЕОЛОКАЦИИ';
     const tasksChildren =
         isEmployerView && managerProjectPaths.length > 1
             ? managerProjectPaths.map((project) => ({

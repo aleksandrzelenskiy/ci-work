@@ -1,9 +1,11 @@
 // src/app/models/SubscriptionModel.ts
 import mongoose, { Schema, Document, model, models } from 'mongoose';
 
+export type SubscriptionPlan = 'basic' | 'pro' | 'business' | 'enterprise';
+
 export interface Subscription extends Document {
     orgId: mongoose.Types.ObjectId;
-    plan: 'basic' | 'pro' | 'business';
+    plan: SubscriptionPlan;
     status: 'active' | 'trial' | 'suspended' | 'past_due' | 'inactive';
     seats?: number;            // лимит мест
     projectsLimit?: number;    // лимит проектов
@@ -20,11 +22,11 @@ export interface Subscription extends Document {
 const SubscriptionSchema = new Schema<Subscription>(
     {
         orgId: { type: Schema.Types.ObjectId, ref: 'Organization', required: true, unique: true },
-        plan: { type: String, enum: ['basic', 'pro', 'business'], default: 'basic' },
+        plan: { type: String, enum: ['basic', 'pro', 'business', 'enterprise'], default: 'basic' },
         status: { type: String, enum: ['active', 'trial', 'suspended', 'past_due', 'inactive'], default: 'inactive' },
-        seats: { type: Number, default: 10 },
-        projectsLimit: { type: Number, default: 10 },
-        publicTasksLimit: { type: Number, default: 2 },
+        seats: { type: Number },
+        projectsLimit: { type: Number },
+        publicTasksLimit: { type: Number },
         boostCredits: { type: Number, default: 0 },
         storageLimitGb: { type: Number, default: 10 },
         periodStart: { type: Date },

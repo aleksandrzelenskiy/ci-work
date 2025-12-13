@@ -93,54 +93,96 @@ export async function PATCH(
     if (payload.publicStatus) {
         update.publicStatus = payload.publicStatus;
     }
-
-    if (payload.visibility === 'public' && task.visibility !== 'public') {
-        const check = await ensurePublicTaskSlot(task.orgId?.toString() ?? '');
-        if (!check.ok) {
-            return NextResponse.json({ error: check.reason || 'Лимит публичных задач исчерпан' }, { status: 403 });
-        }
-        update.visibility = 'public';
-        if (!update.publicStatus) {
-            update.publicStatus = 'open';
-        }
-    } else if (payload.visibility === 'private') {
-        update.visibility = 'private';
-        update.publicStatus = 'closed';
-    }
+    const session = await mongoose.startSession();
+    let saved: typeof task | null = null;
+    let limitError: string | undefined;
 
     try {
-        const saved = await TaskModel.findByIdAndUpdate(task._id, { $set: update }, { new: true }).lean();
-
-        const becamePublic =
-            !wasPublic && saved?.visibility === 'public';
-        const reopenedFromClosed =
-            saved?.visibility === 'public' &&
-            previousPublicStatus === 'closed' &&
-            saved.publicStatus !== 'closed';
-
-        if (saved && (becamePublic || reopenedFromClosed)) {
-            try {
-                await notifyTaskPublished({
-                    taskId: saved.taskId ?? task.taskId,
-                    taskMongoId: saved._id?.toString?.() ?? task._id?.toString?.(),
-                    taskName: saved.taskName ?? task.taskName ?? 'Задача',
-                    bsNumber: saved.bsNumber ?? task.bsNumber,
-                    budget: saved.budget ?? task.budget,
-                    currency: saved.currency ?? task.currency,
-                    orgId: saved.orgId ?? task.orgId,
-                    orgSlug: (saved as { orgSlug?: string })?.orgSlug ?? (task as { orgSlug?: string })?.orgSlug,
-                    orgName: (saved as { orgName?: string })?.orgName ?? (task as { orgName?: string })?.orgName,
-                    projectKey: (saved as { projectKey?: string })?.projectKey ?? undefined,
-                    projectName: (saved as { projectName?: string })?.projectName ?? undefined,
-                });
-            } catch (notifyErr) {
-                console.error('Failed to notify about task publication', notifyErr);
+        await session.withTransaction(async () => {
+            const freshTask = await TaskModel.findById(task._id).session(session);
+            if (!freshTask) {
+                throw new Error('TASK_NOT_FOUND');
             }
-        }
 
-        return NextResponse.json({ ok: true, task: saved });
+            const taskUpdate: Record<string, unknown> = { ...update };
+
+            if (payload.visibility === 'public' && freshTask.visibility !== 'public') {
+                taskUpdate.visibility = 'public';
+                if (!taskUpdate.publicStatus) {
+                    taskUpdate.publicStatus = 'open';
+                }
+            } else if (payload.visibility === 'private') {
+                taskUpdate.visibility = 'private';
+                taskUpdate.publicStatus = 'closed';
+            }
+
+            const targetVisibility = (taskUpdate.visibility as string | undefined) ?? freshTask.visibility;
+            const targetPublicStatus = (taskUpdate.publicStatus as string | undefined) ?? freshTask.publicStatus;
+
+            const isPublishingNow =
+                targetVisibility === 'public' &&
+                (freshTask.visibility !== 'public' ||
+                    (freshTask.publicStatus === 'closed' && targetPublicStatus !== 'closed'));
+
+            if (isPublishingNow) {
+                const check = await ensurePublicTaskSlot(freshTask.orgId?.toString() ?? '', {
+                    consume: true,
+                    session,
+                });
+                if (!check.ok) {
+                    limitError = check.reason ?? 'Лимит публичных задач исчерпан';
+                    throw new Error('LIMIT_REACHED');
+                }
+            }
+
+            saved = await TaskModel.findByIdAndUpdate(
+                freshTask._id,
+                { $set: taskUpdate },
+                { new: true, lean: true, session }
+            );
+        });
     } catch (error) {
+        await session.endSession();
+        if ((error as Error).message === 'LIMIT_REACHED') {
+            return NextResponse.json(
+                { error: limitError ?? 'Лимит публичных задач исчерпан' },
+                { status: 403 }
+            );
+        }
+        if ((error as Error).message === 'TASK_NOT_FOUND') {
+            return NextResponse.json({ error: 'Задача не найдена' }, { status: 404 });
+        }
         console.error('Failed to update publish state', error);
         return NextResponse.json({ error: 'Не удалось обновить задачу' }, { status: 500 });
     }
+
+    await session.endSession();
+
+    const becamePublic = !wasPublic && saved?.visibility === 'public';
+    const reopenedFromClosed =
+        saved?.visibility === 'public' &&
+        previousPublicStatus === 'closed' &&
+        saved.publicStatus !== 'closed';
+
+    if (saved && (becamePublic || reopenedFromClosed)) {
+        try {
+            await notifyTaskPublished({
+                taskId: saved.taskId ?? task.taskId,
+                taskMongoId: saved._id?.toString?.() ?? task._id?.toString?.(),
+                taskName: saved.taskName ?? task.taskName ?? 'Задача',
+                bsNumber: saved.bsNumber ?? task.bsNumber,
+                budget: saved.budget ?? task.budget,
+                currency: saved.currency ?? task.currency,
+                orgId: saved.orgId ?? task.orgId,
+                orgSlug: (saved as { orgSlug?: string })?.orgSlug ?? (task as { orgSlug?: string })?.orgSlug,
+                orgName: (saved as { orgName?: string })?.orgName ?? (task as { orgName?: string })?.orgName,
+                projectKey: (saved as { projectKey?: string })?.projectKey ?? undefined,
+                projectName: (saved as { projectName?: string })?.projectName ?? undefined,
+            });
+        } catch (notifyErr) {
+            console.error('Failed to notify about task publication', notifyErr);
+        }
+    }
+
+    return NextResponse.json({ ok: true, task: saved });
 }

@@ -62,7 +62,7 @@ type ProjectDTO = {
     operator: string;
 };
 
-type Plan = 'basic' | 'pro' | 'business';
+type Plan = 'basic' | 'pro' | 'business' | 'enterprise';
 type SubscriptionStatus = 'active' | 'trial' | 'suspended' | 'past_due' | 'inactive';
 
 type SubscriptionInfo = {

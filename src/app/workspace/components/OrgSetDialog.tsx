@@ -27,7 +27,7 @@ import EditNoteIcon from '@mui/icons-material/EditNote';
 import DoneIcon from '@mui/icons-material/Done';
 
 export type OrgSettingsFormValues = {
-    plan: 'basic' | 'pro' | 'business';
+    plan: 'basic' | 'pro' | 'business' | 'enterprise';
     legalForm: 'ООО' | 'ИП' | 'АО' | 'ЗАО';
     organizationName: string;
     legalAddress: string;

@@ -2,7 +2,7 @@
 
 import mongoose, { Schema, Document, models, model } from 'mongoose';
 
-type OrgPlan = 'basic' | 'pro' | 'business';
+type OrgPlan = 'basic' | 'pro' | 'business' | 'enterprise';
 type LegalForm = 'ООО' | 'ИП' | 'АО' | 'ЗАО';
 
 export interface CompanyProfile {
@@ -43,7 +43,7 @@ const OrganizationSchema = new Schema<Organization>(
         createdByEmail: { type: String, required: true },
         createdAt: { type: Date, default: Date.now },
         companyProfile: {
-            plan: { type: String, enum: ['basic', 'pro', 'business'], default: 'basic' },
+            plan: { type: String, enum: ['basic', 'pro', 'business', 'enterprise'], default: 'basic' },
             legalForm: { type: String, enum: ['ООО', 'ИП', 'АО', 'ЗАО'] },
             organizationName: { type: String },
             legalAddress: { type: String },

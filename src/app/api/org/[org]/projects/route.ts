@@ -1,11 +1,13 @@
 // src/app/api/org/[org]/projects/route.ts
 
 import { NextRequest, NextResponse } from 'next/server';
+import mongoose from 'mongoose';
 import { currentUser } from '@clerk/nextjs/server';
 import dbConnect from '@/utils/mongoose';
 import Project from '@/app/models/ProjectModel';
 import Subscription from '@/app/models/SubscriptionModel';
 import Membership from '@/app/models/MembershipModel';
+import { consumeUsageSlot } from '@/utils/billingLimits';
 import { requireOrgRole } from '@/app/utils/permissions';
 import { RUSSIAN_REGIONS } from '@/app/utils/regions';
 import { OPERATORS } from '@/app/utils/operators';
@@ -212,32 +214,69 @@ export async function POST(
         const normalizedManagers = normalizeEmailsArray(body.managers);
         const managerEmails = await resolveManagerEmails(orgDoc._id, normalizedManagers, email);
 
-        const created = await Project.create({
-            orgId: orgDoc._id,
-            name,
-            key: key.toUpperCase(),
-            description: body?.description,
-            managers: managerEmails,
-            createdByEmail: email,
-            regionCode: body.regionCode,
-            operator: body.operator,
-        });
+        const session = await mongoose.startSession();
+        let project: ProjectDTO | null = null;
+        let limitError: string | null = null;
 
-        // Извлекаем managers
-        const createdManagers: string[] = Array.isArray((created as { managers?: unknown }).managers)
-            ? ((created as { managers?: unknown }).managers as string[])
-            : [email];
+        try {
+            await session.withTransaction(async () => {
+                const limit = await consumeUsageSlot(orgDoc._id, 'projects', { session });
+                if (!limit.ok) {
+                    const limitValue = Number.isFinite(limit.limit ?? null) ? limit.limit : '∞';
+                    limitError =
+                        limit.reason ||
+                        `Достигнут лимит проектов: ${limit.used}/${limitValue}`;
+                    throw new Error('LIMIT_REACHED');
+                }
 
-        const project: ProjectDTO = {
-            _id: String(created._id),
-            name: created.name,
-            key: created.key,
-            description: created.description,
-            managers: createdManagers,
-            managerEmail: createdManagers[0] ?? email,
-            regionCode: created.regionCode,
-            operator: created.operator,
-        };
+                const [created] = await Project.create(
+                    [
+                        {
+                            orgId: orgDoc._id,
+                            name,
+                            key: key.toUpperCase(),
+                            description: body?.description,
+                            managers: managerEmails,
+                            createdByEmail: email,
+                            regionCode: body.regionCode,
+                            operator: body.operator,
+                        },
+                    ],
+                    { session }
+                );
+
+                const createdManagers: string[] = Array.isArray(
+                    (created as { managers?: unknown }).managers
+                )
+                    ? ((created as { managers?: unknown }).managers as string[])
+                    : [email];
+
+                project = {
+                    _id: String(created._id),
+                    name: created.name,
+                    key: created.key,
+                    description: created.description,
+                    managers: createdManagers,
+                    managerEmail: createdManagers[0] ?? email,
+                    regionCode: created.regionCode,
+                    operator: created.operator,
+                };
+            });
+        } catch (e) {
+            if ((e as Error).message === 'LIMIT_REACHED') {
+                return NextResponse.json(
+                    { error: limitError ?? 'Лимит проектов исчерпан' },
+                    { status: 402 }
+                );
+            }
+            return toHttpError(e);
+        } finally {
+            await session.endSession();
+        }
+
+        if (!project) {
+            return NextResponse.json({ error: 'Не удалось создать проект' }, { status: 500 });
+        }
 
         return NextResponse.json({ ok: true, project });
     } catch (e) {

@@ -9,6 +9,7 @@ import type { ApplicationStatus } from '@/app/models/ApplicationModel';
 import UserModel from '@/app/models/UserModel';
 import MembershipModel from '@/app/models/MembershipModel';
 import { ensureSeatAvailable } from '@/utils/seats';
+import { debitForBid, BID_COST_RUB } from '@/utils/wallet';
 import {
     notifyApplicationStatusChanged,
     notifyApplicationSubmitted,
@@ -123,56 +124,107 @@ export async function POST(
         return NextResponse.json({ error: 'Вы уже откликались на эту задачу' }, { status: 409 });
     }
 
+    const session = await mongoose.startSession();
+    let applicationDoc: Awaited<ReturnType<typeof ApplicationModel.create>>[number] | null = null;
+    let insufficientFunds = false;
+
     try {
-        const app = await ApplicationModel.create({
-            taskId: task._id,
-            orgId: task.orgId,
-            contractorId: user._id,
-            contractorEmail: user.email,
-            contractorName: user.name,
-            coverMessage,
-            proposedBudget,
-            etaDays: body.etaDays,
-            attachments: Array.isArray(body.attachments) ? body.attachments : [],
-            status: 'submitted',
-        });
+        await session.withTransaction(async () => {
+            const freshTask = await TaskModel.findById(task._id).session(session);
+            if (!freshTask || freshTask.visibility !== 'public') {
+                throw new Error('TASK_NOT_AVAILABLE');
+            }
 
-        await TaskModel.findByIdAndUpdate(task._id, {
-            $inc: { applicationCount: 1 },
-        });
+            const [createdApp] = await ApplicationModel.create(
+                [
+                    {
+                        taskId: freshTask._id,
+                        orgId: freshTask.orgId,
+                        contractorId: user._id,
+                        contractorEmail: user.email,
+                        contractorName: user.name,
+                        coverMessage,
+                        proposedBudget,
+                        etaDays: body.etaDays,
+                        attachments: Array.isArray(body.attachments) ? body.attachments : [],
+                        status: 'submitted',
+                    },
+                ],
+                { session }
+            );
 
-        try {
-            const managerClerkIds = [task.initiatorId, task.authorId]
-                .map((v) => (typeof v === 'string' ? v.trim() : ''))
-                .filter((v) => v.length > 0);
-
-            await notifyApplicationSubmitted({
-                taskId: task.taskId,
-                taskMongoId: task._id,
-                taskName: task.taskName ?? 'Задача',
-                bsNumber: task.bsNumber,
-                applicationId: app._id,
-                contractor: { _id: user._id, name: user.name, email: user.email },
-                proposedBudget,
-                orgId: task.orgId,
-                orgSlug: (task as { orgSlug?: string })?.orgSlug,
-                orgName: (task as { orgName?: string })?.orgName,
-                managerClerkIds,
-                projectRef: undefined,
-                projectKey: undefined,
-                projectName: undefined,
-                triggeredByName: user.name,
-                triggeredByEmail: user.email,
+            const debit = await debitForBid({
+                contractorId: user._id,
+                taskId: freshTask._id,
+                applicationId: createdApp._id,
+                session,
             });
-        } catch (notifyErr) {
-            console.error('Failed to notify about application submission', notifyErr);
-        }
 
-        return NextResponse.json({ ok: true, application: app.toObject() }, { status: 201 });
+            if (!debit.ok) {
+                insufficientFunds = true;
+                throw new Error('INSUFFICIENT_FUNDS');
+            }
+
+            await TaskModel.updateOne(
+                { _id: freshTask._id },
+                { $inc: { applicationCount: 1 } },
+                { session }
+            );
+
+            applicationDoc = createdApp;
+        });
     } catch (error) {
+        await session.endSession();
+        if ((error as Error).message === 'TASK_NOT_AVAILABLE') {
+            return NextResponse.json({ error: 'Задача недоступна для откликов' }, { status: 404 });
+        }
+        if ((error as Error).message === 'INSUFFICIENT_FUNDS' || insufficientFunds) {
+            return NextResponse.json(
+                { error: `Недостаточно средств. На отклик требуется ${BID_COST_RUB} ₽` },
+                { status: 402 }
+            );
+        }
+        if ((error as Error).message?.includes?.('E11000')) {
+            return NextResponse.json({ error: 'Вы уже откликались на эту задачу' }, { status: 409 });
+        }
         console.error('Failed to create application', error);
         return NextResponse.json({ error: 'Не удалось отправить отклик' }, { status: 500 });
     }
+
+    await session.endSession();
+
+    if (!applicationDoc) {
+        return NextResponse.json({ error: 'Не удалось отправить отклик' }, { status: 500 });
+    }
+
+    try {
+        const managerClerkIds = [task.initiatorId, task.authorId]
+            .map((v) => (typeof v === 'string' ? v.trim() : ''))
+            .filter((v) => v.length > 0);
+
+        await notifyApplicationSubmitted({
+            taskId: task.taskId,
+            taskMongoId: task._id,
+            taskName: task.taskName ?? 'Задача',
+            bsNumber: task.bsNumber,
+            applicationId: applicationDoc._id,
+            contractor: { _id: user._id, name: user.name, email: user.email },
+            proposedBudget,
+            orgId: task.orgId,
+            orgSlug: (task as { orgSlug?: string })?.orgSlug,
+            orgName: (task as { orgName?: string })?.orgName,
+            managerClerkIds,
+            projectRef: undefined,
+            projectKey: undefined,
+            projectName: undefined,
+            triggeredByName: user.name,
+            triggeredByEmail: user.email,
+        });
+    } catch (notifyErr) {
+        console.error('Failed to notify about application submission', notifyErr);
+    }
+
+    return NextResponse.json({ ok: true, application: applicationDoc.toObject() }, { status: 201 });
 }
 
 export async function PATCH(
