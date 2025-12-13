@@ -124,12 +124,19 @@ export default function NavigationMenu({ onNavigateAction }: NavigationMenuProps
 
         const loadManagerProjects = async () => {
             if (userContextLoading) return;
+            const effectiveRoleLocal = resolveRoleFromContext(userContext);
+            const isSuperAdmin = effectiveRoleLocal === 'super_admin';
+            const isOwnerLike =
+                effectiveRoleLocal === 'owner' || effectiveRoleLocal === 'org_admin';
+            const isManagerRoleLocal = effectiveRoleLocal
+                ? MANAGER_ROLES.includes(effectiveRoleLocal)
+                : false;
             const profileType =
                 (userContext?.profileType ??
                     (userContext?.user as { profileType?: string })?.profileType) ||
                 null;
 
-            if (profileType !== 'employer') {
+            if (profileType !== 'employer' && !isManagerRoleLocal) {
                 if (isMounted) {
                     setManagerProjects([]);
                     setManagerOrgs([]);
@@ -148,7 +155,7 @@ export default function NavigationMenu({ onNavigateAction }: NavigationMenuProps
                 normalizeEmail((userContext?.user as DbUserPayload | undefined)?.email) ||
                 normalizeEmail(user?.primaryEmailAddress?.emailAddress);
 
-            if (!userEmail) {
+            if (!userEmail && !(isSuperAdmin || isOwnerLike)) {
                 if (isMounted) {
                     setManagerProjects([]);
                     setManagerOrgs([]);
@@ -193,11 +200,13 @@ export default function NavigationMenu({ onNavigateAction }: NavigationMenuProps
                     return role ? allowedRoles.has(role) : true;
                 });
 
+                const orgsToQuery = isSuperAdmin ? orgPayload.orgs : candidateOrgs;
+
                 const orgResults: ManagerOrgLink[] = [];
                 const projectResults: ManagerProjectLink[] = [];
 
                 const projectRequests = await Promise.allSettled(
-                    candidateOrgs.map(async (org) => {
+                    orgsToQuery.map(async (org) => {
                         const res = await fetch(
                             `/api/org/${encodeURIComponent(org.orgSlug)}/projects`,
                             { cache: 'no-store' }
@@ -211,21 +220,22 @@ export default function NavigationMenu({ onNavigateAction }: NavigationMenuProps
                             return { org, projects: [] as ManagerProjectLink[] };
                         }
 
-                        const managedProjects = data.projects
-                            .filter((project) => {
-                                const managers = Array.isArray(project.managers) ? project.managers : [];
-                                return managers.some(
-                                    (managerEmail) => normalizeEmail(managerEmail) === userEmail
-                                );
-                            })
-                            .map((project) => ({
-                                orgSlug: org.orgSlug,
-                                orgName: org.name,
-                                projectKey: project.key,
-                                projectName: project.name,
-                            }));
+                        const managedProjects = data.projects.filter((project) => {
+                            if (isSuperAdmin || isOwnerLike) return true;
+                            const managers = Array.isArray(project.managers) ? project.managers : [];
+                            return managers.some(
+                                (managerEmail) => normalizeEmail(managerEmail) === userEmail
+                            );
+                        });
 
-                        return { org, projects: managedProjects };
+                        const formattedProjects = managedProjects.map((project) => ({
+                            orgSlug: org.orgSlug,
+                            orgName: org.name,
+                            projectKey: project.key,
+                            projectName: project.name,
+                        }));
+
+                        return { org, projects: formattedProjects };
                     })
                 );
 
@@ -291,10 +301,6 @@ export default function NavigationMenu({ onNavigateAction }: NavigationMenuProps
     const isManagerRole = effectiveRole ? MANAGER_ROLES.includes(effectiveRole) : false;
     const isEmployerView = isEmployer || isManagerRole;
     const isContractorView = isContractor || effectiveRole === 'executor';
-    const isOwnerLike =
-        effectiveRole === 'owner' ||
-        effectiveRole === 'org_admin' ||
-        effectiveRole === 'super_admin';
     const isExecutor = effectiveRole === 'executor' || isContractor;
     const projectMatch = pathname.match(/^\/org\/([^/]+)\/projects\/([^/]+)/);
     const orgSlug = projectMatch?.[1];
@@ -327,15 +333,18 @@ export default function NavigationMenu({ onNavigateAction }: NavigationMenuProps
         [managerProjects]
     );
     const primaryManagerProject = managerProjectPaths[0];
+    const employerLocationsPath =
+        managerGeoPath !== '/tasks/locations'
+            ? managerGeoPath
+            : primaryManagerProject?.locationsPath ?? managerGeoPath;
     const tasksPath = isEmployerView
         ? primaryManagerProject?.tasksPath ??
           (managerOrgSlug ? `/org/${encodeURIComponent(managerOrgSlug)}/projects` : '/tasks')
         : '/tasks';
     const locationsPath = isEmployerView
-        ? isOwnerLike || !primaryManagerProject
-            ? '/tasks/locations'
-            : primaryManagerProject.locationsPath
+        ? employerLocationsPath
         : baseGeoPath;
+    const geoLabel = isContractorView && !isEmployerView ? 'На карте' : 'ГЕОЛОКАЦИИ';
     const tasksChildren =
         isEmployerView && managerProjectPaths.length > 1
             ? managerProjectPaths.map((project) => ({
@@ -409,7 +418,7 @@ export default function NavigationMenu({ onNavigateAction }: NavigationMenuProps
             });
         }
         items.push({
-            label: 'ГЕОЛОКАЦИИ',
+            label: geoLabel,
             path: locationsPath,
             icon: <PlaceIcon sx={{ fontSize: 20 }} />,
             children: locationsChildren,
@@ -426,6 +435,7 @@ export default function NavigationMenu({ onNavigateAction }: NavigationMenuProps
         isEmployerView,
         isContractorView,
         profileType,
+        geoLabel,
     ]);
 
     const normalizeValue = (value?: string | null) => {
