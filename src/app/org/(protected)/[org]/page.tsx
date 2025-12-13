@@ -24,6 +24,7 @@ import PersonSearchIcon from '@mui/icons-material/PersonSearch';
 import CancelIcon from '@mui/icons-material/Cancel';
 import ManageAccountsIcon from '@mui/icons-material/ManageAccounts';
 import SettingsIcon from '@mui/icons-material/Settings';
+import PreviewIcon from '@mui/icons-material/Preview';
 
 import InviteMemberForm from '@/app/workspace/components/InviteMemberForm';
 import ProjectDialog, {
@@ -85,6 +86,8 @@ type ApplicationRow = {
     _id: string;
     taskId: string;
     taskName: string;
+    bsNumber?: string;
+    projectKey?: string;
     publicStatus?: string;
     visibility?: string;
     proposedBudget: number;
@@ -202,6 +205,9 @@ export default function OrgSettingsPage() {
     const [applications, setApplications] = React.useState<ApplicationRow[]>([]);
     const [applicationsLoading, setApplicationsLoading] = React.useState(false);
     const [applicationsError, setApplicationsError] = React.useState<string | null>(null);
+    const [applicationToRemove, setApplicationToRemove] = React.useState<ApplicationRow | null>(null);
+    const [removeApplicationOpen, setRemoveApplicationOpen] = React.useState(false);
+    const [removingApplication, setRemovingApplication] = React.useState(false);
     const resolveRegionCode = React.useCallback((code?: string | null) => {
         if (!code) return '';
         if (REGION_MAP.has(code)) return code;
@@ -416,6 +422,39 @@ export default function OrgSettingsPage() {
         }
     }, [org, canManage]);
 
+    const openRemoveApplicationDialog = (app: ApplicationRow) => {
+        setApplicationToRemove(app);
+        setRemoveApplicationOpen(true);
+    };
+
+    const closeRemoveApplicationDialog = () => {
+        if (removingApplication) return;
+        setRemoveApplicationOpen(false);
+        setApplicationToRemove(null);
+    };
+
+    const confirmRemoveApplication = async () => {
+        if (!org || !applicationToRemove?._id || !canManage) return;
+        setRemovingApplication(true);
+        try {
+            const res = await fetch(`/api/org/${encodeURIComponent(org)}/applications`, {
+                method: 'DELETE',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ applicationId: applicationToRemove._id }),
+            });
+            const data = (await res.json().catch(() => ({}))) as { ok?: boolean; error?: string };
+            if (!res.ok || data.error) {
+                setSnack({ open: true, msg: data.error || res.statusText, sev: 'error' });
+                return;
+            }
+            setSnack({ open: true, msg: 'Отклик удалён', sev: 'success' });
+            await fetchApplications();
+            closeRemoveApplicationDialog();
+        } finally {
+            setRemovingApplication(false);
+        }
+    };
+
     const loadSubscription = React.useCallback(async () => {
         if (!org || !canManage) return;
         setSubscriptionLoading(true);
@@ -582,6 +621,17 @@ export default function OrgSettingsPage() {
     const goToProjectsPage = () => {
         if (!org) return;
         router.push(`/org/${encodeURIComponent(org)}/projects`);
+    };
+
+    const goToTaskDetails = (app: ApplicationRow) => {
+        if (!org || !app.taskId) return;
+        if (!app.projectKey) {
+            setSnack({ open: true, msg: 'Не удалось определить проект задачи', sev: 'error' });
+            return;
+        }
+        router.push(
+            `/org/${encodeURIComponent(org)}/projects/${encodeURIComponent(app.projectKey)}/tasks/${app.taskId}`
+        );
     };
 
     const handleOrgSettingsSubmit = async (values: OrgSettingsFormValues) => {
@@ -969,11 +1019,11 @@ export default function OrgSettingsPage() {
                             <Typography variant="overline" sx={{ color: textSecondary, letterSpacing: 1 }}>
                                 Рабочих мест
                             </Typography>
-                            <Typography variant="h4" fontWeight={700} color={textPrimary}>
-                                {seatsLabel}
+                            <Typography variant="h6" fontWeight={700} color={textPrimary}>
+                                Рабочих мест: {members.length}
                             </Typography>
                             <Typography variant="body2" color={textSecondary}>
-                                В команде {members.length}
+                                Всего {seatsLabel}
                             </Typography>
                         </Box>
                         <Box sx={statCardSx}>
@@ -1238,108 +1288,6 @@ export default function OrgSettingsPage() {
                     </Card>
                 </Grid>
 
-                {/* ОТКЛИКИ */}
-                <Grid item xs={12}>
-                    <Card variant="outlined" sx={cardBaseSx}>
-                        <CardHeader
-                            sx={cardHeaderSx}
-                            title="Отклики на публичные задачи"
-                            subheader="Последние 50 заявок подрядчиков"
-                            action={
-                                <Tooltip title="Обновить">
-                                    <span>
-                                        <IconButton onClick={() => void fetchApplications()} disabled={applicationsLoading}>
-                                            <RefreshIcon />
-                                        </IconButton>
-                                    </span>
-                                </Tooltip>
-                            }
-                        />
-                        <CardContent sx={cardContentSx}>
-                            {applicationsError ? (
-                                <Alert severity="warning" sx={{ ...getAlertSx('warning'), mb: 2 }}>
-                                    {applicationsError}
-                                </Alert>
-                            ) : null}
-                            {applicationsLoading ? (
-                                <Stack direction="row" spacing={1} alignItems="center">
-                                    <CircularProgress size={20} />
-                                    <Typography>Загружаем отклики…</Typography>
-                                </Stack>
-                            ) : applications.length === 0 ? (
-                                <Typography color="text.secondary">
-                                    Откликов пока нет.
-                                </Typography>
-                            ) : (
-                                <Table size="small">
-                                    <TableHead>
-                                        <TableRow>
-                                            <TableCell>Задача</TableCell>
-                                            <TableCell>Исполнитель</TableCell>
-                                            <TableCell>Ставка</TableCell>
-                                            <TableCell>Статус</TableCell>
-                                            <TableCell>Создано</TableCell>
-                                        </TableRow>
-                                    </TableHead>
-                                    <TableBody>
-                                        {applications.map((app) => (
-                                            <TableRow key={app._id} hover>
-                                                <TableCell sx={{ maxWidth: 220 }}>
-                                                    <Typography variant="body2" fontWeight={600} noWrap>
-                                                        {app.taskName}
-                                                    </Typography>
-                                                    <Typography variant="caption" color="text.secondary">
-                                                        {app.publicStatus === 'assigned'
-                                                            ? 'Назначена'
-                                                            : app.publicStatus === 'open'
-                                                                ? 'Открыта'
-                                                                : app.publicStatus || '—'}
-                                                    </Typography>
-                                                </TableCell>
-                                                <TableCell>
-                                                    <Typography variant="body2">{app.contractorName || '—'}</Typography>
-                                                    <Typography variant="caption" color="text.secondary">
-                                                        {app.contractorEmail || '—'}
-                                                    </Typography>
-                                                </TableCell>
-                                                <TableCell>
-                                                    {Number.isFinite(app.proposedBudget)
-                                                        ? `${new Intl.NumberFormat('ru-RU').format(app.proposedBudget)} ₽`
-                                                        : '—'}
-                                                </TableCell>
-                                                <TableCell>
-                                                    <Chip
-                                                        size="small"
-                                                        label={app.status}
-                                                        color={
-                                                            app.status === 'accepted'
-                                                                ? 'success'
-                                                                : app.status === 'rejected'
-                                                                    ? 'error'
-                                                                    : app.status === 'submitted'
-                                                                        ? 'info'
-                                                                        : 'default'
-                                                        }
-                                                        variant="outlined"
-                                                        sx={{ borderRadius: 2 }}
-                                                    />
-                                                </TableCell>
-                                                <TableCell>
-                                                    <Typography variant="body2" color="text.secondary">
-                                                        {app.createdAt
-                                                            ? new Date(app.createdAt).toLocaleString('ru-RU')
-                                                            : '—'}
-                                                    </Typography>
-                                                </TableCell>
-                                            </TableRow>
-                                        ))}
-                                    </TableBody>
-                                </Table>
-                            )}
-                        </CardContent>
-                    </Card>
-                </Grid>
-
                 {/* УЧАСТНИКИ */}
                 <Grid item xs={12}>
                     <Card variant="outlined" sx={cardBaseSx}>
@@ -1507,6 +1455,139 @@ export default function OrgSettingsPage() {
                                                 </TableCell>
                                             </TableRow>
                                         )}
+                                    </TableBody>
+                                </Table>
+                            )}
+                        </CardContent>
+                    </Card>
+                </Grid>
+
+                {/* ОТКЛИКИ */}
+                <Grid item xs={12}>
+                    <Card variant="outlined" sx={cardBaseSx}>
+                        <CardHeader
+                            sx={cardHeaderSx}
+                            title="Отклики на публичные задачи"
+                            subheader="Последние 50 заявок подрядчиков"
+                            action={
+                                <Tooltip title="Обновить">
+                                    <span>
+                                        <IconButton onClick={() => void fetchApplications()} disabled={applicationsLoading}>
+                                            <RefreshIcon />
+                                        </IconButton>
+                                    </span>
+                                </Tooltip>
+                            }
+                        />
+                        <CardContent sx={cardContentSx}>
+                            {applicationsError ? (
+                                <Alert severity="warning" sx={{ ...getAlertSx('warning'), mb: 2 }}>
+                                    {applicationsError}
+                                </Alert>
+                            ) : null}
+                            {applicationsLoading ? (
+                                <Stack direction="row" spacing={1} alignItems="center">
+                                    <CircularProgress size={20} />
+                                    <Typography>Загружаем отклики…</Typography>
+                                </Stack>
+                            ) : applications.length === 0 ? (
+                                <Typography color="text.secondary">
+                                    Откликов пока нет.
+                                </Typography>
+                            ) : (
+                                <Table size="small">
+                                    <TableHead>
+                                        <TableRow>
+                                            <TableCell>Задача</TableCell>
+                                            <TableCell>Кандидат</TableCell>
+                                            <TableCell>Ставка</TableCell>
+                                            <TableCell>Статус</TableCell>
+                                            <TableCell>Создано</TableCell>
+                                            <TableCell align="right">Действия</TableCell>
+                                        </TableRow>
+                                    </TableHead>
+                                    <TableBody>
+                                        {applications.map((app) => (
+                                            <TableRow key={app._id} hover>
+                                                <TableCell sx={{ maxWidth: 220 }}>
+                                                    <Typography variant="body2" fontWeight={600} noWrap>
+                                                        {app.taskName}
+                                                    </Typography>
+                                                    <Typography variant="caption" color="text.secondary" noWrap>
+                                                        {app.bsNumber ? `БС ${app.bsNumber}` : '—'}
+                                                    </Typography>
+                                                    <Typography variant="caption" color="text.secondary">
+                                                        {app.publicStatus === 'assigned'
+                                                            ? 'Назначена'
+                                                            : app.publicStatus === 'open'
+                                                                ? 'Открыта'
+                                                                : app.publicStatus || '—'}
+                                                    </Typography>
+                                                </TableCell>
+                                                <TableCell>
+                                                    <Typography variant="body2">{app.contractorName || '—'}</Typography>
+                                                    <Typography variant="caption" color="text.secondary">
+                                                        {app.contractorEmail || '—'}
+                                                    </Typography>
+                                                </TableCell>
+                                                <TableCell>
+                                                    {Number.isFinite(app.proposedBudget)
+                                                        ? `${new Intl.NumberFormat('ru-RU').format(app.proposedBudget)} ₽`
+                                                        : '—'}
+                                                </TableCell>
+                                                <TableCell>
+                                                    <Chip
+                                                        size="small"
+                                                        label={app.status}
+                                                        color={
+                                                            app.status === 'accepted'
+                                                                ? 'success'
+                                                                : app.status === 'rejected'
+                                                                    ? 'error'
+                                                                    : app.status === 'submitted'
+                                                                        ? 'info'
+                                                                        : 'default'
+                                                        }
+                                                        variant="outlined"
+                                                        sx={{ borderRadius: 2 }}
+                                                    />
+                                                </TableCell>
+                                                <TableCell>
+                                                    <Typography variant="body2" color="text.secondary">
+                                                        {app.createdAt
+                                                            ? new Date(app.createdAt).toLocaleDateString('ru-RU')
+                                                            : '—'}
+                                                    </Typography>
+                                                </TableCell>
+                                                <TableCell align="right">
+                                                    <Stack direction="row" spacing={0.5} justifyContent="flex-end">
+                                                        <Tooltip title="Перейти в задачу">
+                                                            <span>
+                                                                <IconButton
+                                                                    size="small"
+                                                                    onClick={() => goToTaskDetails(app)}
+                                                                    disabled={!app.projectKey}
+                                                                >
+                                                                    <PreviewIcon fontSize="small" />
+                                                                </IconButton>
+                                                            </span>
+                                                        </Tooltip>
+                                                        <Tooltip title="Удалить отклик">
+                                                            <span>
+                                                                <IconButton
+                                                                    size="small"
+                                                                    color="error"
+                                                                    onClick={() => openRemoveApplicationDialog(app)}
+                                                                    disabled={removingApplication}
+                                                                >
+                                                                    <DeleteOutlineOutlinedIcon fontSize="small" />
+                                                                </IconButton>
+                                                            </span>
+                                                        </Tooltip>
+                                                    </Stack>
+                                                </TableCell>
+                                            </TableRow>
+                                        ))}
                                     </TableBody>
                                 </Table>
                             )}
@@ -1728,6 +1809,48 @@ export default function OrgSettingsPage() {
                     <Button onClick={closeRemoveProjectDialog} disabled={removingProject}>Отмена</Button>
                     <Button color="error" variant="contained" onClick={confirmRemoveProject} disabled={removingProject}>
                         {removingProject ? 'Удаляем…' : 'Удалить'}
+                    </Button>
+                </DialogActions>
+            </Dialog>
+
+            {/* Диалог удаления отклика */}
+            <Dialog
+                open={removeApplicationOpen}
+                onClose={removingApplication ? undefined : closeRemoveApplicationDialog}
+                PaperProps={{
+                    sx: {
+                        backdropFilter: 'blur(24px)',
+                        backgroundColor: cardBg,
+                        border: `1px solid ${cardBorder}`,
+                        boxShadow: cardShadow,
+                        borderRadius: 4,
+                    },
+                }}
+            >
+                <DialogTitle sx={{ ...cardHeaderSx, borderTopLeftRadius: 16, borderTopRightRadius: 16 }}>
+                    Удалить отклик?
+                </DialogTitle>
+                <DialogContent sx={{ backgroundColor: cardContentSx.backgroundColor }}>
+                    <Typography variant="body2">
+                        Вы уверены, что хотите удалить отклик на задачу{' '}
+                        <b>{applicationToRemove?.taskName || 'Задача'}</b>{' '}
+                        от кандидата {applicationToRemove?.contractorName || applicationToRemove?.contractorEmail || 'без имени'}?
+                    </Typography>
+                </DialogContent>
+                <DialogActions
+                    sx={{
+                        backgroundColor: isDarkMode ? 'rgba(15,18,28,0.8)' : 'rgba(255,255,255,0.85)',
+                        borderTop: `1px solid ${cardBorder}`,
+                    }}
+                >
+                    <Button onClick={closeRemoveApplicationDialog} disabled={removingApplication}>Отмена</Button>
+                    <Button
+                        color="error"
+                        variant="contained"
+                        onClick={confirmRemoveApplication}
+                        disabled={removingApplication}
+                    >
+                        {removingApplication ? 'Удаляем…' : 'Удалить'}
                     </Button>
                 </DialogActions>
             </Dialog>
