@@ -18,6 +18,7 @@ import {
     Alert,
     Avatar,
 } from '@mui/material';
+import { useTheme } from '@mui/material/styles';
 import Autocomplete from '@mui/material/Autocomplete';
 
 type OrgRole = 'owner' | 'org_admin' | 'manager' | 'executor' | 'viewer';
@@ -39,6 +40,18 @@ export default function InviteMemberForm({
                                              defaultRole = 'executor',
                                              existingEmails = [],
                                          }: Props) {
+    const theme = useTheme();
+    const isDarkMode = theme.palette.mode === 'dark';
+    const panelBg = isDarkMode ? 'rgba(13,18,30,0.9)' : 'rgba(255,255,255,0.65)';
+    const panelBorder = isDarkMode ? 'rgba(255,255,255,0.08)' : 'rgba(255,255,255,0.6)';
+    const panelShadow = isDarkMode ? '0 24px 80px rgba(0,0,0,0.55)' : 'inset 0 0 0 1px rgba(255,255,255,0.4)';
+    const inputBg = isDarkMode ? 'rgba(255,255,255,0.06)' : 'rgba(255,255,255,0.9)';
+    const infoBg = isDarkMode ? 'rgba(59,130,246,0.16)' : 'rgba(255,255,255,0.85)';
+    const infoColor = isDarkMode ? '#e2e8f0' : 'rgba(2,6,23,0.8)';
+    const buttonShadow = isDarkMode ? '0 16px 45px rgba(59,130,246,0.4)' : '0 10px 30px rgba(59,130,246,0.4)';
+    const buttonGradient = isDarkMode
+        ? 'linear-gradient(120deg, #2563eb, #7c3aed)'
+        : 'linear-gradient(120deg, #3b82f6, #60a5fa)';
     const [userQuery, setUserQuery] = React.useState('');
     const [userOpts, setUserOpts] = React.useState<UserOption[]>([]);
     const [userLoading, setUserLoading] = React.useState(false);
@@ -157,10 +170,10 @@ export default function InviteMemberForm({
     return (
         <Box
             sx={{
-                backgroundColor: 'rgba(255,255,255,0.65)',
+                backgroundColor: panelBg,
                 borderRadius: 3,
-                border: '1px solid rgba(255,255,255,0.6)',
-                boxShadow: 'inset 0 0 0 1px rgba(255,255,255,0.4)',
+                border: `1px solid ${panelBorder}`,
+                boxShadow: panelShadow,
                 backdropFilter: 'blur(10px)',
                 p: 2,
             }}
@@ -208,8 +221,9 @@ export default function InviteMemberForm({
                             fullWidth
                             sx={{
                                 '& .MuiOutlinedInput-root': {
-                                    backgroundColor: 'rgba(255,255,255,0.9)',
+                                    backgroundColor: inputBg,
                                     borderRadius: 3,
+                                    color: isDarkMode ? '#e2e8f0' : undefined,
                                 },
                             }}
                             InputProps={{
@@ -229,8 +243,9 @@ export default function InviteMemberForm({
                     fullWidth
                     sx={{
                         '& .MuiOutlinedInput-root': {
-                            backgroundColor: 'rgba(255,255,255,0.9)',
+                            backgroundColor: inputBg,
                             borderRadius: 3,
+                            color: isDarkMode ? '#e2e8f0' : undefined,
                         },
                     }}
                 >
@@ -251,8 +266,9 @@ export default function InviteMemberForm({
                     severity="info"
                     sx={{
                         borderRadius: 3,
-                        backgroundColor: 'rgba(255,255,255,0.85)',
-                        color: 'rgba(2,6,23,0.8)',
+                        backgroundColor: infoBg,
+                        color: infoColor,
+                        border: isDarkMode ? '1px solid rgba(59,130,246,0.35)' : undefined,
                     }}
                 >
                     Приглашение действует 7 дней. Приглашение будет направлено автоматически.{' '}
@@ -263,19 +279,20 @@ export default function InviteMemberForm({
 
                 <Stack direction="row" spacing={1}>
                     <Button
-                        variant="contained"
-                        onClick={handleInvite}
-                        disabled={inviting || !selectedUser || emailAlreadyInOrg}
-                        sx={{
-                            borderRadius: 999,
-                            px: 3,
-                            textTransform: 'none',
-                            boxShadow: '0 10px 30px rgba(59,130,246,0.4)',
-                        }}
-                    >
-                        {inviting ? 'Приглашаем…' : 'Пригласить'}
-                    </Button>
-                </Stack>
+                    variant="contained"
+                    onClick={handleInvite}
+                    disabled={inviting || !selectedUser || emailAlreadyInOrg}
+                    sx={{
+                        borderRadius: 999,
+                        px: 3,
+                        textTransform: 'none',
+                        boxShadow: buttonShadow,
+                        backgroundImage: buttonGradient,
+                    }}
+                >
+                    {inviting ? 'Приглашаем…' : 'Пригласить'}
+                </Button>
+            </Stack>
             </Stack>
 
             <Snackbar
