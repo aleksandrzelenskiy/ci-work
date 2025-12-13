@@ -22,7 +22,7 @@ import PlaceIcon from '@mui/icons-material/Place';
 import LogoutIcon from '@mui/icons-material/Logout';
 import FolderIcon from '@mui/icons-material/Folder';
 import BusinessIcon from '@mui/icons-material/Business';
-import StorefrontIcon from '@mui/icons-material/Storefront';
+import StoreIcon from '@mui/icons-material/Store';
 import KeyboardArrowRightIcon from '@mui/icons-material/KeyboardArrowRight';
 import { useClerk, useUser } from '@clerk/nextjs';
 import type { UserResource } from '@clerk/types';
@@ -405,7 +405,7 @@ export default function NavigationMenu({ onNavigateAction }: NavigationMenuProps
             items.push({
                 label: 'БИРЖА',
                 path: '/market',
-                icon: <StorefrontIcon sx={{ fontSize: 20 }} />,
+                icon: <StoreIcon sx={{ fontSize: 20 }} />,
             });
         }
         items.push({

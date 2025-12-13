@@ -32,6 +32,8 @@ import {
     Alert,
     TextField,
     Container,
+    Checkbox,
+    FormControlLabel,
 } from '@mui/material';
 import { styled } from '@mui/material/styles';
 import GroupsIcon from '@mui/icons-material/Groups';
@@ -47,12 +49,14 @@ import TocOutlinedIcon from '@mui/icons-material/TocOutlined';
 import AttachFileOutlinedIcon from '@mui/icons-material/AttachFileOutlined';
 import HistoryIcon from '@mui/icons-material/History';
 import ArticleOutlinedIcon from '@mui/icons-material/ArticleOutlined';
+import CasesOutlinedIcon from '@mui/icons-material/CasesOutlined';
 import OpenInFullIcon from '@mui/icons-material/OpenInFull';
 import CloseFullscreenIcon from '@mui/icons-material/CloseFullscreen';
 import CloseIcon from '@mui/icons-material/Close';
 import AddIcon from '@mui/icons-material/Add';
 import CloudUploadOutlinedIcon from '@mui/icons-material/CloudUploadOutlined';
 import LinkOutlinedIcon from '@mui/icons-material/LinkOutlined';
+import GridViewOutlinedIcon from '@mui/icons-material/GridViewOutlined';
 import WorkspaceTaskDialog from '@/app/workspace/components/WorkspaceTaskDialog';
 import type { TaskForEdit } from '@/app/workspace/components/WorkspaceTaskDialog';
 import TaskComments from '@/app/components/TaskComments';
@@ -180,6 +184,38 @@ const CardItem = styled(Paper)(({ theme }) => ({
     }),
 }));
 
+const TASK_SECTION_KEYS = [
+    'info',
+    'applications',
+    'description',
+    'geo',
+    'work',
+    'attachments',
+    'documents',
+    'order',
+    'comments',
+    'history',
+    'related',
+] as const;
+
+type TaskSectionKey = (typeof TASK_SECTION_KEYS)[number];
+
+const TASK_SECTION_LABELS: Record<TaskSectionKey, string> = {
+    info: 'Информация',
+    applications: 'Отклики',
+    description: 'Описание',
+    geo: 'Геолокация',
+    work: 'Состав работ',
+    attachments: 'Вложения',
+    documents: 'Документы',
+    order: 'Заказ',
+    comments: 'Комментарии',
+    history: 'История',
+    related: 'Связанные задачи',
+};
+
+const TASK_SECTION_STORAGE_KEY = 'task-section-visibility';
+
 export default function TaskDetailsPage() {
     const params = useParams<{ org: string; project: string; id: string }>() as {
         org: string;
@@ -238,6 +274,10 @@ export default function TaskDetailsPage() {
         type: 'success' | 'error';
         message: string;
     } | null>(null);
+    const [sectionDialogOpen, setSectionDialogOpen] = React.useState(false);
+    const [visibleSections, setVisibleSections] = React.useState<TaskSectionKey[]>([
+        ...TASK_SECTION_KEYS,
+    ]);
     const [publishDialogOpen, setPublishDialogOpen] = React.useState(false);
     const [publishSkills, setPublishSkills] = React.useState<string[]>([]);
     const [publishSkillsInput, setPublishSkillsInput] = React.useState('');
@@ -496,6 +536,51 @@ export default function TaskDetailsPage() {
             setApplications([]);
         }
     }, [task?.visibility, fetchApplications]);
+
+    React.useEffect(() => {
+        const stored =
+            typeof window !== 'undefined'
+                ? localStorage.getItem(TASK_SECTION_STORAGE_KEY)
+                : null;
+        if (stored) {
+            try {
+                const parsed = JSON.parse(stored);
+                if (Array.isArray(parsed)) {
+                    const valid = parsed.filter((key): key is TaskSectionKey =>
+                        TASK_SECTION_KEYS.includes(key)
+                    );
+                    setVisibleSections(valid);
+                }
+            } catch {
+                // ignore corrupted storage
+            }
+        }
+    }, []);
+
+    React.useEffect(() => {
+        if (typeof window === 'undefined') return;
+        localStorage.setItem(TASK_SECTION_STORAGE_KEY, JSON.stringify(visibleSections));
+    }, [visibleSections]);
+
+    const handleSectionToggle = (section: TaskSectionKey) => {
+        setVisibleSections((prev) =>
+            prev.includes(section) ? prev.filter((item) => item !== section) : [...prev, section]
+        );
+    };
+
+    const handleSelectAllSections = () => {
+        setVisibleSections([...TASK_SECTION_KEYS]);
+    };
+
+    const isSectionVisible = React.useCallback(
+        (section: TaskSectionKey) => visibleSections.includes(section),
+        [visibleSections]
+    );
+
+    const hasCustomVisibility = React.useMemo(
+        () => TASK_SECTION_KEYS.some((key) => !visibleSections.includes(key)),
+        [visibleSections]
+    );
 
     const attachmentLinks = React.useMemo(
         () =>
@@ -1515,6 +1600,14 @@ export default function TaskDetailsPage() {
                                     : 'Опубликовать'}
                         </Button>
                     )}
+                    <Tooltip title="Настроить">
+                        <IconButton
+                            onClick={() => setSectionDialogOpen(true)}
+                            color={hasCustomVisibility ? 'primary' : 'default'}
+                        >
+                            <GridViewOutlinedIcon />
+                        </IconButton>
+                    </Tooltip>
                     <Tooltip title="Обновить">
                         <span>
                             <IconButton onClick={() => void load()} disabled={loading}>
@@ -1590,128 +1683,130 @@ export default function TaskDetailsPage() {
                             }}
                         >
                         {/* Информация */}
-                        <CardItem sx={{ minWidth: 0 }}>
-                            <Typography
-                                variant="subtitle1"
-                                fontWeight={600}
-                                gutterBottom
-                                sx={{ display: 'flex', alignItems: 'center', gap: 1 }}
-                            >
-                                <InfoOutlinedIcon fontSize="small" />
-                                Информация
-                            </Typography>
-                            <Divider sx={{ mb: 1.5 }} />
-
-                            <Stack spacing={1}>
-                                {/* БС */}
-                                <Typography variant="body1">
-                                    <strong>Базовая станция:</strong> {task.bsNumber || '—'}
-                                </Typography>
-
-                                {/* Адрес */}
-                                <Typography variant="body1">
-                                    <strong>Адрес:</strong> {task.bsAddress || 'Адрес не указан'}
-                                </Typography>
-
-                                <Typography variant="body1">
-                                    <strong>Срок:</strong>{' '}
-                                    {task.dueDate ? formatDate(task.dueDate) : '—'}
-                                </Typography>
+                        {isSectionVisible('info') && (
+                            <CardItem sx={{ minWidth: 0 }}>
                                 <Typography
-                                    variant="body1"
-                                    sx={{
-                                        display: 'flex',
-                                        alignItems: 'center',
-                                        gap: 0.75,
-                                        flexWrap: 'wrap',
-                                    }}
+                                    variant="subtitle1"
+                                    fontWeight={600}
+                                    gutterBottom
+                                    sx={{ display: 'flex', alignItems: 'center', gap: 1 }}
                                 >
-                                    <strong>Приоритет:</strong>
-                                    <Box
-                                        component="span"
+                                    <InfoOutlinedIcon fontSize="small" />
+                                    Информация
+                                </Typography>
+                                <Divider sx={{ mb: 1.5 }} />
+
+                                <Stack spacing={1}>
+                                    {/* БС */}
+                                    <Typography variant="body1">
+                                        <strong>Базовая станция:</strong> {task.bsNumber || '—'}
+                                    </Typography>
+
+                                    {/* Адрес */}
+                                    <Typography variant="body1">
+                                        <strong>Адрес:</strong> {task.bsAddress || 'Адрес не указан'}
+                                    </Typography>
+
+                                    <Typography variant="body1">
+                                        <strong>Срок:</strong>{' '}
+                                        {task.dueDate ? formatDate(task.dueDate) : '—'}
+                                    </Typography>
+                                    <Typography
+                                        variant="body1"
                                         sx={{
-                                            display: 'inline-flex',
+                                            display: 'flex',
                                             alignItems: 'center',
-                                            gap: 0.5,
+                                            gap: 0.75,
+                                            flexWrap: 'wrap',
                                         }}
                                     >
-                                        {getPriorityIcon(
-                                            (normalizePriority(task.priority as string) ?? 'medium') as
-                                                'urgent' | 'high' | 'medium' | 'low'
+                                        <strong>Приоритет:</strong>
+                                        <Box
+                                            component="span"
+                                            sx={{
+                                                display: 'inline-flex',
+                                                alignItems: 'center',
+                                                gap: 0.5,
+                                            }}
+                                        >
+                                            {getPriorityIcon(
+                                                (normalizePriority(task.priority as string) ?? 'medium') as
+                                                    'urgent' | 'high' | 'medium' | 'low'
+                                            )}
+                                            <span>{task.priority || '—'}</span>
+                                        </Box>
+                                    </Typography>
+
+                                    <Typography variant="body1">
+                                        <strong>Стоимость:</strong> {formatPrice(task.totalCost)}
+                                    </Typography>
+                                    <Typography variant="body1">
+                                        <strong>Плановый бюджет:</strong> {formatPrice(task.budget)}
+                                    </Typography>
+                                    <Typography variant="body1">
+                                        <strong>Утвержденная оплата подрядчику:</strong>{' '}
+                                        {formatPrice(task.contractorPayment)}
+                                    </Typography>
+                                    <Typography variant="body1">
+                                        <strong>Тип задачи:</strong> {task.taskType || '—'}
+                                    </Typography>
+
+                                    <Typography variant="body1">
+                                        <strong>Навыки:</strong>{' '}
+                                        {Array.isArray(task.skills) && task.skills.length > 0 ? (
+                                            <Stack direction="row" spacing={0.5} component="span" sx={{ flexWrap: 'wrap' }}>
+                                                {task.skills.map((skill) => (
+                                                    <Chip
+                                                        key={skill}
+                                                        label={skill}
+                                                        size="small"
+                                                        sx={{ mr: 0.5, mb: 0.5 }}
+                                                    />
+                                                ))}
+                                            </Stack>
+                                        ) : (
+                                            'Не указаны'
                                         )}
-                                        <span>{task.priority || '—'}</span>
-                                    </Box>
-                                </Typography>
+                                    </Typography>
 
-                                <Typography variant="body1">
-                                    <strong>Стоимость:</strong> {formatPrice(task.totalCost)}
-                                </Typography>
-                                <Typography variant="body1">
-                                    <strong>Плановый бюджет:</strong> {formatPrice(task.budget)}
-                                </Typography>
-                                <Typography variant="body1">
-                                    <strong>Утвержденная оплата подрядчику:</strong>{' '}
-                                    {formatPrice(task.contractorPayment)}
-                                </Typography>
-                                <Typography variant="body1">
-                                    <strong>Тип задачи:</strong> {task.taskType || '—'}
-                                </Typography>
-
-                                <Typography variant="body1">
-                                    <strong>Навыки:</strong>{' '}
-                                    {Array.isArray(task.skills) && task.skills.length > 0 ? (
-                                        <Stack direction="row" spacing={0.5} component="span" sx={{ flexWrap: 'wrap' }}>
-                                            {task.skills.map((skill) => (
-                                                <Chip
-                                                    key={skill}
-                                                    label={skill}
-                                                    size="small"
-                                                    sx={{ mr: 0.5, mb: 0.5 }}
-                                                />
-                                            ))}
-                                        </Stack>
-                                    ) : (
-                                        'Не указаны'
+                                    {/* Исполнитель (если есть) */}
+                                    {(task.executorName || task.executorEmail) && (
+                                        <Typography variant="body1">
+                                            <strong>Исполнитель:</strong>{' '}
+                                            {task.executorName || task.executorEmail}
+                                        </Typography>
                                     )}
-                                </Typography>
+                                    {task.publicDescription && (
+                                        <Typography variant="body1" sx={{ whiteSpace: 'pre-wrap' }}>
+                                            <strong>Информация для подрядчика:</strong>{' '}
+                                            {task.publicDescription}
+                                        </Typography>
+                                    )}
 
-                                {/* Исполнитель (если есть) */}
-                                {(task.executorName || task.executorEmail) && (
-                                    <Typography variant="body1">
-                                        <strong>Исполнитель:</strong>{' '}
-                                        {task.executorName || task.executorEmail}
-                                    </Typography>
-                                )}
-                                {task.publicDescription && (
-                                    <Typography variant="body1" sx={{ whiteSpace: 'pre-wrap' }}>
-                                        <strong>Информация для подрядчика:</strong>{' '}
-                                        {task.publicDescription}
-                                    </Typography>
-                                )}
+                                    {/* Создана + обновлена */}
+                                    <Box
+                                        sx={{
+                                            display: 'flex',
+                                            gap: 3,
+                                            alignItems: 'center',
+                                            flexWrap: 'wrap',
+                                            pt: 0.5,
+                                        }}
+                                    >
+                                        <Typography variant="body1">
+                                            <strong>Создана:</strong>{' '}
+                                            {task.createdAt ? formatDate(task.createdAt) : '—'}
+                                        </Typography>
+                                        <Typography variant="body1">
+                                            <strong>Обновлена:</strong>{' '}
+                                            {task.updatedAt ? formatDate(task.updatedAt) : '—'}
+                                        </Typography>
+                                    </Box>
+                                </Stack>
+                            </CardItem>
+                        )}
 
-                                {/* Создана + обновлена */}
-                                <Box
-                                    sx={{
-                                        display: 'flex',
-                                        gap: 3,
-                                        alignItems: 'center',
-                                        flexWrap: 'wrap',
-                                        pt: 0.5,
-                                    }}
-                                >
-                                    <Typography variant="body1">
-                                        <strong>Создана:</strong>{' '}
-                                        {task.createdAt ? formatDate(task.createdAt) : '—'}
-                                    </Typography>
-                                    <Typography variant="body1">
-                                        <strong>Обновлена:</strong>{' '}
-                                        {task.updatedAt ? formatDate(task.updatedAt) : '—'}
-                                    </Typography>
-                                </Box>
-                            </Stack>
-                        </CardItem>
-
-                        {task.visibility === 'public' && (
+                        {isSectionVisible('applications') && task.visibility === 'public' && (
                             <CardItem sx={{ minWidth: 0 }}>
                                 <Box
                                     sx={{
@@ -1902,7 +1997,7 @@ export default function TaskDetailsPage() {
                             </CardItem>
                         )}
 
-                        {relatedTasks.length > 0 && (
+                        {isSectionVisible('related') && relatedTasks.length > 0 && (
                             <CardItem sx={{ minWidth: 0 }}>
                                 <Accordion
                                     defaultExpanded
@@ -1984,7 +2079,7 @@ export default function TaskDetailsPage() {
                             </CardItem>
                         )}
 
-                        {task.taskDescription && (
+                        {isSectionVisible('description') && task.taskDescription && (
                             <CardItem sx={{ minWidth: 0 }}>
                                 <Typography
                                     variant="body1"
@@ -2003,12 +2098,14 @@ export default function TaskDetailsPage() {
                         )}
 
                         {/* Геолокация */}
-                        <CardItem sx={{ minWidth: 0 }}>
-                            <TaskGeoLocation locations={task.bsLocation} />
-                        </CardItem>
+                        {isSectionVisible('geo') && (
+                            <CardItem sx={{ minWidth: 0 }}>
+                                <TaskGeoLocation locations={task.bsLocation} />
+                            </CardItem>
+                        )}
 
                         {/* Состав работ */}
-                        {(hasWorkItems || Array.isArray(task.workItems)) && (
+                        {isSectionVisible('work') && (hasWorkItems || Array.isArray(task.workItems)) && (
                             <CardItem sx={{ minWidth: 0 }}>
                                 <Accordion
                                     defaultExpanded
@@ -2061,7 +2158,7 @@ export default function TaskDetailsPage() {
                             </CardItem>
                         )}
 
-                        {hasAttachments && (
+                        {isSectionVisible('attachments') && hasAttachments && (
                             <CardItem sx={{ minWidth: 0 }}>
                                 <Typography
                                     variant="subtitle1"
@@ -2101,123 +2198,127 @@ export default function TaskDetailsPage() {
                         )}
 
                         {/* Документы */}
-                        <CardItem sx={{ minWidth: 0 }}>
-                            <Typography
-                                variant="subtitle1"
-                                fontWeight={600}
-                                gutterBottom
-                                sx={{ display: 'flex', alignItems: 'center', gap: 1 }}
-                            >
-                                <ArticleOutlinedIcon fontSize="small" />
-                                Документы
-                            </Typography>
-                            <Divider sx={{ mb: 1.5 }} />
-                            {hasDocuments ? (
-                                <Stack gap={1}>
-                                    {documentItems.map((doc) => {
-                                        const isSpecial =
-                                            doc.type === 'estimate' ||
-                                            doc.type === 'order' ||
-                                            doc.type === 'ncw';
-                                        const isCurrentDeleting =
-                                            documentDeleting && documentToDelete === doc.url;
-                                        const deleteTitle =
-                                            doc.type === 'order'
-                                                ? 'Удалить заказ'
-                                                : doc.type === 'ncw'
-                                                    ? 'Удалить уведомление'
-                                                    : 'Удалить смету';
+                        {isSectionVisible('documents') && (
+                            <CardItem sx={{ minWidth: 0 }}>
+                                <Typography
+                                    variant="subtitle1"
+                                    fontWeight={600}
+                                    gutterBottom
+                                    sx={{ display: 'flex', alignItems: 'center', gap: 1 }}
+                                >
+                                    <CasesOutlinedIcon fontSize="small" />
+                                    Документы
+                                </Typography>
+                                <Divider sx={{ mb: 1.5 }} />
+                                {hasDocuments ? (
+                                    <Stack gap={1}>
+                                        {documentItems.map((doc) => {
+                                            const isSpecial =
+                                                doc.type === 'estimate' ||
+                                                doc.type === 'order' ||
+                                                doc.type === 'ncw';
+                                            const isCurrentDeleting =
+                                                documentDeleting && documentToDelete === doc.url;
+                                            const deleteTitle =
+                                                doc.type === 'order'
+                                                    ? 'Удалить заказ'
+                                                    : doc.type === 'ncw'
+                                                        ? 'Удалить уведомление'
+                                                        : 'Удалить смету';
 
-                                        return (
-                                            <Box
-                                                key={doc.url}
-                                                sx={{
-                                                    display: 'flex',
-                                                    alignItems: 'center',
-                                                    gap: 1,
-                                                    flexWrap: 'wrap',
-                                                }}
-                                            >
-                                                {isSpecial && (
-                                                    <Tooltip title={deleteTitle}>
-                                                        <span>
-                                                            <IconButton
-                                                                size="small"
-                                                                onClick={() =>
-                                                                    openDeleteDocumentDialog(
-                                                                        doc.url,
-                                                                        doc.type
-                                                                    )
-                                                                }
-                                                                disabled={isCurrentDeleting}
-                                                            >
-                                                                {isCurrentDeleting ? (
-                                                                    <CircularProgress size={18} />
-                                                                ) : (
-                                                                    <DeleteOutlineIcon fontSize="small" />
-                                                                )}
-                                                            </IconButton>
-                                                        </span>
-                                                    </Tooltip>
-                                                )}
-                                                <Link
-                                                    href={doc.url}
-                                                    target="_blank"
-                                                    rel="noreferrer"
-                                                    underline="hover"
+                                            return (
+                                                <Box
+                                                    key={doc.url}
+                                                    sx={{
+                                                        display: 'flex',
+                                                        alignItems: 'center',
+                                                        gap: 1,
+                                                        flexWrap: 'wrap',
+                                                    }}
                                                 >
-                                                    {doc.label}
-                                                </Link>
-                                            </Box>
-                                        );
-                                    })}
-                                    <Box
-                                        sx={{
-                                            display: 'flex',
-                                            justifyContent: 'flex-end',
-                                            pt: 0.5,
-                                        }}
-                                    >
-                                        <Button
-                                            size="small"
-                                            startIcon={<AddIcon />}
-                                            variant="outlined"
-                                            onClick={openAddDocumentDialog}
+                                                    {isSpecial && (
+                                                        <Tooltip title={deleteTitle}>
+                                                            <span>
+                                                                <IconButton
+                                                                    size="small"
+                                                                    onClick={() =>
+                                                                        openDeleteDocumentDialog(
+                                                                            doc.url,
+                                                                            doc.type
+                                                                        )
+                                                                    }
+                                                                    disabled={isCurrentDeleting}
+                                                                >
+                                                                    {isCurrentDeleting ? (
+                                                                        <CircularProgress size={18} />
+                                                                    ) : (
+                                                                        <DeleteOutlineIcon fontSize="small" />
+                                                                    )}
+                                                                </IconButton>
+                                                            </span>
+                                                        </Tooltip>
+                                                    )}
+                                                    <Link
+                                                        href={doc.url}
+                                                        target="_blank"
+                                                        rel="noreferrer"
+                                                        underline="hover"
+                                                    >
+                                                        {doc.label}
+                                                    </Link>
+                                                </Box>
+                                            );
+                                        })}
+                                        <Box
+                                            sx={{
+                                                display: 'flex',
+                                                justifyContent: 'flex-end',
+                                                pt: 0.5,
+                                            }}
                                         >
-                                            Добавить
-                                        </Button>
-                                    </Box>
-                                </Stack>
-                            ) : (
-                                <Stack gap={1}>
-                                    <Typography color="text.secondary">
-                                        Документы отсутствуют
-                                    </Typography>
-                                    <Box sx={{ display: 'flex', justifyContent: 'flex-end' }}>
-                                        <Button
-                                            size="small"
-                                            startIcon={<AddIcon />}
-                                            variant="outlined"
-                                            onClick={openAddDocumentDialog}
-                                        >
-                                            Добавить
-                                        </Button>
-                                    </Box>
-                                </Stack>
-                            )}
-                        </CardItem>
+                                            <Button
+                                                size="small"
+                                                startIcon={<AddIcon />}
+                                                variant="outlined"
+                                                onClick={openAddDocumentDialog}
+                                            >
+                                                Добавить
+                                            </Button>
+                                        </Box>
+                                    </Stack>
+                                ) : (
+                                    <Stack gap={1}>
+                                        <Typography color="text.secondary">
+                                            Документы отсутствуют
+                                        </Typography>
+                                        <Box sx={{ display: 'flex', justifyContent: 'flex-end' }}>
+                                            <Button
+                                                size="small"
+                                                startIcon={<AddIcon />}
+                                                variant="outlined"
+                                                onClick={openAddDocumentDialog}
+                                            >
+                                                Добавить
+                                            </Button>
+                                        </Box>
+                                    </Stack>
+                                )}
+                            </CardItem>
+                        )}
 
-                        {(task.orderNumber ||
-                            task.orderUrl ||
-                            task.orderDate ||
-                            task.orderSignDate) && (
+                        {isSectionVisible('order') &&
+                            (task.orderNumber ||
+                                task.orderUrl ||
+                                task.orderDate ||
+                                task.orderSignDate) && (
                             <CardItem sx={{ minWidth: 0 }}>
                                 <Typography
                                     variant="subtitle1"
                                     fontWeight={600}
                                     gutterBottom
                                 >
-                                    Заказ / договор
+                                    <ArticleOutlinedIcon fontSize="small" />
+                                    Заказ
                                 </Typography>
                                 <Divider sx={{ mb: 1.5 }} />
                                 <Stack gap={0.5}>
@@ -2260,23 +2361,68 @@ export default function TaskDetailsPage() {
                         )}
 
                         {/* Комментарии */}
-                        <CardItem sx={{ minWidth: 0 }}>
-                            <Accordion
-                                defaultExpanded={!!task?.comments?.length}
-                                disableGutters
-                                elevation={0}
-                                sx={{ '&:before': { display: 'none' } }}
-                            >
-                                <AccordionSummary expandIcon={<ExpandMoreIcon />}>
-                                    <Box
-                                        sx={{
-                                            display: 'flex',
-                                            alignItems: 'center',
-                                            justifyContent: 'space-between',
-                                            width: '100%',
-                                            gap: 1,
-                                        }}
-                                    >
+                        {isSectionVisible('comments') && (
+                            <CardItem sx={{ minWidth: 0 }}>
+                                <Accordion
+                                    defaultExpanded={!!task?.comments?.length}
+                                    disableGutters
+                                    elevation={0}
+                                    sx={{ '&:before': { display: 'none' } }}
+                                >
+                                    <AccordionSummary expandIcon={<ExpandMoreIcon />}>
+                                        <Box
+                                            sx={{
+                                                display: 'flex',
+                                                alignItems: 'center',
+                                                justifyContent: 'space-between',
+                                                width: '100%',
+                                                gap: 1,
+                                            }}
+                                        >
+                                            <Typography
+                                                variant="subtitle1"
+                                                fontWeight={600}
+                                                gutterBottom
+                                                sx={{
+                                                    display: 'flex',
+                                                    alignItems: 'center',
+                                                    gap: 1,
+                                                }}
+                                            >
+                                                <CommentOutlinedIcon fontSize="small" />
+                                                Комментарии
+                                            </Typography>
+
+                                            <Tooltip title="Развернуть на весь экран">
+                                                <IconButton
+                                                    size="small"
+                                                    onClick={(e) => {
+                                                        e.stopPropagation();
+                                                        setCommentsFullScreen(true);
+                                                    }}
+                                                >
+                                                    <OpenInFullIcon fontSize="inherit" />
+                                                </IconButton>
+                                            </Tooltip>
+                                        </Box>
+                                    </AccordionSummary>
+                                    <AccordionDetails sx={{ pt: 0 }}>
+                                        <Divider sx={{ mb: 1.5 }} />
+                                        {renderCommentsSection()}
+                                    </AccordionDetails>
+                                </Accordion>
+                            </CardItem>
+                        )}
+
+                        {/* История */}
+                        {isSectionVisible('history') && (
+                            <CardItem sx={{ p: 0, minWidth: 0 }}>
+                                <Accordion
+                                    disableGutters
+                                    elevation={0}
+                                    sx={{ '&:before': { display: 'none' } }}
+                                >
+                                    <AccordionSummary expandIcon={<ExpandMoreIcon />}>
                                         <Typography
                                             variant="subtitle1"
                                             fontWeight={600}
@@ -2287,129 +2433,88 @@ export default function TaskDetailsPage() {
                                                 gap: 1,
                                             }}
                                         >
-                                            <CommentOutlinedIcon fontSize="small" />
-                                            Комментарии
+                                            <HistoryIcon fontSize="small" />
+                                            История
                                         </Typography>
-
-                                        <Tooltip title="Развернуть на весь экран">
-                                            <IconButton
-                                                size="small"
-                                                onClick={(e) => {
-                                                    e.stopPropagation();
-                                                    setCommentsFullScreen(true);
+                                    </AccordionSummary>
+                                    <AccordionDetails sx={{ pt: 0 }}>
+                                        <Divider sx={{ mb: 1.5 }} />
+                                        {sortedEvents.length === 0 ? (
+                                            <Typography
+                                                color="text.secondary"
+                                                sx={{ px: 2, pb: 1.5 }}
+                                            >
+                                                История пуста
+                                            </Typography>
+                                        ) : (
+                                            <Timeline
+                                                sx={{
+                                                    p: 0,
+                                                    m: 0,
+                                                    px: 2,
+                                                    pb: 1.5,
+                                                    '& .MuiTimelineOppositeContent-root': {
+                                                        flex: '0 0 110px',
+                                                        whiteSpace: 'normal',
+                                                    },
+                                                    '& .MuiTimelineContent-root': {
+                                                        wordBreak: 'break-word',
+                                                        overflowWrap: 'anywhere',
+                                                        minWidth: 0,
+                                                    },
                                                 }}
                                             >
-                                                <OpenInFullIcon fontSize="inherit" />
-                                            </IconButton>
-                                        </Tooltip>
-                                    </Box>
-                                </AccordionSummary>
-                                <AccordionDetails sx={{ pt: 0 }}>
-                                    <Divider sx={{ mb: 1.5 }} />
-                                    {renderCommentsSection()}
-                                </AccordionDetails>
-                            </Accordion>
-                        </CardItem>
-
-                        {/* История */}
-                        <CardItem sx={{ p: 0, minWidth: 0 }}>
-                            <Accordion
-                                disableGutters
-                                elevation={0}
-                                sx={{ '&:before': { display: 'none' } }}
-                            >
-                                <AccordionSummary expandIcon={<ExpandMoreIcon />}>
-                                    <Typography
-                                        variant="subtitle1"
-                                        fontWeight={600}
-                                        gutterBottom
-                                        sx={{
-                                            display: 'flex',
-                                            alignItems: 'center',
-                                            gap: 1,
-                                        }}
-                                    >
-                                        <HistoryIcon fontSize="small" />
-                                        История
-                                    </Typography>
-                                </AccordionSummary>
-                                <AccordionDetails sx={{ pt: 0 }}>
-                                    <Divider sx={{ mb: 1.5 }} />
-                                    {sortedEvents.length === 0 ? (
-                                        <Typography
-                                            color="text.secondary"
-                                            sx={{ px: 2, pb: 1.5 }}
-                                        >
-                                            История пуста
-                                        </Typography>
-                                    ) : (
-                                        <Timeline
-                                            sx={{
-                                                p: 0,
-                                                m: 0,
-                                                px: 2,
-                                                pb: 1.5,
-                                                '& .MuiTimelineOppositeContent-root': {
-                                                    flex: '0 0 110px',
-                                                    whiteSpace: 'normal',
-                                                },
-                                                '& .MuiTimelineContent-root': {
-                                                    wordBreak: 'break-word',
-                                                    overflowWrap: 'anywhere',
-                                                    minWidth: 0,
-                                                },
-                                            }}
-                                        >
-                                            {sortedEvents.map((ev, idx) => (
-                                                <TimelineItem key={idx}>
-                                                    <TimelineOppositeContent sx={{ pr: 1 }}>
-                                                        <Typography
-                                                            variant="caption"
-                                                            color="text.secondary"
+                                                {sortedEvents.map((ev, idx) => (
+                                                    <TimelineItem key={idx}>
+                                                        <TimelineOppositeContent sx={{ pr: 1 }}>
+                                                            <Typography
+                                                                variant="caption"
+                                                                color="text.secondary"
+                                                            >
+                                                                {formatDateTime(ev.date)}
+                                                            </Typography>
+                                                        </TimelineOppositeContent>
+                                                        <TimelineSeparator>
+                                                            <TimelineDot
+                                                                color={
+                                                                    ev.action === 'created'
+                                                                        ? 'primary'
+                                                                        : 'success'
+                                                                }
+                                                            />
+                                                            {idx <
+                                                                sortedEvents.length - 1 && (
+                                                                    <TimelineConnector />
+                                                                )}
+                                                        </TimelineSeparator>
+                                                        <TimelineContent
+                                                            sx={{ py: 1, minWidth: 0 }}
                                                         >
-                                                            {formatDateTime(ev.date)}
-                                                        </Typography>
-                                                    </TimelineOppositeContent>
-                                                    <TimelineSeparator>
-                                                        <TimelineDot
-                                                            color={
-                                                                ev.action === 'created'
-                                                                    ? 'primary'
-                                                                    : 'success'
-                                                            }
-                                                        />
-                                                        {idx <
-                                                            sortedEvents.length - 1 && (
-                                                                <TimelineConnector />
-                                                            )}
-                                                    </TimelineSeparator>
-                                                    <TimelineContent
-                                                        sx={{ py: 1, minWidth: 0 }}
-                                                    >
-                                                        <Typography
-                                                            variant="body2"
-                                                            fontWeight={600}
-                                                        >
-                                                            {getEventTitle(ev.action, ev)}
-                                                        </Typography>
-                                                        <Typography
-                                                            variant="body2"
-                                                            color="text.secondary"
-                                                        >
-                                                            Автор:{' '}
-                                                            {getEventAuthorLine(ev)}
-                                                        </Typography>
-                                                        <Box sx={{ mt: 0.5 }}>
-                                                            {renderEventDetails(ev)}
-                                                        </Box>
-                                                    </TimelineContent>
-                                                </TimelineItem>
-                                            ))}
-                                        </Timeline>
-                                    )}
-                                </AccordionDetails>
-                            </Accordion>
-                        </CardItem>
+                                                            <Typography
+                                                                variant="body2"
+                                                                fontWeight={600}
+                                                            >
+                                                                {getEventTitle(ev.action, ev)}
+                                                            </Typography>
+                                                            <Typography
+                                                                variant="body2"
+                                                                color="text.secondary"
+                                                            >
+                                                                Автор:{' '}
+                                                                {getEventAuthorLine(ev)}
+                                                            </Typography>
+                                                            <Box sx={{ mt: 0.5 }}>
+                                                                {renderEventDetails(ev)}
+                                                            </Box>
+                                                        </TimelineContent>
+                                                    </TimelineItem>
+                                                ))}
+                                            </Timeline>
+                                        )}
+                                    </AccordionDetails>
+                                </Accordion>
+                            </CardItem>
+                        )}
                     </Masonry>
                 </Box>
             </Box>
@@ -2447,6 +2552,33 @@ export default function TaskDetailsPage() {
                 </DialogContent>
                 <DialogActions>
                     <Button onClick={closeProfileDialog}>Закрыть</Button>
+                </DialogActions>
+            </Dialog>
+
+            <Dialog
+                open={sectionDialogOpen}
+                onClose={() => setSectionDialogOpen(false)}
+                fullWidth
+                maxWidth="xs"
+            >
+                <DialogTitle>Выбор блоков</DialogTitle>
+                <DialogContent dividers sx={{ display: 'flex', flexDirection: 'column', gap: 1 }}>
+                    {TASK_SECTION_KEYS.map((section) => (
+                        <FormControlLabel
+                            key={section}
+                            control={
+                                <Checkbox
+                                    checked={isSectionVisible(section)}
+                                    onChange={() => handleSectionToggle(section)}
+                                />
+                            }
+                            label={TASK_SECTION_LABELS[section]}
+                        />
+                    ))}
+                </DialogContent>
+                <DialogActions>
+                    <Button onClick={handleSelectAllSections}>Выбрать все</Button>
+                    <Button onClick={() => setSectionDialogOpen(false)}>Закрыть</Button>
                 </DialogActions>
             </Dialog>
 
