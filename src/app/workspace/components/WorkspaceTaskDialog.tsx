@@ -31,6 +31,7 @@ import {
     Link,
     Slider,
 } from '@mui/material';
+import { useTheme } from '@mui/material/styles';
 import Autocomplete, { createFilterOptions } from '@mui/material/Autocomplete';
 import { DatePicker, LocalizationProvider } from '@mui/x-date-pickers';
 import { AdapterDateFns } from '@mui/x-date-pickers/AdapterDateFns';
@@ -177,16 +178,6 @@ function getFileNameFromUrl(url?: string): string {
     }
 }
 
-const glassInputSx = {
-    '& .MuiOutlinedInput-root': {
-        backgroundColor: 'rgba(255,255,255,0.92)',
-        borderRadius: 3,
-        '& fieldset': { borderColor: 'rgba(255,255,255,0.6)' },
-        '&:hover fieldset': { borderColor: 'rgba(147,197,253,0.9)' },
-        '&.Mui-focused fieldset': { borderColor: 'rgba(59,130,246,0.8)' },
-    },
-};
-
 const YMAPS_API_KEY = process.env.NEXT_PUBLIC_YMAPS_API_KEY || '1c3860d8-3994-4e6e-841b-31ad57f69c78';
 
 function isLatValueValid(v: string): boolean {
@@ -315,6 +306,44 @@ export default function WorkspaceTaskDialog({
                                                 initialTask = null,
                                             }: Props) {
     const isEdit = mode === 'edit';
+    const theme = useTheme();
+    const isDarkMode = theme.palette.mode === 'dark';
+    const drawerBg = isDarkMode
+        ? 'linear-gradient(180deg, rgba(10,14,24,0.95), rgba(8,11,19,0.96))'
+        : 'linear-gradient(180deg, rgba(250,252,255,0.9), rgba(240,244,252,0.92))';
+    const drawerBorder = isDarkMode ? 'rgba(255,255,255,0.08)' : 'rgba(148,163,184,0.3)';
+    const drawerShadow = isDarkMode ? '-35px 0 80px rgba(0,0,0,0.7)' : '-35px 0 80px rgba(15,23,42,0.35)';
+    const headerBg = isDarkMode
+        ? 'linear-gradient(120deg, rgba(18,26,42,0.95), rgba(14,20,35,0.9))'
+        : 'linear-gradient(120deg, rgba(255,255,255,0.95), rgba(240,248,255,0.9))';
+    const headerDivider = isDarkMode ? 'rgba(255,255,255,0.08)' : 'rgba(148,163,184,0.25)';
+    const cardBg = isDarkMode ? 'rgba(255,255,255,0.04)' : 'rgba(255,255,255,0.8)';
+    const cardBorder = isDarkMode ? 'rgba(255,255,255,0.08)' : 'rgba(148,163,184,0.3)';
+    const mapBorder = isDarkMode ? 'rgba(255,255,255,0.1)' : 'rgba(148,163,184,0.35)';
+    const percentBg = isDarkMode ? 'rgba(255,255,255,0.04)' : 'rgba(241,245,249,0.5)';
+    const percentBorder = isDarkMode ? 'rgba(255,255,255,0.08)' : 'rgba(148,163,184,0.35)';
+    const dropBg = isDarkMode ? 'rgba(255,255,255,0.04)' : 'rgba(255,255,255,0.7)';
+    const dropHoverBg = isDarkMode ? 'rgba(59,130,246,0.12)' : 'rgba(59,130,246,0.08)';
+    const dropBorder = isDarkMode ? 'rgba(255,255,255,0.12)' : 'rgba(148,163,184,0.5)';
+    const dividerColor = headerDivider;
+    const alertInfoBg = isDarkMode ? 'rgba(59,130,246,0.14)' : 'rgba(59,130,246,0.06)';
+    const actionsBg = isDarkMode ? 'rgba(10,13,22,0.95)' : 'rgba(255,255,255,0.9)';
+    const glassInputSx = React.useMemo(
+        () => ({
+            '& .MuiOutlinedInput-root': {
+                backgroundColor: isDarkMode ? 'rgba(255,255,255,0.06)' : 'rgba(255,255,255,0.92)',
+                borderRadius: 3,
+                '& fieldset': {
+                    borderColor: isDarkMode ? 'rgba(255,255,255,0.18)' : 'rgba(255,255,255,0.6)',
+                },
+                '&:hover fieldset': {
+                    borderColor: isDarkMode ? 'rgba(125,211,252,0.6)' : 'rgba(147,197,253,0.9)',
+                },
+                '&.Mui-focused fieldset': { borderColor: 'rgba(59,130,246,0.8)' },
+            },
+        }),
+        [isDarkMode]
+    );
 
     const orgSlug = React.useMemo(() => org?.trim(), [org]);
     const projectRef = React.useMemo(() => project?.trim(), [project]);
@@ -1398,9 +1427,9 @@ export default function WorkspaceTaskDialog({
                     sx: {
                         width: { xs: '100%', sm: 520 },
                         maxWidth: '100%',
-                        background: 'linear-gradient(180deg, rgba(250,252,255,0.9), rgba(240,244,252,0.92))',
-                        borderLeft: '1px solid rgba(148,163,184,0.3)',
-                        boxShadow: '-35px 0 80px rgba(15,23,42,0.35)',
+                        background: drawerBg,
+                        borderLeft: `1px solid ${drawerBorder}`,
+                        boxShadow: drawerShadow,
                         backdropFilter: 'blur(24px)',
                         color: 'text.primary',
                     },
@@ -1414,8 +1443,8 @@ export default function WorkspaceTaskDialog({
                             display: 'flex',
                             alignItems: 'center',
                             justifyContent: 'space-between',
-                            borderBottom: '1px solid rgba(148,163,184,0.25)',
-                            background: 'linear-gradient(120deg, rgba(255,255,255,0.95), rgba(240,248,255,0.9))',
+                            borderBottom: `1px solid ${headerDivider}`,
+                            background: headerBg,
                         }}
                     >
                         <Stack direction="row" spacing={2} alignItems="center">
@@ -1510,9 +1539,9 @@ export default function WorkspaceTaskDialog({
                                                 key={entry.id}
                                                 sx={{
                                                     borderRadius: 3,
-                                                    border: '1px solid rgba(148,163,184,0.3)',
+                                                    border: `1px solid ${cardBorder}`,
                                                     p: 1.5,
-                                                    backgroundColor: 'rgba(255,255,255,0.8)',
+                                                    backgroundColor: cardBg,
                                                 }}
                                             >
                                                 {bsEntries.length > 1 && (
@@ -1697,8 +1726,10 @@ export default function WorkspaceTaskDialog({
                                                                 borderRadius: 3,
                                                                 overflow: 'hidden',
                                                                 height: 220,
-                                                                boxShadow: '0 30px 65px rgba(15,23,42,0.18)',
-                                                                border: '1px solid rgba(148,163,184,0.35)',
+                                                                boxShadow: isDarkMode
+                                                                    ? '0 30px 65px rgba(0,0,0,0.35)'
+                                                                    : '0 30px 65px rgba(15,23,42,0.18)',
+                                                                border: `1px solid ${mapBorder}`,
                                                             }}
                                                         >
                                                             <YMaps
@@ -1810,8 +1841,8 @@ export default function WorkspaceTaskDialog({
                                             mt: 1,
                                             p: 2,
                                             borderRadius: 2,
-                                            border: '1px solid rgba(148,163,184,0.35)',
-                                            backgroundColor: 'rgba(241,245,249,0.5)',
+                                            border: `1px solid ${percentBorder}`,
+                                            backgroundColor: percentBg,
                                         }}
                                     >
                                         <Stack spacing={1.5}>
@@ -2076,7 +2107,7 @@ export default function WorkspaceTaskDialog({
                             )}
 
                             {estimateFile && (
-                                <Alert severity="info" sx={{ bgcolor: 'rgba(59,130,246,0.06)' }}>
+                                <Alert severity="info" sx={{ bgcolor: alertInfoBg }}>
                                     Смета «{estimateFile.name}» будет сохранена в документы задачи и
                                     не попадёт в вложения.
                                 </Alert>
@@ -2090,17 +2121,19 @@ export default function WorkspaceTaskDialog({
                                     border: '1.5px dashed',
                                     borderColor: dragActive
                                         ? 'rgba(59,130,246,0.8)'
-                                        : 'rgba(148,163,184,0.5)',
+                                        : dropBorder,
                                     borderRadius: 3,
                                     p: 3,
                                     textAlign: 'center',
                                     cursor: 'pointer',
                                     backgroundColor: dragActive
-                                        ? 'rgba(59,130,246,0.08)'
-                                        : 'rgba(255,255,255,0.7)',
+                                        ? dropHoverBg
+                                        : dropBg,
                                     transition: 'all 180ms ease',
                                     boxShadow: dragActive
-                                        ? '0 20px 45px rgba(15,23,42,0.15)'
+                                        ? isDarkMode
+                                            ? '0 20px 45px rgba(0,0,0,0.35)'
+                                            : '0 20px 45px rgba(15,23,42,0.15)'
                                         : 'none',
                                 }}
                                 onClick={openFileDialog}
@@ -2125,7 +2158,7 @@ export default function WorkspaceTaskDialog({
                         </Stack>
                     </Box>
 
-                    <Divider sx={{ borderColor: 'rgba(148,163,184,0.25)' }} />
+                    <Divider sx={{ borderColor: dividerColor }} />
 
                     <Box
                         sx={{
@@ -2134,6 +2167,8 @@ export default function WorkspaceTaskDialog({
                             display: 'flex',
                             justifyContent: 'flex-end',
                             gap: 1.5,
+                            backgroundColor: actionsBg,
+                            borderTop: `1px solid ${headerDivider}`,
                         }}
                     >
                         <Button

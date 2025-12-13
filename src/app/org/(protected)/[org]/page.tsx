@@ -1019,8 +1019,8 @@ export default function OrgSettingsPage() {
                             <Typography variant="overline" sx={{ color: textSecondary, letterSpacing: 1 }}>
                                 Рабочих мест
                             </Typography>
-                            <Typography variant="h6" fontWeight={700} color={textPrimary}>
-                                Рабочих мест: {members.length}
+                            <Typography variant="h4" fontWeight={700} color={textPrimary}>
+                                {members.length}
                             </Typography>
                             <Typography variant="body2" color={textSecondary}>
                                 Всего {seatsLabel}
