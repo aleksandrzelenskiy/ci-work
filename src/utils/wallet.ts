@@ -84,7 +84,7 @@ export const debitForBid = async (params: {
     contractorId: Types.ObjectId;
     taskId: Types.ObjectId;
     applicationId?: Types.ObjectId;
-    session: ClientSession;
+    session?: ClientSession;
 }): Promise<BidDebitResult> => {
     const { contractorId, taskId, applicationId, session } = params;
     const { wallet } = await ensureWalletWithBonus(contractorId, session);

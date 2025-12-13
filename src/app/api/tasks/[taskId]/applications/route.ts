@@ -26,6 +26,17 @@ const MANAGER_ROLES = new Set(['owner', 'org_admin', 'manager', 'super_admin']);
 const toObjectId = (value: mongoose.Types.ObjectId | string): mongoose.Types.ObjectId =>
     typeof value === 'string' ? new mongoose.Types.ObjectId(value) : value;
 
+const isTransactionNotSupportedError = (error: unknown): boolean => {
+    const mongoError = error as { code?: number; codeName?: string; message?: string };
+    return (
+        mongoError?.code === 20 ||
+        mongoError?.codeName === 'IllegalOperation' ||
+        mongoError?.message?.includes?.(
+            'Transaction numbers are only allowed on a replica set member or mongos'
+        ) === true
+    );
+};
+
 type CreateApplicationBody = {
     coverMessage?: string;
     proposedBudget?: number;
@@ -113,10 +124,7 @@ export async function POST(
     if (!proposedBudget || proposedBudget <= 0) {
         return NextResponse.json({ error: 'Укажите фиксированную ставку' }, { status: 400 });
     }
-    const coverMessage = (body.coverMessage || '').trim();
-    if (!coverMessage) {
-        return NextResponse.json({ error: 'Добавьте сопроводительное сообщение' }, { status: 400 });
-    }
+    const coverMessage = typeof body.coverMessage === 'string' ? body.coverMessage.trim() : '';
 
     const existing = await ApplicationModel.findOne({
         taskId: task._id,
@@ -132,14 +140,29 @@ export async function POST(
     let applicationObj: Record<string, unknown> | null = null;
     let insufficientFunds = false;
 
-    try {
-        await session.withTransaction(async () => {
-            const freshTask = await TaskModel.findById(task._id).session(session);
-            if (!freshTask || freshTask.visibility !== 'public') {
-                throw new Error('TASK_NOT_AVAILABLE');
-            }
+    const isDuplicateError = (error: unknown) =>
+        typeof error === 'object' &&
+        error !== null &&
+        'code' in error &&
+        (error as { code?: number }).code === 11000;
 
-            const [createdApp] = await ApplicationModel.create(
+    type CreationResult =
+        | { ok: true }
+        | { ok: false; code: 'TASK_NOT_AVAILABLE' | 'INSUFFICIENT_FUNDS' | 'DUPLICATE' | 'UNKNOWN'; error?: unknown };
+
+    const runCreation = async (txnSession?: mongoose.ClientSession): Promise<CreationResult> => {
+        const sessionOptions = txnSession ? { session: txnSession } : {};
+        let createdApp: mongoose.Document | null = null;
+
+        const freshTaskQuery = TaskModel.findById(task._id);
+        if (txnSession) freshTaskQuery.session(txnSession);
+        const freshTask = await freshTaskQuery;
+        if (!freshTask || freshTask.visibility !== 'public') {
+            return { ok: false, code: 'TASK_NOT_AVAILABLE' };
+        }
+
+        try {
+            const [newApplication] = await ApplicationModel.create(
                 [
                     {
                         taskId: freshTask._id,
@@ -154,49 +177,87 @@ export async function POST(
                         status: 'submitted',
                     },
                 ],
-                { session }
+                sessionOptions
             );
+            createdApp = newApplication;
 
             const debit = await debitForBid({
                 contractorId: toObjectId(user._id),
                 taskId: toObjectId(freshTask._id),
-                applicationId: toObjectId(createdApp._id),
-                session,
+                applicationId: toObjectId(newApplication._id),
+                session: txnSession,
             });
 
             if (!debit.ok) {
                 insufficientFunds = true;
-                throw new Error('INSUFFICIENT_FUNDS');
+                return { ok: false, code: 'INSUFFICIENT_FUNDS' };
             }
 
             await TaskModel.updateOne(
                 { _id: freshTask._id },
                 { $inc: { applicationCount: 1 } },
-                { session }
+                sessionOptions
             );
 
-            applicationId = createdApp._id;
-            applicationObj = createdApp.toObject() as unknown as Record<string, unknown>;
-        });
-    } catch (error) {
+            applicationId = newApplication._id;
+            applicationObj = newApplication.toObject() as unknown as Record<string, unknown>;
+            return { ok: true };
+        } catch (error) {
+            if (!txnSession && createdApp) {
+                try {
+                    await ApplicationModel.deleteOne({ _id: createdApp._id });
+                } catch (cleanupErr) {
+                    console.error('Failed to rollback application after error', cleanupErr);
+                }
+            }
+
+            if (isDuplicateError(error)) {
+                return { ok: false, code: 'DUPLICATE', error };
+            }
+
+            return { ok: false, code: 'UNKNOWN', error };
+        }
+    };
+
+    let creationResult: CreationResult | null = null;
+    try {
+        try {
+            await session.withTransaction(async () => {
+                creationResult = await runCreation(session);
+                if (!creationResult?.ok) {
+                    await session.abortTransaction();
+                }
+            });
+        } catch (error) {
+            if (isTransactionNotSupportedError(error)) {
+                console.warn(
+                    'Transactions unsupported by MongoDB, running application creation without a transaction'
+                );
+                creationResult = await runCreation();
+            } else if (!creationResult || creationResult.ok) {
+                creationResult = { ok: false, code: 'UNKNOWN', error };
+            }
+        }
+    } finally {
         await session.endSession();
-        if ((error as Error).message === 'TASK_NOT_AVAILABLE') {
+    }
+
+    if (!creationResult?.ok) {
+        if (creationResult?.code === 'TASK_NOT_AVAILABLE') {
             return NextResponse.json({ error: 'Задача недоступна для откликов' }, { status: 404 });
         }
-        if ((error as Error).message === 'INSUFFICIENT_FUNDS' || insufficientFunds) {
+        if (creationResult?.code === 'INSUFFICIENT_FUNDS' || insufficientFunds) {
             return NextResponse.json(
                 { error: `Недостаточно средств. На отклик требуется ${BID_COST_RUB} ₽` },
                 { status: 402 }
             );
         }
-        if ((error as Error).message?.includes?.('E11000')) {
+        if (creationResult?.code === 'DUPLICATE') {
             return NextResponse.json({ error: 'Вы уже откликались на эту задачу' }, { status: 409 });
         }
-        console.error('Failed to create application', error);
+        console.error('Failed to create application', creationResult?.error);
         return NextResponse.json({ error: 'Не удалось отправить отклик' }, { status: 500 });
     }
-
-    await session.endSession();
 
     if (!applicationId || !applicationObj) {
         return NextResponse.json({ error: 'Не удалось отправить отклик' }, { status: 500 });

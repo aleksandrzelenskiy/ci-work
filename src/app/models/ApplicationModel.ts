@@ -31,7 +31,7 @@ const ApplicationSchema = new Schema<Application>(
         contractorId: { type: Schema.Types.ObjectId, ref: 'User', required: true, index: true },
         contractorEmail: { type: String, lowercase: true, trim: true },
         contractorName: { type: String },
-        coverMessage: { type: String, required: true, trim: true },
+        coverMessage: { type: String, required: false, trim: true, default: '' },
         proposedBudget: { type: Number, required: true },
         etaDays: { type: Number },
         attachments: { type: [String], default: [] },
