@@ -4,6 +4,7 @@
 
 import * as React from 'react';
 import { useParams } from 'next/navigation';
+import Link from 'next/link';
 import {
     Box,
     Stack,
@@ -22,6 +23,11 @@ import {
     InputLabel,
     Select,
     MenuItem,
+    Dialog,
+    DialogTitle,
+    DialogContent,
+    DialogActions,
+    Chip,
 } from '@mui/material';
 import { useTheme } from '@mui/material/styles';
 import AddTaskIcon from '@mui/icons-material/AddTask';
@@ -42,7 +48,7 @@ import ProjectTaskBoard from '@/app/workspace/components/ProjectTaskBoard';
 import ProjectTaskCalendar from '@/app/workspace/components/ProjectTaskCalendar';
 import { defaultTaskFilters, type TaskFilters } from '@/app/types/taskFilters';
 import { getPriorityLabelRu } from '@/utils/priorityIcons';
-import { startOfDay, endOfDay } from 'date-fns';
+import { startOfDay, endOfDay, format } from 'date-fns';
 import { getStatusLabel, normalizeStatusTitle, STATUS_ORDER } from '@/utils/statusLabels';
 
 type Priority = 'urgent' | 'high' | 'medium' | 'low';
@@ -117,7 +123,7 @@ export default function ProjectTasksPage() {
     const [error, setError] = React.useState<string | null>(null);
     const taskListRef = React.useRef<ProjectTaskListHandle>(null);
     const [searchAnchor, setSearchAnchor] = React.useState<HTMLElement | null>(null);
-    const [filterAnchor, setFilterAnchor] = React.useState<HTMLElement | null>(null);
+    const [filterDialogOpen, setFilterDialogOpen] = React.useState(false);
     const [filters, setFilters] = React.useState<TaskFilters>(defaultTaskFilters);
     const [hasCustomColumns, setHasCustomColumns] = React.useState(false);
 
@@ -377,7 +383,6 @@ export default function ProjectTasksPage() {
     };
 
     const searchOpen = Boolean(searchAnchor);
-    const filterOpen = Boolean(filterAnchor);
     const hasActiveFilters = Boolean(
         filters.executor || filters.status || filters.priority || filters.dueFrom || filters.dueTo
     );
@@ -418,15 +423,12 @@ export default function ProjectTasksPage() {
     };
 
     const handleFilterButtonClick = (event: React.MouseEvent<HTMLElement>) => {
-        if (filterAnchor && event.currentTarget === filterAnchor) {
-            setFilterAnchor(null);
-            return;
-        }
-        setFilterAnchor(event.currentTarget);
+        event.preventDefault();
+        setFilterDialogOpen(true);
     };
 
     const handleFilterClose = () => {
-        setFilterAnchor(null);
+        setFilterDialogOpen(false);
     };
 
     const handleFilterReset = () => {
@@ -447,6 +449,20 @@ export default function ProjectTasksPage() {
         (key: 'dueFrom' | 'dueTo') => (value: Date | null) => {
             setFilters((prev) => ({ ...prev, [key]: value }));
         };
+
+    const handleRemoveFilter = (key: keyof TaskFilters) => {
+        setFilters((prev) => ({ ...prev, [key]: defaultTaskFilters[key] }));
+    };
+
+    const filterChips = React.useMemo(() => {
+        const chips: Array<{ key: keyof TaskFilters; label: string }> = [];
+        if (filters.executor) chips.push({ key: 'executor', label: `Исполнитель: ${filters.executor}` });
+        if (filters.status) chips.push({ key: 'status', label: `Статус: ${getStatusLabel(filters.status)}` });
+        if (filters.priority) chips.push({ key: 'priority', label: `Приоритет: ${getPriorityLabelRu(filters.priority)}` });
+        if (filters.dueFrom) chips.push({ key: 'dueFrom', label: `Срок от: ${format(filters.dueFrom, 'dd.MM.yyyy')}` });
+        if (filters.dueTo) chips.push({ key: 'dueTo', label: `Срок до: ${format(filters.dueTo, 'dd.MM.yyyy')}` });
+        return chips;
+    }, [filters]);
 
     const primaryManagerRaw = React.useMemo(() => {
         const first = projectManagers.find((manager) => manager.trim().length > 0);
@@ -532,7 +548,23 @@ export default function ProjectTasksPage() {
                                 color={textSecondary}
                                 sx={{ fontSize: { xs: '1rem', md: '1.05rem' } }}
                             >
-                                Организация: {orgInfo?.name ?? orgSlug}
+                                Организация:{' '}
+                                {orgSlug ? (
+                                    <Box
+                                        component={Link}
+                                        href={`/org/${encodeURIComponent(orgSlug)}`}
+                                        sx={{
+                                            color: textPrimary,
+                                            fontWeight: 600,
+                                            textDecoration: 'none',
+                                            '&:hover': { textDecoration: 'underline' },
+                                        }}
+                                    >
+                                        {orgInfo?.name ?? orgSlug}
+                                    </Box>
+                                ) : (
+                                    orgInfo?.name ?? orgSlug
+                                )}
                             </Typography>
                             {managerDisplayName && (
                                 <Typography
@@ -575,7 +607,8 @@ export default function ProjectTasksPage() {
                                 <IconButton
                                     onClick={handleFilterButtonClick}
                                     sx={getIconButtonSx({
-                                        active: filterOpen || hasActiveFilters,
+                                        active: filterDialogOpen || hasActiveFilters,
+                                        activeColor: theme.palette.primary.main,
                                     })}
                                 >
                                     <FilterListIcon />
@@ -674,99 +707,122 @@ export default function ProjectTasksPage() {
                     </Box>
                 </Popover>
 
-                <Popover
-                    open={filterOpen}
-                    anchorEl={filterAnchor}
-                    onClose={handleFilterClose}
-                    anchorOrigin={{ vertical: 'bottom', horizontal: 'left' }}
-                    transformOrigin={{ vertical: 'top', horizontal: 'left' }}
-                    PaperProps={{
-                        sx: {
-                            borderRadius: 3,
-                            border: `1px solid ${isDarkMode ? 'rgba(255,255,255,0.08)' : 'rgba(255,255,255,0.65)'}`,
-                            backgroundColor: isDarkMode ? 'rgba(15,18,28,0.95)' : 'rgba(255,255,255,0.9)',
-                            boxShadow: isDarkMode ? '0 25px 70px rgba(0,0,0,0.6)' : '0 25px 70px rgba(15,23,42,0.15)',
-                            backdropFilter: 'blur(18px)',
-                        },
-                    }}
-                >
-                    <LocalizationProvider dateAdapter={AdapterDateFns}>
-                        <Box sx={{ p: 2, width: 320, display: 'flex', flexDirection: 'column', gap: 2 }}>
-                            <Autocomplete
-                                options={filterOptions.executors}
-                                value={filters.executor ?? null}
-                                onChange={handleExecutorFilterChange}
-                                disablePortal
-                                clearOnEscape
-                                handleHomeEndKeys
-                                renderInput={(params) => (
-                                    <TextField {...params} label="Исполнитель" size="small" />
+                <Dialog open={filterDialogOpen} onClose={handleFilterClose} fullWidth maxWidth="xs">
+                    <DialogTitle
+                        sx={{
+                            display: 'flex',
+                            alignItems: 'center',
+                            justifyContent: 'space-between',
+                            gap: 1,
+                            pr: 1,
+                        }}
+                    >
+                        <Typography variant="h6" fontWeight={600}>
+                            Фильтры задач
+                        </Typography>
+                        <IconButton onClick={handleFilterClose}>
+                            <CloseIcon />
+                        </IconButton>
+                    </DialogTitle>
+                    <DialogContent
+                        dividers
+                        sx={{
+                            display: 'flex',
+                            flexDirection: 'column',
+                            gap: 2,
+                        }}
+                    >
+                        <LocalizationProvider dateAdapter={AdapterDateFns}>
+                            <Stack spacing={2}>
+                                <Autocomplete
+                                    options={filterOptions.executors}
+                                    value={filters.executor ?? null}
+                                    onChange={handleExecutorFilterChange}
+                                    disablePortal
+                                    clearOnEscape
+                                    handleHomeEndKeys
+                                    renderInput={(params) => (
+                                        <TextField {...params} label="Исполнитель" size="small" />
+                                    )}
+                                />
+                                <FormControl fullWidth size="small">
+                                    <InputLabel>Статус</InputLabel>
+                                    <Select
+                                        label="Статус"
+                                        value={filters.status}
+                                        onChange={handleSelectFilterChange('status')}
+                                    >
+                                        <MenuItem value="">
+                                            <em>Все</em>
+                                        </MenuItem>
+                                        {filterOptions.statuses.map((status) => (
+                                            <MenuItem key={status} value={status}>
+                                                {getStatusLabel(status)}
+                                            </MenuItem>
+                                        ))}
+                                    </Select>
+                                </FormControl>
+                                <FormControl fullWidth size="small">
+                                    <InputLabel>Приоритет</InputLabel>
+                                    <Select
+                                        label="Приоритет"
+                                        value={filters.priority}
+                                        onChange={handleSelectFilterChange('priority')}
+                                    >
+                                        <MenuItem value="">
+                                            <em>Все</em>
+                                        </MenuItem>
+                                        {filterOptions.priorities.map((priority) => (
+                                            <MenuItem key={priority} value={priority}>
+                                                {getPriorityLabelRu(priority)}
+                                            </MenuItem>
+                                        ))}
+                                    </Select>
+                                </FormControl>
+                                <Stack direction="row" spacing={1}>
+                                    <DatePicker
+                                        label="Срок от"
+                                        value={filters.dueFrom}
+                                        onChange={handleDueDateChange('dueFrom')}
+                                        slotProps={{ textField: { size: 'small' } }}
+                                    />
+                                    <DatePicker
+                                        label="Срок до"
+                                        value={filters.dueTo}
+                                        onChange={handleDueDateChange('dueTo')}
+                                        slotProps={{ textField: { size: 'small' } }}
+                                    />
+                                </Stack>
+                                {filterChips.length > 0 && (
+                                    <Stack direction="row" spacing={1} flexWrap="wrap" useFlexGap>
+                                        {filterChips.map((chip) => (
+                                            <Chip
+                                                key={chip.key}
+                                                label={chip.label}
+                                                onDelete={() => handleRemoveFilter(chip.key)}
+                                                color="primary"
+                                                variant="outlined"
+                                            />
+                                        ))}
+                                    </Stack>
                                 )}
-                            />
-                            <FormControl fullWidth size="small">
-                                <InputLabel>Статус</InputLabel>
-                                <Select
-                                    label="Статус"
-                                    value={filters.status}
-                                    onChange={handleSelectFilterChange('status')}
-                                >
-                                    <MenuItem value="">
-                                        <em>Все</em>
-                                    </MenuItem>
-                                    {filterOptions.statuses.map((status) => (
-                                        <MenuItem key={status} value={status}>
-                                            {getStatusLabel(status)}
-                                        </MenuItem>
-                                    ))}
-                                </Select>
-                            </FormControl>
-                            <FormControl fullWidth size="small">
-                                <InputLabel>Приоритет</InputLabel>
-                                <Select
-                                    label="Приоритет"
-                                    value={filters.priority}
-                                    onChange={handleSelectFilterChange('priority')}
-                                >
-                                    <MenuItem value="">
-                                        <em>Все</em>
-                                    </MenuItem>
-                                    {filterOptions.priorities.map((priority) => (
-                                        <MenuItem key={priority} value={priority}>
-                                            {getPriorityLabelRu(priority)}
-                                        </MenuItem>
-                                    ))}
-                                </Select>
-                            </FormControl>
-                            <Stack direction="row" spacing={1}>
-                                <DatePicker
-                                    label="Срок от"
-                                    value={filters.dueFrom}
-                                    onChange={handleDueDateChange('dueFrom')}
-                                    slotProps={{ textField: { size: 'small' } }}
-                                />
-                                <DatePicker
-                                    label="Срок до"
-                                    value={filters.dueTo}
-                                    onChange={handleDueDateChange('dueTo')}
-                                    slotProps={{ textField: { size: 'small' } }}
-                                />
+                                {hasActiveFilters && (
+                                    <Typography variant="caption" color="text.secondary">
+                                        Активные фильтры: {activeFilterCount}
+                                    </Typography>
+                                )}
                             </Stack>
-                            {hasActiveFilters && (
-                                <Typography variant="caption" color="text.secondary">
-                                    Активные фильтры: {activeFilterCount}
-                                </Typography>
-                            )}
-                            <Stack direction="row" justifyContent="space-between" spacing={1}>
-                                <Button size="small" onClick={handleFilterReset} color="secondary">
-                                    Сбросить
-                                </Button>
-                                <Button size="small" variant="contained" onClick={handleFilterClose}>
-                                    Готово
-                                </Button>
-                            </Stack>
-                        </Box>
-                    </LocalizationProvider>
-                </Popover>
+                        </LocalizationProvider>
+                    </DialogContent>
+                    <DialogActions sx={{ justifyContent: 'space-between', px: 3, py: 2 }}>
+                        <Button onClick={handleFilterReset} color="secondary">
+                            Сбросить
+                        </Button>
+                        <Button variant="contained" onClick={handleFilterClose}>
+                            Готово
+                        </Button>
+                    </DialogActions>
+                </Dialog>
 
                 <Paper
                     variant="outlined"
