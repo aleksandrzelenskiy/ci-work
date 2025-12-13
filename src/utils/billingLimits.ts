@@ -1,0 +1,253 @@
+// src/utils/billingLimits.ts
+import type { ClientSession } from 'mongoose';
+import { Types } from 'mongoose';
+import Subscription, { type SubscriptionPlan } from '@/app/models/SubscriptionModel';
+import BillingUsage, { type BillingPeriod } from '@/app/models/BillingUsageModel';
+
+export type OrgId = Types.ObjectId | string;
+
+export type PlanLimits = {
+    projects: number | null;
+    seats: number | null;
+    publications: number | null;
+};
+
+type UsageKind = 'projects' | 'publications';
+
+type UsageField = 'projectsUsed' | 'publicationsUsed';
+
+export type LimitCheckResult = {
+    ok: boolean;
+    limit: number | null;
+    used: number;
+    plan: SubscriptionPlan;
+    reason?: string;
+};
+
+const BASE_PLAN_LIMITS: Record<SubscriptionPlan, PlanLimits> = {
+    basic: { projects: 1, seats: 5, publications: 5 },
+    pro: { projects: 5, seats: 15, publications: 10 },
+    business: { projects: 15, seats: 30, publications: 20 },
+    enterprise: { projects: null, seats: null, publications: null },
+};
+
+const USAGE_FIELD_MAP: Record<UsageKind, UsageField> = {
+    projects: 'projectsUsed',
+    publications: 'publicationsUsed',
+};
+
+const normalizeLimit = (value?: number | null): number | null => {
+    if (typeof value !== 'number') return null;
+    if (!Number.isFinite(value) || value < 0) return null;
+    return value;
+};
+
+export const getBillingPeriod = (date: Date = new Date()): BillingPeriod => {
+    const year = date.getUTCFullYear();
+    const month = String(date.getUTCMonth() + 1).padStart(2, '0');
+    return `${year}-${month}`;
+};
+
+export const resolvePlanLimits = (
+    plan: SubscriptionPlan,
+    overrides?: {
+        seats?: number | null;
+        projectsLimit?: number | null;
+        publicTasksLimit?: number | null;
+    }
+): PlanLimits => {
+    const base = BASE_PLAN_LIMITS[plan] ?? BASE_PLAN_LIMITS.basic;
+
+    if (plan === 'enterprise') {
+        return {
+            projects: normalizeLimit(overrides?.projectsLimit),
+            seats: normalizeLimit(overrides?.seats),
+            publications: normalizeLimit(overrides?.publicTasksLimit),
+        };
+    }
+
+    return {
+        projects: normalizeLimit(overrides?.projectsLimit) ?? base.projects,
+        seats: normalizeLimit(overrides?.seats) ?? base.seats,
+        publications: normalizeLimit(overrides?.publicTasksLimit) ?? base.publications,
+    };
+};
+
+export const loadPlanForOrg = async (
+    orgId: OrgId
+): Promise<{ plan: SubscriptionPlan; limits: PlanLimits }> => {
+    const sub = await Subscription.findOne({ orgId }).lean();
+    const plan = (sub?.plan as SubscriptionPlan | undefined) ?? 'basic';
+    const limits = resolvePlanLimits(plan, {
+        seats: sub?.seats,
+        projectsLimit: sub?.projectsLimit,
+        publicTasksLimit: sub?.publicTasksLimit,
+    });
+
+    return { plan, limits };
+};
+
+const buildExceeded = (limit: number | null, used: number, plan: SubscriptionPlan, reason: string): LimitCheckResult => ({
+    ok: false,
+    limit,
+    used,
+    plan,
+    reason,
+});
+
+const isDuplicateKeyError = (error: unknown): boolean => {
+    if (!(error instanceof Error)) return false;
+    return error.message.includes('E11000') || error.name === 'MongoServerError';
+};
+
+/**
+ * Проверяет и атомарно бронирует слот по лимиту (проект или публикация).
+ * Возвращает обновлённое значение usage за текущий календарный месяц.
+ */
+export const consumeUsageSlot = async (
+    orgId: OrgId,
+    kind: UsageKind,
+    options?: { session?: ClientSession; period?: BillingPeriod }
+): Promise<LimitCheckResult> => {
+    const orgObjectId =
+        orgId instanceof Types.ObjectId
+            ? orgId
+            : Types.ObjectId.isValid(orgId)
+                ? new Types.ObjectId(orgId)
+                : null;
+
+    if (!orgObjectId) {
+        return buildExceeded(
+            null,
+            0,
+            'basic',
+            'Некорректный идентификатор организации'
+        );
+    }
+
+    const { plan, limits } = await loadPlanForOrg(orgId);
+    const limitValue = limits[kind];
+    const usageField = USAGE_FIELD_MAP[kind];
+    const now = new Date();
+    const period = options?.period ?? getBillingPeriod(now);
+
+    const session = options?.session;
+    const existingQuery = BillingUsage.findOne({ orgId, period });
+    if (session) existingQuery.session(session);
+    const existing = await existingQuery.lean();
+    const currentUsed = (existing?.[usageField] as number | undefined) ?? 0;
+
+    if (typeof limitValue === 'number' && currentUsed >= limitValue) {
+        return buildExceeded(
+            limitValue,
+            currentUsed,
+            plan,
+            `Лимит исчерпан: ${currentUsed}/${limitValue}`
+        );
+    }
+
+    let usageDoc: Record<string, unknown> | null = null;
+
+    try {
+        if (existing) {
+            usageDoc = await BillingUsage.findOneAndUpdate(
+                {
+                    _id: existing._id,
+                    ...(typeof limitValue === 'number' ? { [usageField]: { $lt: limitValue } } : {}),
+                },
+                {
+                    $inc: { [usageField]: 1 },
+                    $set: { updatedAt: now },
+                },
+                {
+                    new: true,
+                    lean: true,
+                    ...(session ? { session } : {}),
+                }
+            );
+        } else {
+            const initial: Record<UsageField, number> = {
+                projectsUsed: 0,
+                publicationsUsed: 0,
+            };
+            initial[usageField] = 1;
+
+            const created = await BillingUsage.create(
+                [
+                    {
+                        orgId: orgObjectId,
+                        period,
+                        ...initial,
+                    },
+                ],
+                session ? { session } : undefined
+            );
+            usageDoc = created[0]?.toObject?.() ?? (created[0] as unknown as Record<string, unknown>);
+        }
+    } catch (error) {
+        if (!isDuplicateKeyError(error)) {
+            throw error;
+        }
+
+        const retryQuery = BillingUsage.findOne({ orgId, period });
+        if (session) retryQuery.session(session);
+        const retry = await retryQuery.lean();
+        const retryUsed = (retry?.[usageField] as number | undefined) ?? 0;
+        if (!retry) {
+            throw error;
+        }
+        if (typeof limitValue === 'number' && retryUsed >= limitValue) {
+            return buildExceeded(
+                limitValue,
+                retryUsed,
+                plan,
+                `Лимит исчерпан: ${retryUsed}/${limitValue}`
+            );
+        }
+
+        usageDoc = await BillingUsage.findOneAndUpdate(
+            {
+                _id: retry._id,
+                ...(typeof limitValue === 'number' ? { [usageField]: { $lt: limitValue } } : {}),
+            },
+            {
+                $inc: { [usageField]: 1 },
+                $set: { updatedAt: now },
+            },
+            {
+                new: true,
+                lean: true,
+                ...(session ? { session } : {}),
+            }
+        );
+    }
+
+    if (!usageDoc) {
+        return buildExceeded(
+            typeof limitValue === 'number' ? limitValue : null,
+            currentUsed,
+            plan,
+            'Лимит исчерпан'
+        );
+    }
+
+    const used = (usageDoc?.[usageField] as number | undefined) ?? currentUsed + 1;
+
+    return {
+        ok: true,
+        plan,
+        limit: typeof limitValue === 'number' ? limitValue : null,
+        used,
+    };
+};
+
+/**
+ * Возвращает снапшот usage за месяц без инкремента.
+ */
+export const getUsageSnapshot = async (
+    orgId: OrgId,
+    period: BillingPeriod = getBillingPeriod()
+) => {
+    const usage = await BillingUsage.findOne({ orgId, period }).lean();
+    return usage ?? null;
+};
