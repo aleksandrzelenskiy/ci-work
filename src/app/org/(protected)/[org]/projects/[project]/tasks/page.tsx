@@ -397,9 +397,7 @@ export default function ProjectTasksPage() {
             border: `1px solid ${disabled ? 'transparent' : iconBorderColor}`,
             backgroundColor: disabled
                 ? 'transparent'
-                : active
-                    ? iconActiveBg
-                    : iconBg,
+                : iconBg,
             color: disabled
                 ? disabledIconColor
                 : active

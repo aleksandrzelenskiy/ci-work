@@ -244,7 +244,11 @@ const ProjectTaskListInner = (
     }, []);
 
     const handleResetColumns = useCallback(() => {
-        setColumnVisibility({ ...DEFAULT_COLUMN_VISIBILITY });
+        const cleared = COLUMN_KEYS.reduce((acc, key) => {
+            acc[key] = false;
+            return acc;
+        }, {} as Record<ColumnKey, boolean>);
+        setColumnVisibility(cleared);
     }, []);
 
     const [page, setPage] = useState(1);
@@ -629,7 +633,7 @@ const ProjectTaskListInner = (
                             Выбрать все
                         </Button>
                         <Button onClick={handleResetColumns} startIcon={<CheckBoxOutlineBlankIcon />}>
-                            Сбросить
+                            Очистить
                         </Button>
                     </DialogActions>
                 </Dialog>
