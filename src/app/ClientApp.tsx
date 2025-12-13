@@ -194,25 +194,23 @@ export default function ClientApp({ children }: { children: React.ReactNode }) {
 
   const walletMenuOpen = Boolean(walletAnchor);
 
+  type WalletResponse =
+      | { balance: number; bonusBalance: number; total: number; currency?: string }
+      | { error: string };
+
+  const isWalletPayload = (payload: WalletResponse | null): payload is Extract<WalletResponse, { balance: number }> =>
+      !!payload && 'balance' in payload;
+
   const loadWalletInfo = async () => {
       setWalletLoading(true);
       setWalletError(null);
       const res = await fetch('/api/wallet/me', { cache: 'no-store' });
-      const data = (await res.json().catch(() => null)) as
-          | { balance: number; bonusBalance: number; total: number; currency?: string }
-          | { error: string }
-          | null;
-      if (!res.ok || !data) {
+      const data = (await res.json().catch(() => null)) as WalletResponse | null;
+      if (!res.ok || !data || !isWalletPayload(data)) {
           setWalletInfo(null);
           setWalletError(
               data && 'error' in data ? data.error : 'Не удалось загрузить кошелёк',
           );
-          setWalletLoading(false);
-          return;
-      }
-      if ('error' in data) {
-          setWalletInfo(null);
-          setWalletError(data.error);
           setWalletLoading(false);
           return;
       }
