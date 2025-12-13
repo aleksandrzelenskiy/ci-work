@@ -11,6 +11,7 @@ import {
     Stack,
     Typography,
 } from '@mui/material';
+import { useTheme } from '@mui/material/styles';
 import TopicIcon from '@mui/icons-material/Topic';
 import { RUSSIAN_REGIONS, REGION_MAP, REGION_ISO_MAP } from '@/app/utils/regions';
 import { OPERATORS } from '@/app/utils/operators';
@@ -66,6 +67,24 @@ export default function ProjectDialog({
     onClose,
     onSubmit,
 }: Props) {
+    const theme = useTheme();
+    const isDarkMode = theme.palette.mode === 'dark';
+    const dialogPaperBg = isDarkMode ? 'rgba(12,16,26,0.92)' : 'rgba(255,255,255,0.85)';
+    const dialogPaperBorder = isDarkMode ? 'rgba(255,255,255,0.07)' : 'rgba(255,255,255,0.4)';
+    const dialogShadow = isDarkMode ? '0 40px 90px rgba(0,0,0,0.7)' : '0 40px 80px rgba(15,23,42,0.25)';
+    const headerBg = isDarkMode
+        ? 'linear-gradient(120deg, rgba(20,28,45,0.95), rgba(30,41,59,0.88))'
+        : 'linear-gradient(120deg, rgba(255,255,255,0.95), rgba(243,244,255,0.85))';
+    const headerBorder = isDarkMode ? 'rgba(255,255,255,0.08)' : 'rgba(255,255,255,0.4)';
+    const contentBg = isDarkMode
+        ? 'linear-gradient(180deg, rgba(13,18,30,0.9), rgba(15,23,42,0.92))'
+        : 'linear-gradient(180deg, rgba(255,255,255,0.92), rgba(248,250,255,0.8))';
+    const actionsBg = isDarkMode ? 'rgba(15,18,28,0.9)' : 'rgba(255,255,255,0.85)';
+    const inputBg = isDarkMode ? 'rgba(255,255,255,0.06)' : 'rgba(255,255,255,0.92)';
+    const inputBorder = isDarkMode ? 'rgba(255,255,255,0.18)' : 'rgba(255,255,255,0.6)';
+    const inputHoverBorder = isDarkMode ? 'rgba(125,211,252,0.6)' : 'rgba(147,197,253,0.9)';
+    const inputFocusBorder = isDarkMode ? 'rgba(59,130,246,0.85)' : 'rgba(59,130,246,0.8)';
+
     const [name, setName] = React.useState('');
     const [key, setKey] = React.useState('');
     const [description, setDescription] = React.useState('');
@@ -119,11 +138,11 @@ export default function ProjectDialog({
     const isSubmitDisabled = !name.trim() || !key.trim() || !regionCode || !operator || busy;
     const glassInputSx = {
         '& .MuiOutlinedInput-root': {
-            backgroundColor: 'rgba(255,255,255,0.92)',
+            backgroundColor: inputBg,
             borderRadius: 3,
-            '& fieldset': { borderColor: 'rgba(255,255,255,0.6)' },
-            '&:hover fieldset': { borderColor: 'rgba(147,197,253,0.9)' },
-            '&.Mui-focused fieldset': { borderColor: 'rgba(59,130,246,0.8)' },
+            '& fieldset': { borderColor: inputBorder },
+            '&:hover fieldset': { borderColor: inputHoverBorder },
+            '&.Mui-focused fieldset': { borderColor: inputFocusBorder },
         },
     };
 
@@ -161,17 +180,17 @@ export default function ProjectDialog({
             PaperProps={{
                 sx: {
                     backdropFilter: 'blur(28px)',
-                    backgroundColor: 'rgba(255,255,255,0.85)',
-                    border: '1px solid rgba(255,255,255,0.4)',
+                    backgroundColor: dialogPaperBg,
+                    border: `1px solid ${dialogPaperBorder}`,
                     borderRadius: 4,
-                    boxShadow: '0 40px 80px rgba(15,23,42,0.25)',
+                    boxShadow: dialogShadow,
                 },
             }}
         >
             <DialogTitle
                 sx={{
-                    background: 'linear-gradient(120deg, rgba(255,255,255,0.95), rgba(243,244,255,0.85))',
-                    borderBottom: '1px solid rgba(255,255,255,0.4)',
+                    background: headerBg,
+                    borderBottom: `1px solid ${headerBorder}`,
                     fontWeight: 600,
                 }}
             >
@@ -183,7 +202,7 @@ export default function ProjectDialog({
             <DialogContent
                 dividers
                 sx={{
-                    background: 'linear-gradient(180deg, rgba(255,255,255,0.92), rgba(248,250,255,0.8))',
+                    background: contentBg,
                 }}
             >
                 <TextField
@@ -279,8 +298,8 @@ export default function ProjectDialog({
             </DialogContent>
             <DialogActions
                 sx={{
-                    backgroundColor: 'rgba(255,255,255,0.85)',
-                    borderTop: '1px solid rgba(255,255,255,0.4)',
+                    backgroundColor: actionsBg,
+                    borderTop: `1px solid ${headerBorder}`,
                 }}
             >
                 <Button onClick={onClose} disabled={busy} sx={{ borderRadius: 999, px: 2 }}>
