@@ -292,6 +292,17 @@ export default function TaskDetailsPage() {
     const [applicationActionLoading, setApplicationActionLoading] = React.useState<string | null>(
         null
     );
+    const [applicationConfirm, setApplicationConfirm] = React.useState<{
+        open: boolean;
+        applicationId: string | null;
+        action: 'assign' | 'unassign' | null;
+        contractorName?: string | null;
+    }>({
+        open: false,
+        applicationId: null,
+        action: null,
+        contractorName: null,
+    });
     const [applicationSnack, setApplicationSnack] = React.useState<{
         open: boolean;
         message: string;
@@ -1190,6 +1201,31 @@ export default function TaskDetailsPage() {
         }
     };
 
+    const closeApplicationConfirm = () => {
+        if (applicationActionLoading) return;
+        setApplicationConfirm({
+            open: false,
+            applicationId: null,
+            action: null,
+            contractorName: null,
+        });
+    };
+
+    const confirmApplicationAction = async () => {
+        if (!applicationConfirm.applicationId || !applicationConfirm.action) return;
+        if (applicationConfirm.action === 'assign') {
+            await handleAcceptApplication(applicationConfirm.applicationId);
+        } else {
+            await handleUnassignApplication(applicationConfirm.applicationId);
+        }
+        setApplicationConfirm({
+            open: false,
+            applicationId: null,
+            action: null,
+            contractorName: null,
+        });
+    };
+
     const sortedEvents = React.useMemo(() => {
         if (!task?.events) return [];
 
@@ -1977,9 +2013,13 @@ export default function TaskDetailsPage() {
                                                                 color={isAccepted ? 'error' : 'primary'}
                                                                 size="small"
                                                                 onClick={() =>
-                                                                    void (isAccepted
-                                                                        ? handleUnassignApplication(appId)
-                                                                        : handleAcceptApplication(appId))
+                                                                    setApplicationConfirm({
+                                                                        open: true,
+                                                                        applicationId: appId,
+                                                                        action: isAccepted ? 'unassign' : 'assign',
+                                                                        contractorName:
+                                                                            app.contractorName || app.contractorEmail || null,
+                                                                    })
                                                                 }
                                                                 disabled={
                                                                     !appId ||
@@ -2990,6 +3030,42 @@ export default function TaskDetailsPage() {
                         startIcon={deleting ? <CircularProgress size={18} color="inherit" /> : null}
                     >
                         Удалить
+                    </Button>
+                </DialogActions>
+            </Dialog>
+
+            <Dialog
+                open={applicationConfirm.open}
+                onClose={closeApplicationConfirm}
+            >
+                <DialogTitle>Подтвердите действие</DialogTitle>
+                <DialogContent>
+                    <Typography>
+                        {applicationConfirm.action === 'assign'
+                            ? `Назначить исполнителя${
+                                applicationConfirm.contractorName ? ` ${applicationConfirm.contractorName}` : ''
+                            } на задачу?`
+                            : `Снять исполнителя${
+                                applicationConfirm.contractorName ? ` ${applicationConfirm.contractorName}` : ''
+                            } с задачи?`}
+                    </Typography>
+                </DialogContent>
+                <DialogActions>
+                    <Button onClick={closeApplicationConfirm} disabled={!!applicationActionLoading}>
+                        Отмена
+                    </Button>
+                    <Button
+                        onClick={() => void confirmApplicationAction()}
+                        color={applicationConfirm.action === 'assign' ? 'primary' : 'error'}
+                        variant="contained"
+                        disabled={!!applicationActionLoading}
+                        startIcon={
+                            applicationActionLoading === applicationConfirm.applicationId ? (
+                                <CircularProgress size={18} color="inherit" />
+                            ) : null
+                        }
+                    >
+                        {applicationConfirm.action === 'assign' ? 'Назначить' : 'Снять'}
                     </Button>
                 </DialogActions>
             </Dialog>
